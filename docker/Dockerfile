@@ -147,7 +147,7 @@ ENV PYTHONPATH=$PYTHONPATH:/opt/boblib/build/lib
 FROM ubuntu:22.04 AS boblib-app
 # Copy the compiled libs
 COPY --from=boblib /usr/local/ /usr/local/
-COPY --from=boblib /opt/boblib/install_app.sh /root
+COPY --from=boblib /opt/bobcamera/src/boblib/install_app.sh /root
 COPY --from=qhy /opt/sdk_qhy /opt/sdk_qhy/
 # install dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
