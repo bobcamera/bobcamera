@@ -5,7 +5,7 @@
 #include <execution>
 #include <algorithm>
 
-using namespace boblib::bgs
+namespace boblib::bgs
 {
     CoreBgs::CoreBgs(size_t _numProcessesParallel)
         : m_num_processes_parallel{_numProcessesParallel}
