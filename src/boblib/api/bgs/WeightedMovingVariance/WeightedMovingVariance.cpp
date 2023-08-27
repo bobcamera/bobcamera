@@ -6,7 +6,7 @@
 
 static const uint8_t ZERO_UC{0};
 
-using namespace boblib::bgs
+namespace boblib::bgs
 {
     WeightedMovingVariance::WeightedMovingVariance(WMVParams _params,
                                                 size_t _num_processes_parallel)
