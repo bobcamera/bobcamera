@@ -1,0 +1,95 @@
+#include <opencv2/opencv.hpp>
+
+#include <rclcpp/rclcpp.hpp>
+#include <cv_bridge/cv_bridge.hpp>
+#include <message_filters/subscriber.h>
+#include <message_filters/time_synchronizer.h>
+
+#include <sensor_msgs/msg/image.hpp>
+#include "bob_interfaces/msg/tracking_state.hpp"
+#include "bob_interfaces/msg/track_detection_array.hpp"
+#include "bob_interfaces/msg/track_trajectory_array.hpp"
+
+#include <boblib/api/utils/profiler.hpp>
+
+#include "annotated_frame_creator.hpp"
+
+#include "parameter_node.hpp"
+
+class AnnotatedFrameProvider 
+    : public ParameterNode
+{
+public:
+    static std::shared_ptr<AnnotatedFrameProvider> create()
+    {
+        auto result = std::shared_ptr<AnnotatedFrameProvider>(new AnnotatedFrameProvider());
+        result->init();
+        return result;
+    }
+
+private:
+    std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> sub_masked_frame;
+    std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::TrackingState>> sub_tracking_state;
+    std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::TrackDetectionArray>> sub_tracker_detections;
+    std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::TrackTrajectoryArray>> sub_tracker_trajectory;
+    std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::TrackTrajectoryArray>> sub_tracker_prediction;
+
+    std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::TrackingState, bob_interfaces::msg::TrackDetectionArray, bob_interfaces::msg::TrackTrajectoryArray, bob_interfaces::msg::TrackTrajectoryArray>> time_synchronizer_;
+
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_annotated_frame_;
+
+    AnnotatedFrameCreator annotated_frame_creator_;
+    boblib::utils::Profiler profiler_;
+
+    friend std::shared_ptr<AnnotatedFrameProvider> std::make_shared<AnnotatedFrameProvider>();
+
+    AnnotatedFrameProvider() 
+        : ParameterNode("annotated_frame_provider_node")
+        , annotated_frame_creator_(std::map<std::string, std::string>())
+    {
+    }
+
+    void init()
+    {
+        pub_annotated_frame_ = create_publisher<sensor_msgs::msg::Image>("bob/frames/annotated", rclcpp::QoS(10));
+
+        sub_masked_frame = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(this->shared_from_this(), "bob/frames/all_sky/masked");
+        sub_tracking_state = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::TrackingState>>(this->shared_from_this(), "bob/tracker/tracking_state");
+        sub_tracker_detections = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::TrackDetectionArray>>(this->shared_from_this(), "bob/tracker/detections");
+        sub_tracker_trajectory = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::TrackTrajectoryArray>>(this->shared_from_this(), "bob/tracker/trajectory");
+        sub_tracker_prediction = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::TrackTrajectoryArray>>(this->shared_from_this(), "bob/tracker/prediction");
+
+        time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::TrackingState, bob_interfaces::msg::TrackDetectionArray, bob_interfaces::msg::TrackTrajectoryArray, bob_interfaces::msg::TrackTrajectoryArray>>(
+            *sub_masked_frame, *sub_tracking_state, *sub_tracker_detections, *sub_tracker_trajectory, *sub_tracker_prediction, 10);
+        time_synchronizer_->registerCallback(&AnnotatedFrameProvider::callback, this);
+    }
+
+    void callback(const sensor_msgs::msg::Image::SharedPtr& masked_image_msg
+        , const bob_interfaces::msg::TrackingState::SharedPtr& tracking_state_msg
+        , const bob_interfaces::msg::TrackDetectionArray::SharedPtr& detections_msg
+        , const bob_interfaces::msg::TrackTrajectoryArray::SharedPtr& trajectory_msg
+        , const bob_interfaces::msg::TrackTrajectoryArray::SharedPtr& prediction_msg)
+    {
+        try
+        {
+            auto masked_img_bridge = cv_bridge::toCvShare(masked_image_msg);
+
+            auto annotated_frame = annotated_frame_creator_.create_frame(masked_img_bridge->image, *tracking_state_msg, *detections_msg, *trajectory_msg, *prediction_msg);
+
+            auto annotated_frame_msg = cv_bridge::CvImage(masked_image_msg->header, sensor_msgs::image_encodings::BGR8, annotated_frame).toImageMsg();
+            pub_annotated_frame_->publish(*annotated_frame_msg);
+        }
+        catch (cv_bridge::Exception &e)
+        {
+            RCLCPP_ERROR(get_logger(), "CV bridge exception: %s", e.what());
+        }
+    }
+};
+
+int main(int argc, char **argv)
+{
+    rclcpp::init(argc, argv);
+    rclcpp::spin(AnnotatedFrameProvider::create());
+    rclcpp::shutdown();
+    return 0;
+}
