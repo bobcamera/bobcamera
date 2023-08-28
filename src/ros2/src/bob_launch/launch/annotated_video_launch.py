@@ -31,6 +31,11 @@ def generate_launch_description():
             output='screen'
         ),
         Node(
+            package='bob_recorder',
+            executable='rosbag_recorder',
+            name='rosbag_recorder'
+        ),        
+        Node(
             package='bob_visualizers',
             executable='annotated_frame_provider_node',
             name='annotated_frame_provider_node',
