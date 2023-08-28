@@ -59,7 +59,7 @@ int main(int argc, const char **argv)
 
     std::cout << "Available number of concurrent threads = " << std::thread::hardware_concurrency() << std::endl;
 
-    bgsPtr = createBGS(BGSType::Vibe);
+    bgsPtr = createBGS(BGSType::WMV);
     cv::VideoCapture cap;
 
     if (argc > 1)
@@ -124,8 +124,8 @@ int main(int argc, const char **argv)
                 std::cout << "No image" << std::endl;
                 break;
             }
-            frame.convertTo(frame16, CV_16UC3, 256.0f);
-            appyPreProcess(frame16, processedFrame);
+            //frame.convertTo(frame16, CV_16UC3, 256.0f);
+            appyPreProcess(frame, processedFrame);
             appyBGS(processedFrame, bgsMask);
             findBlobs(bgsMask, bboxes);
             auto endProcessedTime = std::chrono::high_resolution_clock::now();

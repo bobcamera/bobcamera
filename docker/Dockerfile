@@ -46,20 +46,6 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
     && ln -s /usr/bin/python3 /usr/bin/python \
     && apt-get autoclean && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-    # && wget --no-check-certificate -O get-pip.py https://bootstrap.pypa.io/get-pip.py && python3 get-pip.py \
-        #nano \
-        #curl \
-        #libgtk-3-dev \
-        #libjpeg-dev \
-        #libpng-dev \
-        #libtiff-dev \
-        #gfortran \
-        #openexr \
-        #qtchooser \
-        #qt5-qmake \
-        #qtbase5-dev-tools \
-        #libvtk9-dev libvtk9-qt-dev \
-        #clang \
 
 ###################################################################
 FROM builder AS opencv
@@ -117,7 +103,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends wget tar \
     && TMPDIR=/opt \
     && AMD64_LINK=https://www.qhyccd.com/file/repository/publish/SDK/230509/sdk_linux64_23.05.09.tgz \
     && ARM64_LINK=https://www.qhyccd.com/file/repository/publish/SDK/230509/sdk_Arm64_23.05.09.tgz \
-    # detect
     && if [ "$(uname -m)" = "x86_64" ]; then \
         DOWNLOAD_LINK=$AMD64_LINK; \
     else \
@@ -140,19 +125,19 @@ RUN cd /opt/sdk_qhy && bash install.sh \
     && cmake -DCMAKE_INSTALL_PREFIX=/usr/local .. \
     && cmake --build . -j$(nproc) \
     && make install
-#TODO: CHANGE PATH
-ENV PYTHONPATH=$PYTHONPATH:/opt/boblib/build/lib
+ENV PYTHONPATH=$PYTHONPATH:/usr/local/lib/python3/dist-packages/
 
 ###################################################################
 FROM ubuntu:22.04 AS boblib-app
 # Copy the compiled libs
 COPY --from=boblib /usr/local/ /usr/local/
 COPY --from=boblib /opt/bobcamera/src/boblib/install_app.sh /root
+COPY --from=boblib /usr/lib/python3/dist-packages /usr/lib/python3/dist-packages
 COPY --from=qhy /opt/sdk_qhy /opt/sdk_qhy/
 # install dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libtbb12 libqt5opengl5 libqt5test5 libdc1394-25 libgstreamer-plugins-base1.0-0 \
-        libavcodec58 libavformat58 libswscale5 liblapack3 libatlas-base-dev openexr \
+        libavcodec58 libavformat58 libswscale5 liblapack3 libatlas-base-dev openexr libhdf5-dev \
     # Install QHY SDK 
     && cd /opt/sdk_qhy && bash install.sh \
     # Install the libs locally
@@ -161,7 +146,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get autoclean && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 #TODO: CHANGE PATH
-ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.10/:/opt/sky360lib/build/lib
+ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.10/:/usr/local/lib/python3/dist-packages/
 WORKDIR /root
 
 
