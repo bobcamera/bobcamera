@@ -4,7 +4,8 @@ from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
-    video_file = os.path.join(get_package_share_directory('bob_launch'), 'videos', 'brad_drone_1.mp4')
+    video_file1 = '/workspaces/bobcamera/test/fisheye_videos/brad_drone_1.mp4'
+    video_file2 = '/workspaces/bobcamera/test/fisheye_videos/Dahua-20220901-184734.mp4'
     return LaunchDescription([
         Node(
             package='bob_camera',
@@ -15,7 +16,7 @@ def generate_launch_description():
                         , {'image_info_publish_topic': 'bob/camera/all_sky/image_info'}
                         , {'camera_info_publish_topic': 'bob/camera/all_sky/camera_info'}
                         , {'is_video': True}
-                        , {'video_path': video_file}
+                        , {'videos': [video_file1, video_file2]}
                         , {'resize_height': 1200}]
         ),
         Node(
