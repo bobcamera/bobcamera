@@ -75,3 +75,8 @@ build*/
 cmake-build*/
 [Bb]in/
 [Oo]bj/
+
+build/
+install/
+log/
+__pycache__/launch.cpython-310.pyc
