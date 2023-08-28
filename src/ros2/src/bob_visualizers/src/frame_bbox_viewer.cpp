@@ -92,14 +92,10 @@ private:
             bool topic_change = false;
             switch (key)
             {
-            case 81:
-                current_topic_--;
-                topic_change = true;
-                break;
-            case 83:
-                current_topic_++;
-                topic_change = true;
-                break;
+                case 'q': current_topic_--; topic_change = true; break;
+                case 81: current_topic_--; topic_change = true; break;
+                case 83: current_topic_++; topic_change = true; break;
+                case 'w': current_topic_++; topic_change = true; break;
             }
             if (topic_change)
             {
