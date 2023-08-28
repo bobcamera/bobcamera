@@ -17,6 +17,7 @@
 #include "video_tracker.hpp"
 
 #include "parameter_node.hpp"
+#include "image_utils.hpp"
 
 class TrackProvider
     : public ParameterNode
@@ -55,23 +56,35 @@ private:
 
     void init()
     {
-        masked_frame_subscription_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(shared_from_this(), "bob/frames/all_sky/masked");
-        detector_bounding_boxes_subscription_ = std::make_shared<message_filters::Subscriber<vision_msgs::msg::BoundingBox2DArray>>(shared_from_this(), "bob/detector/all_sky/bounding_boxes");
+        rclcpp::QoS pub_qos_profile{2};
+        pub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
+        pub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
+        pub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
+        
+        rclcpp::QoS sub_qos_profile{2};
+        sub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
+        sub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
+        sub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
+        auto rmw_qos_profile = sub_qos_profile.get_rmw_qos_profile();
 
-        time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, vision_msgs::msg::BoundingBox2DArray>>(*masked_frame_subscription_, *detector_bounding_boxes_subscription_, 10);
+        masked_frame_subscription_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(shared_from_this(), "bob/camera/all_sky/bayer", rmw_qos_profile);
+        detector_bounding_boxes_subscription_ = std::make_shared<message_filters::Subscriber<vision_msgs::msg::BoundingBox2DArray>>(shared_from_this(), "bob/detector/all_sky/bounding_boxes", rmw_qos_profile);
+
+        time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, vision_msgs::msg::BoundingBox2DArray>>(*masked_frame_subscription_, *detector_bounding_boxes_subscription_, 2);
         time_synchronizer_->registerCallback(&TrackProvider::callback, this);
 
-        pub_tracker_tracking_state = create_publisher<bob_interfaces::msg::TrackingState>("bob/tracker/tracking_state", 10);
-        pub_tracker_detects = create_publisher<bob_interfaces::msg::TrackDetectionArray>("bob/tracker/detections", 10);
-        pub_tracker_trajectory = create_publisher<bob_interfaces::msg::TrackTrajectoryArray>("bob/tracker/trajectory", 10);
-        pub_tracker_prediction = create_publisher<bob_interfaces::msg::TrackTrajectoryArray>("bob/tracker/prediction", 10);
+        pub_tracker_tracking_state = create_publisher<bob_interfaces::msg::TrackingState>("bob/tracker/tracking_state", pub_qos_profile);
+        pub_tracker_detects = create_publisher<bob_interfaces::msg::TrackDetectionArray>("bob/tracker/detections", pub_qos_profile);
+        pub_tracker_trajectory = create_publisher<bob_interfaces::msg::TrackTrajectoryArray>("bob/tracker/trajectory", pub_qos_profile);
+        pub_tracker_prediction = create_publisher<bob_interfaces::msg::TrackTrajectoryArray>("bob/tracker/prediction", pub_qos_profile);
     }
 
     void callback(const sensor_msgs::msg::Image::SharedPtr &image_msg, const vision_msgs::msg::BoundingBox2DArray::SharedPtr &bounding_boxes_msg)
     {
         try
         {
-            cv_bridge::CvImagePtr masked_img_bridge = cv_bridge::toCvCopy(image_msg, image_msg->encoding);
+            cv::Mat masked_img_bridge;
+            ImageUtils::convert_image_msg(image_msg, masked_img_bridge);
 
             std::vector<cv::Rect> bboxes;
             for (const auto &bbox2D : bounding_boxes_msg->boxes)
@@ -79,7 +92,7 @@ private:
                 bboxes.push_back(cv::Rect(bbox2D.center.position.x - bbox2D.size_x / 2, bbox2D.center.position.y - bbox2D.size_y / 2, bbox2D.size_x, bbox2D.size_y));
             }
 
-            video_tracker_.update_trackers(bboxes, masked_img_bridge->image);
+            video_tracker_.update_trackers(bboxes, masked_img_bridge);
 
             publish_detect_array(image_msg->header);
             publish_trajectory_array(image_msg->header);

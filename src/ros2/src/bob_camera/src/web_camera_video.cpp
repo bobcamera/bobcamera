@@ -41,11 +41,11 @@ public:
                 video_capture_.read(image);
             }
 
-            if (false)
+            if (resize_height_ > 0)
             {
                 double aspect_ratio = (double)image.size().width / (double)image.size().height;
-                uint32_t frame_height = 2000;
-                uint32_t frame_width = (uint32_t)(aspect_ratio * (double)frame_height);
+                int frame_height = resize_height_;
+                int frame_width = (int)(aspect_ratio * (double)frame_height);
                 cv::resize(image, image, cv::Size(frame_width, frame_height));
             }
 
@@ -75,6 +75,7 @@ private:
     bob_camera::msg::CameraInfo camera_info_msg_;
     bool is_video_;
     int camera_id_;
+    int resize_height_;
     std::string video_path_;
     std::string image_publish_topic_;
     std::string image_info_publish_topic_;
@@ -116,6 +117,10 @@ private:
                     camera_info_publish_topic_ = param.as_string(); 
                     camera_info_publisher_ = create_publisher<bob_camera::msg::CameraInfo>(camera_info_publish_topic_, qos_profile_);
                 }
+            ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("resize_height", 0), 
+                [this](const rclcpp::Parameter& param) {resize_height_ = param.as_int();}
             ),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("is_video", false), 
