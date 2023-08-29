@@ -31,11 +31,11 @@ def generate_launch_description():
             name='track_provider_node',
             output='screen'
         ),
-        Node(
-            package='bob_recorder',
-            executable='rosbag_recorder',
-            name='rosbag_recorder'
-        ),        
+        #Node(
+        #    package='bob_recorder',
+        #    executable='rosbag_recorder',
+        #    name='rosbag_recorder'
+        #),        
         Node(
             package='bob_image_processing',
             executable='annotated_frame_provider_node',
