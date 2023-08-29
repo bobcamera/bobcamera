@@ -48,7 +48,7 @@ private:
 
     TrackProvider()
         : ParameterNode("frame_provider_node")
-        , video_tracker_(std::map<std::string, std::string>(), get_logger())
+        , video_tracker_({{"tracker_type", "MOSSE"}}, get_logger())
     {
     }
 
