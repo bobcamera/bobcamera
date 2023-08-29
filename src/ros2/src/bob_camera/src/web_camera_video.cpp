@@ -40,7 +40,6 @@ public:
             {
                 current_video_idx_ = current_video_idx_ >= (videos_.size() - 1) ? 0 : current_video_idx_ + 1;
                 open_camera();
-                // video_capture_.set(cv::CAP_PROP_POS_FRAMES, 0); // if video ends, loop back to start
                 video_capture_.read(image);
             }
 
