@@ -11,8 +11,6 @@
 
 #include <boblib/api/utils/profiler.hpp>
 
-#include "annotated_frame_creator.hpp"
-
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
 
@@ -71,10 +69,10 @@ private:
     {
         try
         {
-            cv::Mat debayered_img;
-            ImageUtils::convert_image_msg(image_msg, debayered_img);
+            cv::Mat img;
+            ImageUtils::convert_image_msg(image_msg, img, true);
 
-            cv::imshow("Image Viewer", debayered_img);
+            cv::imshow("Image Viewer", img);
             int key = cv::waitKey(1);
             bool topic_change = false;
             switch (key)

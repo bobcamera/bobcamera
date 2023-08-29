@@ -35,11 +35,7 @@ public:
         cv::Mat image;
         while (rclcpp::ok())
         {
-            if (enable_profiling_)
-            {
-                profiler_.start("Frame");
-            }
-
+            profile_start("Frame");
             auto camera_params = qhy_camera_.get_camera_params();
 
             qhy_camera_.get_frame(image, false);
@@ -64,16 +60,8 @@ public:
             camera_info_msg_.header = header;
             camera_info_publisher_->publish(camera_info_msg_);
 
-            if (enable_profiling_)
-            {
-                profiler_.stop("Frame");
-                if (profiler_.get_data("Frame").duration_in_seconds() > 1.0)
-                {
-                    auto report = profiler_.report();
-                    RCLCPP_INFO(get_logger(), report.c_str());
-                    profiler_.reset();
-                }
-            }
+            profile_stop("Frame");
+            profile_dump();
 
             rclcpp::spin_some(get_node_base_interface());
         }
@@ -351,6 +339,35 @@ private:
             return sensor_msgs::image_encodings::BAYER_RGGB8;
         default:
             return sensor_msgs::image_encodings::MONO8;
+        }
+    }
+
+    inline void profile_start(const std::string& region)
+    {
+        if (enable_profiling_)
+        {
+            profiler_.start(region);
+        }
+    }
+
+    inline void profile_stop(const std::string& region)
+    {
+        if (enable_profiling_)
+        {
+            profiler_.stop(region);
+        }
+    }
+
+    inline void profile_dump()
+    {
+        if (enable_profiling_)
+        {
+            if (profiler_.get_data("Frame").duration_in_seconds() > 1.0)
+            {
+                auto report = profiler_.report();
+                RCLCPP_INFO(get_logger(), report.c_str());
+                profiler_.reset();
+            }
         }
     }
 };

@@ -35,12 +35,6 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
     add_definitions(-Wno-missing-braces)
 ENDIF()
 
-# Annotated Frame Provider Node
-add_executable(annotated_frame_provider_node src/annotated_frame_provider.cpp)
-target_link_libraries(annotated_frame_provider_node PUBLIC boblib)
-ament_target_dependencies(annotated_frame_provider_node PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV bob_interfaces)
-install(TARGETS annotated_frame_provider_node DESTINATION lib/${PROJECT_NAME})
-
 # Frame Viewer Node
 add_executable(frame_viewer_node src/frame_viewer.cpp)
 target_link_libraries(frame_viewer_node PUBLIC boblib)

@@ -28,7 +28,7 @@ public:
     
     void start_publishing()
     {
-        RCLCPP_INFO(get_logger(), "Number of videos: %d", videos_.size());
+        RCLCPP_INFO(get_logger(), "Number of videos: %ld", videos_.size());
         open_camera();
 
         create_camera_info_msg();
@@ -46,9 +46,9 @@ public:
 
             if (resize_height_ > 0)
             {
-                double aspect_ratio = (double)image.size().width / (double)image.size().height;
-                int frame_height = resize_height_;
-                int frame_width = (int)(aspect_ratio * (double)frame_height);
+                const double aspect_ratio = (double)image.size().width / (double)image.size().height;
+                const int frame_height = resize_height_;
+                const int frame_width = (int)(aspect_ratio * (double)frame_height);
                 cv::resize(image, image, cv::Size(frame_width, frame_height));
             }
 
@@ -81,7 +81,6 @@ private:
     int resize_height_;
     std::vector<std::string> videos_;
     uint32_t current_video_idx_;
-    //std::string video_path_;
     std::string image_publish_topic_;
     std::string image_info_publish_topic_;
     std::string camera_info_publish_topic_;

@@ -12,7 +12,7 @@
 
 #include <boblib/api/utils/profiler.hpp>
 
-#include "annotated_frame_creator.hpp"
+#include "annotated_frame/annotated_frame_creator.hpp"
 
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
@@ -34,11 +34,9 @@ private:
     std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::TrackDetectionArray>> sub_tracker_detections;
     std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::TrackTrajectoryArray>> sub_tracker_trajectory;
     std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::TrackTrajectoryArray>> sub_tracker_prediction;
-
-    std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::TrackingState, bob_interfaces::msg::TrackDetectionArray, bob_interfaces::msg::TrackTrajectoryArray, bob_interfaces::msg::TrackTrajectoryArray>> time_synchronizer_;
-
+    std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::TrackingState, 
+        bob_interfaces::msg::TrackDetectionArray, bob_interfaces::msg::TrackTrajectoryArray, bob_interfaces::msg::TrackTrajectoryArray>> time_synchronizer_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_annotated_frame_;
-
     AnnotatedFrameCreator annotated_frame_creator_;
     boblib::utils::Profiler profiler_;
 
@@ -76,20 +74,20 @@ private:
         time_synchronizer_->registerCallback(&AnnotatedFrameProvider::callback, this);
     }
 
-    void callback(const sensor_msgs::msg::Image::SharedPtr& masked_image_msg
-        , const bob_interfaces::msg::TrackingState::SharedPtr& tracking_state_msg
-        , const bob_interfaces::msg::TrackDetectionArray::SharedPtr& detections_msg
-        , const bob_interfaces::msg::TrackTrajectoryArray::SharedPtr& trajectory_msg
-        , const bob_interfaces::msg::TrackTrajectoryArray::SharedPtr& prediction_msg)
+    void callback(const sensor_msgs::msg::Image::SharedPtr& image_msg
+                , const bob_interfaces::msg::TrackingState::SharedPtr& tracking_state_msg
+                , const bob_interfaces::msg::TrackDetectionArray::SharedPtr& detections_msg
+                , const bob_interfaces::msg::TrackTrajectoryArray::SharedPtr& trajectory_msg
+                , const bob_interfaces::msg::TrackTrajectoryArray::SharedPtr& prediction_msg)
     {
         try
         {
-            cv::Mat masked_img_bridge;
-            ImageUtils::convert_image_msg(masked_image_msg, masked_img_bridge);
+            cv::Mat img;
+            ImageUtils::convert_image_msg(image_msg, img, true);
 
-            auto annotated_frame = annotated_frame_creator_.create_frame(masked_img_bridge, *tracking_state_msg, *detections_msg, *trajectory_msg, *prediction_msg);
+            auto annotated_frame = annotated_frame_creator_.create_frame(img, *tracking_state_msg, *detections_msg, *trajectory_msg, *prediction_msg);
 
-            auto annotated_frame_msg = cv_bridge::CvImage(masked_image_msg->header, sensor_msgs::image_encodings::BGR8, annotated_frame).toImageMsg();
+            auto annotated_frame_msg = cv_bridge::CvImage(image_msg->header, sensor_msgs::image_encodings::BGR8, annotated_frame).toImageMsg();
             pub_annotated_frame_->publish(*annotated_frame_msg);
         }
         catch (cv_bridge::Exception &e)

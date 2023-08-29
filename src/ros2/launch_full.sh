@@ -1,2 +1,2 @@
 #!/bin/bash
-./launch.sh launch.py
+./launcher.sh launch.py

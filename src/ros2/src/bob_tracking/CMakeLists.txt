@@ -35,7 +35,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
     add_definitions(-Wno-missing-braces)
 ENDIF()
 
-# Frame Provider Node
+# Tracking Node
 add_executable(track_provider_node src/track_provider.cpp)
 target_link_libraries(track_provider_node PUBLIC boblib)
 ament_target_dependencies(track_provider_node PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV bob_interfaces)

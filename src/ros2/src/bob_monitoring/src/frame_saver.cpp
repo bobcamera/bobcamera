@@ -53,10 +53,10 @@ private:
     {
         try
         {
-            cv::Mat debayered_img;
-            ImageUtils::convert_image_msg(image_msg, debayered_img);
+            cv::Mat img;
+            ImageUtils::convert_image_msg(image_msg, img, true);
 
-            image_buffer_.push_back(debayered_img);
+            image_buffer_.push_back(img);
         }
         catch (cv_bridge::Exception &e)
         {
