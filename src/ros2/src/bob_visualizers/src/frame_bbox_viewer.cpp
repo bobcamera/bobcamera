@@ -12,8 +12,6 @@
 
 #include <boblib/api/utils/profiler.hpp>
 
-#include "annotated_frame_creator.hpp"
-
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
 
@@ -33,7 +31,6 @@ private:
     message_filters::Subscriber<sensor_msgs::msg::Image> sub_image_;
     message_filters::Subscriber<vision_msgs::msg::BoundingBox2DArray> sub_bbox_;
     std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, vision_msgs::msg::BoundingBox2DArray>> time_synchronizer_;
-
     boblib::utils::Profiler profiler_;
     std::vector<std::string> topics_;
     int current_topic_;
@@ -78,28 +75,24 @@ private:
     {
         try
         {
-            cv::Mat debayered_img;
-            ImageUtils::convert_image_msg(image_msg, debayered_img);
+            cv::Mat img;
+            ImageUtils::convert_image_msg(image_msg, img, true);
 
             for (const auto &bbox2D : bbox_msg->boxes)
             {
                 auto bbox = cv::Rect(bbox2D.center.position.x - bbox2D.size_x / 2, bbox2D.center.position.y - bbox2D.size_y / 2, bbox2D.size_x, bbox2D.size_y);
-                cv::rectangle(debayered_img, bbox, cv::Scalar(255, 0, 255), 5, 1);
+                cv::rectangle(img, bbox, cv::Scalar(255, 0, 255), 5, 1);
             }
 
-            cv::imshow("Image Viewer", debayered_img);
+            cv::imshow("Image Viewer", img);
             int key = cv::waitKey(1);
             bool topic_change = false;
             switch (key)
             {
-            case 81:
-                current_topic_--;
-                topic_change = true;
-                break;
-            case 83:
-                current_topic_++;
-                topic_change = true;
-                break;
+                case 'q': current_topic_--; topic_change = true; break;
+                case 81: current_topic_--; topic_change = true; break;
+                case 83: current_topic_++; topic_change = true; break;
+                case 'w': current_topic_++; topic_change = true; break;
             }
             if (topic_change)
             {

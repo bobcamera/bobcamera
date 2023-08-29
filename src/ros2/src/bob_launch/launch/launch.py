@@ -18,13 +18,6 @@ def generate_launch_description():
                         , {'auto_exposure': True}]
 
         ),
-        # Node(
-        #     package='bob_image_processing',
-        #     executable='frame_provider_node',
-        #     name='frame_provider_node',
-        #     output='screen',
-        #     parameters=[{'enable_profiling': False}]
-        # ),
         Node(
             package='bob_image_processing',
             executable='background_subtractor_node',
@@ -40,7 +33,7 @@ def generate_launch_description():
         #     parameters=[{'enable_profiling': True}]
         # ),
         # Node(
-        #     package='bob_visualizers',
+        #     package='bob_image_processing',
         #     executable='annotated_frame_provider_node',
         #     name='annotated_frame_provider_node',
         #     output='screen'
@@ -50,7 +43,7 @@ def generate_launch_description():
         #     executable='frame_viewer_node',
         #     name='frame_viewer_node',
         #     output='screen',
-        #     parameters=[{"topics": ["bob/camera/all_sky/bayer", "bob/frames/all_sky/foreground_mask"]}]
+        #     parameters=[{"topics": ["bob/frames/annotated", "bob/camera/all_sky/bayer", "bob/frames/all_sky/foreground_mask"]}]
         # ),
         Node(
             package='bob_visualizers',
