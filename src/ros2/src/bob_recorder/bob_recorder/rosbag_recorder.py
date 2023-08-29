@@ -1,15 +1,3 @@
-# Original work Copyright (c) 2022 Sky360
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-
 import rclpy.logging
 from rclpy.time import Time
 from datetime import datetime
@@ -24,7 +12,7 @@ class RosbagRecorder():
     self.logger = rclpy.logging.get_logger('rosbag_recorder')
 
     # setup the rosbag so that we can record into it
-    db_uri = f'rosbag_recordings/{datetime.now().strftime("%Y_%m_%d-%H_%M_%S")}'
+    db_uri = f'recordings/rosbags/{datetime.now().strftime("%Y_%m_%d-%H_%M_%S")}'
     self.logger.info(f'Creating database {db_uri}.')
 
     self.writer = rosbag2_py.SequentialWriter()

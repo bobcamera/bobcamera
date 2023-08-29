@@ -30,10 +30,10 @@ find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   #"msg/ConfigEntryUpdated.msg"
-  "msg/ConfigEntryUpdatedArray.msg"
+  #"msg/ConfigEntryUpdatedArray.msg"
   #"msg/ClassifiedObject.msg"
   #"msg/ClassifiedObjectsArray.msg"
-  "msg/ConfigItem.msg"
+  #"msg/ConfigItem.msg"
   "msg/ObserverCloudEstimation.msg"
   "msg/ObserverDayNight.msg"
   "msg/TrackingState.msg"
@@ -42,11 +42,11 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/TrackTrajectoryArray.msg"
   "msg/TrackDetection.msg"
   "msg/TrackDetectionArray.msg"
-  "srv/ConfigEntryUpdate.srv"
-  "srv/ConfigEntry.srv"
-  "srv/ConfigEntryArray.srv"
-  "srv/Mask.srv"
-  "srv/MaskUpdate.srv"
+  #"srv/ConfigEntryUpdate.srv"
+  #"srv/ConfigEntry.srv"
+  #"srv/ConfigEntryArray.srv"
+  #"srv/Mask.srv"
+  #"srv/MaskUpdate.srv"
   DEPENDENCIES std_msgs sensor_msgs vision_msgs geometry_msgs
 )
 
