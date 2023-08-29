@@ -28,6 +28,7 @@ public:
     
     void start_publishing()
     {
+        RCLCPP_INFO(get_logger(), "Number of videos: %ld", videos_.size());
         open_camera();
 
         create_camera_info_msg();
@@ -37,15 +38,16 @@ public:
         {
             if (!video_capture_.read(image) && is_video_)
             {
-                video_capture_.set(cv::CAP_PROP_POS_FRAMES, 0); // if video ends, loop back to start
+                current_video_idx_ = current_video_idx_ >= (videos_.size() - 1) ? 0 : current_video_idx_ + 1;
+                open_camera();
                 video_capture_.read(image);
             }
 
             if (resize_height_ > 0)
             {
-                double aspect_ratio = (double)image.size().width / (double)image.size().height;
-                int frame_height = resize_height_;
-                int frame_width = (int)(aspect_ratio * (double)frame_height);
+                const double aspect_ratio = (double)image.size().width / (double)image.size().height;
+                const int frame_height = resize_height_;
+                const int frame_width = (int)(aspect_ratio * (double)frame_height);
                 cv::resize(image, image, cv::Size(frame_width, frame_height));
             }
 
@@ -76,7 +78,8 @@ private:
     bool is_video_;
     int camera_id_;
     int resize_height_;
-    std::string video_path_;
+    std::vector<std::string> videos_;
+    uint32_t current_video_idx_;
     std::string image_publish_topic_;
     std::string image_info_publish_topic_;
     std::string camera_info_publish_topic_;
@@ -92,6 +95,7 @@ private:
     void init()
     {
         declare_node_parameters();
+        current_video_idx_ = 0;
     }
 
     void declare_node_parameters()
@@ -130,10 +134,14 @@ private:
                 rclcpp::Parameter("camera_id", 0), 
                 [this](const rclcpp::Parameter& param) {camera_id_ = param.as_int();}
             ),
+            // ParameterNode::ActionParam(
+            //     rclcpp::Parameter("video_path", ""), 
+            //     [this](const rclcpp::Parameter& param) {video_path_ = param.as_string();}
+            // ),
             ParameterNode::ActionParam(
-                rclcpp::Parameter("video_path", ""), 
-                [this](const rclcpp::Parameter& param) {video_path_ = param.as_string();}
-            )
+                rclcpp::Parameter("videos", std::vector<std::string>({""})), 
+                [this](const rclcpp::Parameter& param) {videos_ = param.as_string_array();}
+            ),
         };
         add_action_parameters(params);
     }
@@ -149,9 +157,9 @@ private:
         }
         else
         {
-            video_path_ = get_parameter("video_path").get_value<rclcpp::ParameterType::PARAMETER_STRING>();
-            RCLCPP_INFO(get_logger(), "Video '%s' opening", video_path_.c_str());
-            video_capture_.open(video_path_);
+            auto video_path = videos_[current_video_idx_];
+            RCLCPP_INFO(get_logger(), "Video '%s' opening", video_path.c_str());
+            video_capture_.open(video_path);
         }
     }
 
@@ -220,7 +228,7 @@ private:
     {
         camera_info_msg_.id = "web_camera_node";
         camera_info_msg_.model = is_video_ ? "video" : "web camera";
-        camera_info_msg_.serial_num = is_video_ ? video_path_ : std::to_string(camera_id_);
+        camera_info_msg_.serial_num = is_video_ ? videos_[current_video_idx_] : std::to_string(camera_id_);
         camera_info_msg_.overscan.start_x = 0;
         camera_info_msg_.overscan.start_y = 0;
         camera_info_msg_.overscan.width = 0;

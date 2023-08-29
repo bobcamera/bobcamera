@@ -14,7 +14,7 @@
 #include "bob_interfaces/msg/track_trajectory_array.hpp"
 
 #include "boblib/api/utils/profiler.hpp"
-#include "video_tracker.hpp"
+#include "tracking/video_tracker.hpp"
 
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
@@ -37,12 +37,10 @@ private:
     std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> masked_frame_subscription_;
     std::shared_ptr<message_filters::Subscriber<vision_msgs::msg::BoundingBox2DArray>> detector_bounding_boxes_subscription_;
     std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, vision_msgs::msg::BoundingBox2DArray>> time_synchronizer_;
-
     rclcpp::Publisher<bob_interfaces::msg::TrackingState>::SharedPtr pub_tracker_tracking_state;
     rclcpp::Publisher<bob_interfaces::msg::TrackDetectionArray>::SharedPtr pub_tracker_detects;
     rclcpp::Publisher<bob_interfaces::msg::TrackTrajectoryArray>::SharedPtr pub_tracker_trajectory;
     rclcpp::Publisher<bob_interfaces::msg::TrackTrajectoryArray>::SharedPtr pub_tracker_prediction;
-
     boblib::utils::Profiler profiler_;
     VideoTracker video_tracker_;
 
@@ -83,8 +81,8 @@ private:
     {
         try
         {
-            cv::Mat masked_img_bridge;
-            ImageUtils::convert_image_msg(image_msg, masked_img_bridge);
+            cv::Mat img;
+            ImageUtils::convert_image_msg(image_msg, img, true);
 
             std::vector<cv::Rect> bboxes;
             for (const auto &bbox2D : bounding_boxes_msg->boxes)
@@ -92,7 +90,7 @@ private:
                 bboxes.push_back(cv::Rect(bbox2D.center.position.x - bbox2D.size_x / 2, bbox2D.center.position.y - bbox2D.size_y / 2, bbox2D.size_x, bbox2D.size_y));
             }
 
-            video_tracker_.update_trackers(bboxes, masked_img_bridge);
+            video_tracker_.update_trackers(bboxes, img);
 
             publish_detect_array(image_msg->header);
             publish_trajectory_array(image_msg->header);

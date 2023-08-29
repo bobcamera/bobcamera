@@ -23,6 +23,8 @@ find_package(OpenCV REQUIRED)
 find_package(rcl_interfaces REQUIRED)
 find_package(boblib REQUIRED)
 find_package(bob_camera REQUIRED)
+find_package(message_filters REQUIRED)
+find_package(bob_interfaces REQUIRED)
 
 include_directories(${OpenCV_INCLUDE_DIRS})
 include_directories("../bob_shared/include")
@@ -34,16 +36,16 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
     add_definitions(-Wno-missing-braces)
 ENDIF()
 
-# Frame Provider Node
-add_executable(frame_provider_node src/frame_provider.cpp)
-target_link_libraries(frame_provider_node PUBLIC boblib)
-ament_target_dependencies(frame_provider_node PUBLIC rclcpp sensor_msgs cv_bridge OpenCV bob_camera)
-install(TARGETS frame_provider_node DESTINATION lib/${PROJECT_NAME})
-
 # Background Subtractor Node
 add_executable(background_subtractor_node src/background_subtractor.cpp)
 target_link_libraries(background_subtractor_node PUBLIC boblib)
 ament_target_dependencies(background_subtractor_node PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge OpenCV bob_camera)
 install(TARGETS background_subtractor_node DESTINATION lib/${PROJECT_NAME})
+
+# Annotated Frame Provider Node
+add_executable(annotated_frame_provider_node src/annotated_frame_provider.cpp)
+target_link_libraries(annotated_frame_provider_node PUBLIC boblib)
+ament_target_dependencies(annotated_frame_provider_node PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV bob_interfaces)
+install(TARGETS annotated_frame_provider_node DESTINATION lib/${PROJECT_NAME})
 
 ament_package()

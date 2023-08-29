@@ -10,10 +10,10 @@
 class ImageUtils 
 {
 public:
-    static void convert_image_msg(const sensor_msgs::msg::Image::SharedPtr image_msg, cv::Mat &_image_out)
+    static void convert_image_msg(const sensor_msgs::msg::Image::SharedPtr image_msg, cv::Mat &_image_out, bool debayer)
     {
-        auto bayer_img = cv_bridge::toCvShare(image_msg)->image;
-        debayer_image(bayer_img, _image_out, image_msg->encoding);
+        auto img = cv_bridge::toCvShare(image_msg)->image;
+        debayer_image(img, _image_out, image_msg->encoding, debayer);
     }
 
     static inline int convert_bayer_pattern(const std::string& _bayerFormat)
@@ -37,9 +37,10 @@ public:
         return cv::COLOR_BayerGR2BGR;
     }
 
-    static void debayer_image(const cv::Mat &_image_in, cv::Mat &_image_out, const std::string& _bayerFormatStr)
+    static void debayer_image(const cv::Mat &_image_in, cv::Mat &_image_out, const std::string& _bayerFormatStr, bool debayer)
     {
-        if (_bayerFormatStr != sensor_msgs::image_encodings::BGR8 
+        if (debayer 
+            &&_bayerFormatStr != sensor_msgs::image_encodings::BGR8 
             && _bayerFormatStr != sensor_msgs::image_encodings::MONO8)
         {
             cv::cvtColor(_image_in, _image_out, convert_bayer_pattern(_bayerFormatStr));

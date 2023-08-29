@@ -1,2 +1,2 @@
 #!/bin/bash
-./launch.sh annotated_video_launch.py
+./launcher.sh annotated_video_launch.py
