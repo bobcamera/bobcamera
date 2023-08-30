@@ -10,8 +10,7 @@
 #include "bob_interfaces/msg/tracking_state.hpp"
 #include "bob_interfaces/msg/track_detection_array.hpp"
 #include "bob_interfaces/msg/track_trajectory_array.hpp"
-
-#include <boblib/api/utils/profiler.hpp>
+#include <vision_msgs/msg/bounding_box2_d_array.hpp>
 
 #include "annotated_frame/annotated_frame_creator.hpp"
 
@@ -24,13 +23,6 @@ class AnnotatedFrameProvider
     : public ParameterNode
 {
 public:
-    static std::shared_ptr<AnnotatedFrameProvider> create()
-    {
-        auto result = std::shared_ptr<AnnotatedFrameProvider>(new AnnotatedFrameProvider());
-        result->init();
-        return result;
-    }
-
     COMPOSITION_PUBLIC
     explicit AnnotatedFrameProvider(const rclcpp::NodeOptions & options) 
         : ParameterNode("annotated_frame_provider_node", options)
@@ -40,25 +32,18 @@ public:
     }
 
 private:
-    std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> sub_masked_frame;
-    std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::TrackingState>> sub_tracking_state;
-    std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::TrackDetectionArray>> sub_tracker_detections;
-    std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::TrackTrajectoryArray>> sub_tracker_trajectory;
-    std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::TrackTrajectoryArray>> sub_tracker_prediction;
+    std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> sub_masked_frame_;
+    std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::TrackingState>> sub_tracking_state_;
+    std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::TrackDetectionArray>> sub_tracker_detections_;
+    std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::TrackTrajectoryArray>> sub_tracker_trajectory_;
+    std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::TrackTrajectoryArray>> sub_tracker_prediction_;
     std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::TrackingState, 
         bob_interfaces::msg::TrackDetectionArray, bob_interfaces::msg::TrackTrajectoryArray, bob_interfaces::msg::TrackTrajectoryArray>> time_synchronizer_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_annotated_frame_;
     AnnotatedFrameCreator annotated_frame_creator_;
-    boblib::utils::Profiler profiler_;
     rclcpp::TimerBase::SharedPtr timer_;
 
     friend std::shared_ptr<AnnotatedFrameProvider> std::make_shared<AnnotatedFrameProvider>();
-
-    AnnotatedFrameProvider() 
-        : ParameterNode("annotated_frame_provider_node")
-        , annotated_frame_creator_(std::map<std::string, std::string>())
-    {
-    }
 
     void init()
     {
@@ -66,28 +51,28 @@ private:
 
         timer_->cancel();
 
-        rclcpp::QoS pub_qos_profile{2};
+        rclcpp::QoS pub_qos_profile{10};
         pub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
         pub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
         pub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
 
-        rclcpp::QoS sub_qos_profile{2};
+        rclcpp::QoS sub_qos_profile{10};
         sub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
         sub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
         sub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
         auto rmw_qos_profile = sub_qos_profile.get_rmw_qos_profile();
 
-        pub_annotated_frame_ = create_publisher<sensor_msgs::msg::Image>("bob/frames/annotated", pub_qos_profile);
+        sub_masked_frame_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(shared_from_this(), "bob/camera/all_sky/bayer", rmw_qos_profile);
+        sub_tracking_state_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::TrackingState>>(shared_from_this(), "bob/tracker/tracking_state", rmw_qos_profile);
+        sub_tracker_detections_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::TrackDetectionArray>>(shared_from_this(), "bob/tracker/detections", rmw_qos_profile);
+        sub_tracker_trajectory_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::TrackTrajectoryArray>>(shared_from_this(), "bob/tracker/trajectory", rmw_qos_profile);
+        sub_tracker_prediction_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::TrackTrajectoryArray>>(shared_from_this(), "bob/tracker/prediction", rmw_qos_profile);
 
-        sub_masked_frame = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(shared_from_this(), "bob/camera/all_sky/bayer", rmw_qos_profile);
-        sub_tracking_state = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::TrackingState>>(shared_from_this(), "bob/tracker/tracking_state", rmw_qos_profile);
-        sub_tracker_detections = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::TrackDetectionArray>>(shared_from_this(), "bob/tracker/detections", rmw_qos_profile);
-        sub_tracker_trajectory = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::TrackTrajectoryArray>>(shared_from_this(), "bob/tracker/trajectory", rmw_qos_profile);
-        sub_tracker_prediction = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::TrackTrajectoryArray>>(shared_from_this(), "bob/tracker/prediction", rmw_qos_profile);
-
-        time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::TrackingState, bob_interfaces::msg::TrackDetectionArray, bob_interfaces::msg::TrackTrajectoryArray, bob_interfaces::msg::TrackTrajectoryArray>>(
-            *sub_masked_frame, *sub_tracking_state, *sub_tracker_detections, *sub_tracker_trajectory, *sub_tracker_prediction, 2);
+        time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::TrackingState, bob_interfaces::msg::TrackDetectionArray, 
+            bob_interfaces::msg::TrackTrajectoryArray, bob_interfaces::msg::TrackTrajectoryArray>>(*sub_masked_frame_, *sub_tracking_state_, *sub_tracker_detections_, *sub_tracker_trajectory_, *sub_tracker_prediction_, 10);
         time_synchronizer_->registerCallback(&AnnotatedFrameProvider::callback, this);
+
+        pub_annotated_frame_ = create_publisher<sensor_msgs::msg::Image>("bob/frames/annotated", pub_qos_profile);
     }
 
     void callback(const sensor_msgs::msg::Image::SharedPtr& image_msg
@@ -98,7 +83,6 @@ private:
     {
         try
         {
-            RCLCPP_INFO(get_logger(), "AnnotatedFrameProvider callback");
             cv::Mat img;
             ImageUtils::convert_image_msg(image_msg, img, true);
 
@@ -117,7 +101,7 @@ private:
 int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
-    rclcpp::spin(AnnotatedFrameProvider::create());
+    rclcpp::spin(std::make_shared<AnnotatedFrameProvider>(rclcpp::NodeOptions()));
     rclcpp::shutdown();
     return 0;
 }

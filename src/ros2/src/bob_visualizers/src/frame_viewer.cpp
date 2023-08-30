@@ -38,7 +38,7 @@ public:
     }
 
 private:
-    rclcpp::QoS sub_qos_profile_{2};
+    rclcpp::QoS sub_qos_profile_{10};
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscription_;
     boblib::utils::Profiler profiler_;
     std::vector<std::string> topics_;

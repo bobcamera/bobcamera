@@ -69,12 +69,12 @@ private:
         RCLCPP_INFO(get_logger(), "Initializing TrackProvider");
         timer_->cancel();
 
-        rclcpp::QoS pub_qos_profile{2};
+        rclcpp::QoS pub_qos_profile{10};
         pub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
         pub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
         pub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
         
-        rclcpp::QoS sub_qos_profile{2};
+        rclcpp::QoS sub_qos_profile{10};
         sub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
         sub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
         sub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
@@ -83,7 +83,7 @@ private:
         masked_frame_subscription_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(shared_from_this(), "bob/camera/all_sky/bayer", rmw_qos_profile);
         detector_bounding_boxes_subscription_ = std::make_shared<message_filters::Subscriber<vision_msgs::msg::BoundingBox2DArray>>(shared_from_this(), "bob/detector/all_sky/bounding_boxes", rmw_qos_profile);
 
-        time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, vision_msgs::msg::BoundingBox2DArray>>(*masked_frame_subscription_, *detector_bounding_boxes_subscription_, 2);
+        time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, vision_msgs::msg::BoundingBox2DArray>>(*masked_frame_subscription_, *detector_bounding_boxes_subscription_, 10);
         time_synchronizer_->registerCallback(&TrackProvider::callback, this);
 
         pub_tracker_tracking_state = create_publisher<bob_interfaces::msg::TrackingState>("bob/tracker/tracking_state", pub_qos_profile);
@@ -122,6 +122,7 @@ private:
     {
         bob_interfaces::msg::TrackDetectionArray detection_array_msg;
         detection_array_msg.header = header;
+        //RCLCPP_INFO(get_logger(), "id: %s, stamp: %ld", header.frame_id.c_str(), header.stamp.nanosec);
         for (const auto &tracker : video_tracker_.get_live_trackers())
         {
             add_detects_to_msg(tracker, detection_array_msg);

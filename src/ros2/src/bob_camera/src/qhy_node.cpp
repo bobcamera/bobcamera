@@ -4,6 +4,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <cv_bridge/cv_bridge.hpp>
+#include <rclcpp_components/register_node_macro.hpp>
 
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/image_encodings.hpp>
@@ -19,56 +20,61 @@
 
 #include "parameter_node.hpp"
 
+#include <visibility_control.h>
+
 class QhyNode
     : public ParameterNode
 {
 public:
-    static std::shared_ptr<QhyNode> create()
+    COMPOSITION_PUBLIC
+    explicit QhyNode(const rclcpp::NodeOptions & options)
+        : ParameterNode("qhy_node", options)
     {
-        auto image_publisher = std::shared_ptr<QhyNode>(new QhyNode());
-        image_publisher->init();
-        return image_publisher;
+        qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
+        qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
+        qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
+
+        qhy_camera_.set_debug_info(false);
+
+        declare_node_parameters();
+
+        timer_ = create_wall_timer(std::chrono::milliseconds(10), std::bind(&QhyNode::timer_callback, this));
     }
-    
-    void start_publishing()
+
+    void timer_callback()
     {
         cv::Mat image;
-        while (rclcpp::ok())
+        profile_start("Frame");
+        auto camera_params = qhy_camera_.get_camera_params();
+
+        qhy_camera_.get_frame(image, false);
+
+        if (auto_exposure_)
         {
-            profile_start("Frame");
-            auto camera_params = qhy_camera_.get_camera_params();
-
-            qhy_camera_.get_frame(image, false);
-
-            if (auto_exposure_)
-            {
-                apply_auto_exposure(image, camera_params);
-            }
-
-            std_msgs::msg::Header header;
-            header.stamp = now();
-            header.frame_id = generate_uuid();
-
-            auto image_msg = cv_bridge::CvImage(header, msg_bayer_format_str_, image).toImageMsg();
-            auto borrow_msg = image_publisher_->borrow_loaned_message();
-            borrow_msg.get() = *image_msg;
-            image_publisher_->publish(std::move(borrow_msg));
-
-            auto image_info_msg = generate_image_info(header, camera_params);
-            image_info_publisher_->publish(image_info_msg);
-
-            camera_info_msg_.header = header;
-            camera_info_publisher_->publish(camera_info_msg_);
-
-            profile_stop("Frame");
-            profile_dump();
-
-            rclcpp::spin_some(get_node_base_interface());
+            apply_auto_exposure(image, camera_params);
         }
+
+        std_msgs::msg::Header header;
+        header.stamp = now();
+        header.frame_id = generate_uuid();
+
+        auto image_msg = cv_bridge::CvImage(header, msg_bayer_format_str_, image).toImageMsg();
+        auto borrow_msg = image_publisher_->borrow_loaned_message();
+        borrow_msg.get() = *image_msg;
+        image_publisher_->publish(std::move(borrow_msg));
+
+        auto image_info_msg = generate_image_info(header, camera_params);
+        image_info_publisher_->publish(image_info_msg);
+
+        camera_info_msg_.header = header;
+        camera_info_publisher_->publish(camera_info_msg_);
+
+        profile_stop("Frame");
+        profile_dump();
     }
 
 private:
-    rclcpp::QoS qos_profile_{2}; // The depth of the publisher queue
+    rclcpp::QoS qos_profile_{10}; // The depth of the publisher queue
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
     rclcpp::Publisher<bob_camera::msg::ImageInfo>::SharedPtr image_info_publisher_;
     rclcpp::Publisher<bob_camera::msg::CameraInfo>::SharedPtr camera_info_publisher_;
@@ -85,21 +91,7 @@ private:
     std::string image_info_publish_topic_;
     std::string camera_info_publish_topic_;
     std::string camera_id_;
-
-    QhyNode()
-        : ParameterNode("qhy_node")
-    {
-        qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
-        qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
-        qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
-
-        qhy_camera_.set_debug_info(false);
-    }
-
-    void init()
-    {
-        declare_node_parameters();
-    }
+    rclcpp::TimerBase::SharedPtr timer_;
 
     void declare_node_parameters()
     {
@@ -375,8 +367,9 @@ private:
 int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
-    auto image_publisher = QhyNode::create();
-    image_publisher->start_publishing();
+    rclcpp::spin(std::make_shared<QhyNode>(rclcpp::NodeOptions()));
     rclcpp::shutdown();
     return 0;
 }
+
+RCLCPP_COMPONENTS_REGISTER_NODE(QhyNode)

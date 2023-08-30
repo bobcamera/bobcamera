@@ -53,7 +53,8 @@ rosidl_get_typesupport_target(cpp_typesupport_target ${PROJECT_NAME} "rosidl_typ
 # End package definition
 
 # QhyNode
-add_executable(qhy_node src/qhy_node.cpp)
+add_library(qhy_node SHARED src/qhy_node.cpp)
+target_compile_definitions(qhy_node PRIVATE "COMPOSITION_BUILDING_DLL")
 target_link_libraries(qhy_node PUBLIC boblib "${cpp_typesupport_target}")
 ament_target_dependencies(qhy_node PUBLIC
     rclcpp 
@@ -61,9 +62,11 @@ ament_target_dependencies(qhy_node PUBLIC
     std_msgs
     cv_bridge
     rcl_interfaces 
+    rclcpp_components
     OpenCV
     Boost)
-install(TARGETS qhy_node DESTINATION lib/${PROJECT_NAME})
+rclcpp_components_register_nodes(qhy_node "QhyNode")
+install(TARGETS qhy_node DESTINATION lib)
 
 # Web Camera Video Node
 add_library(web_camera_video_node SHARED src/web_camera_video.cpp)
@@ -79,7 +82,6 @@ ament_target_dependencies(web_camera_video_node PUBLIC
     OpenCV
     Boost)
 rclcpp_components_register_nodes(web_camera_video_node "WebCameraVideo")
-#install(TARGETS web_camera_video_node DESTINATION lib/${PROJECT_NAME})
 install(TARGETS web_camera_video_node DESTINATION lib)
 
 ament_package()

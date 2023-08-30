@@ -17,7 +17,7 @@ def generate_launch_description():
                         , {'camera_info_publish_topic': 'bob/camera/all_sky/camera_info'}
                         , {'is_video': True}
                         , {'videos': [video_file1, video_file2]}
-                        , {'resize_height': 1200}]
+                        , {'resize_height': 0}]
         ),
         Node(
             package='bob_image_processing',

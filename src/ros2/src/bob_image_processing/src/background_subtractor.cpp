@@ -20,13 +20,6 @@ class BackgroundSubtractor
     : public ParameterNode
 {
 public:
-    static std::shared_ptr<BackgroundSubtractor> create()
-    {
-        auto result = std::shared_ptr<BackgroundSubtractor>(new BackgroundSubtractor());
-        result->init();
-        return result;
-    }
-
     COMPOSITION_PUBLIC
     explicit BackgroundSubtractor(const rclcpp::NodeOptions & options)
         : ParameterNode("background_subtractor_node", options)
@@ -51,22 +44,14 @@ private:
     boblib::utils::Profiler profiler_;
     bool enable_profiling_;
 
-    BackgroundSubtractor()
-        : ParameterNode("background_subtractor_node")
-        , enable_profiling_(false)
-    {
-    }
-
     void init()
     {
-        // Define the QoS profile for the subscriber
-        rclcpp::QoS sub_qos_profile(2);
+        rclcpp::QoS sub_qos_profile(10);
         sub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
         sub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
         sub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
 
-        // Define the QoS profile for the publisher
-        rclcpp::QoS pub_qos_profile(2);
+        rclcpp::QoS pub_qos_profile(10);
         pub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
         pub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
         pub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
@@ -202,7 +187,7 @@ private:
 int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
-    rclcpp::spin(BackgroundSubtractor::create());
+    rclcpp::spin(std::make_shared<BackgroundSubtractor>(rclcpp::NodeOptions()));
     rclcpp::shutdown();
     return 0;
 }

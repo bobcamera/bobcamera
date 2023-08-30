@@ -22,13 +22,23 @@ class WebCameraVideo
     : public ParameterNode
 {
 public:
-    static std::shared_ptr<WebCameraVideo> create()
+    COMPOSITION_PUBLIC
+    explicit WebCameraVideo(const rclcpp::NodeOptions & options)
+        : ParameterNode("web_camera_video_node", options)
     {
-        auto result = std::shared_ptr<WebCameraVideo>(new WebCameraVideo());
-        result->init();
-        return result;
+        qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
+        qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
+        qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
+
+        declare_node_parameters();
+        current_video_idx_ = 0;
+
+        open_camera();
+        create_camera_info_msg();
+
+        timer_ = create_wall_timer(std::chrono::milliseconds(10), std::bind(&WebCameraVideo::timer_callback, this));
     }
-    
+
     void timer_callback()
     {
         cv::Mat image;
@@ -61,67 +71,8 @@ public:
         camera_info_publisher_->publish(camera_info_msg_);
     }
 
-    void start_publishing()
-    {
-        RCLCPP_INFO(get_logger(), "Number of videos: %ld", videos_.size());
-        open_camera();
-
-        create_camera_info_msg();
-
-        cv::Mat image;
-        while (rclcpp::ok())
-        {
-            if (!video_capture_.read(image) && is_video_)
-            {
-                current_video_idx_ = current_video_idx_ >= (videos_.size() - 1) ? 0 : current_video_idx_ + 1;
-                open_camera();
-                video_capture_.read(image);
-            }
-
-            if (resize_height_ > 0)
-            {
-                const double aspect_ratio = (double)image.size().width / (double)image.size().height;
-                const int frame_height = resize_height_;
-                const int frame_width = (int)(aspect_ratio * (double)frame_height);
-                cv::resize(image, image, cv::Size(frame_width, frame_height));
-            }
-
-            std_msgs::msg::Header header;
-            header.stamp = now();
-            header.frame_id = generate_uuid();
-
-            auto image_msg = cv_bridge::CvImage(header, image.channels() == 1 ? sensor_msgs::image_encodings::MONO8 : sensor_msgs::image_encodings::BGR8, image).toImageMsg();
-            image_publisher_->publish(*image_msg);
-
-            auto image_info_msg = generate_image_info(header, image);
-            image_info_publisher_->publish(image_info_msg);
-
-            camera_info_msg_.header = header;
-            camera_info_publisher_->publish(camera_info_msg_);
-
-            rclcpp::spin_some(get_node_base_interface());
-        }
-    }
-
-    COMPOSITION_PUBLIC
-    explicit WebCameraVideo(const rclcpp::NodeOptions & options)
-        : ParameterNode("web_camera_video_node", options)
-    {
-        qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
-        qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
-        qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
-
-        init();
-
-        RCLCPP_INFO(get_logger(), "Number of videos: %ld", videos_.size());
-        open_camera();
-        create_camera_info_msg();
-
-        timer_ = create_wall_timer(std::chrono::milliseconds(10), std::bind(&WebCameraVideo::timer_callback, this));
-    }
-
 private:
-    rclcpp::QoS qos_profile_{2}; // The depth of the publisher queue
+    rclcpp::QoS qos_profile_{10}; // The depth of the publisher queue
     cv::VideoCapture video_capture_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
     rclcpp::Publisher<bob_camera::msg::ImageInfo>::SharedPtr image_info_publisher_;
@@ -136,20 +87,6 @@ private:
     std::string image_info_publish_topic_;
     std::string camera_info_publish_topic_;
     rclcpp::TimerBase::SharedPtr timer_;
-
-    WebCameraVideo()
-        : ParameterNode("web_camera_video_node")
-    {
-        qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
-        qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
-        qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
-    }
-
-    void init()
-    {
-        declare_node_parameters();
-        current_video_idx_ = 0;
-    }
 
     void declare_node_parameters()
     {
@@ -187,10 +124,6 @@ private:
                 rclcpp::Parameter("camera_id", 0), 
                 [this](const rclcpp::Parameter& param) {camera_id_ = param.as_int();}
             ),
-            // ParameterNode::ActionParam(
-            //     rclcpp::Parameter("video_path", ""), 
-            //     [this](const rclcpp::Parameter& param) {video_path_ = param.as_string();}
-            // ),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("videos", std::vector<std::string>({""})), 
                 [this](const rclcpp::Parameter& param) {videos_ = param.as_string_array();}
@@ -331,8 +264,7 @@ private:
 int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
-    auto image_publisher = WebCameraVideo::create();
-    image_publisher->start_publishing();
+    rclcpp::spin(std::make_shared<WebCameraVideo>(rclcpp::NodeOptions()));
     rclcpp::shutdown();
     return 0;
 }

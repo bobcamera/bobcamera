@@ -38,7 +38,7 @@ public:
     }
 
 private:
-    rclcpp::QoS sub_qos_profile_{2};
+    rclcpp::QoS sub_qos_profile_{10};
     message_filters::Subscriber<sensor_msgs::msg::Image> sub_image_;
     message_filters::Subscriber<vision_msgs::msg::BoundingBox2DArray> sub_bbox_;
     std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, vision_msgs::msg::BoundingBox2DArray>> time_synchronizer_;
