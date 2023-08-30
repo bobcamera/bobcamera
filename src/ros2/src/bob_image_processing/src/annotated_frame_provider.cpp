@@ -2,6 +2,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <cv_bridge/cv_bridge.hpp>
+#include <rclcpp_components/register_node_macro.hpp>
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 
@@ -17,6 +18,8 @@
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
 
+#include <visibility_control.h>
+
 class AnnotatedFrameProvider 
     : public ParameterNode
 {
@@ -26,6 +29,14 @@ public:
         auto result = std::shared_ptr<AnnotatedFrameProvider>(new AnnotatedFrameProvider());
         result->init();
         return result;
+    }
+
+    COMPOSITION_PUBLIC
+    explicit AnnotatedFrameProvider(const rclcpp::NodeOptions & options) 
+        : ParameterNode("annotated_frame_provider_node", options)
+        , annotated_frame_creator_(std::map<std::string, std::string>())
+    {
+        timer_ = create_wall_timer(std::chrono::seconds(1), std::bind(&AnnotatedFrameProvider::init, this));
     }
 
 private:
@@ -39,6 +50,7 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_annotated_frame_;
     AnnotatedFrameCreator annotated_frame_creator_;
     boblib::utils::Profiler profiler_;
+    rclcpp::TimerBase::SharedPtr timer_;
 
     friend std::shared_ptr<AnnotatedFrameProvider> std::make_shared<AnnotatedFrameProvider>();
 
@@ -50,6 +62,10 @@ private:
 
     void init()
     {
+        RCLCPP_INFO(get_logger(), "Initializing AnnotatedFrameProvider");
+
+        timer_->cancel();
+
         rclcpp::QoS pub_qos_profile{2};
         pub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
         pub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
@@ -82,6 +98,7 @@ private:
     {
         try
         {
+            RCLCPP_INFO(get_logger(), "AnnotatedFrameProvider callback");
             cv::Mat img;
             ImageUtils::convert_image_msg(image_msg, img, true);
 
@@ -104,3 +121,5 @@ int main(int argc, char **argv)
     rclcpp::shutdown();
     return 0;
 }
+
+RCLCPP_COMPONENTS_REGISTER_NODE(AnnotatedFrameProvider)

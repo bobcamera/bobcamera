@@ -22,6 +22,7 @@ find_package(cv_bridge REQUIRED)
 find_package(message_filters REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(rcl_interfaces REQUIRED)
+find_package(rclcpp_components REQUIRED)
 find_package(boblib REQUIRED)
 find_package(bob_interfaces REQUIRED)
 
@@ -36,9 +37,12 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
 ENDIF()
 
 # Tracking Node
-add_executable(track_provider_node src/track_provider.cpp)
+add_library(track_provider_node SHARED src/track_provider.cpp)
+target_compile_definitions(track_provider_node PRIVATE "COMPOSITION_BUILDING_DLL")
 target_link_libraries(track_provider_node PUBLIC boblib)
-ament_target_dependencies(track_provider_node PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV bob_interfaces)
-install(TARGETS track_provider_node DESTINATION lib/${PROJECT_NAME})
+ament_target_dependencies(track_provider_node PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV rclcpp_components bob_interfaces)
+rclcpp_components_register_nodes(track_provider_node "TrackProvider")
+# install(TARGETS track_provider_node DESTINATION lib/${PROJECT_NAME})
+install(TARGETS track_provider_node DESTINATION lib)
 
 ament_package()

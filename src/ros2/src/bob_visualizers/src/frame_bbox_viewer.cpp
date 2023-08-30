@@ -4,6 +4,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <cv_bridge/cv_bridge.hpp>
+#include <rclcpp_components/register_node_macro.hpp>
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 
@@ -14,6 +15,8 @@
 
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
+
+#include <visibility_control.h>
 
 class FrameBBoxViewer
     : public ParameterNode
@@ -26,6 +29,14 @@ public:
         return result;
     }
 
+    COMPOSITION_PUBLIC
+    explicit FrameBBoxViewer(const rclcpp::NodeOptions & options)
+        : ParameterNode("frame_bbox_viewer_node", options), current_topic_{0}
+    {
+        declare_node_parameters();
+        timer_ = create_wall_timer(std::chrono::seconds(1), std::bind(&FrameBBoxViewer::init, this));
+    }
+
 private:
     rclcpp::QoS sub_qos_profile_{2};
     message_filters::Subscriber<sensor_msgs::msg::Image> sub_image_;
@@ -34,6 +45,7 @@ private:
     boblib::utils::Profiler profiler_;
     std::vector<std::string> topics_;
     int current_topic_;
+    rclcpp::TimerBase::SharedPtr timer_;
 
     friend std::shared_ptr<FrameBBoxViewer> std::make_shared<FrameBBoxViewer>();
 
@@ -45,6 +57,8 @@ private:
 
     void init()
     {
+        timer_->cancel();
+
         sub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
         sub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
         sub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
@@ -119,3 +133,5 @@ int main(int argc, char **argv)
     rclcpp::shutdown();
     return 0;
 }
+
+RCLCPP_COMPONENTS_REGISTER_NODE(FrameBBoxViewer)

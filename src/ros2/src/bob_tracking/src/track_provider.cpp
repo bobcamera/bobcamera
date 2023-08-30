@@ -4,6 +4,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <cv_bridge/cv_bridge.hpp>
+#include <rclcpp_components/register_node_macro.hpp>
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 
@@ -19,6 +20,8 @@
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
 
+#include <visibility_control.h>
+
 class TrackProvider
     : public ParameterNode
 {
@@ -28,6 +31,14 @@ public:
         auto result = std::shared_ptr<TrackProvider>(new TrackProvider());
         result->init();
         return result;
+    }
+
+    COMPOSITION_PUBLIC
+    explicit TrackProvider(const rclcpp::NodeOptions & options)
+        : ParameterNode("frame_provider_node", options)
+        , video_tracker_({{"tracker_type", "MOSSE"}}, get_logger())
+    {
+        timer_ = this->create_wall_timer(std::chrono::seconds(1), std::bind(&TrackProvider::init, this));
     }
 
 private:
@@ -43,6 +54,7 @@ private:
     rclcpp::Publisher<bob_interfaces::msg::TrackTrajectoryArray>::SharedPtr pub_tracker_prediction;
     boblib::utils::Profiler profiler_;
     VideoTracker video_tracker_;
+    rclcpp::TimerBase::SharedPtr timer_;
 
     friend std::shared_ptr<TrackProvider> std::make_shared<TrackProvider>();
 
@@ -54,6 +66,9 @@ private:
 
     void init()
     {
+        RCLCPP_INFO(get_logger(), "Initializing TrackProvider");
+        timer_->cancel();
+
         rclcpp::QoS pub_qos_profile{2};
         pub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
         pub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
@@ -205,3 +220,5 @@ int main(int argc, char **argv)
     rclcpp::shutdown();
     return 0;
 }
+
+RCLCPP_COMPONENTS_REGISTER_NODE(TrackProvider)

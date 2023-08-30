@@ -28,26 +28,26 @@ def generate_launch_description():
                         , {'videos': [video_file1, video_file2]}
                         , {'resize_height': 0}],
                     extra_arguments=[{'use_intra_process_comms': True}]),
-                # ComposableNode(
-                #     package='bob_image_processing',
-                #     plugin='bob_image_processing::background_subtractor_node',
-                #     name='background_subtractor_node',
-                #     extra_arguments=[{'use_intra_process_comms': True}]),
-                # ComposableNode(
-                #     package='bob_tracking',
-                #     plugin='bob_tracking::track_provider_node',
-                #     name='track_provider_node',
-                #     extra_arguments=[{'use_intra_process_comms': True}]),
-                # ComposableNode(
-                #     package='bob_image_processing',
-                #     plugin='bob_image_processing::annotated_frame_provider_node',
-                #     name='annotated_frame_provider_node',
-                #     extra_arguments=[{'use_intra_process_comms': True}]),
+                ComposableNode(
+                    package='bob_image_processing',
+                    plugin='BackgroundSubtractor',
+                    name='background_subtractor_node',
+                    extra_arguments=[{'use_intra_process_comms': True}]),
+                ComposableNode(
+                    package='bob_tracking',
+                    plugin='TrackProvider',
+                    name='track_provider_node',
+                    extra_arguments=[{'use_intra_process_comms': True}]),
+                ComposableNode(
+                    package='bob_image_processing',
+                    plugin='AnnotatedFrameProvider',
+                    name='annotated_frame_provider_node',
+                    extra_arguments=[{'use_intra_process_comms': True}]),
                 ComposableNode(
                     package='bob_visualizers',
                     plugin='FrameViewer',
                     name='frame_viewer_node',
-                    parameters=[{"topics": ["bob/camera/all_sky/bayer", "bob/frames/annotated", "bob/frames/all_sky/foreground_mask"]}],
+                    parameters=[{"topics": ["bob/camera/all_sky/bayer", "bob/frames/all_sky/foreground_mask", "bob/frames/annotated"]}],
                     extra_arguments=[{'use_intra_process_comms': True}])                                                            
             ],
             output='screen',

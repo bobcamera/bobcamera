@@ -2,6 +2,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <cv_bridge/cv_bridge.hpp>
+#include <rclcpp_components/register_node_macro.hpp>
 
 #include <vision_msgs/msg/bounding_box2_d_array.hpp>
 
@@ -13,6 +14,8 @@
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
 
+#include <visibility_control.h>
+
 class BackgroundSubtractor
     : public ParameterNode
 {
@@ -22,6 +25,14 @@ public:
         auto result = std::shared_ptr<BackgroundSubtractor>(new BackgroundSubtractor());
         result->init();
         return result;
+    }
+
+    COMPOSITION_PUBLIC
+    explicit BackgroundSubtractor(const rclcpp::NodeOptions & options)
+        : ParameterNode("background_subtractor_node", options)
+        , enable_profiling_(false)
+    {
+        init();
     }
     
 private:
@@ -195,3 +206,5 @@ int main(int argc, char **argv)
     rclcpp::shutdown();
     return 0;
 }
+
+RCLCPP_COMPONENTS_REGISTER_NODE(BackgroundSubtractor)
