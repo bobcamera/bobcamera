@@ -19,6 +19,7 @@
     <depend>bob_interfaces</depend>
     <depend>bob_image_processing</depend>
     <depend>bob_tracking</depend>
+    <depend>rclcpp_components</depend>
 
     <export>
         <build_type>ament_cmake</build_type>

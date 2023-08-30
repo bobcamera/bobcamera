@@ -3,6 +3,7 @@
 #include <opencv2/opencv.hpp>
 
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp_components/register_node_macro.hpp>
 #include <cv_bridge/cv_bridge.hpp>
 
 #include <sensor_msgs/msg/image.hpp>
@@ -13,7 +14,9 @@
 #include "parameter_node.hpp"
 
 #include <boblib/api/camera/qhy_camera.hpp>
-#include "boblib/api/utils/profiler.hpp"
+#include <boblib/api/utils/profiler.hpp>
+
+#include <visibility_control.h>
 
 class WebCameraVideo
     : public ParameterNode
@@ -26,6 +29,38 @@ public:
         return result;
     }
     
+    void timer_callback()
+    {
+        cv::Mat image;
+        if (!video_capture_.read(image) && is_video_)
+        {
+            current_video_idx_ = current_video_idx_ >= (videos_.size() - 1) ? 0 : current_video_idx_ + 1;
+            open_camera();
+            video_capture_.read(image);
+        }
+
+        if (resize_height_ > 0)
+        {
+            const double aspect_ratio = (double)image.size().width / (double)image.size().height;
+            const int frame_height = resize_height_;
+            const int frame_width = (int)(aspect_ratio * (double)frame_height);
+            cv::resize(image, image, cv::Size(frame_width, frame_height));
+        }
+
+        std_msgs::msg::Header header;
+        header.stamp = now();
+        header.frame_id = generate_uuid();
+
+        auto image_msg = cv_bridge::CvImage(header, image.channels() == 1 ? sensor_msgs::image_encodings::MONO8 : sensor_msgs::image_encodings::BGR8, image).toImageMsg();
+        image_publisher_->publish(*image_msg);
+
+        auto image_info_msg = generate_image_info(header, image);
+        image_info_publisher_->publish(image_info_msg);
+
+        camera_info_msg_.header = header;
+        camera_info_publisher_->publish(camera_info_msg_);
+    }
+
     void start_publishing()
     {
         RCLCPP_INFO(get_logger(), "Number of videos: %ld", videos_.size());
@@ -68,6 +103,23 @@ public:
         }
     }
 
+    COMPOSITION_PUBLIC
+    explicit WebCameraVideo(const rclcpp::NodeOptions & options)
+        : ParameterNode("web_camera_video_node", options)
+    {
+        qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
+        qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
+        qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
+
+        init();
+
+        RCLCPP_INFO(get_logger(), "Number of videos: %ld", videos_.size());
+        open_camera();
+        create_camera_info_msg();
+
+        timer_ = create_wall_timer(std::chrono::milliseconds(10), std::bind(&WebCameraVideo::timer_callback, this));
+    }
+
 private:
     rclcpp::QoS qos_profile_{2}; // The depth of the publisher queue
     cv::VideoCapture video_capture_;
@@ -83,6 +135,7 @@ private:
     std::string image_publish_topic_;
     std::string image_info_publish_topic_;
     std::string camera_info_publish_topic_;
+    rclcpp::TimerBase::SharedPtr timer_;
 
     WebCameraVideo()
         : ParameterNode("web_camera_video_node")
@@ -283,3 +336,5 @@ int main(int argc, char **argv)
     rclcpp::shutdown();
     return 0;
 }
+
+RCLCPP_COMPONENTS_REGISTER_NODE(WebCameraVideo)

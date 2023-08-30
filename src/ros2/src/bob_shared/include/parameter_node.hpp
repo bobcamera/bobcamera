@@ -24,7 +24,12 @@ public:
     };
 
     ParameterNode(const std::string &node_name)
-        : Node(node_name, *default_options())
+        : ParameterNode(node_name, *default_options())
+    {
+    }
+
+    ParameterNode(const std::string &node_name, const rclcpp::NodeOptions & options)
+        : Node(node_name, options)
     {
         parameters_callback_handle_ = add_on_set_parameters_callback(std::bind(&ParameterNode::param_change_callback_method, this, std::placeholders::_1));
     }

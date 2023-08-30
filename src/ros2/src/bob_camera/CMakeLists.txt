@@ -25,6 +25,7 @@ find_package(rcl_interfaces REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(boblib REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
+find_package(rclcpp_components REQUIRED)
 
 include_directories(${OpenCV_INCLUDE_DIRS})
 include_directories("../bob_shared/include")
@@ -65,7 +66,8 @@ ament_target_dependencies(qhy_node PUBLIC
 install(TARGETS qhy_node DESTINATION lib/${PROJECT_NAME})
 
 # Web Camera Video Node
-add_executable(web_camera_video_node src/web_camera_video.cpp)
+add_library(web_camera_video_node SHARED src/web_camera_video.cpp)
+target_compile_definitions(web_camera_video_node PRIVATE "COMPOSITION_BUILDING_DLL")
 target_link_libraries(web_camera_video_node PUBLIC boblib "${cpp_typesupport_target}")
 ament_target_dependencies(web_camera_video_node PUBLIC
     rclcpp 
@@ -73,8 +75,11 @@ ament_target_dependencies(web_camera_video_node PUBLIC
     std_msgs
     cv_bridge
     rcl_interfaces 
+    rclcpp_components
     OpenCV
     Boost)
-install(TARGETS web_camera_video_node DESTINATION lib/${PROJECT_NAME})
+rclcpp_components_register_nodes(web_camera_video_node "WebCameraVideo")
+#install(TARGETS web_camera_video_node DESTINATION lib/${PROJECT_NAME})
+install(TARGETS web_camera_video_node DESTINATION lib)
 
 ament_package()
