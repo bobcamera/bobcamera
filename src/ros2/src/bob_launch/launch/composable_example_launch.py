@@ -11,7 +11,7 @@ def generate_launch_description():
     video_file2 = '/workspaces/bobcamera/test/fisheye_videos/Dahua-20220901-184734.mp4'
 
     """Generate launch description with multiple components."""
-    container = ComposableNodeContainer(
+    container1 = ComposableNodeContainer(
             name='track_container',
             namespace='',
             package='rclcpp_components',
@@ -45,12 +45,29 @@ def generate_launch_description():
                     extra_arguments=[{'use_intra_process_comms': True}]),
                 ComposableNode(
                     package='bob_visualizers',
-                    plugin='FrameViewer',
+                    #plugin='FrameViewer',
+                    plugin='FrameBBoxViewer',
                     name='frame_viewer_node',
                     parameters=[{"topics": ["bob/camera/all_sky/bayer", "bob/frames/all_sky/foreground_mask", "bob/frames/annotated"]}],
-                    extra_arguments=[{'use_intra_process_comms': True}])                                                            
+                    extra_arguments=[{'use_intra_process_comms': True}]),
             ],
             output='screen',
     )
 
-    return launch.LaunchDescription([container])
+    #container2 = ComposableNodeContainer(
+    #        name='display_container',
+    #        namespace='',
+    #        package='rclcpp_components',
+    #        executable='component_container',
+    #        composable_node_descriptions=[
+    #            ComposableNode(
+    #                package='bob_visualizers',
+    #                plugin='FrameBBoxViewer',
+    #                name='frame_viewer_node',
+    #                parameters=[{"topics": ["bob/camera/all_sky/bayer", "bob/frames/all_sky/foreground_mask", "bob/frames/annotated"]}],
+    #                extra_arguments=[{'use_intra_process_comms': True}])                                                            
+    #        ],
+    #        output='screen',
+    #)
+
+    return launch.LaunchDescription([container1])#, container2])
