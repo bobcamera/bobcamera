@@ -45,8 +45,7 @@ def generate_launch_description():
                     extra_arguments=[{'use_intra_process_comms': True}]),
                 ComposableNode(
                     package='bob_visualizers',
-                    #plugin='FrameViewer',
-                    plugin='FrameBBoxViewer',
+                    plugin='FrameViewer',
                     name='frame_viewer_node',
                     parameters=[{"topics": ["bob/camera/all_sky/bayer", "bob/frames/all_sky/foreground_mask", "bob/frames/annotated"]}],
                     extra_arguments=[{'use_intra_process_comms': True}]),
@@ -62,7 +61,7 @@ def generate_launch_description():
     #        composable_node_descriptions=[
     #            ComposableNode(
     #                package='bob_visualizers',
-    #                plugin='FrameBBoxViewer',
+    #                plugin='FrameViewer',
     #                name='frame_viewer_node',
     #                parameters=[{"topics": ["bob/camera/all_sky/bayer", "bob/frames/all_sky/foreground_mask", "bob/frames/annotated"]}],
     #                extra_arguments=[{'use_intra_process_comms': True}])                                                            
