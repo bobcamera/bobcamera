@@ -39,10 +39,15 @@ def generate_launch_description():
                     name='track_provider_node',
                     extra_arguments=[{'use_intra_process_comms': True}]),
                 ComposableNode(
+                    package='bob_recorder',
+                    plugin='RosbagRecorder',
+                    name='rosbag_recorder_node',
+                    extra_arguments=[{'use_intra_process_comms': True}]),                    
+                ComposableNode(
                     package='bob_image_processing',
                     plugin='AnnotatedFrameProvider',
                     name='annotated_frame_provider_node',
-                    extra_arguments=[{'use_intra_process_comms': True}]),
+                    extra_arguments=[{'use_intra_process_comms': True}]),                    
                 ComposableNode(
                     package='bob_visualizers',
                     plugin='FrameViewer',
