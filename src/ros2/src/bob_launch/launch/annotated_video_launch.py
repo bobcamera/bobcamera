@@ -13,7 +13,7 @@ def generate_launch_description():
     
     launch_package_dir = get_package_share_directory('bob_launch')
 
-    vizualise_container = ComposableNodeContainer(
+    display_container = ComposableNodeContainer(
         name='display_container',
         namespace='',
         package='rclcpp_components',
@@ -37,5 +37,5 @@ def generate_launch_description():
                 '/kernel_launch.py'])
         ),
 
-        vizualise_container
+        display_container
     ])
