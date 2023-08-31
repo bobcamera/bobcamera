@@ -41,14 +41,11 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscription_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_resized_frame_;
     boblib::utils::Profiler profiler_;
-    std::vector<std::string> topics_;
-    int current_topic_;
 
     friend std::shared_ptr<FrameResizer> std::make_shared<FrameResizer>();
 
     FrameResizer() 
         : ParameterNode("frame_resizer")
-        , current_topic_{0}
     {
         declare_node_parameters();
     }
@@ -78,10 +75,10 @@ private:
         pub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
         pub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
 
-        image_subscription_ = create_subscription<sensor_msgs::msg::Image>("bob/frames/resizer/source", sub_qos_profile_,
+        image_subscription_ = create_subscription<sensor_msgs::msg::Image>("bob/resizer/source", sub_qos_profile_,
             std::bind(&FrameResizer::imageCallback, this, std::placeholders::_1));
 
-        pub_resized_frame_ = create_publisher<sensor_msgs::msg::Image>("bob/frames/resizer/target", pub_qos_profile);
+        pub_resized_frame_ = create_publisher<sensor_msgs::msg::Image>("bob/resizer/target", pub_qos_profile);
     }
 
     void imageCallback(const sensor_msgs::msg::Image::SharedPtr image_msg)
@@ -97,8 +94,7 @@ private:
                 const int frame_height = resize_height_;
                 const int frame_width = (int)(aspect_ratio * (double)frame_height);
                 cv::resize(image, image, cv::Size(frame_width, frame_height));
-            }            
-
+            }
 
             auto resized_frame_msg = cv_bridge::CvImage(image_msg->header, image_msg->encoding, image).toImageMsg();
             pub_resized_frame_->publish(*resized_frame_msg);
