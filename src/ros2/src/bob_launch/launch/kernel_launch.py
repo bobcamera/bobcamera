@@ -47,31 +47,54 @@ def generate_launch_description():
                     package='bob_image_processing',
                     plugin='AnnotatedFrameProvider',
                     name='annotated_frame_provider_node',
-                    extra_arguments=[{'use_intra_process_comms': True}]),                    
-                ComposableNode(
-                    package='bob_visualizers',
-                    plugin='FrameViewer',
-                    name='frame_viewer_node',
-                    parameters=[{"topics": ["bob/camera/all_sky/bayer", "bob/frames/all_sky/foreground_mask", "bob/frames/annotated"]}],
                     extra_arguments=[{'use_intra_process_comms': True}]),
+                
+                # Nodes for resizing the image in order to stick it on the network for display
+                ComposableNode(
+                    package='bob_image_processing',
+                    plugin='FrameResizer',
+                    name='bayer_frame_resizer_node',
+                    remappings=[
+                        ('bob/frames/resizer/source', 'bob/camera/all_sky/bayer'),
+                        ('bob/frames/resizer/target', 'bob/camera/all_sky/bayer/resized')],
+                    parameters=[{'resize_height': 960}],
+                    extra_arguments=[{'use_intra_process_comms': True}]),
+                ComposableNode(
+                    package='bob_image_processing',
+                    plugin='FrameResizer',
+                    name='foreground_mask_frame_resizer_node',
+                    remappings=[
+                        ('bob/frames/resizer/source', 'bob/frames/all_sky/foreground_mask'),
+                        ('bob/frames/resizer/target', 'bob/frames/all_sky/foreground_mask/resized')],
+                    parameters=[{'resize_height': 960}],
+                    extra_arguments=[{'use_intra_process_comms': True}]),
+                ComposableNode(
+                    package='bob_image_processing',
+                    plugin='FrameResizer',
+                    name='annotated_frame_resizer_node',
+                    remappings=[
+                        ('bob/frames/resizer/source', 'bob/frames/annotated'),
+                        ('bob/frames/resizer/target', 'bob/frames/annotated/resized')],
+                    parameters=[{'resize_height': 960}],
+                    extra_arguments=[{'use_intra_process_comms': True}]),                    
             ],
             output='screen',
     )
 
-    #container2 = ComposableNodeContainer(
-    #        name='display_container',
-    #        namespace='',
-    #        package='rclcpp_components',
-    #        executable='component_container',
-    #        composable_node_descriptions=[
-    #            ComposableNode(
-    #                package='bob_visualizers',
-    #                plugin='FrameViewer',
-    #                name='frame_viewer_node',
-    #                parameters=[{"topics": ["bob/camera/all_sky/bayer", "bob/frames/all_sky/foreground_mask", "bob/frames/annotated"]}],
-    #                extra_arguments=[{'use_intra_process_comms': True}])                                                            
-    #        ],
-    #        output='screen',
-    #)
+    container2 = ComposableNodeContainer(
+            name='display_container',
+            namespace='',
+            package='rclcpp_components',
+            executable='component_container',
+            composable_node_descriptions=[
+                ComposableNode(
+                    package='bob_visualizers',
+                    plugin='FrameViewer',
+                    name='frame_viewer_node',
+                    parameters=[{"topics": ["bob/camera/all_sky/bayer/resized", "bob/frames/all_sky/foreground_mask/resized", "bob/frames/annotated/resized"]}],
+                    extra_arguments=[{'use_intra_process_comms': True}])                                                            
+            ],
+            output='screen',
+    )
 
-    return launch.LaunchDescription([container1])#, container2])
+    return launch.LaunchDescription([container1, container2])
