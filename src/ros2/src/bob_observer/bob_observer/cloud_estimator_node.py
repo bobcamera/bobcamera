@@ -53,12 +53,12 @@ class CloudEstimatorNode(Node):
         match self.day_night:
           case DayNightEnum.Day:
             estimation = self.day_cloud_estimator.estimate(self.br.imgmsg_to_cv2(self.msg_image))
-            self.get_logger().debug(f'{self.get_name()} Day time cloud estimation --> {estimation}')
+            self.get_logger().info(f'{self.get_name()} Day time cloud estimation --> {estimation}')
           case DayNightEnum.Night:
             estimation = self.night_cloud_estimator.estimate(self.br.imgmsg_to_cv2(self.msg_image))
-            self.get_logger().debug(f'{self.get_name()} Night time cloud estimation --> {estimation}')
+            self.get_logger().info(f'{self.get_name()} Night time cloud estimation --> {estimation}')
           case _:
-            self.get_logger().debug(f'{self.get_name()} Unknown Day/Night classifier, ignore for now')
+            self.get_logger().info(f'{self.get_name()} Unknown Day/Night classifier, ignore for now')
             pass
         
         if estimation != None:

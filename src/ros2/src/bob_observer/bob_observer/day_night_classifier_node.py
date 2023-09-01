@@ -7,6 +7,7 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 from bob_shared.node_runner import NodeRunner
+from bob_shared.enumerations import DayNightEnum
 from bob_interfaces.msg import ObserverDayNight
 from .day_night_classifier import DayNightEstimator
 
@@ -36,13 +37,13 @@ class DayNightClassifierNode(Node):
     self.msg_image = msg_image
 
   def day_night_classifier(self):
-    
+
     if self.msg_image != None:
 
       try:
 
         result, average_brightness = self.day_night_estimator.estimate(self.br.imgmsg_to_cv2(self.msg_image))
-        self.get_logger().debug(f'{self.get_name()} Day/Night classifier --> {result}, {average_brightness}')
+        self.get_logger().info(f'{self.get_name()} Day/Night classifier --> {str(result)}, {average_brightness}')
 
         day_night_msg = ObserverDayNight()
         day_night_msg.day_night_enum = int(result)
