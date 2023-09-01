@@ -9,7 +9,7 @@
     <p>To see this page update:</p>
     <ul>
       <li>Run a Rosbridge connection at <code>ws://localhost:8081</code></li>
-      <li>Start publishing ROS messages to <code>/sky360/tracker/tracking_state/json"</code></li>
+      <li>Start publishing ROS messages to <code>/bob/tracker/tracking_state/json"</code></li>
     </ul>
     
     <p>View the full tutorial at <a href="https://foxglove.dev/blog/using-rosbridge-with-ros1" target="_blank">Using Rosbridge with ROS 1</a> or <a href="https://foxglove.dev/blog/using-rosbridge-with-ros2" target="_blank">Using Rosbridge with ROS 2</a>.</p>
@@ -43,7 +43,7 @@
       // Create a listener for /my_topic
       const my_topic_listener = new ROSLIB.Topic({
         ros,
-        name : "/sky360/tracker/tracking_state/json",
+        name : "/bob/tracker/tracking_state/json",
         messageType : "std_msgs/String"
       });
 

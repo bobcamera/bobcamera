@@ -55,13 +55,21 @@ rclcpp_components_register_nodes(annotated_frame_provider_node "AnnotatedFramePr
 install(TARGETS annotated_frame_provider_node DESTINATION lib)
 # install(TARGETS annotated_frame_provider_node DESTINATION lib/${PROJECT_NAME})
 
-# Image Resizer
+# Frame Resizer
 add_library(frame_resizer SHARED src/frame_resizer.cpp)
 target_compile_definitions(frame_resizer PRIVATE "COMPOSITION_BUILDING_DLL")
 target_link_libraries(frame_resizer PUBLIC boblib)
 ament_target_dependencies(frame_resizer PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV rclcpp_components bob_interfaces)
 rclcpp_components_register_nodes(frame_resizer "FrameResizer")
 install(TARGETS frame_resizer DESTINATION lib)
+
+# Frame Compressor
+add_library(frame_compressor SHARED src/frame_compressor.cpp)
+target_compile_definitions(frame_compressor PRIVATE "COMPOSITION_BUILDING_DLL")
+target_link_libraries(frame_compressor PUBLIC boblib)
+ament_target_dependencies(frame_compressor PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV rclcpp_components bob_interfaces)
+rclcpp_components_register_nodes(frame_compressor "FrameCompressor")
+install(TARGETS frame_compressor DESTINATION lib)
 # install(TARGETS annotated_frame_provider_node DESTINATION lib/${PROJECT_NAME})
 
 ament_package()
