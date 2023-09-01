@@ -21,13 +21,6 @@ class FrameResizer
     : public ParameterNode
 {
 public:
-    static std::shared_ptr<FrameResizer> create()
-    {
-        auto result = std::shared_ptr<FrameResizer>(new FrameResizer());
-        result->init();
-        return result;
-    }
-
     COMPOSITION_PUBLIC
     explicit FrameResizer(const rclcpp::NodeOptions & options) 
         : ParameterNode("frame_resizer_node", options)
@@ -41,16 +34,9 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscription_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_resized_frame_;
     boblib::utils::Profiler profiler_;
+    int resize_height_;
 
     friend std::shared_ptr<FrameResizer> std::make_shared<FrameResizer>();
-
-    FrameResizer() 
-        : ParameterNode("frame_resizer")
-    {
-        declare_node_parameters();
-    }
-
-    int resize_height_;
 
     void declare_node_parameters()
     {
@@ -109,7 +95,7 @@ private:
 int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
-    rclcpp::spin(FrameResizer::create());
+    rclcpp::spin(std::make_shared<FrameResizer>(rclcpp::NodeOptions()));
     rclcpp::shutdown();
     return 0;
 }

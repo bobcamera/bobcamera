@@ -41,6 +41,26 @@ public:
         timer_ = create_wall_timer(std::chrono::milliseconds(10), std::bind(&QhyNode::timer_callback, this));
     }
 
+private:
+    rclcpp::QoS qos_profile_{10}; // The depth of the publisher queue
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
+    rclcpp::Publisher<bob_camera::msg::ImageInfo>::SharedPtr image_info_publisher_;
+    rclcpp::Publisher<bob_camera::msg::CameraInfo>::SharedPtr camera_info_publisher_;
+    bob_camera::msg::CameraInfo camera_info_msg_;
+    boblib::camera::QhyCamera qhy_camera_;
+    boblib::utils::SubSampler subSampler{50, 50};
+    boblib::utils::BrightnessEstimator brightnessEstimator;
+    boblib::utils::AutoExposure auto_exposure_control_{0.25, 180, 0.01, 100};
+    boblib::utils::Profiler profiler_;
+    std::string msg_bayer_format_str_;
+    bool auto_exposure_;
+    bool enable_profiling_;
+    std::string image_publish_topic_;
+    std::string image_info_publish_topic_;
+    std::string camera_info_publish_topic_;
+    std::string camera_id_;
+    rclcpp::TimerBase::SharedPtr timer_;
+
     void timer_callback()
     {
         cv::Mat image;
@@ -72,26 +92,6 @@ public:
         profile_stop("Frame");
         profile_dump();
     }
-
-private:
-    rclcpp::QoS qos_profile_{10}; // The depth of the publisher queue
-    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
-    rclcpp::Publisher<bob_camera::msg::ImageInfo>::SharedPtr image_info_publisher_;
-    rclcpp::Publisher<bob_camera::msg::CameraInfo>::SharedPtr camera_info_publisher_;
-    bob_camera::msg::CameraInfo camera_info_msg_;
-    boblib::camera::QhyCamera qhy_camera_;
-    boblib::utils::SubSampler subSampler{50, 50};
-    boblib::utils::BrightnessEstimator brightnessEstimator;
-    boblib::utils::AutoExposure auto_exposure_control_{0.25, 180, 0.01, 100};
-    boblib::utils::Profiler profiler_;
-    std::string msg_bayer_format_str_;
-    bool auto_exposure_;
-    bool enable_profiling_;
-    std::string image_publish_topic_;
-    std::string image_info_publish_topic_;
-    std::string camera_info_publish_topic_;
-    std::string camera_id_;
-    rclcpp::TimerBase::SharedPtr timer_;
 
     void declare_node_parameters()
     {

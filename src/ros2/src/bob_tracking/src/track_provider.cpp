@@ -26,13 +26,6 @@ class TrackProvider
     : public ParameterNode
 {
 public:
-    static std::shared_ptr<TrackProvider> create()
-    {
-        auto result = std::shared_ptr<TrackProvider>(new TrackProvider());
-        result->init();
-        return result;
-    }
-
     COMPOSITION_PUBLIC
     explicit TrackProvider(const rclcpp::NodeOptions & options)
         : ParameterNode("frame_provider_node", options)
@@ -57,12 +50,6 @@ private:
     rclcpp::TimerBase::SharedPtr timer_;
 
     friend std::shared_ptr<TrackProvider> std::make_shared<TrackProvider>();
-
-    TrackProvider()
-        : ParameterNode("frame_provider_node")
-        , video_tracker_({{"tracker_type", "MOSSE"}}, get_logger())
-    {
-    }
 
     void init()
     {
@@ -122,7 +109,6 @@ private:
     {
         bob_interfaces::msg::TrackDetectionArray detection_array_msg;
         detection_array_msg.header = header;
-        //RCLCPP_INFO(get_logger(), "id: %s, stamp: %ld", header.frame_id.c_str(), header.stamp.nanosec);
         for (const auto &tracker : video_tracker_.get_live_trackers())
         {
             add_detects_to_msg(tracker, detection_array_msg);
@@ -217,7 +203,7 @@ private:
 int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
-    rclcpp::spin(TrackProvider::create());
+    rclcpp::spin(std::make_shared<TrackProvider>(rclcpp::NodeOptions()));
     rclcpp::shutdown();
     return 0;
 }

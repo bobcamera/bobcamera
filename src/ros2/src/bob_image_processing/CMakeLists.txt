@@ -43,7 +43,6 @@ target_compile_definitions(background_subtractor_node PRIVATE "COMPOSITION_BUILD
 target_link_libraries(background_subtractor_node PUBLIC boblib)
 ament_target_dependencies(background_subtractor_node PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge OpenCV rclcpp_components bob_camera)
 rclcpp_components_register_nodes(background_subtractor_node "BackgroundSubtractor")
-#install(TARGETS background_subtractor_node DESTINATION lib/${PROJECT_NAME})
 install(TARGETS background_subtractor_node DESTINATION lib)
 
 # Annotated Frame Provider Node
@@ -53,7 +52,6 @@ target_link_libraries(annotated_frame_provider_node PUBLIC boblib)
 ament_target_dependencies(annotated_frame_provider_node PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV rclcpp_components bob_interfaces)
 rclcpp_components_register_nodes(annotated_frame_provider_node "AnnotatedFrameProvider")
 install(TARGETS annotated_frame_provider_node DESTINATION lib)
-# install(TARGETS annotated_frame_provider_node DESTINATION lib/${PROJECT_NAME})
 
 # Frame Resizer
 add_library(frame_resizer SHARED src/frame_resizer.cpp)
@@ -70,6 +68,5 @@ target_link_libraries(frame_compressor PUBLIC boblib)
 ament_target_dependencies(frame_compressor PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV rclcpp_components bob_interfaces)
 rclcpp_components_register_nodes(frame_compressor "FrameCompressor")
 install(TARGETS frame_compressor DESTINATION lib)
-# install(TARGETS annotated_frame_provider_node DESTINATION lib/${PROJECT_NAME})
 
 ament_package()

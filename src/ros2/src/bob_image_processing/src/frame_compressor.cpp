@@ -21,13 +21,6 @@ class FrameCompressor
     : public ParameterNode
 {
 public:
-    static std::shared_ptr<FrameCompressor> create()
-    {
-        auto result = std::shared_ptr<FrameCompressor>(new FrameCompressor());
-        result->init();
-        return result;
-    }
-
     COMPOSITION_PUBLIC
     explicit FrameCompressor(const rclcpp::NodeOptions & options) 
         : ParameterNode("frame_compressor_node", options)
@@ -43,14 +36,6 @@ private:
     boblib::utils::Profiler profiler_;
 
     friend std::shared_ptr<FrameCompressor> std::make_shared<FrameCompressor>();
-
-    FrameCompressor() 
-        : ParameterNode("frame_compressor")
-    {
-        declare_node_parameters();
-    }
-
-    int resize_height_;
 
     void declare_node_parameters()
     {
@@ -87,7 +72,14 @@ private:
             //compressed_msg.format = 'jpeg'
             //compressed_msg.data = cv2.imencode('.jpg', source_frame)[1].tobytes()
 
-            //pub_resized_frame_->publish(*compressed_msg);
+            std::vector<uchar> output;
+            cv::imencode(".jpg", image, output);
+            sensor_msgs::msg::CompressedImage compressed_image_msg;
+            compressed_image_msg.header = image_msg->header;
+            compressed_image_msg.format = "jpeg";
+            compressed_image_msg.data = output;
+
+            pub_compressed_frame_->publish(compressed_image_msg);
         }
         catch (cv_bridge::Exception &e)
         {
@@ -99,7 +91,7 @@ private:
 int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
-    rclcpp::spin(FrameCompressor::create());
+    rclcpp::spin(std::make_shared<FrameCompressor>(rclcpp::NodeOptions()));
     rclcpp::shutdown();
     return 0;
 }

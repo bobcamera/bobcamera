@@ -25,19 +25,36 @@ public:
     COMPOSITION_PUBLIC
     explicit WebCameraVideo(const rclcpp::NodeOptions & options)
         : ParameterNode("web_camera_video_node", options)
+        , current_video_idx_{0}
     {
         qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
         qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
         qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
 
-        declare_node_parameters();
-        current_video_idx_ = 0;
+        declare_node_parameters();    
 
         open_camera();
         create_camera_info_msg();
 
         timer_ = create_wall_timer(std::chrono::milliseconds(10), std::bind(&WebCameraVideo::timer_callback, this));
     }
+
+private:
+    rclcpp::QoS qos_profile_{10}; // The depth of the publisher queue
+    cv::VideoCapture video_capture_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
+    rclcpp::Publisher<bob_camera::msg::ImageInfo>::SharedPtr image_info_publisher_;
+    rclcpp::Publisher<bob_camera::msg::CameraInfo>::SharedPtr camera_info_publisher_;
+    bob_camera::msg::CameraInfo camera_info_msg_;
+    bool is_video_;
+    int camera_id_;
+    int resize_height_;
+    std::vector<std::string> videos_;
+    uint32_t current_video_idx_;
+    std::string image_publish_topic_;
+    std::string image_info_publish_topic_;
+    std::string camera_info_publish_topic_;
+    rclcpp::TimerBase::SharedPtr timer_;
 
     void timer_callback()
     {
@@ -70,24 +87,7 @@ public:
         camera_info_msg_.header = header;
         camera_info_publisher_->publish(camera_info_msg_);
     }
-
-private:
-    rclcpp::QoS qos_profile_{10}; // The depth of the publisher queue
-    cv::VideoCapture video_capture_;
-    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
-    rclcpp::Publisher<bob_camera::msg::ImageInfo>::SharedPtr image_info_publisher_;
-    rclcpp::Publisher<bob_camera::msg::CameraInfo>::SharedPtr camera_info_publisher_;
-    bob_camera::msg::CameraInfo camera_info_msg_;
-    bool is_video_;
-    int camera_id_;
-    int resize_height_;
-    std::vector<std::string> videos_;
-    uint32_t current_video_idx_;
-    std::string image_publish_topic_;
-    std::string image_info_publish_topic_;
-    std::string camera_info_publish_topic_;
-    rclcpp::TimerBase::SharedPtr timer_;
-
+    
     void declare_node_parameters()
     {
         std::vector<ParameterNode::ActionParam> params = {
