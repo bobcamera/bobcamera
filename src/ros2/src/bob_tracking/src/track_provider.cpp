@@ -14,7 +14,6 @@
 #include "bob_interfaces/msg/tracking_state.hpp"
 #include "bob_interfaces/msg/track_trajectory_array.hpp"
 
-#include "boblib/api/utils/profiler.hpp"
 #include "tracking/video_tracker.hpp"
 
 #include "parameter_node.hpp"
@@ -45,7 +44,6 @@ private:
     rclcpp::Publisher<bob_interfaces::msg::TrackDetectionArray>::SharedPtr pub_tracker_detects;
     rclcpp::Publisher<bob_interfaces::msg::TrackTrajectoryArray>::SharedPtr pub_tracker_trajectory;
     rclcpp::Publisher<bob_interfaces::msg::TrackTrajectoryArray>::SharedPtr pub_tracker_prediction;
-    boblib::utils::Profiler profiler_;
     VideoTracker video_tracker_;
     rclcpp::TimerBase::SharedPtr timer_;
 

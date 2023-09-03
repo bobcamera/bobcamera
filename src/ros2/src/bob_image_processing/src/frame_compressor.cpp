@@ -66,12 +66,6 @@ private:
             cv::Mat image;
             ImageUtils::convert_image_msg(image_msg, image, true);
             
-            // TODO: @Fabio, could you please fix this for me.
-            //compressed_msg: CompressedImage = CompressedImage()
-            //compressed_msg.header = msg_source.header
-            //compressed_msg.format = 'jpeg'
-            //compressed_msg.data = cv2.imencode('.jpg', source_frame)[1].tobytes()
-
             std::vector<uchar> output;
             cv::imencode(".jpg", image, output);
             sensor_msgs::msg::CompressedImage compressed_image_msg;

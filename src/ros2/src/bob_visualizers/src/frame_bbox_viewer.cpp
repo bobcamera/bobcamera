@@ -11,8 +11,6 @@
 #include <sensor_msgs/msg/image.hpp>
 #include <vision_msgs/msg/bounding_box2_d_array.hpp>
 
-#include <boblib/api/utils/profiler.hpp>
-
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
 
@@ -22,13 +20,6 @@ class FrameBBoxViewer
     : public ParameterNode
 {
 public:
-    static std::shared_ptr<FrameBBoxViewer> create()
-    {
-        auto result = std::shared_ptr<FrameBBoxViewer>(new FrameBBoxViewer());
-        result->init();
-        return result;
-    }
-
     COMPOSITION_PUBLIC
     explicit FrameBBoxViewer(const rclcpp::NodeOptions & options)
         : ParameterNode("frame_bbox_viewer_node", options), current_topic_{0}
@@ -42,18 +33,11 @@ private:
     message_filters::Subscriber<sensor_msgs::msg::Image> sub_image_;
     message_filters::Subscriber<vision_msgs::msg::BoundingBox2DArray> sub_bbox_;
     std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, vision_msgs::msg::BoundingBox2DArray>> time_synchronizer_;
-    boblib::utils::Profiler profiler_;
     std::vector<std::string> topics_;
     int current_topic_;
     rclcpp::TimerBase::SharedPtr timer_;
 
     friend std::shared_ptr<FrameBBoxViewer> std::make_shared<FrameBBoxViewer>();
-
-    FrameBBoxViewer()
-        : ParameterNode("frame_bbox_viewer_node"), current_topic_{0}
-    {
-        declare_node_parameters();
-    }
 
     void init()
     {
@@ -129,7 +113,7 @@ private:
 int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
-    rclcpp::spin(FrameBBoxViewer::create());
+    rclcpp::spin(std::make_shared<FrameBBoxViewer>(rclcpp::NodeOptions()));
     rclcpp::shutdown();
     return 0;
 }

@@ -10,8 +10,6 @@
 
 #include <sensor_msgs/msg/image.hpp>
 
-#include <boblib/api/utils/profiler.hpp>
-
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
 
@@ -21,13 +19,6 @@ class FrameViewer
     : public ParameterNode
 {
 public:
-    static std::shared_ptr<FrameViewer> create()
-    {
-        auto result = std::shared_ptr<FrameViewer>(new FrameViewer());
-        result->init();
-        return result;
-    }
-
     COMPOSITION_PUBLIC
     explicit FrameViewer(const rclcpp::NodeOptions & options) 
         : ParameterNode("frame_viewer_node", options)
@@ -40,18 +31,10 @@ public:
 private:
     rclcpp::QoS sub_qos_profile_{10};
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscription_;
-    boblib::utils::Profiler profiler_;
     std::vector<std::string> topics_;
     int current_topic_;
 
     friend std::shared_ptr<FrameViewer> std::make_shared<FrameViewer>();
-
-    FrameViewer() 
-        : ParameterNode("frame_viewer_node")
-        , current_topic_{0}
-    {
-        declare_node_parameters();
-    }
 
     void declare_node_parameters()
     {
@@ -113,7 +96,7 @@ private:
 int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
-    rclcpp::spin(FrameViewer::create());
+    rclcpp::spin(std::make_shared<FrameViewer>(rclcpp::NodeOptions()));
     rclcpp::shutdown();
     return 0;
 }
