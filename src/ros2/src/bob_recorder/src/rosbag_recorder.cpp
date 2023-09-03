@@ -12,23 +12,23 @@
 #include "bob_interfaces/msg/track_trajectory_array.hpp"
 #include <vision_msgs/msg/bounding_box2_d_array.hpp>
 
-#include "annotated_frame/annotated_frame_creator.hpp"
+//#include "annotated_frame/annotated_frame_creator.hpp"
 
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
 
 #include <visibility_control.h>
 
-class AnnotatedFrameProvider 
+class RosbagRecorder 
     : public ParameterNode
 {
 public:
     COMPOSITION_PUBLIC
-    explicit AnnotatedFrameProvider(const rclcpp::NodeOptions & options) 
-        : ParameterNode("annotated_frame_provider_node", options)
-        , annotated_frame_creator_(std::map<std::string, std::string>())
+    explicit RosbagRecorder(const rclcpp::NodeOptions & options) 
+        : ParameterNode("rosbag_recorder", options)
+        //, annotated_frame_creator_(std::map<std::string, std::string>())
     {
-        timer_ = create_wall_timer(std::chrono::seconds(1), std::bind(&AnnotatedFrameProvider::init, this));
+        timer_ = create_wall_timer(std::chrono::seconds(1), std::bind(&RosbagRecorder::init, this));
     }
 
 private:
@@ -40,21 +40,16 @@ private:
     std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::TrackingState, 
         bob_interfaces::msg::TrackDetectionArray, bob_interfaces::msg::TrackTrajectoryArray, bob_interfaces::msg::TrackTrajectoryArray>> time_synchronizer_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_annotated_frame_;
-    AnnotatedFrameCreator annotated_frame_creator_;
+    //AnnotatedFrameCreator annotated_frame_creator_;
     rclcpp::TimerBase::SharedPtr timer_;
 
-    friend std::shared_ptr<AnnotatedFrameProvider> std::make_shared<AnnotatedFrameProvider>();
+    friend std::shared_ptr<RosbagRecorder> std::make_shared<RosbagRecorder>();
 
     void init()
     {
-        RCLCPP_INFO(get_logger(), "Initializing AnnotatedFrameProvider");
+        RCLCPP_INFO(get_logger(), "Initializing RosbagRecorder");
 
         timer_->cancel();
-
-        rclcpp::QoS pub_qos_profile{10};
-        pub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
-        pub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
-        pub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
 
         rclcpp::QoS sub_qos_profile{10};
         sub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
@@ -70,9 +65,7 @@ private:
 
         time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::TrackingState, bob_interfaces::msg::TrackDetectionArray, 
             bob_interfaces::msg::TrackTrajectoryArray, bob_interfaces::msg::TrackTrajectoryArray>>(*sub_masked_frame_, *sub_tracking_state_, *sub_tracker_detections_, *sub_tracker_trajectory_, *sub_tracker_prediction_, 10);
-        time_synchronizer_->registerCallback(&AnnotatedFrameProvider::callback, this);
-
-        pub_annotated_frame_ = create_publisher<sensor_msgs::msg::Image>("bob/frames/annotated", pub_qos_profile);
+        time_synchronizer_->registerCallback(&RosbagRecorder::callback, this);
     }
 
     void callback(const sensor_msgs::msg::Image::SharedPtr& image_msg
@@ -83,13 +76,13 @@ private:
     {
         try
         {
-            cv::Mat img;
-            ImageUtils::convert_image_msg(image_msg, img, true);
+            if(((int)tracking_state_msg.get()->trackable) > 0) 
+            {
+                cv::Mat img;
+                ImageUtils::convert_image_msg(image_msg, img, true);
 
-            auto annotated_frame = annotated_frame_creator_.create_frame(img, *tracking_state_msg, *detections_msg, *trajectory_msg, *prediction_msg);
-
-            auto annotated_frame_msg = cv_bridge::CvImage(image_msg->header, sensor_msgs::image_encodings::BGR8, annotated_frame).toImageMsg();
-            pub_annotated_frame_->publish(*annotated_frame_msg);
+                RCLCPP_INFO(get_logger(), "Recorder Logic goes here --- Recording.....");
+            }
         }
         catch (cv_bridge::Exception &e)
         {
@@ -101,9 +94,9 @@ private:
 int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
-    rclcpp::spin(std::make_shared<AnnotatedFrameProvider>(rclcpp::NodeOptions()));
+    rclcpp::spin(std::make_shared<RosbagRecorder>(rclcpp::NodeOptions()));
     rclcpp::shutdown();
     return 0;
 }
 
-RCLCPP_COMPONENTS_REGISTER_NODE(AnnotatedFrameProvider)
+RCLCPP_COMPONENTS_REGISTER_NODE(RosbagRecorder)

@@ -1,52 +1,29 @@
-import os
 from launch import LaunchDescription
-from launch_ros.actions import Node
+from launch.actions import IncludeLaunchDescription
 from ament_index_python.packages import get_package_share_directory
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 def generate_launch_description():
-    video_file1 = '/workspaces/bobcamera/test/fisheye_videos/brad_drone_1.mp4'
-    video_file2 = '/workspaces/bobcamera/test/fisheye_videos/Dahua-20220901-184734.mp4'
+    
+    launch_package_dir = get_package_share_directory('bob_launch')
+
     return LaunchDescription([
-        Node(
-            package='bob_camera',
-            executable='web_camera_video_node',
-            name='web_camera_video_node',
-            output='screen',
-            parameters=[{'image_publish_topic': 'bob/camera/all_sky/bayer'}
-                        , {'image_info_publish_topic': 'bob/camera/all_sky/image_info'}
-                        , {'camera_info_publish_topic': 'bob/camera/all_sky/camera_info'}
-                        , {'is_video': True}
-                        , {'videos': [video_file1, video_file2]}
-                        , {'resize_height': 1200}]
+
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource([
+                launch_package_dir, 
+                '/kernel_launch.py'])
         ),
-        Node(
-            package='bob_image_processing',
-            executable='background_subtractor_node',
-            name='background_subtractor_node',
-            output='screen'
+
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource([
+                launch_package_dir, 
+                '/display_launch.py'])
         ),
-        Node(
-            package='bob_tracking',
-            executable='track_provider_node',
-            name='track_provider_node',
-            output='screen'
-        ),
-        #Node(
-        #    package='bob_recorder',
-        #    executable='rosbag_recorder',
-        #    name='rosbag_recorder'
-        #),        
-        Node(
-            package='bob_image_processing',
-            executable='annotated_frame_provider_node',
-            name='annotated_frame_provider_node',
-            output='screen'
-        ),
-        Node(
-            package='bob_visualizers',
-            executable='frame_viewer_node',
-            name='frame_viewer_node',
-            output='screen',
-            parameters=[{"topics": ["bob/frames/annotated", "bob/camera/all_sky/bayer", "bob/frames/all_sky/foreground_mask"]}]
-        ),
+
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource([
+                launch_package_dir, 
+                '/monitor_launch.py'])
+        ),       
     ])

@@ -6,22 +6,125 @@
 #include <vector>
 #include <cmath>
 
+#include <rclcpp/rclcpp.hpp>
+
 #include <opencv2/opencv.hpp>
 #include <opencv2/tracking.hpp>
+#include <opencv2/tracking/tracking_legacy.hpp>
 #include <opencv2/core/ocl.hpp>
 
 #include "track_prediction.hpp"
 
 #include "../../bob_shared/include/tracking_state.hpp"
 
+class CvTracker
+{
+public:
+    CvTracker(const std::map<std::string, std::string> &settings)
+    {
+        tracker_ = SelectTracker(settings);
+        legacy_tracker_ = SelectLegacyTracker(settings);
+    }
+
+    void init(const cv::InputArray& image, const cv::Rect& boundingBox)
+    {
+        if (!tracker_.empty())
+        {
+            tracker_->init(image, boundingBox);
+        }
+        else if (!legacy_tracker_.empty())
+        {
+            legacy_tracker_->init(image, boundingBox);
+        }
+    }
+
+    bool update(const cv::InputArray& image, cv::Rect& boundingBox)
+    {
+        if (!tracker_.empty())
+        {
+            return tracker_->update(image, boundingBox);
+        }
+        else if (!legacy_tracker_.empty())
+        {
+            auto bbox = cv::Rect2d(boundingBox.x, boundingBox.y, boundingBox.width, boundingBox.height);
+            auto result = legacy_tracker_->update(image, bbox);
+            boundingBox.x = (int)bbox.x;
+            boundingBox.y = (int)bbox.y;
+            boundingBox.width = (int)bbox.width;
+            boundingBox.height = (int)bbox.height;
+            return result;
+        }
+
+        return false;
+    }
+
+private:
+    cv::Ptr<cv::Tracker> tracker_;
+    cv::Ptr<cv::legacy::Tracker> legacy_tracker_;
+
+    static cv::Ptr<cv::Tracker> SelectTracker(const std::map<std::string, std::string> &settings)
+    {
+        auto tracker_type = settings.at("tracker_type");
+
+        if (tracker_type == "MIL")
+        {
+            return cv::TrackerMIL::create();
+        }
+        else if (tracker_type == "KCF")
+        {
+            return cv::TrackerKCF::create();
+        }
+        else if (tracker_type == "GOTURN")
+        {
+            return cv::TrackerGOTURN::create();
+        }
+        else if (tracker_type == "DASIAMRPN")
+        {
+            return cv::TrackerDaSiamRPN::create();
+        }
+        else if (tracker_type == "CSRT")
+        {
+            cv::TrackerCSRT::Params params;
+            params.use_gray = true;
+            params.psr_threshold = 0.06;
+            return cv::TrackerCSRT::create(params);
+        }
+
+        return nullptr;
+    }
+
+    static cv::Ptr<cv::legacy::Tracker> SelectLegacyTracker(const std::map<std::string, std::string> &settings)
+    {
+        auto tracker_type = settings.at("tracker_type");
+
+        if (tracker_type == "BOOSTING")
+        {
+            return cv::legacy::TrackerBoosting::create();
+        }
+        else if (tracker_type == "TLD")
+        {
+            return cv::legacy::TrackerTLD::create();
+        }
+        else if (tracker_type == "MEDIANFLOW")
+        {
+            return cv::legacy::TrackerMedianFlow::create();
+        }
+        else if (tracker_type == "MOSSE")
+        {
+             return cv::legacy::TrackerMOSSE::create();
+        }
+
+        return nullptr;
+    }
+};
+
 class Tracker
 {
 public:
     Tracker(const std::map<std::string, std::string> &settings, int id, const cv::Mat &frame, const cv::Rect &bbox, rclcpp::Logger logger)
-        : settings(settings), id(id), track_predictor(id, bbox), logger_(logger)
+        : settings(settings), tracker_(settings), id(id), track_predictor(id, bbox), logger_(logger)
     {
-        cv2_tracker = Select(settings);
-        cv2_tracker->init(frame, bbox);
+        tracker_.init(frame, bbox);
         bboxes.push_back(bbox);
         stationary_track_counter = 0;
         active_track_counter = 0;
@@ -44,51 +147,6 @@ public:
         return this->id == other.id;
     }
 
-    static cv::Ptr<cv::Tracker> Select(const std::map<std::string, std::string> &settings)
-    {
-        (void)settings;
-        std::string tracker_type = "KCF";//settings["tracker_type"];
-
-        // if (tracker_type == "BOOSTING")
-        // {
-        //     return cv::TrackerBoosting::create();
-        // }
-        // else 
-        if (tracker_type == "MIL")
-        {
-            return cv::TrackerMIL::create();
-        }
-        else if (tracker_type == "KCF")
-        {
-            return cv::TrackerKCF::create();
-        }
-        // else if (tracker_type == "TLD")
-        // {
-        //     return cv::TrackerTLD::create();
-        // }
-        // else if (tracker_type == "MEDIANFLOW")
-        // {
-        //     return cv::TrackerMedianFlow::create();
-        // }
-        else if (tracker_type == "GOTURN")
-        {
-            return cv::TrackerGOTURN::create();
-        }
-        // else if (tracker_type == "MOSSE")
-        // {
-        //      return cv::TrackerMOSSE::create();
-        // }
-        else if (tracker_type == "DASIAMRPN")
-        {
-            return cv::TrackerDaSiamRPN::create();
-        }
-
-        cv::TrackerCSRT::Params params;
-        params.use_gray = true;
-        params.psr_threshold = 0.06;
-        return cv::TrackerCSRT::create(params);
-    }
-
     const cv::Rect& get_bbox() const
     {
         return bboxes.back();
@@ -103,7 +161,7 @@ public:
     std::pair<bool, cv::Rect> update(const cv::Mat &frame)
     {
         cv::Rect bbox;
-        bool ok = cv2_tracker->update(frame, bbox);
+        bool ok = tracker_.update(frame, bbox);
         if (ok)
         {
             bboxes.push_back(bbox);
@@ -236,8 +294,10 @@ public:
 
 private:
     std::map<std::string, std::string> settings;
+    CvTracker tracker_;
     int id;
-    cv::Ptr<cv::Tracker> cv2_tracker;
+    // cv::Ptr<cv::Tracker> cv2_tracker;
+    // cv::Ptr<cv::legacy::Tracker> cv2_legacy_tracker;
     std::vector<cv::Rect> bboxes;
     int stationary_track_counter;
     int active_track_counter;
@@ -257,7 +317,6 @@ private:
     bool track_validation_enable;
     int track_stationary_threshold;
     int track_orphaned_threshold;
-
 };
 
 #endif

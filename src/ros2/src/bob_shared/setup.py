@@ -1,6 +1,6 @@
 from setuptools import setup
 
-package_name = 'bob_recorder'
+package_name = 'bob_shared'
 
 setup(
     name=package_name,
@@ -16,11 +16,9 @@ setup(
     maintainer='ros',
     maintainer_email='michael.groenewald@gmail.com',
     description='TODO: Package description',
-    license='TODO: License declaration',
-    tests_require=['pytest'],
+    license='TODO: License declaration',    
     entry_points={
         'console_scripts': [
-            'rosbag_recorder = bob_recorder.rosbag_recorder_node:main',
         ],
     },
 )

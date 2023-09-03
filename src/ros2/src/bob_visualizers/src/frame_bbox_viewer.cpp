@@ -4,47 +4,45 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <cv_bridge/cv_bridge.hpp>
+#include <rclcpp_components/register_node_macro.hpp>
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 
 #include <sensor_msgs/msg/image.hpp>
 #include <vision_msgs/msg/bounding_box2_d_array.hpp>
 
-#include <boblib/api/utils/profiler.hpp>
-
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
+
+#include <visibility_control.h>
 
 class FrameBBoxViewer
     : public ParameterNode
 {
 public:
-    static std::shared_ptr<FrameBBoxViewer> create()
+    COMPOSITION_PUBLIC
+    explicit FrameBBoxViewer(const rclcpp::NodeOptions & options)
+        : ParameterNode("frame_bbox_viewer_node", options), current_topic_{0}
     {
-        auto result = std::shared_ptr<FrameBBoxViewer>(new FrameBBoxViewer());
-        result->init();
-        return result;
+        declare_node_parameters();
+        timer_ = create_wall_timer(std::chrono::seconds(1), std::bind(&FrameBBoxViewer::init, this));
     }
 
 private:
-    rclcpp::QoS sub_qos_profile_{2};
+    rclcpp::QoS sub_qos_profile_{10};
     message_filters::Subscriber<sensor_msgs::msg::Image> sub_image_;
     message_filters::Subscriber<vision_msgs::msg::BoundingBox2DArray> sub_bbox_;
     std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, vision_msgs::msg::BoundingBox2DArray>> time_synchronizer_;
-    boblib::utils::Profiler profiler_;
     std::vector<std::string> topics_;
     int current_topic_;
+    rclcpp::TimerBase::SharedPtr timer_;
 
     friend std::shared_ptr<FrameBBoxViewer> std::make_shared<FrameBBoxViewer>();
 
-    FrameBBoxViewer()
-        : ParameterNode("frame_bbox_viewer_node"), current_topic_{0}
-    {
-        declare_node_parameters();
-    }
-
     void init()
     {
+        timer_->cancel();
+
         sub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
         sub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
         sub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
@@ -115,7 +113,9 @@ private:
 int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
-    rclcpp::spin(FrameBBoxViewer::create());
+    rclcpp::spin(std::make_shared<FrameBBoxViewer>(rclcpp::NodeOptions()));
     rclcpp::shutdown();
     return 0;
 }
+
+RCLCPP_COMPONENTS_REGISTER_NODE(FrameBBoxViewer)

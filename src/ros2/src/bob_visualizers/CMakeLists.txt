@@ -24,6 +24,7 @@ find_package(OpenCV REQUIRED)
 find_package(rcl_interfaces REQUIRED)
 find_package(boblib REQUIRED)
 find_package(bob_interfaces REQUIRED)
+find_package(rclcpp_components REQUIRED)
 
 include_directories(${OpenCV_INCLUDE_DIRS})
 include_directories("../bob_shared/include")
@@ -36,15 +37,19 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
 ENDIF()
 
 # Frame Viewer Node
-add_executable(frame_viewer_node src/frame_viewer.cpp)
+add_library(frame_viewer_node SHARED src/frame_viewer.cpp)
+target_compile_definitions(frame_viewer_node PRIVATE "COMPOSITION_BUILDING_DLL")
 target_link_libraries(frame_viewer_node PUBLIC boblib)
-ament_target_dependencies(frame_viewer_node PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV bob_interfaces)
-install(TARGETS frame_viewer_node DESTINATION lib/${PROJECT_NAME})
+ament_target_dependencies(frame_viewer_node PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV bob_interfaces rclcpp_components)
+rclcpp_components_register_nodes(frame_viewer_node "FrameViewer")
+install(TARGETS frame_viewer_node DESTINATION lib)
 
 # Frame BBox Viewer Node
-add_executable(frame_bbox_viewer_node src/frame_bbox_viewer.cpp)
+add_library(frame_bbox_viewer_node SHARED src/frame_bbox_viewer.cpp)
+target_compile_definitions(frame_bbox_viewer_node PRIVATE "COMPOSITION_BUILDING_DLL")
 target_link_libraries(frame_bbox_viewer_node PUBLIC boblib)
-ament_target_dependencies(frame_bbox_viewer_node PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV bob_interfaces)
-install(TARGETS frame_bbox_viewer_node DESTINATION lib/${PROJECT_NAME})
+ament_target_dependencies(frame_bbox_viewer_node PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV bob_interfaces rclcpp_components)
+rclcpp_components_register_nodes(frame_bbox_viewer_node "FrameBBoxViewer")
+install(TARGETS frame_bbox_viewer_node DESTINATION lib)
 
 ament_package()

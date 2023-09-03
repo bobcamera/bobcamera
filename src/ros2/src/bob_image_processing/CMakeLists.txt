@@ -24,6 +24,7 @@ find_package(rcl_interfaces REQUIRED)
 find_package(boblib REQUIRED)
 find_package(bob_camera REQUIRED)
 find_package(message_filters REQUIRED)
+find_package(rclcpp_components REQUIRED)
 find_package(bob_interfaces REQUIRED)
 
 include_directories(${OpenCV_INCLUDE_DIRS})
@@ -37,15 +38,35 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
 ENDIF()
 
 # Background Subtractor Node
-add_executable(background_subtractor_node src/background_subtractor.cpp)
+add_library(background_subtractor_node SHARED src/background_subtractor.cpp)
+target_compile_definitions(background_subtractor_node PRIVATE "COMPOSITION_BUILDING_DLL")
 target_link_libraries(background_subtractor_node PUBLIC boblib)
-ament_target_dependencies(background_subtractor_node PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge OpenCV bob_camera)
-install(TARGETS background_subtractor_node DESTINATION lib/${PROJECT_NAME})
+ament_target_dependencies(background_subtractor_node PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge OpenCV rclcpp_components bob_camera)
+rclcpp_components_register_nodes(background_subtractor_node "BackgroundSubtractor")
+install(TARGETS background_subtractor_node DESTINATION lib)
 
 # Annotated Frame Provider Node
-add_executable(annotated_frame_provider_node src/annotated_frame_provider.cpp)
+add_library(annotated_frame_provider_node SHARED src/annotated_frame_provider.cpp)
+target_compile_definitions(annotated_frame_provider_node PRIVATE "COMPOSITION_BUILDING_DLL")
 target_link_libraries(annotated_frame_provider_node PUBLIC boblib)
-ament_target_dependencies(annotated_frame_provider_node PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV bob_interfaces)
-install(TARGETS annotated_frame_provider_node DESTINATION lib/${PROJECT_NAME})
+ament_target_dependencies(annotated_frame_provider_node PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV rclcpp_components bob_interfaces)
+rclcpp_components_register_nodes(annotated_frame_provider_node "AnnotatedFrameProvider")
+install(TARGETS annotated_frame_provider_node DESTINATION lib)
+
+# Frame Resizer
+add_library(frame_resizer SHARED src/frame_resizer.cpp)
+target_compile_definitions(frame_resizer PRIVATE "COMPOSITION_BUILDING_DLL")
+target_link_libraries(frame_resizer PUBLIC boblib)
+ament_target_dependencies(frame_resizer PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV rclcpp_components bob_interfaces)
+rclcpp_components_register_nodes(frame_resizer "FrameResizer")
+install(TARGETS frame_resizer DESTINATION lib)
+
+# Frame Compressor
+add_library(frame_compressor SHARED src/frame_compressor.cpp)
+target_compile_definitions(frame_compressor PRIVATE "COMPOSITION_BUILDING_DLL")
+target_link_libraries(frame_compressor PUBLIC boblib)
+ament_target_dependencies(frame_compressor PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV rclcpp_components bob_interfaces)
+rclcpp_components_register_nodes(frame_compressor "FrameCompressor")
+install(TARGETS frame_compressor DESTINATION lib)
 
 ament_package()

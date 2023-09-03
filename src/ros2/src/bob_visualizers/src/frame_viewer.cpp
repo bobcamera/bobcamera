@@ -4,42 +4,37 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <cv_bridge/cv_bridge.hpp>
+#include <rclcpp_components/register_node_macro.hpp>
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 
 #include <sensor_msgs/msg/image.hpp>
 
-#include <boblib/api/utils/profiler.hpp>
-
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
+
+#include <visibility_control.h>
 
 class FrameViewer
     : public ParameterNode
 {
 public:
-    static std::shared_ptr<FrameViewer> create()
+    COMPOSITION_PUBLIC
+    explicit FrameViewer(const rclcpp::NodeOptions & options) 
+        : ParameterNode("frame_viewer_node", options)
+        , current_topic_{0}
     {
-        auto result = std::shared_ptr<FrameViewer>(new FrameViewer());
-        result->init();
-        return result;
+        declare_node_parameters();
+        init();
     }
 
 private:
-    rclcpp::QoS sub_qos_profile_{2};
+    rclcpp::QoS sub_qos_profile_{10};
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscription_;
-    boblib::utils::Profiler profiler_;
     std::vector<std::string> topics_;
     int current_topic_;
 
     friend std::shared_ptr<FrameViewer> std::make_shared<FrameViewer>();
-
-    FrameViewer() 
-        : ParameterNode("frame_viewer_node")
-        , current_topic_{0}
-    {
-        declare_node_parameters();
-    }
 
     void declare_node_parameters()
     {
@@ -101,7 +96,9 @@ private:
 int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
-    rclcpp::spin(FrameViewer::create());
+    rclcpp::spin(std::make_shared<FrameViewer>(rclcpp::NodeOptions()));
     rclcpp::shutdown();
     return 0;
 }
+
+RCLCPP_COMPONENTS_REGISTER_NODE(FrameViewer)

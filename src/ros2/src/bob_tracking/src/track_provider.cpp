@@ -4,6 +4,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <cv_bridge/cv_bridge.hpp>
+#include <rclcpp_components/register_node_macro.hpp>
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 
@@ -13,21 +14,23 @@
 #include "bob_interfaces/msg/tracking_state.hpp"
 #include "bob_interfaces/msg/track_trajectory_array.hpp"
 
-#include "boblib/api/utils/profiler.hpp"
 #include "tracking/video_tracker.hpp"
 
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
 
+#include <visibility_control.h>
+
 class TrackProvider
     : public ParameterNode
 {
 public:
-    static std::shared_ptr<TrackProvider> create()
+    COMPOSITION_PUBLIC
+    explicit TrackProvider(const rclcpp::NodeOptions & options)
+        : ParameterNode("frame_provider_node", options)
+        , video_tracker_({{"tracker_type", "MOSSE"}}, get_logger())
     {
-        auto result = std::shared_ptr<TrackProvider>(new TrackProvider());
-        result->init();
-        return result;
+        timer_ = this->create_wall_timer(std::chrono::seconds(1), std::bind(&TrackProvider::init, this));
     }
 
 private:
@@ -41,25 +44,22 @@ private:
     rclcpp::Publisher<bob_interfaces::msg::TrackDetectionArray>::SharedPtr pub_tracker_detects;
     rclcpp::Publisher<bob_interfaces::msg::TrackTrajectoryArray>::SharedPtr pub_tracker_trajectory;
     rclcpp::Publisher<bob_interfaces::msg::TrackTrajectoryArray>::SharedPtr pub_tracker_prediction;
-    boblib::utils::Profiler profiler_;
     VideoTracker video_tracker_;
+    rclcpp::TimerBase::SharedPtr timer_;
 
     friend std::shared_ptr<TrackProvider> std::make_shared<TrackProvider>();
 
-    TrackProvider()
-        : ParameterNode("frame_provider_node")
-        , video_tracker_(std::map<std::string, std::string>(), get_logger())
-    {
-    }
-
     void init()
     {
-        rclcpp::QoS pub_qos_profile{2};
+        RCLCPP_INFO(get_logger(), "Initializing TrackProvider");
+        timer_->cancel();
+
+        rclcpp::QoS pub_qos_profile{10};
         pub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
         pub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
         pub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
         
-        rclcpp::QoS sub_qos_profile{2};
+        rclcpp::QoS sub_qos_profile{10};
         sub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
         sub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
         sub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
@@ -68,7 +68,7 @@ private:
         masked_frame_subscription_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(shared_from_this(), "bob/camera/all_sky/bayer", rmw_qos_profile);
         detector_bounding_boxes_subscription_ = std::make_shared<message_filters::Subscriber<vision_msgs::msg::BoundingBox2DArray>>(shared_from_this(), "bob/detector/all_sky/bounding_boxes", rmw_qos_profile);
 
-        time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, vision_msgs::msg::BoundingBox2DArray>>(*masked_frame_subscription_, *detector_bounding_boxes_subscription_, 2);
+        time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, vision_msgs::msg::BoundingBox2DArray>>(*masked_frame_subscription_, *detector_bounding_boxes_subscription_, 10);
         time_synchronizer_->registerCallback(&TrackProvider::callback, this);
 
         pub_tracker_tracking_state = create_publisher<bob_interfaces::msg::TrackingState>("bob/tracker/tracking_state", pub_qos_profile);
@@ -201,7 +201,9 @@ private:
 int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
-    rclcpp::spin(TrackProvider::create());
+    rclcpp::spin(std::make_shared<TrackProvider>(rclcpp::NodeOptions()));
     rclcpp::shutdown();
     return 0;
 }
+
+RCLCPP_COMPONENTS_REGISTER_NODE(TrackProvider)

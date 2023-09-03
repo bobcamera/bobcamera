@@ -2,6 +2,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <cv_bridge/cv_bridge.hpp>
+#include <rclcpp_components/register_node_macro.hpp>
 
 #include <vision_msgs/msg/bounding_box2_d_array.hpp>
 
@@ -13,15 +14,18 @@
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
 
+#include <visibility_control.h>
+
 class BackgroundSubtractor
     : public ParameterNode
 {
 public:
-    static std::shared_ptr<BackgroundSubtractor> create()
+    COMPOSITION_PUBLIC
+    explicit BackgroundSubtractor(const rclcpp::NodeOptions & options)
+        : ParameterNode("background_subtractor_node", options)
+        , enable_profiling_(false)
     {
-        auto result = std::shared_ptr<BackgroundSubtractor>(new BackgroundSubtractor());
-        result->init();
-        return result;
+        init();
     }
     
 private:
@@ -40,22 +44,14 @@ private:
     boblib::utils::Profiler profiler_;
     bool enable_profiling_;
 
-    BackgroundSubtractor()
-        : ParameterNode("background_subtractor_node")
-        , enable_profiling_(false)
-    {
-    }
-
     void init()
     {
-        // Define the QoS profile for the subscriber
-        rclcpp::QoS sub_qos_profile(2);
+        rclcpp::QoS sub_qos_profile(10);
         sub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
         sub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
         sub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
 
-        // Define the QoS profile for the publisher
-        rclcpp::QoS pub_qos_profile(2);
+        rclcpp::QoS pub_qos_profile(10);
         pub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
         pub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
         pub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
@@ -191,7 +187,9 @@ private:
 int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
-    rclcpp::spin(BackgroundSubtractor::create());
+    rclcpp::spin(std::make_shared<BackgroundSubtractor>(rclcpp::NodeOptions()));
     rclcpp::shutdown();
     return 0;
 }
+
+RCLCPP_COMPONENTS_REGISTER_NODE(BackgroundSubtractor)
