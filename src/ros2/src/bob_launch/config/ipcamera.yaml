@@ -1,0 +1,6 @@
+ipcamera:
+  ros__parameters:
+    rtsp_uri: "rtsp://sky360:Sky360Sky!@10.20.30.75:554/cam/realmonitor?channel=1&subtype=0"
+    image_topic: "image_raw"
+    image_width: 3840
+    image_height: 2160

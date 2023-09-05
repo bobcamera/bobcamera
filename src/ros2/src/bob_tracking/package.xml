@@ -14,7 +14,6 @@
     <depend>vision_msgs</depend>
     <depend>cv_bridge</depend>
     <depend>rcl_interfaces</depend>
-    <depend>OpenCV</depend>
     <depend>message_filters</depend>
     <depend>bob_interfaces</depend>
     <depend>bob_image_processing</depend>

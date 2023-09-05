@@ -74,12 +74,12 @@ def main(args=None):
 
   rclpy.init(args=args)
 
-  subscriber_qos_profile = QoSProfile(depth=1)
+  subscriber_qos_profile = QoSProfile(depth=10)
   subscriber_qos_profile.reliability = QoSReliabilityPolicy.BEST_EFFORT
   subscriber_qos_profile.durability = QoSDurabilityPolicy.VOLATILE
   subscriber_qos_profile.history = QoSHistoryPolicy.KEEP_LAST
 
-  publisher_qos_profile = QoSProfile(depth=1)
+  publisher_qos_profile = QoSProfile(depth=10)
   publisher_qos_profile.reliability = QoSReliabilityPolicy.BEST_EFFORT
   publisher_qos_profile.durability = QoSDurabilityPolicy.VOLATILE
   publisher_qos_profile.history = QoSHistoryPolicy.KEEP_LAST
