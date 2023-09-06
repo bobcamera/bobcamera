@@ -18,7 +18,7 @@ def generate_launch_description():
                 ComposableNode(
                     package='bob_camera',
                     plugin='WebCameraVideo',
-                    name='web_camera_video_node',
+                    name='usb_camera_node',
                     parameters=[{'image_publish_topic': 'bob/camera/all_sky/bayer'}
                         , {'image_info_publish_topic': 'bob/camera/all_sky/image_info'}
                         , {'camera_info_publish_topic': 'bob/camera/all_sky/camera_info'}
