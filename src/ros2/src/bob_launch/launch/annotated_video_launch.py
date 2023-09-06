@@ -12,14 +12,20 @@ def generate_launch_description():
         #IncludeLaunchDescription(
         #    PythonLaunchDescriptionSource([
         #        launch_package_dir, 
-        #        '/kernel_launch.py'])
+        #        '/video_kernel_launch.py'])
         #),
+
+        #IncludeLaunchDescription(
+        #    PythonLaunchDescriptionSource([
+        #        launch_package_dir, 
+        #        '/rtsp_kernel_launch.py'])
+        #),        
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([
                 launch_package_dir, 
-                '/rstp_launch.py'])
-        ),        
+                '/usb_kernel_launch.py'])
+        ),  
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([
