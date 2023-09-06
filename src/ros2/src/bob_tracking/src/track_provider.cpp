@@ -28,7 +28,7 @@ public:
     COMPOSITION_PUBLIC
     explicit TrackProvider(const rclcpp::NodeOptions & options)
         : ParameterNode("frame_provider_node", options)
-        , video_tracker_({{"tracker_type", "MOSSE"}}, get_logger())
+        , video_tracker_({{"tracker_type", "CSRT"}}, get_logger())
     {
         timer_ = this->create_wall_timer(std::chrono::seconds(1), std::bind(&TrackProvider::init, this));
     }
