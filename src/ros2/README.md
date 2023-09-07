@@ -61,19 +61,12 @@ Run the build script to build the application: `./build.sh`
 
 Run the application launch script to launch the application: `./launch_application.sh`
 
-#### Note: If you run into the following error:
+#### Note: If you run into an error similar to the following:
 
 `at.apa.xcb: could not connect to display 1 at.apa.plugin: Could not load the Ot platform plugin "xcb" in "" even though it was found`
 
-Then run the following commands in a linux terminal:
-
-* `xhost +`
-
-Then run the following commands in the terminal in vscode i.e. inside the container:
-
-* `export DISPLAY=:0` or whatever display index your motor is attached to
-
-then finally run launch.sh on the container 
+Run the following command in a standard linux terminal: `xhost +`
+Run the following commands in the terminal in vscode i.e. inside the container: `export DISPLAY=:0` (or whatever display index your motor is attached to)
 
 ### Interacting with the application
 
@@ -82,9 +75,9 @@ then finally run launch.sh on the container
 * To keep an eye on the state of the tracker, use the following echo command: `ros2 topic echo /bob/tracker/tracking_state`
 * To keep an eye on the camera frame excl. array data use the following echo command: `ros2 topic echo  /bob/frames/annotated/resized --no-arr`
 
+## TODO:
+
 #### Replay a rosbag recording
 
 * `ros2 bag play 2023_09_06-16_48_14/` where 2023_09_06-16_48_14/ is a folder that contains a rosbag recording
 * `./launch_rosbag_replay.sh`
-
-## TODO:
