@@ -1,5 +1,4 @@
-# ros2
-UAP Detection Pipeline
+# ROS2 UAP Detection Pipeline
 
 # Overview
 
