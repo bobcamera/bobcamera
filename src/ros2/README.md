@@ -30,7 +30,7 @@
 
 ### NOTE: The commands below should be used to get this ROS package up and running in VSCode and using the ROS dev container
 
-You will need to have both git, docker and vscode installed on your system
+You will need to have both git and docker installed on your system. Also VSCode with the 'Dev Containers' extension.
 
 Open a terminal session:
 
