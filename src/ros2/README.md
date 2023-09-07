@@ -28,7 +28,7 @@
 ## Prerequisites
 Before you proceed, ensure that you have the following:
 
-*** Windows Users**: Windows Subsystem for Linux 2 (WSL 2) installed on your Windows machine. You can follow the official Microsoft documentation to install WSL 2. Install Ubuntu from the Microsoft Store.
+* ** Windows Users**: Windows Subsystem for Linux 2 (WSL 2) installed on your Windows machine. You can follow the official Microsoft documentation to install WSL 2. Install Ubuntu from the Microsoft Store.
 * You will need to have both Git and Docker installed on your system.
 * Install Visual Studio Code (VSCode) with the 'Dev Containers' extension.
 
