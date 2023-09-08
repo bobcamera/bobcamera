@@ -1,10 +1,11 @@
 #include <opencv2/opencv.hpp>
-
 #include <rclcpp/rclcpp.hpp>
 #include <cv_bridge/cv_bridge.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
+#include <sensor_msgs/msg/compressed_image.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
 #include <sensor_msgs/msg/image.hpp>
 #include "bob_interfaces/msg/tracking_state.hpp"
@@ -13,20 +14,17 @@
 #include <vision_msgs/msg/bounding_box2_d_array.hpp>
 
 #include "annotated_frame/annotated_frame_creator.hpp"
-
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
-
 #include <visibility_control.h>
 
-class AnnotatedFrameProvider 
-    : public ParameterNode
+class AnnotatedFrameProvider : public ParameterNode
 {
 public:
     COMPOSITION_PUBLIC
-    explicit AnnotatedFrameProvider(const rclcpp::NodeOptions & options) 
-        : ParameterNode("annotated_frame_provider_node", options)
-        , annotated_frame_creator_(std::map<std::string, std::string>())
+    explicit AnnotatedFrameProvider(const rclcpp::NodeOptions & options)
+        : ParameterNode("annotated_frame_provider_node", options),
+          annotated_frame_creator_(std::map<std::string, std::string>())
     {
         timer_ = create_wall_timer(std::chrono::seconds(1), std::bind(&AnnotatedFrameProvider::init, this));
     }
@@ -37,13 +35,12 @@ private:
     std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::TrackDetectionArray>> sub_tracker_detections_;
     std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::TrackTrajectoryArray>> sub_tracker_trajectory_;
     std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::TrackTrajectoryArray>> sub_tracker_prediction_;
-    std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::TrackingState, 
-        bob_interfaces::msg::TrackDetectionArray, bob_interfaces::msg::TrackTrajectoryArray, bob_interfaces::msg::TrackTrajectoryArray>> time_synchronizer_;
+    std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::TrackingState,
+    bob_interfaces::msg::TrackDetectionArray, bob_interfaces::msg::TrackTrajectoryArray, bob_interfaces::msg::TrackTrajectoryArray>> time_synchronizer_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_annotated_frame_;
     AnnotatedFrameCreator annotated_frame_creator_;
     rclcpp::TimerBase::SharedPtr timer_;
-
-    friend std::shared_ptr<AnnotatedFrameProvider> std::make_shared<AnnotatedFrameProvider>();
+    rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr pub_annotated_frame_compressed_;
 
     void init()
     {
@@ -67,19 +64,18 @@ private:
         sub_tracker_detections_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::TrackDetectionArray>>(shared_from_this(), "bob/tracker/detections", rmw_qos_profile);
         sub_tracker_trajectory_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::TrackTrajectoryArray>>(shared_from_this(), "bob/tracker/trajectory", rmw_qos_profile);
         sub_tracker_prediction_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::TrackTrajectoryArray>>(shared_from_this(), "bob/tracker/prediction", rmw_qos_profile);
-
-        time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::TrackingState, bob_interfaces::msg::TrackDetectionArray, 
+        pub_annotated_frame_ = create_publisher<sensor_msgs::msg::Image>("bob/frames/annotated", pub_qos_profile);
+        pub_annotated_frame_compressed_ = create_publisher<sensor_msgs::msg::CompressedImage>("bob/frames/annotated_compressed", pub_qos_profile);
+        time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::TrackingState, bob_interfaces::msg::TrackDetectionArray,
             bob_interfaces::msg::TrackTrajectoryArray, bob_interfaces::msg::TrackTrajectoryArray>>(*sub_masked_frame_, *sub_tracking_state_, *sub_tracker_detections_, *sub_tracker_trajectory_, *sub_tracker_prediction_, 10);
         time_synchronizer_->registerCallback(&AnnotatedFrameProvider::callback, this);
-
-        pub_annotated_frame_ = create_publisher<sensor_msgs::msg::Image>("bob/frames/annotated", pub_qos_profile);
     }
 
-    void callback(const sensor_msgs::msg::Image::SharedPtr& image_msg
-                , const bob_interfaces::msg::TrackingState::SharedPtr& tracking_state_msg
-                , const bob_interfaces::msg::TrackDetectionArray::SharedPtr& detections_msg
-                , const bob_interfaces::msg::TrackTrajectoryArray::SharedPtr& trajectory_msg
-                , const bob_interfaces::msg::TrackTrajectoryArray::SharedPtr& prediction_msg)
+    void callback(const sensor_msgs::msg::Image::SharedPtr& image_msg,
+                  const bob_interfaces::msg::TrackingState::SharedPtr& tracking_state_msg,
+                  const bob_interfaces::msg::TrackDetectionArray::SharedPtr& detections_msg,
+                  const bob_interfaces::msg::TrackTrajectoryArray::SharedPtr& trajectory_msg,
+                  const bob_interfaces::msg::TrackTrajectoryArray::SharedPtr& prediction_msg)
     {
         try
         {
@@ -88,8 +84,19 @@ private:
 
             auto annotated_frame = annotated_frame_creator_.create_frame(img, *tracking_state_msg, *detections_msg, *trajectory_msg, *prediction_msg);
 
-            auto annotated_frame_msg = cv_bridge::CvImage(image_msg->header, sensor_msgs::image_encodings::BGR8, annotated_frame).toImageMsg();
-            pub_annotated_frame_->publish(*annotated_frame_msg);
+            std::vector<int> compression_params;
+            compression_params.push_back(cv::IMWRITE_JPEG_QUALITY);
+            compression_params.push_back(95);  // Compression quality
+
+            std::vector<uchar> compressed_data;
+            cv::imencode(".jpg", annotated_frame, compressed_data, compression_params);
+
+            sensor_msgs::msg::CompressedImage compressed_image_msg;
+            compressed_image_msg.header = image_msg->header;
+            compressed_image_msg.format = "jpeg";
+            compressed_image_msg.data.assign(compressed_data.begin(), compressed_data.end());
+
+            pub_annotated_frame_compressed_->publish(compressed_image_msg);
         }
         catch (cv_bridge::Exception &e)
         {
