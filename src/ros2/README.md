@@ -6,7 +6,7 @@
 
 * Step 1: Video acquisition and feeding into processing pipeline
 * Step 2: Background subtraction is applied
-* Step 3: Blobs are detected and bouinding boxes extracted
+* Step 3: Blobs are detected and bounding boxes extracted
 * Step 4: Trackers (CSRT) are initialised using bounding boxes which is then tracked across frames.
 * Step 5: We use a Kalman Filter to try and predict the trajectory of the target being tracked
 * Step 6: Annotated frame is constructed for display
