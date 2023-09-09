@@ -14,7 +14,6 @@
     <depend>vision_msgs</depend>
     <depend>cv_bridge</depend>
     <depend>rcl_interfaces</depend>
-    <depend>OpenCV</depend>
     <depend>bob_camera</depend>
     <depend>message_filters</depend>
     <depend>rclcpp_components</depend>

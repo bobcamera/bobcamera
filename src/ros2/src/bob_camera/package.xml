@@ -15,7 +15,6 @@
     <depend>cv_bridge</depend>
     <depend>rcl_interfaces</depend>
     <depend>boost</depend>
-    <depend>OpenCV</depend>
     <depend>rclcpp_components</depend>
 
     <member_of_group>rosidl_interface_packages</member_of_group>

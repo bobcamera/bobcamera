@@ -108,15 +108,14 @@ private:
             profile_stop("BGS");
 
             profile_start("Blob");
+            vision_msgs::msg::BoundingBox2DArray bbox2D_array;
+            bbox2D_array.header = img_msg->header;
             std::vector<cv::Rect> bboxes;
             if (blob_detector_.detect(mask, bboxes))
             {
-                vision_msgs::msg::BoundingBox2DArray bbox2D_array;
-                bbox2D_array.header = img_msg->header;
                 add_bboxes(bbox2D_array, bboxes);
-
-                detection_publisher_->publish(bbox2D_array);
             }
+            detection_publisher_->publish(bbox2D_array);
             profile_stop("Blob");
 
             profile_stop("Frame");

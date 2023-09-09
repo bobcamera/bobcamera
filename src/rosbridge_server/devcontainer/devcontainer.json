@@ -1,0 +1,46 @@
+{
+    "name": "ROS Bridge Server",
+    "dockerFile": "Dockerfile",
+    "appPort": 9090,
+    "forwardPorts": [9090],
+    "runArgs": [
+        "--privileged",
+        "--network=ros_network",
+        "--cap-add=SYS_PTRACE",
+        "--security-opt=seccomp:unconfined",
+        "--security-opt=apparmor:unconfined",
+        "--device=/dev/video0:/dev/video0",
+        "--volume=/dev:/dev",
+        "--volume=/tmp/.X11-unix:/tmp/.X11-unix"
+    ],
+    "containerEnv": {
+        "DISPLAY": "${localEnv:DISPLAY}"
+    },
+    "settings": {
+        "terminal.integrated.profiles.linux": {
+            "bash": {
+                "path": "bash"
+            }
+        },
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "C_Cpp.default.includePath": ["/usr/include/**", "/usr/local/include/**"]
+    },
+    "postCreateCommand": "source /opt/ros/iron/setup.bash",
+    "extensions": [
+        "althack.ament-task-provider",
+        "DotJoshJohnson.xml",
+        "ms-azuretools.vscode-docker",
+        "ms-python.python",
+        "ms-vscode.cpptools",
+        "redhat.vscode-yaml",
+        "smilerobotics.urdf",
+        "streetsidesoftware.code-spell-checker",
+        "twxs.cmake",
+        "yzhang.markdown-all-in-one",
+        "zachflower.uncrustify",
+        "ms-vscode.cpptools-themes",
+        "ms-vscode-remote.remote-containers",
+        "ms-vscode.cmake-tools",
+        "ms-vscode.cpptools-extension-pack"
+    ]
+}
