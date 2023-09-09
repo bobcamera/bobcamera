@@ -65,7 +65,6 @@ private:
         sub_tracker_trajectory_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::TrackTrajectoryArray>>(shared_from_this(), "bob/tracker/trajectory", rmw_qos_profile);
         sub_tracker_prediction_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::TrackTrajectoryArray>>(shared_from_this(), "bob/tracker/prediction", rmw_qos_profile);
         pub_annotated_frame_ = create_publisher<sensor_msgs::msg::Image>("bob/frames/annotated", pub_qos_profile);
-        pub_annotated_frame_compressed_ = create_publisher<sensor_msgs::msg::CompressedImage>("bob/frames/annotated_compressed", pub_qos_profile);
         time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::TrackingState, bob_interfaces::msg::TrackDetectionArray,
             bob_interfaces::msg::TrackTrajectoryArray, bob_interfaces::msg::TrackTrajectoryArray>>(*sub_masked_frame_, *sub_tracking_state_, *sub_tracker_detections_, *sub_tracker_trajectory_, *sub_tracker_prediction_, 10);
         time_synchronizer_->registerCallback(&AnnotatedFrameProvider::callback, this);
@@ -84,19 +83,8 @@ private:
 
             auto annotated_frame = annotated_frame_creator_.create_frame(img, *tracking_state_msg, *detections_msg, *trajectory_msg, *prediction_msg);
 
-            std::vector<int> compression_params;
-            compression_params.push_back(cv::IMWRITE_JPEG_QUALITY);
-            compression_params.push_back(95);  // Compression quality
-
-            std::vector<uchar> compressed_data;
-            cv::imencode(".jpg", annotated_frame, compressed_data, compression_params);
-
-            sensor_msgs::msg::CompressedImage compressed_image_msg;
-            compressed_image_msg.header = image_msg->header;
-            compressed_image_msg.format = "jpeg";
-            compressed_image_msg.data.assign(compressed_data.begin(), compressed_data.end());
-
-            pub_annotated_frame_compressed_->publish(compressed_image_msg);
+            auto annotated_frame_msg = cv_bridge::CvImage(image_msg->header, sensor_msgs::image_encodings::BGR8, annotated_frame).toImageMsg();
+            pub_annotated_frame_->publish(*annotated_frame_msg);            
         }
         catch (cv_bridge::Exception &e)
         {

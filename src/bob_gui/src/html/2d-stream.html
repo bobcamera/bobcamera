@@ -70,7 +70,7 @@
                     var actualFrameRate = 0;
                      var listener = new ROSLIB.Topic({
                         ros: ros,
-                        name: '/bob/frames/annotated_compressed',
+                        name: 'bob/frames/annotated/resized/compressed',
                         messageType: 'sensor_msgs/msg/CompressedImage'
                     });
                      // Instanciate maskprovider so we can publish the image mask when the sendMaskJPG button is clicked via "maskprovider.publish(imageMessage);"

@@ -45,7 +45,7 @@ def generate_launch_description():
                     plugin='AnnotatedFrameProvider',
                     name='annotated_frame_provider_node',
                     extra_arguments=[{'use_intra_process_comms': True}]),
-                
+
                 # Nodes for resizing the image in order to stick it on the network for display
                 ComposableNode(
                     package='bob_image_processing',
@@ -73,7 +73,7 @@ def generate_launch_description():
                         ('bob/resizer/source', 'bob/frames/annotated'),
                         ('bob/resizer/target', 'bob/frames/annotated/resized')],
                     parameters=[{'resize_height': 960}],
-                    extra_arguments=[{'use_intra_process_comms': True}]),                    
+                    extra_arguments=[{'use_intra_process_comms': True}]),                  
             ],
             output='screen',
     )
