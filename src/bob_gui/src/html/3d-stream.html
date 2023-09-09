@@ -37,7 +37,7 @@
             // Subscribe to Image Topic
             var annotatedCompressedImageTopic = new ROSLIB.Topic({
                 ros: ros,
-                name: '/bob/frames/annotated_compressed',
+                name: 'bob/frames/annotated/resized/compressed',
                 messageType: 'sensor_msgs/msg/CompressedImage',
             });
             annotatedCompressedImageTopic.subscribe(function (message) {

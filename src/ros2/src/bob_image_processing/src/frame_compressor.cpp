@@ -34,11 +34,19 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscription_;
     rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr pub_compressed_frame_;
     boblib::utils::Profiler profiler_;
+    int compression_quality_;
 
     friend std::shared_ptr<FrameCompressor> std::make_shared<FrameCompressor>();
 
     void declare_node_parameters()
     {
+        std::vector<ParameterNode::ActionParam> params = {
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("compression_quality", 75), 
+                [this](const rclcpp::Parameter& param) {compression_quality_ = param.as_int();}
+            ),
+        };
+        add_action_parameters(params);
     }
     
     void init()
@@ -64,14 +72,19 @@ private:
         try
         {
             cv::Mat image;
-            ImageUtils::convert_image_msg(image_msg, image, true);
-            
-            std::vector<uchar> output;
-            cv::imencode(".jpg", image, output);
+            ImageUtils::convert_image_msg(image_msg, image, true);            
+
+            std::vector<int> compression_params;
+            compression_params.push_back(cv::IMWRITE_JPEG_QUALITY);
+            compression_params.push_back(compression_quality_);  // Compression quality
+
+            std::vector<uchar> compressed_image;
+            cv::imencode(".jpg", image, compressed_image, compression_params);            
+
             sensor_msgs::msg::CompressedImage compressed_image_msg;
             compressed_image_msg.header = image_msg->header;
             compressed_image_msg.format = "jpeg";
-            compressed_image_msg.data = output;
+            compressed_image_msg.data = compressed_image;
 
             pub_compressed_frame_->publish(compressed_image_msg);
         }

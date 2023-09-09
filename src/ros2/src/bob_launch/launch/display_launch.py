@@ -15,7 +15,18 @@ def generate_launch_description():
                 plugin='FrameViewer',
                 name='frame_viewer_node',
                 parameters=[{"topics": ["bob/camera/all_sky/bayer/resized", "bob/frames/all_sky/foreground_mask/resized", "bob/frames/annotated/resized"]}],
-                extra_arguments=[{'use_intra_process_comms': True}])                                                            
+                extra_arguments=[{'use_intra_process_comms': True}]),
+
+            # Nodes for compression the image (jpg) for display on the web
+            ComposableNode(
+                package='bob_image_processing',
+                plugin='FrameCompressor',
+                name='annotated_frame_compressor_node',
+                remappings=[
+                    ('bob/compressor/source', 'bob/frames/annotated/resized'),
+                    ('bob/compressor/target', 'bob/frames/annotated/resized/compressed')],
+                parameters=[{'compression_quality': 75}],
+                extra_arguments=[{'use_intra_process_comms': True}]),
             ],
             output='screen',
     )
