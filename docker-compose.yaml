@@ -1,0 +1,9 @@
+version: '3'
+services:
+  web:
+    image: ghcr.io/bobcamera/bobcamera/web
+    build: src/web
+    ports:
+      - "8080:8080"
+    environment:
+      - DEBUG=1
