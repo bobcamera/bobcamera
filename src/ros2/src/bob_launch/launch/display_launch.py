@@ -25,7 +25,7 @@ def generate_launch_description():
                 remappings=[
                     ('bob/compressor/source', 'bob/frames/annotated/resized'),
                     ('bob/compressor/target', 'bob/frames/annotated/resized/compressed')],
-                parameters=[{'compression_quality': 75}],
+                parameters=[{'compression_quality': 95}],
                 extra_arguments=[{'use_intra_process_comms': True}]),
             ],
             output='screen',
