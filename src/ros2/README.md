@@ -39,8 +39,9 @@ Before you proceed, ensure that you have the following:
 Open a terminal session:
 
 1. git clone the repository: `git clone https://github.com/bobcamera/bobcamera.git`
-2. navigate to the ros2 source location: `cd ./bobcamera/src/ros2`
-3. Open vscode by typing: `code .`
+2. create a docker network to allow multiple containers to communicate with each other: `docker network create ros_network`
+3. navigate to the ros2 source location: `cd ./bobcamera/src/ros2`
+4. Open vscode by typing: `code .`
 
 #### Setup 
 
