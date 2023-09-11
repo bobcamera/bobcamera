@@ -3,7 +3,7 @@ from launch_ros.actions import ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
 
 def generate_launch_description():
-    
+
     display_container = ComposableNodeContainer(
         name='display_container',
         namespace='',
@@ -37,8 +37,19 @@ def generate_launch_description():
                     ('bob/compressor/target', 'bob/frames/annotated/resized/compressed')],
                 parameters=[{'compression_quality': 95}],
                 extra_arguments=[{'use_intra_process_comms': True}]),
-            ],
-            output='screen',
+
+            # New node for compressing the bayer image
+            ComposableNode(
+                package='bob_image_processing',
+                plugin='FrameCompressor',
+                name='bayer_compressor_node',
+                remappings=[
+                    ('bob/compressor/source', 'bob/camera/all_sky/bayer/resized'),
+                    ('bob/compressor/target', 'bob/camera/all_sky/bayer/resized/compressed')],
+                parameters=[{'compression_quality': 95}],
+                extra_arguments=[{'use_intra_process_comms': True}]),
+        ],
+        output='screen',
     )
 
     return LaunchDescription([display_container, compress_container])
