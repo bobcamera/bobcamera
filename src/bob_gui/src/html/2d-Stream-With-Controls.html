@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <style>
+            body {
+                font-family: sans-serif;
+                font-size: 16px;
+                color: #aaa;
+                text-shadow: none;
+            }
+
+            #maskCanvas {
+                border: 0px solid black;
+                width: 75vw;
+                height: 0; /* Reset actual height */
+            }
+
+            button {
+                background-color: #fff;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                padding: 10px 15px;
+                margin-right: 10px;
+                cursor: pointer;
+                transition: background-color 0.3s;
+            }
+
+            button:hover {
+                background-color: #f7f7f7;
+            }
+
+            button i {
+                font-size: 18px;
+            }
+
+            #bufferingOverlay {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.7);
+                color: #fff;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 24px;
+                z-index: 15;
+            }
+
+            .tooltip-container {
+                position: relative;
+                display: inline-block; /* or you can use "inline-flex" based on your content inside */
+                cursor: pointer;
+            }
+
+            .tooltip-text {
+                visibility: hidden;
+                width: 250px;
+                background-color: #555;
+                color: #fff;
+                text-align: left;
+                padding: 5px;
+                border-radius: 4px;
+
+                /* Positioning */
+                position: absolute;
+                z-index: 1;
+                bottom: -375%; /* Position it above the container */
+                left: 50%;
+                margin-left: -60px; /* half of the tooltip's width to center it */
+
+                /* Fade in tooltip */
+                opacity: 0;
+                transition: opacity 0.3s;
+            }
+
+            .tooltip-container:hover .tooltip-text {
+                visibility: visible;
+                opacity: 1;
+            }
+
+            #image_sub {
+                width: 75vw;   /* 75% of viewport width */
+                height: auto;  /* maintain the aspect ratio */
+            }
+
+        </style>
+        <title>Compressed Annotated Frame Stream</title>
+        <meta charset="utf-8" />
+
+        <!-- JS Library Needed for Connecting to the ROS2 Environment -->
+        <script src="https://cdn.jsdelivr.net/npm/eventemitter2@6.4.9/lib/eventemitter2.min.js"></script>
+
+        <!-- JS Library Needed for Connecting to the ROS2 Environment -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/roslibjs/1.1.0/roslib.min.js"></script>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+
+        <script>
+            // Set up the connection to the ROS2 environment using the roslib.js library
+
+            // Define the Websockets address of the ROS2 environment
+            var websocketsURL = 'ws://localhost:9090';
+
+            // Create a ROSLIB.Ros object which will connect to the ROS2 environment via websockets
+            var ros = new ROSLIB.Ros({url: websocketsURL});
+
+            // Define callbacks for connection events
+            ros.on('connection', function () {console.log('Connected to websocket server.');});
+
+            // Define callbacks for error events
+            ros.on('error', function (error) {console.log('Error connecting to websocket server: ', error);});
+
+            // Define callbacks for close events
+            ros.on('close', function () {console.log('Connection to websocket server closed.');});
+
+        </script>
+    </head>
+    <body>
+        <div style="display: flex; flex-direction: column; width: 23%; position: relative; float: right"">
+            <div style="display: flex; justify-content: center; padding-bottom: 5px;"> --------------- Controls --------------- </div>
+
+            <div style="padding: 0px 10px 20px 0px;">
+                <button id="pauseBtn"><i class="fas fa-pause"></i></button>
+                <button id="playBtn"><i class="fas fa-play"></i></button>
+
+                <!-- Link for the 3D view -->
+                <a href="3d-stream.html"><button id="3dViewBtn"><i class="fas fa-cube"></i></button></a>
+
+                <!-- Link for the 2D view -->
+                <a href="2d-Stream-With-Controls.html"><button id="2dViewBtn"><i class="far fa-square"></i></button></a>
+            </div>
+
+            <div style="display: flex; justify-content: center; padding-bottom: 5px;"> ------- Incoming ROS2 Messages ------- </div>
+            <br>
+            <div style="display: flex; justify-content: space-between; padding-bottom: 5px;"><label for="recent_avg_message_rate">
+            <div class="tooltip-container">Incoming Frame Rate: <span class="tooltip-text">The average per second rate for the last 4 incoming ROS2 messages received</span></div>
+            </label><span id="recent_avg_message_rate">0</span></div>
+            <div style="display: flex; justify-content: space-between; padding-bottom: 5px;">Topic: <span id="CurrentTopic"></span></div>
+            <br>
+            <div style="display: flex; justify-content: space-between; padding-bottom: 5px;"><label hidden for="total_avg_message_rate">Messages Per Second (Total Avg):</label><span hidden id="total_avg_message_rate">0</span></div>
+            <div style="display: flex; justify-content: space-between; padding-bottom: 5px;"><label hidden for="message_rate">Messages Per Second (Last Messages):</label><span hidden id="message_rate">0</span></div>
+            <br>
+            <div style="display: flex; justify-content: center; padding-bottom: 5px;"> --------- Buffer Settings --------- </div>
+            <br>
+            <div style="display: flex; justify-content: space-between; padding-bottom: 5px;"><label for="buffer_balance">Buffer Balance:</label><span id="buffer_balance">0</span></div>
+            <div style="display: flex; justify-content: space-between; padding-bottom: 5px;"><label for="buffer_enabled">Enable Buffer:</label><input type="checkbox" id="buffer_enabled" name="buffer_enabled" checked></div>
+            <div style="display: flex; justify-content: space-between; padding-bottom: 5px;"><label for="buffer_size">Buffer Size (Frames):</label><input type="number" id="buffer_size" name="buffer_size" value="60" style="width: 50px;"></div>
+
+            <br>
+            <div style="display: flex; justify-content: center; padding-bottom: 5px;"> ----------- Display Frame Rate ----------- </div>
+            <br>
+            <div style="display: flex; justify-content: space-between; padding-bottom: 5px;"><label for="frame_rate">Target Display Frame Rate:</label><input type="number" id="frame_rate" name="frame_rate" value="6" style="width: 50px;"></div>
+            <div style="display: flex; justify-content: space-between; padding-bottom: 5px;"><label for="recent_avg_frame_rate">Current Display Frame Rate:</label><span id="recent_avg_frame_rate">0</span></div>
+
+
+
+            <div style="display: flex; justify-content: space-between; padding-bottom: 5px;"><label hidden for="actual_frame_rate">FPS (Last Frames):</label><span hidden id="actual_frame_rate">0</span></div>
+            <div hidden style="display: flex; justify-content: space-between; padding-bottom: 5px;"><label hidden for="total_avg_frame_rate">FPS (Total Avg):</label><span hidden id="total_avg_frame_rate">0</span></div>
+            <br>
+
+<button id="toggleBtn">Mask Settings</button>
+<div id="settingsContainer" style="display: none;">
+    <p>
+    <div><label for="editMaskBtn"><button id="editMaskBtn">Edit Image Mask</button></label></div>
+    </p>
+    <p>
+    <div><label for="clearMaskBtn"><button id="clearMaskBtn">Clear Image Mask</button></label></div>
+    </p>
+    <p>
+        <div><label for="invertMaskBtn"><button id="invertMaskBtn">Invert Image Mask</button></label></div>
+    </p>
+    <p><div><label for="saveMaskJPG"><button id="saveMaskJPG">Save Mask as JPG</button></label></div>
+    </p>
+    <p><div><label for="saveMaskSVG"><button id="saveMaskSVG">Save Mask as SVG</button></label></div>
+    </p>
+    <p><div><label for="sendMaskJPG"><button id="sendMaskJPG">Send Mask</button></label></div>
+    </div>
+    </p>
+</div>
+
+        <!-- <div id="stream" style="position: relative; width: 70%; float: left">
+            <img width="860" height="860" id="image_sub" />
+            <canvas width="860" height="860" id="maskCanvas" style="position:absolute;top:0;left:0;z-index:10;"></canvas>
+        </div> -->
+        <div id="stream" style="position: relative; width: 75vw; float: left">
+            <img id="image_sub" />
+            <div id="bufferingOverlay">Buffering...<span id="frames_left"></span></div>
+            <canvas width="860" height="860" id="maskCanvas" style="position:absolute;top:0;left:0;z-index:10;"></canvas>
+        </div>
+
+        <script type="text/javascript" type="text/javascript">
+            function init() {
+                window.addEventListener('DOMContentLoaded', function () {
+                    var imageBuffer = [];
+                    var bufferSize = 60;
+                    var startingBufferSize = 60;
+                    var bufferReady = false; // Add a bufferReady flag
+                    var frameRate = 6; // target frames per second (FPS)
+                    var lastMessageTime = null;
+                    var messageRate = 0;
+                    var lastFrameTime = null;
+                    var actualFrameRate = 0;
+                    var frameCount = 0;
+                    var totalFrameRate = 0;
+                    var recentFrameRates = [];
+                    var messageCount = 0;
+                    var totalMessageRate = 0;
+                    var recentMessageRates = [];
+                    var firstImageReceived = false;  // Flag to check if it's the first image
+
+                    var ros2ImageTopic1 = '/bob/camera/all_sky/bayer/resized/compressed'; // Define the ROS2 Subscription Topic 1
+                    var ros2ImageTopic2 = '/bob/frames/annotated/resized/compressed'; // Define the ROS2 Subscription Topic 2
+                    var currentRos2ImageTopic = ros2ImageTopic2; // Define the ROS2 Subscription Topic
+
+                    document.getElementById('CurrentTopic').innerText = currentRos2ImageTopic;
+
+                    var compressedImageMsgType = 'sensor_msgs/msg/CompressedImage'; // Define the Message Type of the ROS2 Subscription Topic
+                    var ros2MaskTopic = '/bob/frames/input_mask_image'; // Define the ROS2 Mask Topic for publishing
+
+
+                    const playBtn = document.getElementById('playBtn');
+                    const pauseBtn = document.getElementById('pauseBtn');
+                    let isPlaying = true;  // state variable to track if the stream is playing
+
+                    playBtn.addEventListener('click', function() { isPlaying = true; });
+                    pauseBtn.addEventListener('click', function() { isPlaying = false; });
+
+                    // Create a topicStream for subscription
+                    var topicStream = new ROSLIB.Topic({ros: ros, name: currentRos2ImageTopic, messageType: compressedImageMsgType});
+
+                    topicStream.subscribe(function(message) {
+                        updateMessageRate();
+
+                        if (!firstImageReceived) {
+                            document.getElementById('image_sub').src = "data:image/jpeg;base64," + message.data;
+                            document.getElementById('bufferingOverlay').style.display = bufferReady ? 'none' : 'flex';
+                            firstImageReceived = true;
+                        }
+
+                        if (document.getElementById('buffer_enabled').checked) {
+                            if (imageBuffer.length < bufferSize) {
+                                imageBuffer.push(message);
+                            }
+                            if (imageBuffer.length === bufferSize) {
+                                bufferReady = true;
+                                document.getElementById('bufferingOverlay').style.display = 'none';
+                            }
+                        } else {
+
+                            document.getElementById('image_sub').src = "data:image/jpeg;base64," + message.data;
+                        }
+                    });
+
+                    displayImage();
+
+                    // We will publish the mask as an image topic to send to the ros2 environment
+                    var maskprovider = new ROSLIB.Topic({ros: ros,name: ros2MaskTopic,messageType: compressedImageMsgType});
+
+                    sendMaskJPG.addEventListener('click', () => {
+                        const tempCanvas = document.createElement('canvas');
+                        tempCanvas.width = maskCanvas.width;
+                        tempCanvas.height = maskCanvas.height;
+                        const tempCtx = tempCanvas.getContext('2d');
+                        tempCtx.fillStyle = 'white';
+                        tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                        tempCtx.drawImage(maskCanvas, 0, 0);
+                        const jpgDataUrl = tempCanvas.toDataURL('image/jpeg');
+                        console.log("jpgDataUrl:" + jpgDataUrl)
+                        var data = jpgDataUrl
+                        var imageMessage = new ROSLIB.Message({format : "jpeg",data : data.replace("data:image/jpeg;base64,", "")});
+                        maskprovider.publish(imageMessage);
+                    });
+
+                    function displayImage() {
+                        frameRate = parseInt(document.getElementById('frame_rate').value);
+                        if (isPlaying) {  // Check if the stream should play
+                            if (imageBuffer.length > 0 && document.getElementById('buffer_enabled').checked && bufferReady) {
+                                var message = imageBuffer.shift();
+                                document.getElementById('image_sub').src = "data:image/jpeg;base64," + message.data;
+                                updateActualFrameRate();
+                            }
+                        }
+                        document.getElementById('buffer_balance').innerText = imageBuffer.length+ "/"+ bufferSize+ " Frames";
+                        document.getElementById('frames_left').innerText = startingBufferSize - imageBuffer.length;
+                        setTimeout(displayImage, 1000 / frameRate);
+                    }
+
+                    function updateActualFrameRate() {
+                        var currentTime = new Date().getTime();
+                        if (lastFrameTime !== null) {
+                            var timeDifference = currentTime - lastFrameTime;
+                            actualFrameRate = 1000 / timeDifference;
+                            document.getElementById('actual_frame_rate').innerText = actualFrameRate.toFixed(2)+" FPS";
+                            frameCount++;
+                            totalFrameRate += actualFrameRate; // Update total average frame rate
+                            document.getElementById('total_avg_frame_rate').innerText = (totalFrameRate / frameCount).toFixed(2)+" FPS";
+                            // Update recent average frame rate (last 4 frames)
+                            recentFrameRates.push(actualFrameRate);
+                            if (recentFrameRates.length > 4) {recentFrameRates.shift();}
+                            var recentAvgFrameRate = recentFrameRates.reduce((a, b) => a + b, 0) / recentFrameRates.length;
+                            document.getElementById('recent_avg_frame_rate').innerText = recentAvgFrameRate.toFixed(2)+" FPS";
+                        }
+                        lastFrameTime = currentTime;
+                    }
+
+                    function updateMessageRate() {
+                        var currentTime = new Date().getTime();
+                        if (lastMessageTime !== null) {
+                            var timeDifference = currentTime - lastMessageTime;
+                            messageRate = 1000 / timeDifference;
+                            document.getElementById('message_rate').innerText = messageRate.toFixed(2)+" FPS";
+                            messageCount++;
+                            totalMessageRate += messageRate; // Update total average message rate
+                            document.getElementById('total_avg_message_rate').innerText = (totalMessageRate / messageCount).toFixed(2)+" FPS";
+                            // Update recent average message rate (last 4 messages)
+                            recentMessageRates.push(messageRate);
+                            if (recentMessageRates.length > 4) {recentMessageRates.shift();}
+                            var recentAvgMessageRate = recentMessageRates.reduce((a, b) => a + b, 0) / recentMessageRates.length;
+                            document.getElementById('recent_avg_message_rate').innerText = recentAvgMessageRate.toFixed(2)+" FPS";
+                        }
+                        lastMessageTime = currentTime;
+                    }
+
+                });
+            }
+
+            window.onload = init();
+
+            const videoPlayer = document.getElementById('image_sub');
+            const maskCanvas = document.getElementById('maskCanvas');
+            const ctx = maskCanvas.getContext('2d');
+            const contextMenu = document.getElementById('contextMenu');
+            const editMaskBtn = document.getElementById('editMaskBtn');
+            const invertMaskBtn = document.getElementById('invertMaskBtn');
+            const clearMaskBtn = document.getElementById('clearMaskBtn');
+            const saveMaskJPG = document.getElementById('saveMaskJPG');
+            const saveMaskSVG = document.getElementById('saveMaskSVG');
+            const sendMaskJPG = document.getElementById('sendMaskJPG');
+            let drawing = false;
+            let editMode = false;
+            let polygons = [];
+            let offset = 0;
+
+            videoPlayer.addEventListener('loadedmetadata', () => {
+                maskCanvas.width = videoPlayer.offsetWidth;
+                maskCanvas.height = videoPlayer.offsetHeight;
+            });
+
+            maskCanvas.addEventListener('mousedown', (e) => {
+                if (!editMode || e.button === 2) return;
+                if (e.detail > 1) { // Detect double-click event
+                    const currentPolygon = polygons[polygons.length - 1];
+                    if (currentPolygon.length > 2) { drawing = false; polygons.push([]); }
+                    return;
+                }
+                drawing = true;
+                const rect = maskCanvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const currentPolygon = polygons[polygons.length - 1];
+                if (currentPolygon.length > 0) {
+                    const firstNode = currentPolygon[0];
+                    const distance = Math.sqrt(Math.pow(x - firstNode.x, 2) + Math.pow(y - firstNode.y, 2));
+                    if (distance < 10) { // Close the polygon if the click is near the starting node.
+                        drawing = false;
+                        polygons.push([]);
+                    } else { currentPolygon.push({x, y}); }
+                } else { currentPolygon.push({x, y}); }
+                redrawCanvas();
+            });
+
+            maskCanvas.addEventListener('mousemove', (e) => {
+                if (!drawing || !editMode) return;
+                const rect = maskCanvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const currentPolygon = polygons[polygons.length - 1];
+                currentPolygon.push({x, y});
+                redrawCanvas();
+                if (editMode) {drawPolygon(currentPolygon, 'rgba(0, 0, 0, 0.1)', true);}
+                currentPolygon.pop();
+            });
+
+            editMaskBtn.addEventListener('click', () => {
+                editMode = !editMode;
+                if (editMode) {
+                    maskCanvas.style.cursor = 'crosshair';
+                    editMaskBtn.textContent = 'Stop Editing Mask';
+                    if (polygons.length === 0 || polygons[polygons.length - 1].length > 0) { polygons.push([]); }
+                } else {
+                    maskCanvas.style.cursor = 'default';
+                    editMaskBtn.textContent = 'Edit Image Mask';
+                    redrawCanvas();
+                    if (polygons[polygons.length - 1].length === 0) { polygons.pop(); }
+                }
+            });
+
+            clearMaskBtn.addEventListener('click', () => {
+                clearMask();
+                if (editMode) { polygons.push([]); }
+            });
+
+            saveMaskJPG.addEventListener('click', () => {
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = maskCanvas.width;
+                tempCanvas.height = maskCanvas.height;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.fillStyle = 'white';
+                tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                tempCtx.drawImage(maskCanvas, 0, 0);
+                const jpgDataUrl = tempCanvas.toDataURL('image/jpeg');
+                const link = document.createElement('a');
+                link.href = jpgDataUrl;
+                link.download = 'mask.jpg';
+                link.click();
+            });
+
+            saveMaskSVG.addEventListener('click', () => {
+                let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${maskCanvas.width}" height="${maskCanvas.height}">`;
+                polygons.forEach(polygon => {
+                    if (polygon.length > 2) {
+                        const pathData = polygon.map((point, index) => {
+                            const command = index === 0 ? 'M' : 'L';
+                            return `${command}${point.x},${point.y}`;
+                        }).join(' ') + 'Z';
+                        svgContent += `<path d="${pathData}" fill="black" />`;
+                    }
+                });
+                svgContent += '</svg>';
+                const svgBlob = new Blob([svgContent], {type: 'image/svg+xml;charset=utf-8'});
+                const svgUrl = URL.createObjectURL(svgBlob);
+                const link = document.createElement('a');
+                link.href = svgUrl;
+                link.download = 'mask.svg';
+                link.click();
+            });
+
+            // Initialize empty Mask Polygon
+            polygons.push([]);
+
+            // Invert Mask Button
+            invertMaskBtn.addEventListener('click', () => { invertMaskColors(); });
+
+            // Start the animation loop
+            update();
+
+            function update() {
+                if (editMode) {
+                    offset = (offset + 1) % 10; // Update the dashed border offset
+                    redrawCanvas();
+                }
+                requestAnimationFrame(update);
+            }
+
+            function drawPolygon(polygon, fillStyle, drawBorder) {
+                ctx.beginPath();
+                ctx.moveTo(polygon[0].x, polygon[0].y);
+                for (let i = 1; i < polygon.length; i++) { ctx.lineTo(polygon[i].x, polygon[i].y); }
+                ctx.closePath();
+                ctx.fillStyle = fillStyle;
+                ctx.fill();
+                if (drawBorder) {
+                    ctx.setLineDash([5, 5]);
+                    ctx.lineDashOffset = -offset;
+                    ctx.strokeStyle = 'white';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    ctx.lineDashOffset = 0;
+                }
+            }
+
+            function clearMask() {
+                ctx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+                polygons = [];
+            }
+
+            function redrawCanvas() {
+                ctx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+                polygons.forEach((polygon, index) => {
+                    const isCurrentPolygon = index === polygons.length - 1;
+                    drawPolygon(polygon, editMode && isCurrentPolygon ? 'rgba(0, 0, 0, 0.1)' : 'rgba(0, 0, 0, 1)', editMode && isCurrentPolygon);
+                });
+            }
+
+            // Invert Mask Colors
+            function invertMaskColors() {
+                let imageData = ctx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+                let data = imageData.data;
+                for (let i = 0; i < data.length; i += 4) {
+                    if (data[i] === 0 && data[i + 1] === 0 && data[i + 2] === 0 && data[i + 3] === 255) {
+                        data[i + 3] = 0; // If the pixel is black (masked), set it to transparent
+                    } else if (data[i + 3] === 0) {
+                        data[i] = 0; // If the pixel is transparent, set it to black (masked)
+                        data[i + 1] = 0;
+                        data[i + 2] = 0;
+                        data[i + 3] = 255;
+                    }
+                }
+                ctx.putImageData(imageData, 0, 0);
+            }
+
+            document.getElementById('toggleBtn').addEventListener('click', function() {
+                const settingsContainer = document.getElementById('settingsContainer');
+                if (settingsContainer.style.display === 'none') {
+                    settingsContainer.style.display = 'block';
+                } else {
+                    settingsContainer.style.display = 'none';
+                }
+            });
+
+        </script>
+    </body>
+</html>
