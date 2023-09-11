@@ -47,7 +47,7 @@ def generate_launch_description():
                     ('bob/compressor/source', 'bob/camera/all_sky/bayer/resized'),
                     ('bob/compressor/target', 'bob/camera/all_sky/bayer/resized/compressed')],
                 parameters=[{'compression_quality': 95}],
-                extra_arguments=[{'use_intra_process_comms': True}]),
+                extra_arguments=[{'use_intra_process_comms': True}]),             
         ],
         output='screen',
     )

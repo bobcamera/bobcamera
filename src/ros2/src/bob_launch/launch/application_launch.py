@@ -1,11 +1,13 @@
+import os
 from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription
 from ament_index_python.packages import get_package_share_directory
-from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.launch_description_sources import PythonLaunchDescriptionSource, FrontendLaunchDescriptionSource
 
 def generate_launch_description():
     
     launch_package_dir = get_package_share_directory('bob_launch')
+    ros_bridge_package_dir = get_package_share_directory('rosbridge_server')
 
     return LaunchDescription([
 
@@ -49,5 +51,10 @@ def generate_launch_description():
         #    PythonLaunchDescriptionSource([
         #        launch_package_dir, 
         #        '/monitor_launch.py'])
-        #),       
+        #),
+
+        IncludeLaunchDescription(
+            FrontendLaunchDescriptionSource(
+                os.path.join(ros_bridge_package_dir,
+                             'launch/rosbridge_websocket_launch.xml')))
     ])
