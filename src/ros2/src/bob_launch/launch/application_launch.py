@@ -2,7 +2,7 @@ import os
 from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument, RegisterEventHandler, LogInfo, TimerAction
 from launch.substitutions import EnvironmentVariable, LocalSubstitution
-from launch.launch_description_sources import PythonLaunchDescriptionSource, FrontendLaunchDescriptionSource
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.event_handlers import OnExecutionComplete, OnProcessExit, OnProcessIO, OnProcessStart, OnShutdown
 from ament_index_python.packages import get_package_share_directory
 
@@ -11,7 +11,6 @@ def generate_launch_description():
     #https://roboticscasual.com/tutorial-ros2-launch-files-all-you-need-to-know/
 
     launch_package_dir = get_package_share_directory('bob_launch')
-    ros_bridge_package_dir = get_package_share_directory('rosbridge_server')
 
     source_arg_value = EnvironmentVariable('BOB_SOURCE', default_value="'video'")
     rtsp_url_arg_value = EnvironmentVariable('BOB_RTSP_URL', default_value="")
@@ -102,10 +101,9 @@ def generate_launch_description():
         #),
 
         IncludeLaunchDescription(
-            FrontendLaunchDescriptionSource(
-                os.path.join(
-                    ros_bridge_package_dir,
-                    'launch/rosbridge_websocket_launch.xml'))
+            PythonLaunchDescriptionSource([
+                launch_package_dir, 
+                '/rosbridge_launch.py'])
         ),
 
         RegisterEventHandler(
