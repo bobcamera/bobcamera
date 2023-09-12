@@ -1,8 +1,9 @@
 import os
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
-from launch.substitutions import EnvironmentVariable
+from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument, RegisterEventHandler, LogInfo, TimerAction
+from launch.substitutions import EnvironmentVariable, LocalSubstitution
 from launch.launch_description_sources import PythonLaunchDescriptionSource, FrontendLaunchDescriptionSource
+from launch.event_handlers import OnExecutionComplete, OnProcessExit, OnProcessIO, OnProcessStart, OnShutdown
 from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
@@ -12,9 +13,16 @@ def generate_launch_description():
     launch_package_dir = get_package_share_directory('bob_launch')
     ros_bridge_package_dir = get_package_share_directory('rosbridge_server')
 
-    source_arg_value = EnvironmentVariable('BOB_SOURCE', default_value="'video'") 
+    source_arg_value = EnvironmentVariable('BOB_SOURCE', default_value="'video'")
+    rtsp_url_arg_value = EnvironmentVariable('BOB_RTSP_URL', default_value="")
+    rtsp_width_arg_value = EnvironmentVariable('BOB_RTSP_WIDTH', default_value="")
+    rtsp_height_arg_value = EnvironmentVariable('BOB_RTSP_HEIGHT', default_value="")
+    camera_id_arg_value = EnvironmentVariable('BOB_CAMERA_ID', default_value="0")
     enable_visualiser_arg_value = EnvironmentVariable('BOB_ENABLE_VISUALISER', default_value="True")
+    optimised_arg_value = EnvironmentVariable('BOB_OPTIMISED', default_value="False")
     enable_rosbridge_arg_value = EnvironmentVariable('BOB_ENABLE_ROSBRIDGE', default_value="False")
+
+    #print(f'Generating launch description....')
 
     source_arg = DeclareLaunchArgument(
         'source_arg',
@@ -22,9 +30,39 @@ def generate_launch_description():
         description="Argument for the image source of the application."
         )
 
+    rtsp_url_arg = DeclareLaunchArgument(
+        'rtsp_url_arg',
+        default_value=rtsp_url_arg_value,
+        description="RTSP url."
+        )
+
+    rtsp_width_arg = DeclareLaunchArgument(
+        'rtsp_width_arg',
+        default_value=rtsp_width_arg_value,
+        description="RTSP image width."
+        )
+    
+    rtsp_height_arg = DeclareLaunchArgument(
+        'rtsp_height_arg',
+        default_value=rtsp_height_arg_value,
+        description="RTSP image height."
+        )
+
+    camera_id_arg = DeclareLaunchArgument(
+        'camera_id_arg',
+        default_value=camera_id_arg_value,
+        description="USB Camera Id."
+        )
+
     enable_visualiser_arg = DeclareLaunchArgument(
         'enable_visualiser_arg',
         default_value=enable_visualiser_arg_value,
+        description="Argument for the enabling of the visualiser screen."
+        )
+
+    optimised_arg = DeclareLaunchArgument(
+        'optimised_arg',
+        default_value=optimised_arg_value,
         description="Argument for the enabling of the visualiser screen."
         )
 
@@ -37,9 +75,13 @@ def generate_launch_description():
     return LaunchDescription([
 
         source_arg,
+        rtsp_url_arg,
+        rtsp_width_arg,
+        rtsp_height_arg,
+        camera_id_arg,
         enable_visualiser_arg,
+        optimised_arg,
         enable_rosbridge_arg,
-        
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([
@@ -64,6 +106,15 @@ def generate_launch_description():
                 os.path.join(
                     ros_bridge_package_dir,
                     'launch/rosbridge_websocket_launch.xml'))
-        )
+        ),
+
+        RegisterEventHandler(
+            OnShutdown(
+                on_shutdown=[LogInfo(
+                    msg=['Application Launch was asked to shutdown: ',
+                        LocalSubstitution('event.reason')]
+                )]
+            )
+        ),
 
     ])

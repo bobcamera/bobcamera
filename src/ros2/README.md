@@ -9,8 +9,9 @@
 * Step 3: Blobs are detected and bounding boxes extracted
 * Step 4: Trackers (CSRT) are initialised using bounding boxes which is then tracked across frames.
 * Step 5: We use a Kalman Filter to try and predict the trajectory of the target being tracked
-* Step 6: Annotated frame is constructed for display
-* Step 7: Frames are resized and transferred externally for Stage 2 processing
+* Step 6: Recording using RosBag
+* Step 7: Annotated frame is constructed for display
+* Step 8: Frames are resized and transferred externally for Stage 2 processing
 
 ## Processing Stage 2 - Application:
 
@@ -23,7 +24,6 @@
 
 ### Display
 * The annotated frame is displayed
-* The annotated frame is published as an RTSP stream for display via other applications e.g. VLC
 
 ## Prerequisites
 Before you proceed, ensure that you have the following:
@@ -44,17 +44,18 @@ Open a terminal session:
 
 #### Setup 
 
-Run the setup script to setup dev container. This is required if you would like to use an RTSP camera as your source as we use external third party packages for this: `./setup.sh`
+Run the setup script to setup dev container. This is required for rosbridge_suite and any other third party packages like the ros_ipcamera package: `./setup.sh`
 
 #### Update RTSP cam details if you are using an RTSP camera
 
-* update camera RTSP credentials and frame size in `./src/bob_launch/config/ipcamera.yaml`
+* update the environment variables for both camera rtsp credentials and frame size in `./launch_application.sh`
+* set the BOB_SOURCE environment variable to be `"'rtsp'"`
 * update frame size in `./src/bob_launch/config/camera_info.yaml`
 
-#### Update application launch file depending on the image source you would like to use
+#### Update USB cam details if you are using a USB camera
 
-* comment out / uncomment the IncludeLaunchDescription source you are not using / using in: `./src/bob_launch/launch/application_launch.py`
-* NOTE: We are working hard to be able to drive this by parameter
+* update the environment variables for the camera id in `./launch_application.sh`, default id is 0
+* set the BOB_SOURCE environment variable to be `"'usb'"`
 
 #### Build
 
@@ -81,6 +82,8 @@ Run the following commands in the terminal in vscode i.e. inside the container: 
 ## TODO:
 
 #### Replay a rosbag recording
+
+* TODO: The annotated frame is published as an rtsp stream for display via other applications e.g. VLC
 
 * `ros2 bag play 2023_09_06-16_48_14/` where 2023_09_06-16_48_14/ is a folder that contains a rosbag recording
 * `./launch_rosbag_replay.sh`

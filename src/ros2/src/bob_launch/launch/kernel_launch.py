@@ -12,9 +12,9 @@ def generate_launch_description():
 
     # Get the config directory
     config_dir = os.path.join(get_package_share_directory('bob_launch'), 'config')
-    param_config = os.path.join(config_dir, "ipcamera.yaml")
-    with open(param_config, 'r') as f:
-        params = yaml.safe_load(f)["ipcamera"]["ros__parameters"]
+    #param_config = os.path.join(config_dir, "ipcamera.yaml")
+    #with open(param_config, 'r') as f:
+    #    params = yaml.safe_load(f)["ipcamera"]["ros__parameters"]
 
     # Alternatively can use "package://" as discussed:
     # https://answers.ros.org/question/333521/ros2-url-to-camera_info-yaml-not-being-recognized/
@@ -38,8 +38,12 @@ def generate_launch_description():
                     ('/ipcamera/image_raw', 'bob/camera/all_sky/bayer'),
                     ('/ipcamera/camera_info', 'bob/camera/all_sky/camera_info')],
                 parameters=[
-                    params,
-                    {"camera_calibration_file": config_file}],
+                    #params,
+                    {'rtsp_uri': LaunchConfiguration('rtsp_url_arg')},
+                    {'image_topic': 'image_raw'},
+                    {'image_width': LaunchConfiguration('rtsp_width_arg')},
+                    {'image_height': LaunchConfiguration('rtsp_height_arg')},
+                    {'camera_calibration_file': config_file}],
                 extra_arguments=[{'use_intra_process_comms': True}]),
         ],
         condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'rtsp'" ])),
@@ -74,7 +78,7 @@ def generate_launch_description():
                     , {'image_info_publish_topic': 'bob/camera/all_sky/image_info'}
                     , {'camera_info_publish_topic': 'bob/camera/all_sky/camera_info'}
                     , {'is_video': False}
-                    , {'camera_id': 0}],
+                    , {'camera_id': LaunchConfiguration('camera_id_arg')}],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'usb'" ])),
                 ),
@@ -109,7 +113,9 @@ def generate_launch_description():
                     ('bob/resizer/source', 'bob/camera/all_sky/bayer'),
                     ('bob/resizer/target', 'bob/camera/all_sky/bayer/resized')],
                 parameters=[{'resize_height': 960}],
-                extra_arguments=[{'use_intra_process_comms': True}]),
+                extra_arguments=[{'use_intra_process_comms': True}],
+                condition=IfCondition(PythonExpression([LaunchConfiguration('optimised_arg'), " == False" ])),
+                ),
             ComposableNode(
                 package='bob_image_processing',
                 plugin='FrameResizer',
@@ -118,7 +124,9 @@ def generate_launch_description():
                     ('bob/resizer/source', 'bob/frames/all_sky/foreground_mask'),
                     ('bob/resizer/target', 'bob/frames/all_sky/foreground_mask/resized')],
                 parameters=[{'resize_height': 960}],
-                extra_arguments=[{'use_intra_process_comms': True}]),
+                extra_arguments=[{'use_intra_process_comms': True}],
+                condition=IfCondition(PythonExpression([LaunchConfiguration('optimised_arg'), " == False" ])),
+                ),
             ComposableNode(
                 package='bob_image_processing',
                 plugin='FrameResizer',
@@ -136,19 +144,17 @@ def generate_launch_description():
 
         LogInfo(
             condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'video'" ])),
-            msg=['Source launch argument = VIDEO source.']
-            ),
+            msg=['Source launch argument = VIDEO source.']),
 
         LogInfo(
             condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'rtsp'" ])),
-            msg=['Source launch argument = RTSP source.']
-            ),
+            msg=['Source launch argument = RTSP source.']),
 
         LogInfo(
             condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'usb'" ])),
-            msg=['Source launch argument = USB source.']
-            ),
+            msg=['Source launch argument = USB source.']),
 
         rstp_container, 
         processing_pipeline_container
-        ])
+        ]
+    )
