@@ -45,13 +45,13 @@ class CircleFrameGenerator(ObjectSimulator):
         return frame
 
 
-if __name__ == '__main__':
-    generator = CircleFrameGenerator()
+# if __name__ == '__main__':
+#     generator = CircleFrameGenerator()
 
-    while True:
-        frame = generator.generate_frame()
-        cv2.imshow('Circle Simulation', frame)
-        if cv2.waitKey(30) & 0xFF == ord('q'):  # Exit on pressing 'q'
-            break
+#     while True:
+#         frame = generator.generate_frame()
+#         cv2.imshow('Circle Simulation', frame)
+#         if cv2.waitKey(30) & 0xFF == ord('q'):  # Exit on pressing 'q'
+#             break
 
-    cv2.destroyAllWindows()
+#     cv2.destroyAllWindows()

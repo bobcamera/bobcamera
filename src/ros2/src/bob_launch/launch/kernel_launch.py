@@ -135,7 +135,18 @@ def generate_launch_description():
                     ('bob/resizer/source', 'bob/frames/annotated'),
                     ('bob/resizer/target', 'bob/frames/annotated/resized')],
                 parameters=[{'resize_height': 960}],
-                extra_arguments=[{'use_intra_process_comms': True}]),                    
+                extra_arguments=[{'use_intra_process_comms': True}]),  
+            ComposableNode(
+                package='bob_simulate', 
+                plugin='ObjectSimulator', 
+                name='simulated_frame_provider_node',  
+                # parameters=[],  # Any parameters you might have
+                # remappings=[
+                #     ('bob/object_simulator/frame', 'bob/camera/all_sky/bayer')
+                # ],
+                extra_arguments=[{'use_intra_process_comms': True}],
+                condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'simulate'" ])),  # New source_arg value for the simulator
+            )                  
         ],
         output='screen',
     )    
@@ -153,6 +164,10 @@ def generate_launch_description():
         LogInfo(
             condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'usb'" ])),
             msg=['Source launch argument = USB source.']),
+
+        LogInfo(
+            condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'simulate'" ])),
+            msg=['Source launch argument = SIMULATE source.']),
 
         rstp_container, 
         processing_pipeline_container
