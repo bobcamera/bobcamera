@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# source options are "'rtsp'", "'usb'", "'video'"
+# source options are "'rtsp'", "'usb'", "'video'", "'simulate'"
 export BOB_SOURCE="'video'"
 export BOB_RTSP_URL="rtsp://sky360:Sky360Sky!@10.20.30.75:554/cam/realmonitor?channel=1&subtype=0"
 export BOB_RTSP_WIDTH="1920"
