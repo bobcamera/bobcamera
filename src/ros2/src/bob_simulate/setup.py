@@ -20,6 +20,8 @@ setup(
     entry_points={
         'console_scripts': [
             'object_simulator = bob_simulate.object_simulator_node:main',
+            'simulated_video_provider = bob_simulate.simulated_video_provider_node:main',
+            'simulation_overlay_provider = bob_simulate.simulation_overlay_provider_node:main',
         ],
     },
 )

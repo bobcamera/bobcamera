@@ -32,7 +32,7 @@ class ObjectSimulatorNode(Node):
 
         self.timer = self.create_timer(self.timer_interval, self.publish_frame)
 
-        self.pub_frame = self.create_publisher(Image, 'bob/object_simulator/frame', publisher_qos_profile)
+        self.pub_frame = self.create_publisher(Image, 'bob/simulation/output_frame', publisher_qos_profile)
         self.get_logger().info(f'{self.get_name()} node is up and running.')
 
     def publish_frame(self):

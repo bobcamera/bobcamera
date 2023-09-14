@@ -26,11 +26,13 @@ def generate_launch_description():
     simulation_node = Node(            
         package='bob_simulate',
         executable='object_simulator',
+        #executable='simulated_video_provider',
+        #executable='simulation_overlay_provider', NOTE: This will not work
         parameters = [
             {"height": 1080},
-            {"width": 1920}            
+            {"width": 1920}
         ],
-        remappings=[('/bob/object_simulator/frame', '/bob/camera/all_sky/bayer')],
+        remappings=[('bob/simulation/output_frame', '/bob/camera/all_sky/bayer')],
         #arguments=[],
         condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'simulate'" ])),
     )
