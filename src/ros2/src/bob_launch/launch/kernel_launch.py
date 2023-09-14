@@ -27,10 +27,11 @@ def generate_launch_description():
         package='bob_simulate',
         executable='object_simulator',
         #executable='simulated_video_provider',
-        #executable='simulation_overlay_provider', NOTE: This will not work
+        #executable='simulation_overlay_provider', #NOTE: This will not work
         parameters = [
             {"height": LaunchConfiguration('simulation_height_arg')},
-            {"width": LaunchConfiguration('simulation_width_arg')}
+            {"width": LaunchConfiguration('simulation_width_arg')},
+            {"target_object_diameter": LaunchConfiguration('simulation_target_object_diameter_arg')},
         ],
         remappings=[('bob/simulation/output_frame', '/bob/camera/all_sky/bayer')],
         #arguments=[],
@@ -49,6 +50,7 @@ def generate_launch_description():
                 name='ipcamera',
                 remappings=[
                     ('/ipcamera/image_raw', 'bob/camera/all_sky/bayer'),
+                    #('/ipcamera/image_raw', 'bob/simulation/input_frame'),
                     ('/ipcamera/camera_info', 'bob/camera/all_sky/camera_info')],
                 parameters=[
                     #params,

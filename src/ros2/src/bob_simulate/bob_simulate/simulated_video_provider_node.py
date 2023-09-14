@@ -15,32 +15,27 @@ class SimulatedVideoProviderNode(Node):
   def __init__(self, publisher_qos_profile: QoSProfile):
     super().__init__('bob_simulated_video_provider')
 
-    self.timer_period = 0.05
+    self.timer_period = 0.03
     self.br = CvBridge()
     self.still_frame_image = None
 
-    self.test_case_runner = SimulationTestCaseRunner(
-      [
-          #SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=3, loop=False)], (960, 960), simulation_name='Drone'),
-          #SimulationTestCase(self, [SimulationTest(PlaneSyntheticData(), target_object_diameter=3, loop=False)], (960, 960), simulation_name='Plane'),
-          #SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=3, loop=False), SimulationTest(PlaneSyntheticData(), target_object_diameter=3, loop=False)], (960, 960), simulation_name='Drone & Plane'),
+    self.declare_parameters(
+        namespace="",
+        parameters=[                
+            ("height", 1080),
+            ("width", 1920),
+            ("target_object_diameter", 5)])
 
-          #SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=5, loop=False)], (1440, 1440), simulation_name='Drone'),
-          #SimulationTestCase(self, [SimulationTest(PlaneSyntheticData(), target_object_diameter=5, loop=False)], (1440, 1440), simulation_name='Plane'),
-          #SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=5, loop=False), SimulationTest(PlaneSyntheticData(), target_object_diameter=5, loop=False)], (1440, 1440), simulation_name='Drone & Plane'),
-          
-          #SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=8, loop=False)], (2160, 2160), simulation_name='Drone'),
-          #SimulationTestCase(self, [SimulationTest(PlaneSyntheticData(), target_object_diameter=8, loop=False)], (2160, 2160), simulation_name='Plane'),
-          #SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=8, loop=False), SimulationTest(PlaneSyntheticData(), target_object_diameter=8, loop=False)], (2160, 2160), simulation_name='Drone & Plane'),
+    # grab parameters provided
+    height = self.get_parameter('height').value
+    width = self.get_parameter('width').value
+    target_object_diameter = self.get_parameter('target_object_diameter').value
 
-          SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=11, loop=False)], (2880, 2880), simulation_name='Drone'),
-          SimulationTestCase(self, [SimulationTest(PlaneSyntheticData(), target_object_diameter=11, loop=False)], (2880, 2880), simulation_name='Plane'),
-          SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=11, loop=False), SimulationTest(PlaneSyntheticData(), target_object_diameter=11, loop=False)], (2880, 2880), simulation_name='Drone & Plane'),
-
-          #SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=15, loop=False)], (3600, 3600), simulation_name='Drone'),
-          #SimulationTestCase(self, [SimulationTest(PlaneSyntheticData(), target_object_diameter=15, loop=False)], (3600, 3600), simulation_name='Plane'),       
-          #SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=15, loop=False), SimulationTest(PlaneSyntheticData(), target_object_diameter=15, loop=False)], (3600, 3600), simulation_name='Drone & Plane'),
-        ])
+    self.test_case_runner = SimulationTestCaseRunner([
+      SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=target_object_diameter, loop=False)], (width, height), simulation_name='Drone'),
+      SimulationTestCase(self, [SimulationTest(PlaneSyntheticData(), target_object_diameter=target_object_diameter, loop=False)], (width, height), simulation_name='Plane'),
+      SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=target_object_diameter, loop=False), SimulationTest(PlaneSyntheticData(), target_object_diameter=5, loop=False)], (width, height), simulation_name='Drone & Plane'),
+    ])
 
     # setup services, publishers and subscribers
     self.pub_synthetic_frame = self.create_publisher(Image, 'bob/simulation/output_frame', publisher_qos_profile)

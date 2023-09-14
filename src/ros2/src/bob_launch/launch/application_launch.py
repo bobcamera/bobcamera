@@ -22,6 +22,7 @@ def generate_launch_description():
     enable_rosbridge_arg_value = EnvironmentVariable('BOB_ENABLE_ROSBRIDGE', default_value="False")
     simulation_width_arg_value = EnvironmentVariable('BOB_SIMULATION_WIDTH', default_value="1920")
     simulation_height_arg_value = EnvironmentVariable('BOB_SIMULATION_HEIGHT', default_value="1080")
+    simulation_target_object_diameter_arg_value = EnvironmentVariable('BOB_SIMULATION_TARGET_OBJ_DIA', default_value="5")
     #print(f'Generating launch description....')
 
     source_arg = DeclareLaunchArgument(
@@ -84,14 +85,24 @@ def generate_launch_description():
         description="Simulation image height."
         )
 
+    simulation_target_object_diameter_arg = DeclareLaunchArgument(
+        'simulation_target_object_diameter_arg',
+        default_value=simulation_target_object_diameter_arg_value,
+        description="Simulation target object diameter."
+        )
+
     return LaunchDescription([
 
         source_arg,
+
         rtsp_url_arg,
         rtsp_width_arg,
         rtsp_height_arg,
+        
         simulation_width_arg,
         simulation_height_arg,
+        simulation_target_object_diameter_arg,
+
         camera_id_arg,
         enable_visualiser_arg,
         optimised_arg,

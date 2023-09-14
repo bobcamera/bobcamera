@@ -17,6 +17,26 @@ class SimulationOverlayProviderNode(Node):
   def __init__(self, subscriber_qos_profile: QoSProfile, publisher_qos_profile: QoSProfile):
     super().__init__('bob_overlayed_video_provider')
 
+    self.br = CvBridge()
+
+    self.declare_parameters(
+        namespace="",
+        parameters=[                
+            ("height", 1080),
+            ("width", 1920),
+            ("target_object_diameter", 5)])
+
+    # grab parameters provided
+    height = self.get_parameter('height').value
+    width = self.get_parameter('width').value
+    target_object_diameter = self.get_parameter('target_object_diameter').value
+
+    self.test_case_runner = SimulationTestCaseRunner([
+      SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=target_object_diameter, loop=False)], (width, height), simulation_name='Drone'),
+      SimulationTestCase(self, [SimulationTest(PlaneSyntheticData(), target_object_diameter=target_object_diameter, loop=False)], (width, height), simulation_name='Plane'),
+      SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=target_object_diameter, loop=False), SimulationTest(PlaneSyntheticData(), target_object_diameter=5, loop=False)], (width, height), simulation_name='Drone & Plane'),
+    ])
+
     # setup services, publishers and subscribers
     self.sub_camera = self.create_subscription(Image, 'bob/simulation/input_frame', self.camera_callback, subscriber_qos_profile)
     self.pub_synthetic_frame = self.create_publisher(Image, 'bob/simulation/output_frame', publisher_qos_profile)
@@ -43,41 +63,6 @@ class SimulationOverlayProviderNode(Node):
       
       else:
         self.get_logger().info(f'{self.get_name()} Overlay simulation complete.')
-
-  def config_list(self) -> List[str]:
-    return ['frame_provider_resize_dimension_h', 'frame_provider_resize_dimension_w']
-
-  def validate_config(self) -> bool:
-    valid = True
-    return valid
-
-  def on_config_loaded(self, init: bool):
-    if init:
-      self.br = CvBridge()
-
-      self.test_case_runner = SimulationTestCaseRunner(
-        [
-          #SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=3, loop=False)], (960, 960), simulation_name='Drone'),
-          #SimulationTestCase(self, [SimulationTest(PlaneSyntheticData(), target_object_diameter=3, loop=False)], (960, 960), simulation_name='Plane'),
-          #SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=3, loop=False), SimulationTest(PlaneSyntheticData(), target_object_diameter=3, loop=False)], (960, 960), simulation_name='Drone & Plane'),
-
-          #SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=5, loop=False)], (1440, 1440), simulation_name='Drone'),
-          #SimulationTestCase(self, [SimulationTest(PlaneSyntheticData(), target_object_diameter=5, loop=True)], (1440, 1440), simulation_name='Plane'),
-          #SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=5, loop=False), SimulationTest(PlaneSyntheticData(), target_object_diameter=5, loop=False)], (1440, 1440), simulation_name='Drone & Plane'),
-          
-          #SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=8, loop=False)], (2160, 2160), simulation_name='Drone'),
-          #SimulationTestCase(self, [SimulationTest(PlaneSyntheticData(), target_object_diameter=8, loop=False)], (2160, 2160), simulation_name='Plane'),
-          #SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=8, loop=False), SimulationTest(PlaneSyntheticData(), target_object_diameter=8, loop=False)], (2160, 2160), simulation_name='Drone & Plane'),
-
-          SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=11, loop=False)], (2880, 2880), simulation_name='Drone'),
-          SimulationTestCase(self, [SimulationTest(PlaneSyntheticData(), target_object_diameter=11, loop=False)], (2880, 2880), simulation_name='Plane'),
-          SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=11, loop=False), SimulationTest(PlaneSyntheticData(), target_object_diameter=11, loop=False)], (2880, 2880), simulation_name='Drone & Plane'),
-
-          #SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=15, loop=False)], (3600, 3600), simulation_name='Drone'),
-          #SimulationTestCase(self, [SimulationTest(PlaneSyntheticData(), target_object_diameter=15, loop=False)], (3600, 3600), simulation_name='Plane'),       
-          #SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=15, loop=False), SimulationTest(PlaneSyntheticData(), target_object_diameter=15, loop=False)], (3600, 3600), simulation_name='Drone & Plane'),
-        ]
-      )
 
 def main(args=None):
 
