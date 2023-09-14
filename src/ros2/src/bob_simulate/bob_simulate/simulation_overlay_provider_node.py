@@ -27,14 +27,14 @@ class SimulationOverlayProviderNode(Node):
             ("target_object_diameter", 5)])
 
     # grab parameters provided
-    height = self.get_parameter('height').value
-    width = self.get_parameter('width').value
-    target_object_diameter = self.get_parameter('target_object_diameter').value
+    self.height = self.get_parameter('height').value
+    self.width = self.get_parameter('width').value
+    self.target_object_diameter = self.get_parameter('target_object_diameter').value
 
     self.test_case_runner = SimulationTestCaseRunner([
-      SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=target_object_diameter, loop=False)], (width, height), simulation_name='Drone'),
-      SimulationTestCase(self, [SimulationTest(PlaneSyntheticData(), target_object_diameter=target_object_diameter, loop=False)], (width, height), simulation_name='Plane'),
-      SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=target_object_diameter, loop=False), SimulationTest(PlaneSyntheticData(), target_object_diameter=5, loop=False)], (width, height), simulation_name='Drone & Plane'),
+      SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=self.target_object_diameter, loop=False)], (self.width, self.height), simulation_name='Drone'),
+      SimulationTestCase(self, [SimulationTest(PlaneSyntheticData(), target_object_diameter=self.target_object_diameter, loop=False)], (self.width, self.height), simulation_name='Plane'),
+      SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=self.target_object_diameter, loop=False), SimulationTest(PlaneSyntheticData(), target_object_diameter=5, loop=False)], (self.width, self.height), simulation_name='Drone & Plane'),
     ])
 
     # setup services, publishers and subscribers
@@ -62,7 +62,14 @@ class SimulationOverlayProviderNode(Node):
           self.get_logger().error(tb.format_exc())
       
       else:
-        self.get_logger().info(f'{self.get_name()} Overlay simulation complete.')
+        self.get_logger().info(f'{self.get_name()} Overlay simulation complete, restarting.')
+
+        self.test_case_runner = SimulationTestCaseRunner([
+          SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=self.target_object_diameter, loop=False)], (self.width, self.height), simulation_name='Drone'),
+          SimulationTestCase(self, [SimulationTest(PlaneSyntheticData(), target_object_diameter=self.target_object_diameter, loop=False)], (self.width, self.height), simulation_name='Plane'),
+          SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=self.target_object_diameter, loop=False), SimulationTest(PlaneSyntheticData(), target_object_diameter=5, loop=False)], (self.width, self.height), simulation_name='Drone & Plane'),
+        ])
+
 
 def main(args=None):
 

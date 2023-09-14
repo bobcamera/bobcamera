@@ -23,21 +23,6 @@ def generate_launch_description():
     video_file1 = '/workspaces/bobcamera/test/fisheye_videos/brad_drone_1.mp4'
     video_file2 = '/workspaces/bobcamera/test/fisheye_videos/Dahua-20220901-184734.mp4'
 
-    simulation_node = Node(            
-        package='bob_simulate',
-        executable='object_simulator',
-        #executable='simulated_video_provider',
-        #executable='simulation_overlay_provider', #NOTE: This will not work
-        parameters = [
-            {"height": LaunchConfiguration('simulation_height_arg')},
-            {"width": LaunchConfiguration('simulation_width_arg')},
-            {"target_object_diameter": LaunchConfiguration('simulation_target_object_diameter_arg')},
-        ],
-        remappings=[('bob/simulation/output_frame', '/bob/camera/all_sky/bayer')],
-        #arguments=[],
-        condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'simulate'" ])),
-    )
-
     rstp_container = ComposableNodeContainer(
         name='rstp_container',
         namespace='',
@@ -50,7 +35,6 @@ def generate_launch_description():
                 name='ipcamera',
                 remappings=[
                     ('/ipcamera/image_raw', 'bob/camera/all_sky/bayer'),
-                    #('/ipcamera/image_raw', 'bob/simulation/input_frame'),
                     ('/ipcamera/camera_info', 'bob/camera/all_sky/camera_info')],
                 parameters=[
                     #params,
@@ -169,11 +153,6 @@ def generate_launch_description():
             condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'usb'" ])),
             msg=['Source launch argument = USB source.']),
 
-        LogInfo(
-            condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'simulate'" ])),
-            msg=['Source launch argument = SIMULATE source.']),
-
-        simulation_node,
         rstp_container,
         processing_pipeline_container
         ]

@@ -45,7 +45,7 @@ class SimulationTestCaseRunner():
     if self.completed_frame is None:
       (w, h) = self.completed_frame_dimensions
       self.completed_frame = np.full((w, h, 3) , (255, 255, 255), np.uint8)      
-      simulation_message = f"(Sky360) Simulation Complete"
+      simulation_message = f"Simulation Complete"
       fontScale = get_optimal_font_scale(simulation_message, int(w-50))
       cv2.putText(self.completed_frame, simulation_message, (25, int(h/2)), cv2.FONT_HERSHEY_SIMPLEX, fontScale, (50, 170, 50), 2)
 
