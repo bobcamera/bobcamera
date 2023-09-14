@@ -20,7 +20,8 @@ def generate_launch_description():
     enable_visualiser_arg_value = EnvironmentVariable('BOB_ENABLE_VISUALISER', default_value="True")
     optimised_arg_value = EnvironmentVariable('BOB_OPTIMISED', default_value="False")
     enable_rosbridge_arg_value = EnvironmentVariable('BOB_ENABLE_ROSBRIDGE', default_value="False")
-
+    simulation_width_arg_value = EnvironmentVariable('BOB_SIMULATION_WIDTH', default_value="1920")
+    simulation_height_arg_value = EnvironmentVariable('BOB_SIMULATION_HEIGHT', default_value="1080")
     #print(f'Generating launch description....')
 
     source_arg = DeclareLaunchArgument(
@@ -70,6 +71,18 @@ def generate_launch_description():
         default_value=enable_rosbridge_arg_value,
         description="Argument for the enabling of the ROS Bridge."
         )
+    
+    simulation_width_arg = DeclareLaunchArgument(
+        'simulation_width_arg',
+        default_value=simulation_width_arg_value,
+        description="Simulation image width."
+        )
+    
+    simulation_height_arg = DeclareLaunchArgument(
+        'simulation_height_arg',
+        default_value=simulation_height_arg_value,
+        description="Simulation image height."
+        )
 
     return LaunchDescription([
 
@@ -77,6 +90,8 @@ def generate_launch_description():
         rtsp_url_arg,
         rtsp_width_arg,
         rtsp_height_arg,
+        simulation_width_arg,
+        simulation_height_arg,
         camera_id_arg,
         enable_visualiser_arg,
         optimised_arg,

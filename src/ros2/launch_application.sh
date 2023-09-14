@@ -8,5 +8,7 @@ export BOB_RTSP_HEIGHT="1080"
 export BOB_CAMERA_ID="0"
 export BOB_ENABLE_VISUALISER="True"
 export BOB_OPTIMISED="True"
+export BOB_SIMULATION_WIDTH="1920"
+export BOB_SIMULATION_HEIGHT="1080"
 
 ./launcher.sh application_launch.py

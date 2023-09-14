@@ -29,8 +29,8 @@ def generate_launch_description():
         #executable='simulated_video_provider',
         #executable='simulation_overlay_provider', NOTE: This will not work
         parameters = [
-            {"height": 1080},
-            {"width": 1920}
+            {"height": LaunchConfiguration('simulation_height_arg')},
+            {"width": LaunchConfiguration('simulation_width_arg')}
         ],
         remappings=[('bob/simulation/output_frame', '/bob/camera/all_sky/bayer')],
         #arguments=[],
@@ -149,17 +149,6 @@ def generate_launch_description():
                     ('bob/resizer/target', 'bob/frames/annotated/resized')],
                 parameters=[{'resize_height': 960}],
                 extra_arguments=[{'use_intra_process_comms': True}]),  
-            ComposableNode(
-                package='bob_simulate', 
-                plugin='ObjectSimulator', 
-                name='simulated_frame_provider_node',  
-                # parameters=[],  # Any parameters you might have
-                # remappings=[
-                #     ('bob/object_simulator/frame', 'bob/camera/all_sky/bayer')
-                # ],
-                extra_arguments=[{'use_intra_process_comms': True}],
-                condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'simulate'" ])),  # New source_arg value for the simulator
-            )                  
         ],
         output='screen',
     )    
