@@ -11,10 +11,24 @@ class ObjectSimulatorNode(Node):
     def __init__(self, publisher_qos_profile: QoSProfile):
         super().__init__('bob_object_simulator')
 
+        # declare parameters and set defaults
+        self.declare_parameters(
+            namespace="",
+            parameters=[                
+                ("height", 1080),
+                ("width", 1920)
+                ])
+
+        simulation_settings = {}
+
+        # grab parameters provided
+        simulation_settings['height'] = self.get_parameter('height').value
+        simulation_settings['width'] = self.get_parameter('width').value
+
         self.timer = None
         self.br = CvBridge()
         self.timer_interval = 0.05  # Update frame every 50ms (20 FPS)
-        self.object_simulator = ObjectSimulator.Generator()
+        self.object_simulator = ObjectSimulator.Generator(simulation_settings)
 
         self.timer = self.create_timer(self.timer_interval, self.publish_frame)
 

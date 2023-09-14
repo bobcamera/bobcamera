@@ -4,8 +4,8 @@ import numpy as np
 class ObjectSimulator():
 
     @staticmethod
-    def Generator():
-        return CircleFrameGenerator()
+    def Generator(settings):
+        return CircleFrameGenerator(settings=settings)
 
     def __init__(self):
         pass
@@ -16,13 +16,13 @@ class ObjectSimulator():
 
 class CircleFrameGenerator(ObjectSimulator):
 
-    def __init__(self, num_circles=5, circle_size=(2, 10), speed_range=(5, 50), frame_size=(1080, 1920)):
+    def __init__(self, settings, num_circles=5, circle_size=(2, 10), speed_range=(5, 50)):
         super().__init__()
 
         self.num_circles = num_circles
         self.circle_size = circle_size
         self.speed_range = speed_range
-        self.frame_size = frame_size
+        self.frame_size = (settings['height'], settings['width'])
         self.circles = [self._random_circle() for _ in range(num_circles)]
 
     def _random_circle(self):
