@@ -23,8 +23,8 @@ def generate_launch_description():
     video_file1 = '/workspaces/bobcamera/test/fisheye_videos/brad_drone_1.mp4'
     video_file2 = '/workspaces/bobcamera/test/fisheye_videos/Dahua-20220901-184734.mp4'
 
-    rstp_container = ComposableNodeContainer(
-        name='rstp_container',
+    rtsp_container = ComposableNodeContainer(
+        name='rtsp_container',
         namespace='',
         package='rclcpp_components',
         executable='component_container',
@@ -153,7 +153,7 @@ def generate_launch_description():
             condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'usb'" ])),
             msg=['Source launch argument = USB source.']),
 
-        rstp_container,
+        rtsp_container,
         processing_pipeline_container
         ]
     )
