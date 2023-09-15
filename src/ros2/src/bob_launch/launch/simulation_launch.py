@@ -37,8 +37,8 @@ def generate_launch_description():
         condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'simulate'" ])),
     )
 
-    rstp_container = ComposableNodeContainer(
-        name='rstp_container',
+    rtsp_container = ComposableNodeContainer(
+        name='rtsp_container',
         namespace='',
         package='rclcpp_components',
         executable='component_container',
@@ -87,7 +87,7 @@ def generate_launch_description():
             msg=['Source launch argument = SIMULATE - RTSP OVERLAY source.']),
 
         simulation_node,
-        rstp_container,
+        rtsp_container,
         rtsp_overlay_simulation_node
         ]
     )
