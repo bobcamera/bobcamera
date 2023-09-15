@@ -16,7 +16,7 @@ class ObjectSimulator():
 
 class CircleFrameGenerator(ObjectSimulator):
 
-    def __init__(self, settings, num_circles=5, circle_size=(2, 10), speed_range=(5, 50)):
+    def __init__(self, settings, num_circles=5, circle_size=(2, 10), speed_range=(5, 30)):
         super().__init__()
 
         self.num_circles = num_circles

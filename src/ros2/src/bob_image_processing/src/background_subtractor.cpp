@@ -40,7 +40,7 @@ private:
     rclcpp::Publisher<vision_msgs::msg::BoundingBox2DArray>::SharedPtr detection_publisher_;
 
     std::unique_ptr<boblib::bgs::CoreBgs> bgsPtr{nullptr};
-    boblib::blobs::ConnectedBlobDetection blob_detector_{boblib::blobs::ConnectedBlobDetectionParams(7, 49, 40, 100)};
+    boblib::blobs::ConnectedBlobDetection blob_detector_{boblib::blobs::ConnectedBlobDetectionParams(2, 4, 4, 100)}; 
     boblib::utils::Profiler profiler_;
     bool enable_profiling_;
 
@@ -61,7 +61,7 @@ private:
         image_publisher_ = create_publisher<sensor_msgs::msg::Image>("bob/frames/all_sky/foreground_mask", pub_qos_profile);
         detection_publisher_ = create_publisher<vision_msgs::msg::BoundingBox2DArray>("bob/detector/all_sky/bounding_boxes", pub_qos_profile);
 
-        bgsPtr = createBGS(WMV);
+        bgsPtr = createBGS(Vibe);
 
         declare_node_parameters();
     }
@@ -113,6 +113,25 @@ private:
             std::vector<cv::Rect> bboxes;
             if (blob_detector_.detect(mask, bboxes))
             {
+                float alpha = 2.0; // Base scale factor for larger objects
+                float beta = 2200.0; // Adjusts the influence of area based on our rough estimates
+                float gamma = 20.0;  // Adjusts the curve based on our rough estimates
+
+                for (size_t i = 0; i < bboxes.size(); i++)
+                {
+                    cv::Rect& bbox = bboxes[i];
+                    int area = bbox.width * bbox.height;
+
+                    float scaleFactor = alpha + beta / (area + gamma);
+                    
+                    cv::Point2f center(bbox.x + bbox.width * 0.5, bbox.y + bbox.height * 0.5);
+                    
+                    bbox.width = static_cast<int>(bbox.width * scaleFactor);
+                    bbox.height = static_cast<int>(bbox.height * scaleFactor);
+                    
+                    bbox.x = static_cast<int>(center.x - bbox.width * 0.5);
+                    bbox.y = static_cast<int>(center.y - bbox.height * 0.5);
+                }
                 add_bboxes(bbox2D_array, bboxes);
             }
             detection_publisher_->publish(bbox2D_array);
@@ -145,7 +164,7 @@ private:
         switch (_type)
         {
         case BGSType::Vibe:
-            return std::make_unique<boblib::bgs::Vibe>(boblib::bgs::VibeParams(50, 20, 2, 4));
+            return std::make_unique<boblib::bgs::Vibe>(boblib::bgs::VibeParams(55, 16, 1, 2));
         case BGSType::WMV:
             return std::make_unique<boblib::bgs::WeightedMovingVariance>(boblib::bgs::WMVParams(true, true, 25.0f, 0.5f, 0.3f, 0.2f));
         default:

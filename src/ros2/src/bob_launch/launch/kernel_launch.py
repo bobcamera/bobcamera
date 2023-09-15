@@ -2,7 +2,7 @@ import os
 import launch
 import yaml
 from launch.actions import LogInfo
-from launch_ros.actions import ComposableNodeContainer, Node
+from launch_ros.actions import ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
 from launch.substitutions import PythonExpression, LaunchConfiguration
 from launch.conditions import IfCondition
@@ -23,6 +23,7 @@ def generate_launch_description():
     video_file1 = '/workspaces/bobcamera/test/fisheye_videos/brad_drone_1.mp4'
     video_file2 = '/workspaces/bobcamera/test/fisheye_videos/Dahua-20220901-184734.mp4'
 
+    """Generate launch description with multiple components."""
     rstp_container = ComposableNodeContainer(
         name='rstp_container',
         namespace='',
@@ -135,6 +136,17 @@ def generate_launch_description():
                     ('bob/resizer/target', 'bob/frames/annotated/resized')],
                 parameters=[{'resize_height': 960}],
                 extra_arguments=[{'use_intra_process_comms': True}]),  
+            ComposableNode(
+                package='bob_simulate', 
+                plugin='ObjectSimulator', 
+                name='simulated_frame_provider_node',  
+                # parameters=[],  # Any parameters you might have
+                # remappings=[
+                #     ('bob/object_simulator/frame', 'bob/camera/all_sky/bayer')
+                # ],
+                extra_arguments=[{'use_intra_process_comms': True}],
+                condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'simulate'" ])),  # New source_arg value for the simulator
+            )                  
         ],
         output='screen',
     )    
@@ -153,7 +165,11 @@ def generate_launch_description():
             condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'usb'" ])),
             msg=['Source launch argument = USB source.']),
 
-        rstp_container,
+        LogInfo(
+            condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'simulate'" ])),
+            msg=['Source launch argument = SIMULATE source.']),
+
+        rstp_container, 
         processing_pipeline_container
         ]
     )
