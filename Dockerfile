@@ -138,7 +138,7 @@ COPY --from=qhy /opt/sdk_qhy /opt/sdk_qhy/
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libtbb12 libqt5opengl5 libqt5test5 libdc1394-25 libgstreamer-plugins-base1.0-0 \
         libavcodec58 libavformat58 libswscale5 liblapack3 libatlas-base-dev openexr libhdf5-dev \
-    # Install QHY SDK 
+    # Install QHY SDK
     && cd /opt/sdk_qhy && bash install.sh \
     # Install the libs locally
     && sh -c 'echo "/usr/local/lib" >> /etc/ld.so.conf.d/opencv.conf' && ldconfig \
@@ -209,7 +209,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
 #    && cmake .. -DBUILD_SHARED_LIBS=ON -DENABLE_PUSH=OFF -DENABLE_COMPRESSION=OFF \
 #    && cmake --build . -j $(nproc) \
 #    && cmake --install . \
-   # 
+   #
    && rosdep init || echo "rosdep already initialized" \
    && rosdep update \
    && groupadd --gid $USER_GID $USERNAME \
@@ -219,7 +219,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
    && chmod 0440 /etc/sudoers.d/$USERNAME \
    && echo "source /usr/share/bash-completion/completions/git" >> /home/$USERNAME/.bashrc \
    && echo "export DISPLAY=:0" >> /home/$USERNAME/.bashrc \
-   && echo "if [ -f /opt/ros/${ROS_DISTRO}/setup.bash ]; then source /opt/ros/${ROS_DISTRO}/setup.bash; fi" >> /home/$USERNAME/.bashrc 
+   && echo "if [ -f /opt/ros/${ROS_DISTRO}/setup.bash ]; then source /opt/ros/${ROS_DISTRO}/setup.bash; fi" >> /home/$USERNAME/.bashrc
 #    && echo "if [ -f /opt/vulcanexus/${ROS_DISTRO}/setup.bash ]; then source /opt/vulcanexus/${ROS_DISTRO}/setup.bash; fi" >> /home/$USERNAME/.bashrc
 ENV AMENT_PREFIX_PATH=/opt/ros/${ROS_DISTRO}
 ENV COLCON_PREFIX_PATH=/opt/ros/${ROS_DISTRO}
@@ -237,3 +237,116 @@ RUN mkdir -p /opt/ros2_ws/src \
    && rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y \
    && colcon build --allow-overriding cv_bridge
 ENV DEBIAN_FRONTEND=
+
+
+FROM boblib-app AS bob-ros2-dev-install
+ENV DEBIAN_FRONTEND=noninteractive
+ENV ROS_DISTRO=iron
+ENV LANG=en_GB.UTF-8
+ARG USERNAME=ros
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
+      build-essential \
+      cmake \
+      pkg-config \
+      libtbb-dev \
+      python3-dev \
+      python3-numpy \
+      python3-pip \
+      python3-argcomplete \
+      wget \
+      git \
+      libusb-1.0-0-dev \
+      locales \
+      curl \
+      gnupg2 \
+      lsb-release \
+      sudo \
+      tzdata \
+      bash-completion \
+      libboost-python-dev \
+      libboost-system-dev \
+   && locale-gen en_GB.UTF-8 \
+   && update-locale LC_ALL=en_GB.UTF-8 LANG=en_GB.UTF-8 \
+   && dpkg-reconfigure --frontend noninteractive tzdata \
+   && ln -s /usr/bin/python3 /usr/bin/python \
+   && apt-get autoclean && apt-get clean \
+   && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp \
+   && curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg \
+#    && curl -sSL https://raw.githubusercontent.com/eProsima/vulcanexus/main/vulcanexus.key -o /usr/share/keyrings/vulcanexus-archive-keyring.gpg \
+   && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null \
+#    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/vulcanexus-archive-keyring.gpg] http://repo.vulcanexus.org/debian $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/vulcanexus.list > /dev/null \
+   && apt-get update && apt-get install -y \
+         ros-${ROS_DISTRO}-ros-base \
+         ros-${ROS_DISTRO}-rosbridge-server \
+         ros-${ROS_DISTRO}-rqt* \
+         ros-${ROS_DISTRO}-vision-msgs \
+         python3-argcomplete \
+         python3-vcstool \
+         python3-rosdep \
+         python3-colcon-common-extensions \
+        #  vulcanexus-humble-base \
+   && rm -rf /var/lib/apt/lists/* \
+#    # Build eProsima / prometheus-cpp --> https://github.com/eProsima/prometheus-cpp/
+#    && cd /tmp \
+#    && git clone https://github.com/eProsima/prometheus-cpp.git \
+#    && cd /tmp/prometheus-cpp \
+#    && git submodule init && git submodule update && mkdir build \
+#    && cd /tmp/prometheus-cpp/build \
+#    && cmake .. -DBUILD_SHARED_LIBS=ON -DENABLE_PUSH=OFF -DENABLE_COMPRESSION=OFF \
+#    && cmake --build . -j $(nproc) \
+#    && cmake --install . \
+   #
+   && rosdep init || echo "rosdep already initialized" \
+   && rosdep update \
+   && groupadd --gid $USER_GID $USERNAME \
+   && useradd -s /bin/bash --uid $USER_UID --gid $USER_GID -m $USERNAME \
+   # [Optional] Add sudo support for the non-root user
+   && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME\
+   && chmod 0440 /etc/sudoers.d/$USERNAME \
+   && echo "source /usr/share/bash-completion/completions/git" >> /home/$USERNAME/.bashrc \
+   && echo "export DISPLAY=:0" >> /home/$USERNAME/.bashrc \
+   && echo "if [ -f /opt/ros/${ROS_DISTRO}/setup.bash ]; then source /opt/ros/${ROS_DISTRO}/setup.bash; fi" >> /home/$USERNAME/.bashrc
+#    && echo "if [ -f /opt/vulcanexus/${ROS_DISTRO}/setup.bash ]; then source /opt/vulcanexus/${ROS_DISTRO}/setup.bash; fi" >> /home/$USERNAME/.bashrc
+ENV AMENT_PREFIX_PATH=/opt/ros/${ROS_DISTRO}
+ENV COLCON_PREFIX_PATH=/opt/ros/${ROS_DISTRO}
+ENV LD_LIBRARY_PATH=/opt/ros/${ROS_DISTRO}/lib
+ENV PATH=/opt/ros/${ROS_DISTRO}/bin:$PATH
+ENV PYTHONPATH=$PYTHONPATH:/opt/ros/${ROS_DISTRO}/lib/python3.10/site-packages
+ENV ROS_PYTHON_VERSION=3
+ENV ROS_VERSION=2
+# Building new ros-${ROS_DISTRO}-vision-opencv
+WORKDIR /opt/ros2_ws
+RUN mkdir -p /opt/ros2_ws/src \
+   && git clone https://github.com/ros-perception/vision_opencv.git \
+   && bash /opt/ros/${ROS_DISTRO}/setup.bash \
+   && rosdep update \
+   && rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y \
+   && colcon build --allow-overriding cv_bridge
+ENV DEBIAN_FRONTEND=
+COPY src/ros2 /workspace/bobcamera/src/ros2
+WORKDIR /workspace/bobcamera/src/ros2
+
+RUN vcs import < src/ros2.repos src && \
+    apt-get -y update && \
+    rosdep update && \
+    rosdep install --from-paths src --ignore-src -y && \
+    colcon build --parallel-workers $(nproc) --cmake-args -DCMAKE_BUILD_TYPE=Release && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+ENV BOB_SOURCE="'rtsp'" \
+    BOB_RTSP_URL="rtsp://bob:bob!@10.20.30.75:554/cam/realmonitor?channel=1&subtype=0" \
+    BOB_RTSP_WIDTH="1920" \
+    BOB_RTSP_HEIGHT="1080" \
+    BOB_CAMERA_ID="0" \
+    BOB_ENABLE_VISUALISER="False" \
+    BOB_OPTIMISED="True" \
+    RMW_IMPLEMENTATION="rmw_fastrtps_cpp" \
+    FASTRTPS_DEFAULT_PROFILES_FILE="/workspace/bobcamera/src/ros2/config/fastdds.xml" \
+    BOB_RTSP_WIDTH="1920" \
+    BOB_RTSP_HEIGHT="1080"
+
+COPY entrypoint.sh /
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["ros2", "launch", "bob_launch", "application_launch.py"]

@@ -39,6 +39,15 @@ def send_3d_stream():
 def send_3d_adsb():
     return send_from_directory(HTML_DIR, "3d-adsb.html")
 
+# add /basic-stream
+@app.route("/basic-stream")
+def send_basic_stream():
+    return send_from_directory(HTML_DIR, "basic-stream.html")
+
+# add 2d-stream-controls
+@app.route("/2d-stream-controls")
+def send_2d_stream_controls():
+    return send_from_directory(HTML_DIR, "2d-Stream-With-Controls.html")
 
 @app.route("/")
 def send_index():

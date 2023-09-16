@@ -1,8 +1,8 @@
-name: docker build
+name: docker build (dev)
 
 on:
   schedule:
-    - cron: "0 10 * * *"
+  - cron: "0 10 * * *"
   push:
     branches:
     - "**"
@@ -27,7 +27,23 @@ jobs:
       id: docker_meta
       uses: docker/metadata-action@v4
       with:
-        images: ghcr.io/${{ github.repository }}
+        images: ghcr.io/${{ github.repository }}/dev
+        tags: |
+          type=schedule
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+          type=sha,prefix=,format=long,event=tag
+          type=sha
+          type=raw,value=latest,enable=${{ endsWith(github.ref, github.event.repository.default_branch) }}
+          type=raw,value=${{ github.ref_name }}-${{ steps.useful_vars.outputs.short_sha }}-${{ steps.useful_vars.outputs.timestamp }},enable=${{ endsWith(github.ref, github.event.repository.default_branch) }}
+    - name: Docker meta
+      id: docker_meta_dev_install
+      uses: docker/metadata-action@v4
+      with:
+        images: ghcr.io/${{ github.repository }}/dev-install
         tags: |
           type=schedule
           type=ref,event=branch
@@ -57,13 +73,25 @@ jobs:
         key: ${{ runner.os }}-buildx-${{ github.sha }}
         restore-keys: |
           ${{ runner.os }}-buildx-
-    - name: Build and push
+    - name: Build and push (dev)
       uses: docker/build-push-action@v4
       with:
-        context: docker/
+        context: .
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ steps.docker_meta.outputs.tags }}
         labels: ${{ steps.docker_meta.outputs.labels }}
         platforms: linux/amd64,linux/arm64
         cache-from: type=local,src=/tmp/.buildx-cache
         cache-to: type=local,dest=/tmp/.buildx-cache,mode=max
+        target: bob-ros2-dev
+    - name: Build and push (dev-install)
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ steps.docker_meta.outputs.tags }}
+        labels: ${{ steps.docker_meta.outputs.labels }}
+        platforms: linux/amd64,linux/arm64
+        cache-from: type=local,src=/tmp/.buildx-cache
+        cache-to: type=local,dest=/tmp/.buildx-cache,mode=max
+        target: bob-ros2-dev-install
