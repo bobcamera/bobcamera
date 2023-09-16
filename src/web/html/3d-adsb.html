@@ -89,7 +89,7 @@
                 return color.getHex();
             }
 
-            fetch(`http://localhost/api/0/adsb?lat=${centerPointlat}&lon=${centerPointlon}&dist=${radiusFromCenter}`)
+            fetch(`http://${window.location.hostname}/api/0/adsb?lat=${centerPointlat}&lon=${centerPointlon}&dist=${radiusFromCenter}`)
             .then(response => response.json())
             .then(data => {
                 console.log("JSON Response:", data);  // Log the entire JSON response
