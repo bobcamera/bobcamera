@@ -1,4 +1,4 @@
-name: docker build (dev)
+name: docker build (dev-install)
 
 on:
   schedule:
@@ -27,7 +27,7 @@ jobs:
       id: docker_meta
       uses: docker/metadata-action@v4
       with:
-        images: ghcr.io/${{ github.repository }}/dev
+        images: ghcr.io/${{ github.repository }}/dev-install
         tags: |
           type=schedule
           type=ref,event=branch
@@ -54,10 +54,10 @@ jobs:
       uses: actions/cache@v3
       with:
         path: /tmp/.buildx-cache
-        key: ${{ runner.os }}-buildx-dev-${{ github.sha }}
+        key: ${{ runner.os }}-buildx-devinstall-${{ github.sha }}
         restore-keys: |
-          ${{ runner.os }}-buildx-dev-
-    - name: Build and push (dev)
+          ${{ runner.os }}-buildx-devinstall-
+    - name: Build and push (dev-install)
       uses: docker/build-push-action@v4
       with:
         context: .
@@ -67,4 +67,4 @@ jobs:
         platforms: linux/amd64,linux/arm64
         cache-from: type=local,src=/tmp/.buildx-cache
         cache-to: type=local,dest=/tmp/.buildx-cache,mode=max
-        target: bob-ros2-dev
+        target: bob-ros2-dev-install
