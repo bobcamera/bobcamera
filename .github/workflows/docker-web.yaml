@@ -1,8 +1,8 @@
-name: docker build
+name: docker build (web)
 
 on:
   schedule:
-    - cron: "0 10 * * *"
+  - cron: "0 10 * * *"
   push:
     branches:
     - "**"
@@ -27,7 +27,7 @@ jobs:
       id: docker_meta
       uses: docker/metadata-action@v4
       with:
-        images: ghcr.io/${{ github.repository }}
+        images: ghcr.io/${{ github.repository }}/web
         tags: |
           type=schedule
           type=ref,event=branch
@@ -54,13 +54,13 @@ jobs:
       uses: actions/cache@v3
       with:
         path: /tmp/.buildx-cache
-        key: ${{ runner.os }}-buildx-${{ github.sha }}
+        key: ${{ runner.os }}-buildx-web-${{ github.sha }}
         restore-keys: |
-          ${{ runner.os }}-buildx-
+          ${{ runner.os }}-buildx-web-
     - name: Build and push
       uses: docker/build-push-action@v4
       with:
-        context: docker/
+        context: src/web/
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ steps.docker_meta.outputs.tags }}
         labels: ${{ steps.docker_meta.outputs.labels }}

@@ -4,15 +4,15 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-    <link type="text/css" rel="stylesheet" href="../lib/main.css">
-    <script src="../lib/gsap.min.js"></script>
+    <link type="text/css" rel="stylesheet" href="./lib/main.css">
+    <script src="./lib/gsap.min.js"></script>
 </head>
 <body>
     <div id="container"></div>
     <div id="menu"></div>
     <script type="module">
-        import * as THREE from '../lib/three.module.js';
-        import { OrbitControls } from '../lib/OrbitControls2.js';
+        import * as THREE from './lib/three.module.js';
+        import { OrbitControls } from './lib/OrbitControls2.js';
         var camera, scene, renderer;
         var controls;
         var objects = [];
@@ -52,7 +52,7 @@
 
             const loader = new THREE.TextureLoader();
             loader.load(
-                '../assets/map.png',
+                './assets/map.png',
                 function(texture) {
                     const planeWidth = scalingParams.mapSizeInMiles * scalingParams.horizontalScale;
                     const planeHeight = scalingParams.mapSizeInMiles * scalingParams.horizontalScale;
@@ -89,8 +89,7 @@
                 return color.getHex();
             }
 
-            console.log("modify fetch(`http://localhost/bob_gui/src/html/proxy.php?... based on the actual filepath This is around line 94 in the 3d-adsb.php file");
-            fetch(`http://localhost/bob_gui/src/html/proxy.php?lat=${centerPointlat}&lon=${centerPointlon}&dist=${radiusFromCenter}`)
+            fetch(`http://${window.location.hostname}/api/0/adsb?lat=${centerPointlat}&lon=${centerPointlon}&dist=${radiusFromCenter}`)
             .then(response => response.json())
             .then(data => {
                 console.log("JSON Response:", data);  // Log the entire JSON response

@@ -2,7 +2,7 @@
 ###############
 .svn/
 .hg/
-
+.env
 # Compiled source #
 ###################
 *.com

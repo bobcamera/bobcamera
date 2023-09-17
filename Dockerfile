@@ -138,7 +138,7 @@ COPY --from=qhy /opt/sdk_qhy /opt/sdk_qhy/
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libtbb12 libqt5opengl5 libqt5test5 libdc1394-25 libgstreamer-plugins-base1.0-0 \
         libavcodec58 libavformat58 libswscale5 liblapack3 libatlas-base-dev openexr libhdf5-dev \
-    # Install QHY SDK 
+    # Install QHY SDK
     && cd /opt/sdk_qhy && bash install.sh \
     # Install the libs locally
     && sh -c 'echo "/usr/local/lib" >> /etc/ld.so.conf.d/opencv.conf' && ldconfig \
@@ -209,7 +209,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
 #    && cmake .. -DBUILD_SHARED_LIBS=ON -DENABLE_PUSH=OFF -DENABLE_COMPRESSION=OFF \
 #    && cmake --build . -j $(nproc) \
 #    && cmake --install . \
-   # 
+   #
    && rosdep init || echo "rosdep already initialized" \
    && rosdep update \
    && groupadd --gid $USER_GID $USERNAME \
@@ -219,7 +219,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
    && chmod 0440 /etc/sudoers.d/$USERNAME \
    && echo "source /usr/share/bash-completion/completions/git" >> /home/$USERNAME/.bashrc \
    && echo "export DISPLAY=:0" >> /home/$USERNAME/.bashrc \
-   && echo "if [ -f /opt/ros/${ROS_DISTRO}/setup.bash ]; then source /opt/ros/${ROS_DISTRO}/setup.bash; fi" >> /home/$USERNAME/.bashrc 
+   && echo "if [ -f /opt/ros/${ROS_DISTRO}/setup.bash ]; then source /opt/ros/${ROS_DISTRO}/setup.bash; fi" >> /home/$USERNAME/.bashrc
 #    && echo "if [ -f /opt/vulcanexus/${ROS_DISTRO}/setup.bash ]; then source /opt/vulcanexus/${ROS_DISTRO}/setup.bash; fi" >> /home/$USERNAME/.bashrc
 ENV AMENT_PREFIX_PATH=/opt/ros/${ROS_DISTRO}
 ENV COLCON_PREFIX_PATH=/opt/ros/${ROS_DISTRO}
@@ -237,3 +237,31 @@ RUN mkdir -p /opt/ros2_ws/src \
    && rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y \
    && colcon build --allow-overriding cv_bridge
 ENV DEBIAN_FRONTEND=
+
+#FROM bob-ros2-dev AS bob-ros2-dev-install
+FROM bobcamera/bob-ros2-dev AS bob-ros2-dev-install
+COPY src/ros2 /workspaces/bobcamera/src/ros2
+WORKDIR /workspaces/bobcamera/src/ros2
+
+RUN vcs import < src/ros2.repos src && \
+    apt-get -y update && \
+    rosdep update && \
+    rosdep install --from-paths src --ignore-src -y && \
+    colcon build --parallel-workers $(nproc) --cmake-args -DCMAKE_BUILD_TYPE=Release && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+ENV BOB_SOURCE="'rtsp'" \
+    BOB_RTSP_URL="rtsp://bob:bob!@10.20.30.75:554/cam/realmonitor?channel=1&subtype=0" \
+    BOB_RTSP_WIDTH="1920" \
+    BOB_RTSP_HEIGHT="1080" \
+    BOB_CAMERA_ID="0" \
+    BOB_ENABLE_VISUALISER="False" \
+    BOB_OPTIMISED="True" \
+    RMW_IMPLEMENTATION="rmw_fastrtps_cpp" \
+    FASTRTPS_DEFAULT_PROFILES_FILE="/workspaces/bobcamera/src/ros2/config/fastdds.xml" \
+    BOB_RTSP_WIDTH="1920" \
+    BOB_RTSP_HEIGHT="1080"
+
+COPY entrypoint.sh /
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["ros2", "launch", "bob_launch", "application_launch.py"]

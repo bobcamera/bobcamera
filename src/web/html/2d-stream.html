@@ -14,8 +14,8 @@
         </style>
         <title>Stream with Classification</title>
         <meta charset="utf-8" />
-        <script src="../lib/eventemitter2.js"></script>
-        <script src="../lib/roslib.min.js"></script>
+        <script src="./lib/eventemitter2.js"></script>
+        <script src="./lib/roslib.min.js"></script>
      </head>
     <body>
         <div style="display: flex; flex-direction: column; width: 25%; position: relative; float: right"">
@@ -47,8 +47,9 @@
                 window.addEventListener('DOMContentLoaded', function () {
                      // Connecting to ROS
                     // -----------------
+                    var websocketsURL = 'ws://' + window.location.hostname + ':9090';
                     var ros = new ROSLIB.Ros({
-                        url: 'ws://localhost:9090'
+                        url: websocketsURL
                     });
                     ros.on('connection', function () {
                         console.log('Connected to websocket server.');
