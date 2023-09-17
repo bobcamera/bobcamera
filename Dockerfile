@@ -325,8 +325,8 @@ RUN mkdir -p /opt/ros2_ws/src \
    && rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y \
    && colcon build --allow-overriding cv_bridge
 ENV DEBIAN_FRONTEND=
-COPY src/ros2 /workspace/bobcamera/src/ros2
-WORKDIR /workspace/bobcamera/src/ros2
+COPY src/ros2 /workspaces/bobcamera/src/ros2
+WORKDIR /workspaces/bobcamera/src/ros2
 
 RUN vcs import < src/ros2.repos src && \
     apt-get -y update && \
@@ -343,7 +343,7 @@ ENV BOB_SOURCE="'rtsp'" \
     BOB_ENABLE_VISUALISER="False" \
     BOB_OPTIMISED="True" \
     RMW_IMPLEMENTATION="rmw_fastrtps_cpp" \
-    FASTRTPS_DEFAULT_PROFILES_FILE="/workspace/bobcamera/src/ros2/config/fastdds.xml" \
+    FASTRTPS_DEFAULT_PROFILES_FILE="/workspaces/bobcamera/src/ros2/config/fastdds.xml" \
     BOB_RTSP_WIDTH="1920" \
     BOB_RTSP_HEIGHT="1080"
 
