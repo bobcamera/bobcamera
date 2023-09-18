@@ -17,7 +17,6 @@
     <depend>bob_camera</depend>
     <depend>message_filters</depend>
     <depend>rclcpp_components</depend>
-    <depend>jsoncpp</depend>
     <depend>bob_interfaces</depend>
 
     <export>
