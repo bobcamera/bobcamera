@@ -179,6 +179,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
       bash-completion \
       libboost-python-dev \
       libboost-system-dev \
+      libjsoncpp-dev \
    && locale-gen en_GB.UTF-8 \
    && update-locale LC_ALL=en_GB.UTF-8 LANG=en_GB.UTF-8 \
    && dpkg-reconfigure --frontend noninteractive tzdata \
@@ -245,6 +246,7 @@ WORKDIR /workspaces/bobcamera/src/ros2
 
 RUN vcs import < src/ros2.repos src && \
     apt-get -y update && \
+    apt-get -y install libjsoncpp-dev && \
     rosdep update && \
     rosdep install --from-paths src --ignore-src -y && \
     colcon build --parallel-workers $(nproc) --cmake-args -DCMAKE_BUILD_TYPE=Release && \

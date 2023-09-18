@@ -87,6 +87,11 @@ def generate_launch_description():
                 package='bob_image_processing',
                 plugin='BackgroundSubtractor',
                 name='background_subtractor_node',
+                parameters=[{'bgs': 'vibe'}
+                    , {'vibe_params': '{\"threshold\": 50, \"bgSamples\": 20, \"requiredBGSamples\": 2, \"learningRate\": 4}'}
+                    , {'wmv_params': '{\"enableWeight\": true, \"enableThreshold\": true, \"threshold\": 25.0, \"weight1\": 0.5, \"weight2\": 0.3, \"weight3\": 0.2}'}
+                    , {'blob_params': '{\"sizeThreshold\": 7, \"areaThreshold\": 49, \"minDistance\": 40, \"maxBlobs\": 100}'}
+                ],
                 extra_arguments=[{'use_intra_process_comms': True}]),
             ComposableNode(
                 package='bob_tracking',
