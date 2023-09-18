@@ -3,6 +3,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <cv_bridge/cv_bridge.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
+#include <json/json.h>
 
 #include <vision_msgs/msg/bounding_box2_d_array.hpp>
 
@@ -31,6 +32,7 @@ public:
 private:
     enum BGSType
     {
+        Unknown,
         Vibe,
         WMV
     };
@@ -39,10 +41,15 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
     rclcpp::Publisher<vision_msgs::msg::BoundingBox2DArray>::SharedPtr detection_publisher_;
 
+    BGSType bgs_type_;
     std::unique_ptr<boblib::bgs::CoreBgs> bgsPtr{nullptr};
-    boblib::blobs::ConnectedBlobDetection blob_detector_{boblib::blobs::ConnectedBlobDetectionParams(7, 49, 40, 100)};
+    std::unique_ptr<boblib::blobs::ConnectedBlobDetection> blob_detector_ptr_{nullptr};
     boblib::utils::Profiler profiler_;
     bool enable_profiling_;
+
+    std::unique_ptr<boblib::bgs::VibeParams> vibe_params_;
+    std::unique_ptr<boblib::bgs::WMVParams> wmv_params_;
+    std::unique_ptr<boblib::blobs::ConnectedBlobDetectionParams> blob_params_;
 
     void init()
     {
@@ -61,8 +68,6 @@ private:
         image_publisher_ = create_publisher<sensor_msgs::msg::Image>("bob/frames/all_sky/foreground_mask", pub_qos_profile);
         detection_publisher_ = create_publisher<vision_msgs::msg::BoundingBox2DArray>("bob/detector/all_sky/bounding_boxes", pub_qos_profile);
 
-        bgsPtr = createBGS(WMV);
-
         declare_node_parameters();
     }
 
@@ -72,6 +77,109 @@ private:
             ParameterNode::ActionParam(
                 rclcpp::Parameter("enable_profiling", false), 
                 [this](const rclcpp::Parameter& param) {enable_profiling_ = param.as_bool();}
+            ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("vibe_params", R"({"threshold": 50, "bgSamples": 20, "requiredBGSamples": 2, "learningRate": 4})"), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    Json::CharReaderBuilder builder;
+                    std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+                    std::string errors;
+                    Json::Value jsonObj;
+                    std::string jsonData = param.as_string();
+
+                    if (reader->parse(jsonData.c_str(), jsonData.c_str() + jsonData.size(), &jsonObj, &errors)) 
+                    {
+                        auto threshold = jsonObj["threshold"].asInt();
+                        auto bgSamples = jsonObj["bgSamples"].asInt();
+                        auto requiredBGSamples = jsonObj["requiredBGSamples"].asInt();
+                        auto learningRate = jsonObj["learningRate"].asInt();
+
+                        vibe_params_ = std::make_unique<boblib::bgs::VibeParams>(threshold, bgSamples, requiredBGSamples, learningRate);
+
+                        if (bgs_type_ == Vibe)
+                        {
+                            createBGS(Vibe);
+                        }
+                    } 
+                    else 
+                    {
+                        RCLCPP_ERROR(get_logger(), "1. Failed to parse the JSON data: %s", errors.c_str());
+                    }
+                }
+            ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("wmv_params", R"({"enableWeight": true, "enableThreshold": true, "threshold": 25.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2})"), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    Json::CharReaderBuilder builder;
+                    std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+                    std::string errors;
+                    Json::Value jsonObj;
+                    std::string jsonData = param.as_string();
+
+                    if (reader->parse(jsonData.c_str(), jsonData.c_str() + jsonData.size(), &jsonObj, &errors)) 
+                    {
+                        auto enableWeight = jsonObj["enableWeight"].asBool();
+                        auto enableThreshold = jsonObj["enableThreshold"].asInt();
+                        auto threshold = jsonObj["threshold"].asFloat();
+                        auto weight1 = jsonObj["weight1"].asFloat();
+                        auto weight2 = jsonObj["weight2"].asFloat();
+                        auto weight3 = jsonObj["weight3"].asFloat();
+
+                        wmv_params_ = std::make_unique<boblib::bgs::WMVParams>(enableWeight, enableThreshold, threshold, weight1, weight2, weight3);
+
+                        if (bgs_type_ == WMV)
+                        {
+                            createBGS(WMV);
+                        }
+                    } 
+                    else 
+                    {
+                        RCLCPP_ERROR(get_logger(), "2. Failed to parse the JSON data: %s", errors.c_str());
+                    }
+                }
+            ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("bgs", "vibe"), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    RCLCPP_INFO(get_logger(), "Setting BGS: %s", param.as_string().c_str());
+                    if (param.as_string() == "vibe")
+                    {
+                        bgsPtr = createBGS(Vibe);
+                    }
+                    else
+                    {
+                        bgsPtr = createBGS(WMV);
+                    }
+                }
+            ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("blob_params", R"({"sizeThreshold": 7, "areaThreshold": 49, "minDistance": 40, "maxBlobs": 100})"), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    Json::CharReaderBuilder builder;
+                    std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+                    std::string errors;
+                    Json::Value jsonObj;
+                    std::string jsonData = param.as_string();
+
+                    if (reader->parse(jsonData.c_str(), jsonData.c_str() + jsonData.size(), &jsonObj, &errors)) 
+                    {
+                        auto sizeThreshold = jsonObj["sizeThreshold"].asInt();
+                        auto areaThreshold = jsonObj["areaThreshold"].asInt();
+                        auto minDistance = jsonObj["minDistance"].asInt();
+                        auto maxBlobs = jsonObj["maxBlobs"].asInt();
+
+                        blob_params_ = std::make_unique<boblib::blobs::ConnectedBlobDetectionParams>(sizeThreshold, areaThreshold, minDistance, maxBlobs);
+                        blob_detector_ptr_ = std::make_unique<boblib::blobs::ConnectedBlobDetection>(*blob_params_);
+                    } 
+                    else 
+                    {
+                        RCLCPP_ERROR(get_logger(), "Failed to parse the JSON data: %s", errors.c_str());
+                    }
+                }
             ),
         };
         add_action_parameters(params);
@@ -111,7 +219,7 @@ private:
             vision_msgs::msg::BoundingBox2DArray bbox2D_array;
             bbox2D_array.header = img_msg->header;
             std::vector<cv::Rect> bboxes;
-            if (blob_detector_.detect(mask, bboxes))
+            if (blob_detector_ptr_->detect(mask, bboxes))
             {
                 add_bboxes(bbox2D_array, bboxes);
             }
@@ -142,12 +250,13 @@ private:
 
     std::unique_ptr<boblib::bgs::CoreBgs> createBGS(BGSType _type)
     {
+        bgs_type_ = _type;
         switch (_type)
         {
         case BGSType::Vibe:
-            return std::make_unique<boblib::bgs::Vibe>(boblib::bgs::VibeParams(50, 20, 2, 4));
+            return std::make_unique<boblib::bgs::Vibe>(*vibe_params_);
         case BGSType::WMV:
-            return std::make_unique<boblib::bgs::WeightedMovingVariance>(boblib::bgs::WMVParams(true, true, 25.0f, 0.5f, 0.3f, 0.2f));
+            return std::make_unique<boblib::bgs::WeightedMovingVariance>(*wmv_params_);
         default:
             return nullptr;
         }
