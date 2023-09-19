@@ -24,6 +24,9 @@ def generate_launch_description():
     simulation_height_arg_value = EnvironmentVariable('BOB_SIMULATION_HEIGHT', default_value="1080")
     simulation_target_object_diameter_arg_value = EnvironmentVariable('BOB_SIMULATION_TARGET_OBJ_DIA', default_value="5")
     bgs_algorithm_value = EnvironmentVariable('BOB_BGS_ALGORITHM', default_value="vibe")
+    bgs_vibe_params_value = EnvironmentVariable('BOB_VIBE_PARAMS', default_value="{\'threshold\': 50, \'bgSamples\': 20, \'requiredBGSamples\': 2, \'learningRate\': 4}")
+    bgs_wmv_params_value = EnvironmentVariable('BOB_WMV_PARAMS', default_value="{\"enableWeight\": true, \"enableThreshold\": true, \"threshold\": 25.0, \"weight1\": 0.5, \"weight2\": 0.3, \"weight3\": 0.2}")
+    blob_params_value = EnvironmentVariable('BOB_BLOB_PARAMS', default_value="{\'sizeThreshold\': 7, \'areaThreshold\': 49, \'minDistance\': 40, \'maxBlobs\': 100}")
     #print(f'Generating launch description....')
 
     source_arg = DeclareLaunchArgument(
@@ -97,6 +100,24 @@ def generate_launch_description():
         default_value=bgs_algorithm_value,
         description="Argument for the Background Subtraction algorithm."
         )
+    
+    bgs_vibe_params_arg = DeclareLaunchArgument(
+        'bgs_vibe_params_arg',
+        default_value=bgs_vibe_params_value,
+        description="Argument for the Vibe algorithm parameters."
+        )
+
+    bgs_wmv_params_arg = DeclareLaunchArgument(
+        'bgs_wmv_params_arg',
+        default_value=bgs_wmv_params_value,
+        description="Argument for the WMV algorithm parameters."
+        )
+    
+    blob_params_arg = DeclareLaunchArgument(
+        'blob_params_arg',
+        default_value=blob_params_value,
+        description="Argument for the blob detector algorithm parameters."
+        )
 
     return LaunchDescription([
 
@@ -116,6 +137,9 @@ def generate_launch_description():
         enable_rosbridge_arg,
 
         bgs_algorithm_arg,
+        bgs_vibe_params_arg,
+        bgs_wmv_params_arg,
+        blob_params_arg,
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([

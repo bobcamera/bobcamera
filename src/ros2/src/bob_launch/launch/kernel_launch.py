@@ -4,7 +4,8 @@ import yaml
 from launch.actions import LogInfo
 from launch_ros.actions import ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
-from launch.substitutions import PythonExpression, LaunchConfiguration
+from launch.substitutions import PythonExpression, LaunchConfiguration 
+from launch_ros.parameter_descriptions import ParameterValue
 from launch.conditions import IfCondition
 from ament_index_python.packages import get_package_share_directory
 
@@ -87,9 +88,9 @@ def generate_launch_description():
                 plugin='BackgroundSubtractor',
                 name='background_subtractor_node',
                 parameters=[{'bgs': LaunchConfiguration('bgs_algorithm_arg')}
-                    , {'vibe_params': '{\"threshold\": 50, \"bgSamples\": 20, \"requiredBGSamples\": 2, \"learningRate\": 4}'}
-                    , {'wmv_params': '{\"enableWeight\": true, \"enableThreshold\": true, \"threshold\": 25.0, \"weight1\": 0.5, \"weight2\": 0.3, \"weight3\": 0.2}'}
-                    , {'blob_params': '{\"sizeThreshold\": 7, \"areaThreshold\": 49, \"minDistance\": 40, \"maxBlobs\": 100}'}
+                    , {'vibe_params': ParameterValue(LaunchConfiguration('bgs_vibe_params_arg'), value_type=str)}
+                    , {'wmv_params': ParameterValue(LaunchConfiguration('bgs_wmv_params_arg'), value_type=str)}
+                    , {'blob_params': ParameterValue(LaunchConfiguration('blob_params_arg'), value_type=str)}
                 ],
                 extra_arguments=[{'use_intra_process_comms': True}]),
             ComposableNode(
