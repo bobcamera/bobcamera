@@ -4,7 +4,8 @@ import yaml
 from launch.actions import LogInfo
 from launch_ros.actions import ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
-from launch.substitutions import PythonExpression, LaunchConfiguration
+from launch.substitutions import PythonExpression, LaunchConfiguration 
+from launch_ros.parameter_descriptions import ParameterValue
 from launch.conditions import IfCondition
 from ament_index_python.packages import get_package_share_directory
 
@@ -23,9 +24,8 @@ def generate_launch_description():
     video_file1 = '/workspaces/bobcamera/test/fisheye_videos/brad_drone_1.mp4'
     video_file2 = '/workspaces/bobcamera/test/fisheye_videos/Dahua-20220901-184734.mp4'
 
-    """Generate launch description with multiple components."""
-    rstp_container = ComposableNodeContainer(
-        name='rstp_container',
+    rtsp_container = ComposableNodeContainer(
+        name='rtsp_container',
         namespace='',
         package='rclcpp_components',
         executable='component_container',
@@ -87,10 +87,10 @@ def generate_launch_description():
                 package='bob_image_processing',
                 plugin='BackgroundSubtractor',
                 name='background_subtractor_node',
-                parameters=[{'bgs': 'vibe'}
-                    , {'vibe_params': '{\"threshold\": 50, \"bgSamples\": 20, \"requiredBGSamples\": 2, \"learningRate\": 4}'}
-                    , {'wmv_params': '{\"enableWeight\": true, \"enableThreshold\": true, \"threshold\": 25.0, \"weight1\": 0.5, \"weight2\": 0.3, \"weight3\": 0.2}'}
-                    , {'blob_params': '{\"sizeThreshold\": 7, \"areaThreshold\": 49, \"minDistance\": 40, \"maxBlobs\": 100}'}
+                parameters=[{'bgs': LaunchConfiguration('bgs_algorithm_arg')}
+                    , {'vibe_params': ParameterValue(LaunchConfiguration('bgs_vibe_params_arg'), value_type=str)}
+                    , {'wmv_params': ParameterValue(LaunchConfiguration('bgs_wmv_params_arg'), value_type=str)}
+                    , {'blob_params': ParameterValue(LaunchConfiguration('blob_params_arg'), value_type=str)}
                 ],
                 extra_arguments=[{'use_intra_process_comms': True}]),
             ComposableNode(
@@ -140,7 +140,18 @@ def generate_launch_description():
                     ('bob/resizer/source', 'bob/frames/annotated'),
                     ('bob/resizer/target', 'bob/frames/annotated/resized')],
                 parameters=[{'resize_height': 960}],
-                extra_arguments=[{'use_intra_process_comms': True}]),                    
+                extra_arguments=[{'use_intra_process_comms': True}]),  
+            ComposableNode(
+                package='bob_simulate', 
+                plugin='ObjectSimulator', 
+                name='simulated_frame_provider_node',  
+                # parameters=[],  # Any parameters you might have
+                # remappings=[
+                #     ('bob/object_simulator/frame', 'bob/camera/all_sky/bayer')
+                # ],
+                extra_arguments=[{'use_intra_process_comms': True}],
+                condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'simulate'" ])),  # New source_arg value for the simulator
+            )                  
         ],
         output='screen',
     )    
@@ -159,7 +170,7 @@ def generate_launch_description():
             condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'usb'" ])),
             msg=['Source launch argument = USB source.']),
 
-        rstp_container, 
+        rtsp_container,
         processing_pipeline_container
         ]
     )

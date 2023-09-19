@@ -187,11 +187,11 @@ public:
         int size;
         if (size_setting != 0)
         {
-            size = std::max({w, h, size_setting});
+            size = std::min({w, h, size_setting});
         }
         else
         {
-            size = std::max(w, h);
+            size = std::min(w, h);
         }
 
         int x1 = x + (w / 2) - (size / 2);

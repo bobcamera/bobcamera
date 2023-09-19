@@ -221,6 +221,25 @@ private:
             std::vector<cv::Rect> bboxes;
             if (blob_detector_ptr_->detect(mask, bboxes))
             {
+                float alpha = 2.0; // Base scale factor for larger objects
+                float beta = 2200.0; // Adjusts the influence of area based on our rough estimates
+                float gamma = 20.0;  // Adjusts the curve based on our rough estimates
+
+                for (size_t i = 0; i < bboxes.size(); i++)
+                {
+                    cv::Rect& bbox = bboxes[i];
+                    int area = bbox.width * bbox.height;
+
+                    float scaleFactor = alpha + beta / (area + gamma);
+                    
+                    cv::Point2f center(bbox.x + bbox.width * 0.5, bbox.y + bbox.height * 0.5);
+                    
+                    bbox.width = static_cast<int>(bbox.width * scaleFactor);
+                    bbox.height = static_cast<int>(bbox.height * scaleFactor);
+                    
+                    bbox.x = static_cast<int>(center.x - bbox.width * 0.5);
+                    bbox.y = static_cast<int>(center.y - bbox.height * 0.5);
+                }
                 add_bboxes(bbox2D_array, bboxes);
             }
             detection_publisher_->publish(bbox2D_array);
