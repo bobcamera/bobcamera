@@ -23,6 +23,7 @@ def generate_launch_description():
     simulation_width_arg_value = EnvironmentVariable('BOB_SIMULATION_WIDTH', default_value="1920")
     simulation_height_arg_value = EnvironmentVariable('BOB_SIMULATION_HEIGHT', default_value="1080")
     simulation_target_object_diameter_arg_value = EnvironmentVariable('BOB_SIMULATION_TARGET_OBJ_DIA', default_value="5")
+    bgs_algorithm_value = EnvironmentVariable('BOB_BGS_ALGORITHM', default_value="vibe")
     #print(f'Generating launch description....')
 
     source_arg = DeclareLaunchArgument(
@@ -90,6 +91,12 @@ def generate_launch_description():
         default_value=simulation_target_object_diameter_arg_value,
         description="Simulation target object diameter."
         )
+    
+    bgs_algorithm_arg = DeclareLaunchArgument(
+        'bgs_algorithm_arg',
+        default_value=bgs_algorithm_value,
+        description="Argument for the Background Subtraction algorithm."
+        )
 
     return LaunchDescription([
 
@@ -107,6 +114,8 @@ def generate_launch_description():
         enable_visualiser_arg,
         optimised_arg,
         enable_rosbridge_arg,
+
+        bgs_algorithm_arg,
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([

@@ -1,0 +1,20 @@
+version: '3'
+services:
+  web:
+    image: ghcr.io/bobcamera/bobcamera/web
+    build: src/web
+    ports:
+      - "8080:8080"
+    environment:
+      - DEBUG=1
+  bob:
+    image: ghcr.io/bobcamera/bobcamera/dev-install
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    build:
+      context: .
+      target: bob-ros2-dev-install
+    ports:
+      - "9090:9090"
+    environment:  # add in .env
+      - BOB_RTSP_URL=${BOB_RTSP_URL}

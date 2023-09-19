@@ -100,7 +100,7 @@
             // Set up the connection to the ROS2 environment using the roslib.js library
 
             // Define the Websockets address of the ROS2 environment
-            var websocketsURL = 'ws://localhost:9090';
+            var websocketsURL = 'ws://' + window.location.hostname + ':9090';
 
             // Create a ROSLIB.Ros object which will connect to the ROS2 environment via websockets
             var ros = new ROSLIB.Ros({url: websocketsURL});
