@@ -14,7 +14,7 @@ export BOB_OPTIMISED=${BOB_OPTIMISED:-"True"}
 export RMW_IMPLEMENTATION={RMW_IMPLEMENTATION:-"rmw_fastrtps_cpp"}
 export FASTRTPS_DEFAULT_PROFILES_FILE={FASTRTPS_DEFAULT_PROFILES_FILE:-"/workspaces/bobcamera/src/ros2/config/fastdds.xml"}
 export BOB_BGS_ALGORITHM=${BOB_BGS_ALGORITHM:-"vibe"} # or wmv
-export BOB_VIBE_PARAMS=${BOB_VIBE_PARAMS:-"{\"threshold\": 155, \"bgSamples\": 20, \"requiredBGSamples\": 2, \"learningRate\": 4}"} 
+export BOB_VIBE_PARAMS=${BOB_VIBE_PARAMS:-"{\"threshold\": 50, \"bgSamples\": 16, \"requiredBGSamples\": 2, \"learningRate\": 4}"} 
 export BOB_WMV_PARAMS=${BOB_WMV_PARAMS:-"{\"enableWeight\": true, \"enableThreshold\": true, \"threshold\": 25.0, \"weight1\": 0.5, \"weight2\": 0.3, \"weight3\": 0.2}"} 
 export BOB_BLOB_PARAMS=${BOB_BLOB_PARAMS:-"{\"sizeThreshold\": 7, \"areaThreshold\": 49, \"minDistance\": 40, \"maxBlobs\": 100}"} 
 
