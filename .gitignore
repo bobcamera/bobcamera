@@ -80,3 +80,5 @@ build/
 install/
 log/
 __pycache__/launch.cpython-310.pyc
+
+.env
