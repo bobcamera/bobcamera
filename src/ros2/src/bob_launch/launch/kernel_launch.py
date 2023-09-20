@@ -70,7 +70,7 @@ def generate_launch_description():
                     , {'resize_height': 0}],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'video'" ])),
-                ),
+            ),
             ComposableNode(
                 package='bob_camera',
                 plugin='WebCameraVideo',
@@ -82,18 +82,49 @@ def generate_launch_description():
                     , {'camera_id': LaunchConfiguration('camera_id_arg')}],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'usb'" ])),
-                ),
+            ),
 
+            #Low sensitivity:
             ComposableNode(
                 package='bob_image_processing',
                 plugin='BackgroundSubtractor',
                 name='background_subtractor_node',
                 parameters=[{'bgs': LaunchConfiguration('bgs_algorithm_arg')}
-                    , {'vibe_params': ParameterValue(LaunchConfiguration('bgs_vibe_params_arg'), value_type=str)}
-                    , {'wmv_params': ParameterValue(LaunchConfiguration('bgs_wmv_params_arg'), value_type=str)}
-                    , {'blob_params': ParameterValue(LaunchConfiguration('blob_params_arg'), value_type=str)}
+                    , {'vibe_params': "{\"threshold\": 65, \"bgSamples\": 32, \"requiredBGSamples\": 2, \"learningRate\": 4}"}
+                    , {'wmv_params': "{\"enableWeight\": true, \"enableThreshold\": true, \"threshold\": 55.0, \"weight1\": 0.5, \"weight2\": 0.3, \"weight3\": 0.2}"}
+                    , {'blob_params': "{\"sizeThreshold\": 10, \"areaThreshold\": 100, \"minDistance\": 100, \"maxBlobs\": 100}"}
                 ],
-                extra_arguments=[{'use_intra_process_comms': True}]),
+                extra_arguments=[{'use_intra_process_comms': True}],
+                condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'low'" ]))
+            ),
+            #Medium sensitivity:
+            ComposableNode(
+                package='bob_image_processing',
+                plugin='BackgroundSubtractor',
+                name='background_subtractor_node',
+                parameters=[{'bgs': LaunchConfiguration('bgs_algorithm_arg')}
+                    , {'vibe_params': "{\"threshold\": 50, \"bgSamples\": 16, \"requiredBGSamples\": 2, \"learningRate\": 4}"}
+                    , {'wmv_params': "{\"enableWeight\": true, \"enableThreshold\": true, \"threshold\": 40.0, \"weight1\": 0.5, \"weight2\": 0.3, \"weight3\": 0.2}"}
+                    , {'blob_params': "{\"sizeThreshold\": 6, \"areaThreshold\": 36, \"minDistance\": 36, \"maxBlobs\": 100}"}
+                ],
+                extra_arguments=[{'use_intra_process_comms': True}],
+                condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'medium'" ]))
+            ),
+            #High sensitivity:
+            ComposableNode(
+                package='bob_image_processing',
+                plugin='BackgroundSubtractor',
+                name='background_subtractor_node',
+                parameters=[{'bgs': LaunchConfiguration('bgs_algorithm_arg')}
+                    , {'vibe_params': "{\"threshold\": 35, \"bgSamples\": 16, \"requiredBGSamples\": 2, \"learningRate\": 4}"}
+                    , {'wmv_params': "{\"enableWeight\": true, \"enableThreshold\": true, \"threshold\": 25.0, \"weight1\": 0.5, \"weight2\": 0.3, \"weight3\": 0.2}"}
+                    , {'blob_params': "{\"sizeThreshold\": 2, \"areaThreshold\": 4, \"minDistance\": 4, \"maxBlobs\": 100}"}
+                ],
+                extra_arguments=[{'use_intra_process_comms': True}],
+                condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'high'" ]))
+            ),            
+
+
             ComposableNode(
                 package='bob_tracking',
                 plugin='TrackProvider',
@@ -160,15 +191,27 @@ def generate_launch_description():
 
         LogInfo(
             condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'video'" ])),
-            msg=['Source launch argument = VIDEO source.']),
+            msg=['Frame source is set to: VIDEO.']),
 
         LogInfo(
             condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'rtsp'" ])),
-            msg=['Source launch argument = RTSP source.']),
+            msg=['Frame source is set to: RTSP Camera.']),
 
         LogInfo(
             condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'usb'" ])),
-            msg=['Source launch argument = USB source.']),
+            msg=['Frame source is set to: USB Camera.']),
+
+        LogInfo(
+            condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'low'" ])),
+            msg=['Tracking sensitivity is set to: LOW.']),
+
+        LogInfo(
+            condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'medium'" ])),
+            msg=['Tracking sensitivity is set to: MEDIUM.']),
+
+        LogInfo(
+            condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'high'" ])),
+            msg=['Tracking sensitivity is set to: HIGH.']),
 
         rtsp_container,
         processing_pipeline_container

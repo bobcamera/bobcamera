@@ -78,13 +78,17 @@ def generate_launch_description():
 
     return launch.LaunchDescription([
 
+        #LogInfo(condition=IfCondition(PythonExpression(
+        #    [LaunchConfiguration('source_arg'), " == 'simulate'", " or ", LaunchConfiguration('source_arg'), "'rtsp_overlay'" ])),
+        #    msg=['Frame source is set to: SIMULATION.']),
+
         LogInfo(
             condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'simulate'" ])),
-            msg=['Source launch argument = SIMULATE source.']),
+            msg=['Frame source is set to: SIMULATION.']),
 
         LogInfo(
             condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'rtsp_overlay'" ])),
-            msg=['Source launch argument = SIMULATE - RTSP OVERLAY source.']),
+            msg=['Frame source is set to: RTSP OVERLAY.']),
 
         simulation_node,
         rtsp_container,
