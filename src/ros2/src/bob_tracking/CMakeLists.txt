@@ -27,7 +27,10 @@ find_package(boblib REQUIRED)
 find_package(bob_interfaces REQUIRED)
 
 include_directories(${OpenCV_INCLUDE_DIRS})
-include_directories("../bob_shared/include")
+include_directories(
+    "../bob_shared/include"
+    "src/include"
+)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     add_definitions(-O3)
@@ -37,7 +40,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
 ENDIF()
 
 # Tracking Node
-add_library(track_provider_node SHARED src/track_provider.cpp)
+add_library(track_provider_node SHARED src/track_provider.cpp src/tracking/kalman_filter.cpp src/tracking/sort_tracker.cpp src/tracking/track.cpp)
 target_compile_definitions(track_provider_node PRIVATE "COMPOSITION_BUILDING_DLL")
 target_link_libraries(track_provider_node PUBLIC boblib)
 ament_target_dependencies(track_provider_node PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV rclcpp_components bob_interfaces)
