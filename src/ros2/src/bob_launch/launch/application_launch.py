@@ -159,11 +159,11 @@ def generate_launch_description():
                 '/display_launch.py'])
         ),
 
-        #IncludeLaunchDescription(
-        #    PythonLaunchDescriptionSource([
-        #        launch_package_dir, 
-        #        '/monitor_launch.py'])
-        #),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource([
+                launch_package_dir, 
+                '/monitor_launch.py'])
+        ),
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([

@@ -120,7 +120,6 @@ def generate_launch_description():
                     ('bob/resizer/target', 'bob/camera/all_sky/bayer/resized')],
                 parameters=[{'resize_height': 960}],
                 extra_arguments=[{'use_intra_process_comms': True}],
-                condition=IfCondition(PythonExpression([LaunchConfiguration('optimised_arg'), " == False" ])),
                 ),
             ComposableNode(
                 package='bob_image_processing',

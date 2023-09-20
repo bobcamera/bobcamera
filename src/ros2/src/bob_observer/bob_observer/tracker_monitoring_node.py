@@ -5,49 +5,43 @@ from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy, QoS
 from typing import List
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
+from sensor_msgs.msg import Image
 from bob_shared.node_runner import NodeRunner
-from bob_shared.enumerations import DayNightEnum
-from bob_interfaces.msg import ObserverDayNight
-from .day_night_classifier import DayNightEstimator
+from bob_interfaces.msg import TrackingState
 
-class DayNightClassifierNode(Node):
+class TrackerMonitorNode(Node):
 
   def __init__(self, subscriber_qos_profile: QoSProfile, publisher_qos_profile: QoSProfile):
-    super().__init__('bob_day_night_estimator')
+    super().__init__('bob_tracker_monitor')
 
     self.timer = None
-    self.br = CvBridge()
 
     #TODO: Move this into some sort of config
-    self.timer_interval = 30
-    self.msg_image = None
-    self.day_night_estimator = DayNightEstimator.Classifier()
+    self.timer_interval = 5
+    self.tracking_profile_high_switch_threshold = 15
 
-    self.timer = self.create_timer(self.timer_interval, self.day_night_classifier)
+    self.msg_tracking_state = None
 
-    self.pub_environment_data = self.create_publisher(ObserverDayNight, 'bob/observer/day_night_classifier', publisher_qos_profile)
+    self.timer = self.create_timer(self.timer_interval, self.tracking_monitor)
+
+    #self.pub_environment_data = self.create_publisher(ObserverDayNight, 'bob/observer/day_night_classifier', publisher_qos_profile)
 
     # setup services, publishers and subscribers    
-    self.sub_camera = self.create_subscription(Image, 'bob/observer_frame/source', self.camera_callback, subscriber_qos_profile)
+    self.sub_tracking_state = self.create_subscription(TrackingState, 'bob/tracker/tracking_state', self.tracking_state_callback, subscriber_qos_profile)
 
     self.get_logger().info(f'{self.get_name()} node is up and running.')
    
-  def camera_callback(self, msg_image:Image):
-    self.msg_image = msg_image
+  def tracking_state_callback(self, msg_tracking_state:TrackingState):
+    self.msg_tracking_state = msg_tracking_state
 
-  def day_night_classifier(self):
+  def tracking_monitor(self):
 
-    if self.msg_image != None:
+    if self.msg_tracking_state != None:
 
       try:
 
-        result, average_brightness = self.day_night_estimator.estimate(self.br.imgmsg_to_cv2(self.msg_image))
-        self.get_logger().info(f'{self.get_name()} Day/Night classifier --> {str(result)}, {average_brightness}')
-
-        day_night_msg = ObserverDayNight()
-        day_night_msg.day_night_enum = int(result)
-        day_night_msg.avg_brightness = average_brightness
-        self.pub_environment_data.publish(day_night_msg)
+        if self.msg_tracking_state.alive > self.tracking_profile_high_switch_threshold:
+          self.get_logger().warn(f'{self.get_name()} Tracker needs tuning to a lower sensitivity level as its breaching the threshold of: {self.tracking_profile_high_switch_threshold}')
 
       except Exception as e:
         self.get_logger().error(f"Exception during day night classification. Error: {e}.")
@@ -67,7 +61,7 @@ def main(args=None):
   publisher_qos_profile.durability = QoSDurabilityPolicy.VOLATILE
   publisher_qos_profile.history = QoSHistoryPolicy.KEEP_LAST
 
-  node = DayNightClassifierNode(subscriber_qos_profile, publisher_qos_profile)
+  node = TrackerMonitorNode(subscriber_qos_profile, publisher_qos_profile)
 
   runner = NodeRunner(node)
   runner.run()

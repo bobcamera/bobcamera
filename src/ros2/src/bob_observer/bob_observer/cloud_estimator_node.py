@@ -5,7 +5,6 @@ from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy, QoS
 from typing import List
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
-from sensor_msgs.msg import Image
 from bob_shared.enumerations import DayNightEnum
 from bob_shared.node_runner import NodeRunner
 from bob_interfaces.msg import ObserverCloudEstimation, ObserverDayNight
@@ -30,7 +29,7 @@ class CloudEstimatorNode(Node):
     self.pub_environment_data = self.create_publisher(ObserverCloudEstimation, 'bob/observer/cloud_estimation', publisher_qos_profile)
 
     # setup services, publishers and subscribers    
-    self.sub_camera = self.create_subscription(Image, 'bob/camera/all_sky/bayer/resized', self.camera_callback, subscriber_qos_profile)
+    self.sub_camera = self.create_subscription(Image, 'bob/observer_frame/source', self.camera_callback, subscriber_qos_profile)
     self.sub_environment_day_night = self.create_subscription(ObserverDayNight, 'bob/observer/day_night_classifier', 
       self.day_night_callback, subscriber_qos_profile)
 

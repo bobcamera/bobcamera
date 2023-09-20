@@ -14,8 +14,23 @@ export BOB_OPTIMISED=${BOB_OPTIMISED:-"True"}
 export RMW_IMPLEMENTATION={RMW_IMPLEMENTATION:-"rmw_fastrtps_cpp"}
 export FASTRTPS_DEFAULT_PROFILES_FILE={FASTRTPS_DEFAULT_PROFILES_FILE:-"/workspaces/bobcamera/src/ros2/config/fastdds.xml"}
 export BOB_BGS_ALGORITHM=${BOB_BGS_ALGORITHM:-"vibe"} # or wmv
-export BOB_VIBE_PARAMS=${BOB_VIBE_PARAMS:-"{\"threshold\": 50, \"bgSamples\": 16, \"requiredBGSamples\": 2, \"learningRate\": 4}"} 
+
+#Low sensitivity:
+
+#export BOB_VIBE_PARAMS=${BOB_VIBE_PARAMS:-"{\"threshold\": 65, \"bgSamples\": 32, \"requiredBGSamples\": 2, \"learningRate\": 4}"} 
+#export BOB_WMV_PARAMS=${BOB_WMV_PARAMS:-"{\"enableWeight\": true, \"enableThreshold\": true, \"threshold\": 55.0, \"weight1\": 0.5, \"weight2\": 0.3, \"weight3\": 0.2}"} 
+#export BOB_BLOB_PARAMS=${BOB_BLOB_PARAMS:-"{\"sizeThreshold\": 10, \"areaThreshold\": 100, \"minDistance\": 100, \"maxBlobs\": 100}"}
+
+#Medium sensitivity:
+
+#export BOB_VIBE_PARAMS=${BOB_VIBE_PARAMS:-"{\"threshold\": 50, \"bgSamples\": 16, \"requiredBGSamples\": 2, \"learningRate\": 4}"} 
+#export BOB_WMV_PARAMS=${BOB_WMV_PARAMS:-"{\"enableWeight\": true, \"enableThreshold\": true, \"threshold\": 40.0, \"weight1\": 0.5, \"weight2\": 0.3, \"weight3\": 0.2}"} 
+#export BOB_BLOB_PARAMS=${BOB_BLOB_PARAMS:-"{\"sizeThreshold\": 6, \"areaThreshold\": 36, \"minDistance\": 36, \"maxBlobs\": 100}"}
+
+#High sensitivity:
+
+export BOB_VIBE_PARAMS=${BOB_VIBE_PARAMS:-"{\"threshold\": 35, \"bgSamples\": 16, \"requiredBGSamples\": 2, \"learningRate\": 4}"} 
 export BOB_WMV_PARAMS=${BOB_WMV_PARAMS:-"{\"enableWeight\": true, \"enableThreshold\": true, \"threshold\": 25.0, \"weight1\": 0.5, \"weight2\": 0.3, \"weight3\": 0.2}"} 
-export BOB_BLOB_PARAMS=${BOB_BLOB_PARAMS:-"{\"sizeThreshold\": 2, \"areaThreshold\": 2, \"minDistance\": 4, \"maxBlobs\": 100}"} 
+export BOB_BLOB_PARAMS=${BOB_BLOB_PARAMS:-"{\"sizeThreshold\": 2, \"areaThreshold\": 4, \"minDistance\": 4, \"maxBlobs\": 100}"}
 
 ./launcher.sh application_launch.py

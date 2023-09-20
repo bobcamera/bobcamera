@@ -21,6 +21,7 @@ setup(
         'console_scripts': [
             'cloud_estimator = bob_observer.cloud_estimator_node:main',
             'day_night_classifier = bob_observer.day_night_classifier_node:main',
+            'tracking_monitor = bob_observer.tracker_monitoring_node:main',
         ],
     },
 )

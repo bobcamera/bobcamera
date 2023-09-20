@@ -110,7 +110,7 @@ class CloudEstimator():
 
     def get_mask(self, frame):
         height, width, _ = frame.shape
-        x, y = np.ogrid[:width, :height]
+        x, y = np.ogrid[:height, :width]
         center_x, center_y = width // 2, height // 2
         radius = int(width * 0.315)
         mask = (x - center_x)**2 + (y - center_y)**2 < radius**2
