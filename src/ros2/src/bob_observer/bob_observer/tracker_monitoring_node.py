@@ -14,11 +14,14 @@ class TrackerMonitorNode(Node):
   def __init__(self, subscriber_qos_profile: QoSProfile, publisher_qos_profile: QoSProfile):
     super().__init__('bob_tracker_monitor')
 
-    self.timer = None
+    self.declare_parameters(
+      namespace='',
+      parameters=
+      [('observer_tracker_monitor_timer_interval', 5),
+       ('observer_tracking_profile_high_switch_threshold', 15)])
 
-    #TODO: Move this into some sort of config
-    self.timer_interval = 5
-    self.tracking_profile_high_switch_threshold = 15
+    self.timer_interval = self.get_parameter('observer_tracker_monitor_timer_interval').value
+    self.tracking_profile_high_switch_threshold = self.get_parameter('observer_tracking_profile_high_switch_threshold').value
 
     self.msg_tracking_state = None
 

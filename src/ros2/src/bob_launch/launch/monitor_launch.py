@@ -8,6 +8,10 @@ def generate_launch_description():
         #namespace='bob',
         executable='day_night_classifier',
         name='day_night_classifier',
+        parameters=[
+            #params,
+            {'observer_timer_interval': 30},
+            {'observer_day_night_brightness_threshold': 95}],
         remappings=[
             ('bob/observer_frame/source', 'bob/camera/all_sky/bayer/resized')],
     )
@@ -17,6 +21,9 @@ def generate_launch_description():
         #namespace='bob',
         executable='cloud_estimator',
         name='cloud_estimator',
+        parameters=[
+            #params,
+            {'observer_timer_interval': 30}],
         remappings=[
             ('bob/observer_frame/source', 'bob/camera/all_sky/bayer/resized')],        
     )
@@ -25,7 +32,11 @@ def generate_launch_description():
         package='bob_observer',
         #namespace='bob',
         executable='tracking_monitor',
-        name='tracking_monitor'
+        name='tracking_monitor',
+        parameters=[
+            #params,
+            {'observer_tracker_monitor_timer_interval': 5},
+            {'observer_tracking_profile_high_switch_threshold': 15}],
     )
 
     prometheus__node = Node(

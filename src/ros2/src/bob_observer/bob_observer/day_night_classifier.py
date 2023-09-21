@@ -7,8 +7,8 @@ from bob_shared.enumerations import DayNightEnum
 class DayNightEstimator():
 
     @staticmethod
-    def Classifier():
-        return DayNightClassifier()
+    def Classifier(threshold):
+        return DayNightClassifier(threshold)
 
     def __init__(self):
         self.logger = rclpy.logging.get_logger('day_night_classifier')# .info(f'Running node {self.node.get_name()} via the node runner')
@@ -21,11 +21,10 @@ class DayNightEstimator():
 # This classifier is to try and determine if an image is classified as day or night
 class DayNightClassifier(DayNightEstimator):
 
-    def __init__(self):
+    def __init__(self, threshold):
         super().__init__()
 
-        #TODO: Move this into some sort of config
-        self.threshold = 95
+        self.threshold = threshold
 
     # This function should take in RGB image input
     def estimate(self, frame):

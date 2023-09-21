@@ -15,10 +15,11 @@ class CloudEstimatorNode(Node):
   def __init__(self, subscriber_qos_profile: QoSProfile, publisher_qos_profile: QoSProfile):
     super().__init__('bob_cloud_estimator')
 
-    self.br = CvBridge()
+    self.declare_parameters(namespace='',
+                            parameters=[('observer_timer_interval', 30)])
 
-    #TODO: Move this into some sort of config
-    self.timer_interval = 30
+    self.br = CvBridge()
+    self.timer_interval = self.get_parameter('observer_timer_interval').value
     self.msg_image = None
     self.day_night: DayNightEnum = DayNightEnum.Unknown
     self.day_cloud_estimator = CloudEstimator.Day()
