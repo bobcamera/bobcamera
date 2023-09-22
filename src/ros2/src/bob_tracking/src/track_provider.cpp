@@ -14,8 +14,8 @@
 #include "bob_interfaces/msg/tracking_state.hpp"
 #include "bob_interfaces/msg/track_trajectory_array.hpp"
 
-#include "tracking/video_tracker.hpp"
-#include "include/sort_tracker.h"
+#include "tracking/cv_trackers/video_tracker.hpp"
+#include "tracking/sort/include/sort_tracker.h"
 
 #include "parameter_node.hpp"
 #include "image_utils.hpp"

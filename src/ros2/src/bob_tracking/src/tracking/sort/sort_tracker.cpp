@@ -1,4 +1,4 @@
-#include "../include/sort_tracker.h"
+#include "include/sort_tracker.h"
 
 
 SORT::Tracker::Tracker(const std::map<std::string, std::string>& settings, rclcpp::Logger logger)
@@ -110,7 +110,6 @@ void SORT::Tracker::AssociateDetectionsToTrackers(const std::vector<cv::Rect>& d
 }
 void SORT::Tracker::update_trackers(const std::vector<cv::Rect> &detections, const cv::Mat &/*frame*/)
 {
-    
     /*** Predict internal tracks from previous frame ***/
     std::vector<std::thread> predict_threads;
     for (auto &track : tracks_) 
