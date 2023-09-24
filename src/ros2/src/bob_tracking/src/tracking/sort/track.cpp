@@ -4,7 +4,7 @@
 Track::Track() 
     : kf_(8, 4),
       tracking_state_(ProvisionaryTarget),
-      track_stationary_threshold_(5),
+      track_stationary_threshold_(25),
       stationary_track_counter_(0),
       coast_cycles_(0),
       hit_streak_(0)
@@ -56,7 +56,6 @@ Track::Track()
             0, 0, 10, 0,
             0, 0, 0,  10;
 }
-
 // Get predicted locations from existing trackers
 // dt is time elapsed between the current and previous measurements
 void Track::Predict() 
@@ -101,8 +100,10 @@ void Track::Predict()
         stationary_track_counter_ = 0;
     }
 
+    int stationary_scavanage_threshold = (int)std::floor((double)track_stationary_threshold_ * 1.5);
+
     // Logic to mark track as lost if stationary for too long.
-    if (stationary_track_counter_ >= track_stationary_threshold_)
+    if (stationary_track_counter_ >= track_stationary_threshold_ && stationary_track_counter_ < stationary_scavanage_threshold)
     {
         tracking_state_ = LostTarget;
     }
@@ -209,12 +210,12 @@ bool Track::is_tracking() const
 
 int Track::get_id() const
 {
-    return id;
+    return id_;
 }
 
 void Track::set_id(int x) 
 {
-    id = x;
+    id_ = x;
 }
 
 cv::Point Track::get_center() const 

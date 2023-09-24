@@ -15,7 +15,7 @@ export RMW_IMPLEMENTATION={RMW_IMPLEMENTATION:-"rmw_fastrtps_cpp"}
 export FASTRTPS_DEFAULT_PROFILES_FILE={FASTRTPS_DEFAULT_PROFILES_FILE:-"/workspaces/bobcamera/src/ros2/config/fastdds.xml"}
 export BOB_BGS_ALGORITHM=${BOB_BGS_ALGORITHM:-"vibe"} # or wmv
 
-# sensitivity options are "'low'", "'medium'", "'high'"
-export BOB_TRACKING_SENSITIVITY=${BOB_TRACKING_SENSITIVITY:-"'high'"}
+# sensitivity options are "'minimal'", "'low'", "'medium'", "'high'"
+export BOB_TRACKING_SENSITIVITY=${BOB_TRACKING_SENSITIVITY:-"'medium'"}
 
 ./launcher.sh application_launch.py

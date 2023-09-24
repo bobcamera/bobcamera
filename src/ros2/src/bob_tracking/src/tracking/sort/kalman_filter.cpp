@@ -6,6 +6,7 @@ SORT::KalmanFilter::KalmanFilter(unsigned int num_states, unsigned int num_obs) 
     /*** Predict ***/
     // State vector
     x_ = Eigen::VectorXd::Zero(num_states);
+
     // Predicted(a prior) state vector
     x_predict_ = Eigen::VectorXd::Zero(num_states);
 
@@ -14,7 +15,9 @@ SORT::KalmanFilter::KalmanFilter(unsigned int num_states, unsigned int num_obs) 
 
     // Error covariance matrix P
     P_ = Eigen::MatrixXd::Zero(num_states, num_states);
+
     // Predicted(a prior) error covariance matrix
+    // gives an estimate of the uncertainty or confidence in the predicted state (x_predict_)
     P_predict_ = Eigen::MatrixXd::Zero(num_states, num_states);
 
     // Covariance matrix of process noise
@@ -50,53 +53,44 @@ Eigen::VectorXd SORT::KalmanFilter::PredictionToObservation(const Eigen::VectorX
 }
 
 
-void SORT::KalmanFilter::Update(const Eigen::VectorXd& z) {
-    Eigen::VectorXd z_predict = PredictionToObservation(x_predict_);
+void SORT::KalmanFilter::Update(const Eigen::VectorXd& z) 
+{
+    
+    Eigen::VectorXd z_predict = PredictionToObservation(x_predict_); // Predicted observation based on prior state
+    Eigen::VectorXd y = z - z_predict; // Innovation: Difference between observed and predicted measurements
+    Eigen::MatrixXd Ht = H_.transpose(); // Transposed observation matrix
+    Eigen::MatrixXd S = H_ * P_predict_ * Ht + R_; // Innovation covariance
+    NIS_ = y.transpose() * S.inverse() * y; // Normalized Innovation Squared: Measures consistency of filter
 
-    // y - innovation, z - real observation, z_predict - predicted observation
-    Eigen::VectorXd y = z - z_predict;
+    /* 
+    P_predict provides confidence in prediction. Smaller values mean higher confidence.
+    Discrepancies between actual error (y) and P_predict may point to inaccuracies in filter's model or noise settings.
+    */
+    /*
+    std::cout << "\nP_predict (Predicted Error Covariance):\n" << P_predict_ << std::endl;
+    std::cout << "\nZ (Actual Observation):\n" << z << std::endl;
+    std::cout << "\nZ_pred (Predicted Observation):\n" << z_predict << std::endl;
+    std::cout << "\ny (Innovation):\n" << y << std::endl;
+    std::cout << "\nS (Innovation Covariance):\n" << S << std::endl;
+    std::cout << "\nNIS (Normalized Innovation Squared): " << NIS_ << std::endl;
+    std::cout << "=================================\n" << std::endl << std::endl;
+    */
 
-    Eigen::MatrixXd Ht = H_.transpose();
-
-    // S - innovation covariance
-    Eigen::MatrixXd S = H_ * P_predict_ * Ht + R_;
-
-    NIS_ = y.transpose() * S.inverse() * y;
-
-//    std::cout << std::endl;
-//    std::cout << "P_predict = " << std::endl;
-//    std::cout << P_predict_ << std::endl;
-//
-//
-//    std::cout << "Z = " << std::endl;
-//    std::cout << z << std::endl;
-//
-//    std::cout << "Z_pred = " << std::endl;
-//    std::cout << z_predict << std::endl;
-//
-//    std::cout << "y = " << std::endl;
-//    std::cout << y << std::endl;
-//
-//    std::cout << "S = " << std::endl;
-//    std::cout << S << std::endl;
-//
-//    std::cout << "NIS = " << NIS_ << std::endl;
-
-
-    // K - Kalman gain
+    // Compute Kalman gain
     Eigen::MatrixXd K = P_predict_ * Ht * S.inverse();
 
-    // Updated state estimation
+    // Update state estimation based on Kalman gain and innovation
     x_ = x_predict_ + K * y;
 
     Eigen::MatrixXd I = Eigen::MatrixXd::Identity(num_states_, num_states_);
     // Joseph form
-    //P_ = (I - K * H_) * P_predict_ * (I - K * H_).transpose() + K * R_ * K.transpose();
-    // Optimal gain
+    // P_ = (I - K * H_) * P_predict_ * (I - K * H_).transpose() + K * R_ * K.transpose();
+    // Update error covariance using Joseph form (commented) or Optimal gain
     P_ = (I - K * H_) * P_predict_;
 }
 
-
+// Quantifies how probable a given measurement (or observation) is, given the predicted state and the associated uncertainties
+// Not presently used
 float SORT::KalmanFilter::CalculateLogLikelihood(const Eigen::VectorXd& y, const Eigen::MatrixXd& S) {
     float log_likelihood;
 

@@ -79,7 +79,7 @@ private:
                 [this](const rclcpp::Parameter& param) {enable_profiling_ = param.as_bool();}
             ),
             ParameterNode::ActionParam(
-                rclcpp::Parameter("vibe_params", R"({"threshold": 50, "bgSamples": 20, "requiredBGSamples": 2, "learningRate": 4})"), 
+                rclcpp::Parameter("vibe_params", R"({"threshold": 50, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 2})"), 
                 [this](const rclcpp::Parameter& param) 
                 {
                     Json::CharReaderBuilder builder;
@@ -156,7 +156,7 @@ private:
                 }
             ),
             ParameterNode::ActionParam(
-                rclcpp::Parameter("blob_params", R"({"sizeThreshold": 7, "areaThreshold": 49, "minDistance": 40, "maxBlobs": 100})"), 
+                rclcpp::Parameter("blob_params", R"({"sizeThreshold": 7, "areaThreshold": 49, "minDistance": 40, "maxBlobs": 50})"), 
                 [this](const rclcpp::Parameter& param) 
                 {
                     Json::CharReaderBuilder builder;

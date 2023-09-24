@@ -84,15 +84,28 @@ def generate_launch_description():
                 condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'usb'" ])),
             ),
 
+            #Minimal sensitivity:
+            ComposableNode(
+                package='bob_image_processing',
+                plugin='BackgroundSubtractor',
+                name='background_subtractor_node',
+                parameters=[{'bgs': LaunchConfiguration('bgs_algorithm_arg')}
+                    , {'vibe_params': "{\"threshold\": 70, \"bgSamples\": 32, \"requiredBGSamples\": 1, \"learningRate\": 2}"}
+                    , {'wmv_params': "{\"enableWeight\": true, \"enableThreshold\": true, \"threshold\": 60.0, \"weight1\": 0.5, \"weight2\": 0.3, \"weight3\": 0.2}"}
+                    , {'blob_params': "{\"sizeThreshold\": 11, \"areaThreshold\": 121, \"minDistance\": 121, \"maxBlobs\": 50}"}
+                ],
+                extra_arguments=[{'use_intra_process_comms': True}],
+                condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'minimal'" ]))
+            ),
             #Low sensitivity:
             ComposableNode(
                 package='bob_image_processing',
                 plugin='BackgroundSubtractor',
                 name='background_subtractor_node',
                 parameters=[{'bgs': LaunchConfiguration('bgs_algorithm_arg')}
-                    , {'vibe_params': "{\"threshold\": 65, \"bgSamples\": 32, \"requiredBGSamples\": 2, \"learningRate\": 4}"}
-                    , {'wmv_params': "{\"enableWeight\": true, \"enableThreshold\": true, \"threshold\": 55.0, \"weight1\": 0.5, \"weight2\": 0.3, \"weight3\": 0.2}"}
-                    , {'blob_params': "{\"sizeThreshold\": 10, \"areaThreshold\": 100, \"minDistance\": 100, \"maxBlobs\": 100}"}
+                    , {'vibe_params': "{\"threshold\": 55, \"bgSamples\": 32, \"requiredBGSamples\": 1, \"learningRate\": 2}"}
+                    , {'wmv_params': "{\"enableWeight\": true, \"enableThreshold\": true, \"threshold\": 45.0, \"weight1\": 0.5, \"weight2\": 0.3, \"weight3\": 0.2}"}
+                    , {'blob_params': "{\"sizeThreshold\": 8, \"areaThreshold\": 64, \"minDistance\": 64, \"maxBlobs\": 50}"}
                 ],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'low'" ]))
@@ -103,9 +116,9 @@ def generate_launch_description():
                 plugin='BackgroundSubtractor',
                 name='background_subtractor_node',
                 parameters=[{'bgs': LaunchConfiguration('bgs_algorithm_arg')}
-                    , {'vibe_params': "{\"threshold\": 50, \"bgSamples\": 16, \"requiredBGSamples\": 2, \"learningRate\": 4}"}
-                    , {'wmv_params': "{\"enableWeight\": true, \"enableThreshold\": true, \"threshold\": 40.0, \"weight1\": 0.5, \"weight2\": 0.3, \"weight3\": 0.2}"}
-                    , {'blob_params': "{\"sizeThreshold\": 6, \"areaThreshold\": 36, \"minDistance\": 36, \"maxBlobs\": 100}"}
+                    , {'vibe_params': "{\"threshold\": 40, \"bgSamples\": 16, \"requiredBGSamples\": 1, \"learningRate\": 2}"}
+                    , {'wmv_params': "{\"enableWeight\": true, \"enableThreshold\": true, \"threshold\": 30.0, \"weight1\": 0.5, \"weight2\": 0.3, \"weight3\": 0.2}"}
+                    , {'blob_params': "{\"sizeThreshold\": 4, \"areaThreshold\": 16, \"minDistance\": 16, \"maxBlobs\": 50}"}
                 ],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'medium'" ]))
@@ -116,9 +129,9 @@ def generate_launch_description():
                 plugin='BackgroundSubtractor',
                 name='background_subtractor_node',
                 parameters=[{'bgs': LaunchConfiguration('bgs_algorithm_arg')}
-                    , {'vibe_params': "{\"threshold\": 35, \"bgSamples\": 16, \"requiredBGSamples\": 2, \"learningRate\": 4}"}
-                    , {'wmv_params': "{\"enableWeight\": true, \"enableThreshold\": true, \"threshold\": 25.0, \"weight1\": 0.5, \"weight2\": 0.3, \"weight3\": 0.2}"}
-                    , {'blob_params': "{\"sizeThreshold\": 2, \"areaThreshold\": 4, \"minDistance\": 4, \"maxBlobs\": 100}"}
+                    , {'vibe_params': "{\"threshold\": 30, \"bgSamples\": 16, \"requiredBGSamples\": 1, \"learningRate\": 2}"}
+                    , {'wmv_params': "{\"enableWeight\": true, \"enableThreshold\": true, \"threshold\": 15.0, \"weight1\": 0.5, \"weight2\": 0.3, \"weight3\": 0.2}"}
+                    , {'blob_params': "{\"sizeThreshold\": 2, \"areaThreshold\": 4, \"minDistance\": 4, \"maxBlobs\": 50}"}
                 ],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'high'" ]))
@@ -200,6 +213,10 @@ def generate_launch_description():
         LogInfo(
             condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'usb'" ])),
             msg=['Frame source is set to: USB Camera.']),
+
+        LogInfo(
+            condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'minimal'" ])),
+            msg=['Tracking sensitivity is set to: MINIMAL.']),
 
         LogInfo(
             condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'low'" ])),

@@ -3,7 +3,7 @@
 #include <opencv2/core.hpp>
 #include "../include/kalman_filter.h"
 #include "../../bob_shared/include/tracking_state.hpp"
-#include "../include/utils.h"
+#include "utils.h"
 
 
 class Track {
@@ -33,15 +33,13 @@ private:
     
     SORT::KalmanFilter kf_;
     TrackingStateEnum tracking_state_;
-
     std::vector<std::pair<cv::Point, TrackingStateEnum>> center_points_;
     std::vector<cv::Point> predictor_center_points_;
+    cv::Rect last_bbox_;
 
     int track_stationary_threshold_; 
     int stationary_track_counter_; 
     int coast_cycles_;
     int hit_streak_;
-    cv::Rect last_bbox_; 
-
-    int id;
+    int id_;
 };

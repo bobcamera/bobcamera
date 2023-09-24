@@ -7,7 +7,7 @@
 
 #include "../include/track.h"
 #include "../include/munkres.h"
-#include "../include/utils.h"
+#include "utils.h"
 
 namespace SORT
 {
@@ -52,6 +52,8 @@ namespace SORT
         std::map<int, Track> tracks_;
         int total_trackers_started_;  
         int total_trackers_finished_;
+        
+        size_t tracker_max_active_trackers_ = 25;
     };
 
 }
