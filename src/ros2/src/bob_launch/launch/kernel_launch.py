@@ -21,9 +21,10 @@ def generate_launch_description():
     # https://answers.ros.org/question/333521/ros2-url-to-camera_info-yaml-not-being-recognized/
     config_file = 'file://' + os.path.join(config_dir, "camera_info.yaml")
 
-    video_file1 = '/workspaces/bobcamera/test/fisheye_videos/brad_drone_1.mp4'
+    video_file1 = '/workspaces/bobcamera/test/fisheye_videos/mike_drone.mp4'
     video_file2 = '/workspaces/bobcamera/test/fisheye_videos/Dahua-20220901-184734.mp4'
-
+    video_file3 = '/workspaces/bobcamera/test/fisheye_videos/brad_drone_1.mp4'
+    
     rtsp_container = ComposableNodeContainer(
         name='rtsp_container',
         namespace='',
@@ -65,11 +66,11 @@ def generate_launch_description():
                     , {'image_info_publish_topic': 'bob/camera/all_sky/image_info'}
                     , {'camera_info_publish_topic': 'bob/camera/all_sky/camera_info'}
                     , {'is_video': True}
-                    , {'videos': [video_file1, video_file2]}
+                    , {'videos': [video_file1, video_file2, video_file3]}
                     , {'resize_height': 0}],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'video'" ])),
-                ),
+            ),
             ComposableNode(
                 package='bob_camera',
                 plugin='WebCameraVideo',
@@ -81,18 +82,62 @@ def generate_launch_description():
                     , {'camera_id': LaunchConfiguration('camera_id_arg')}],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'usb'" ])),
-                ),
+            ),
 
+            #Minimal sensitivity:
             ComposableNode(
                 package='bob_image_processing',
                 plugin='BackgroundSubtractor',
                 name='background_subtractor_node',
                 parameters=[{'bgs': LaunchConfiguration('bgs_algorithm_arg')}
-                    , {'vibe_params': ParameterValue(LaunchConfiguration('bgs_vibe_params_arg'), value_type=str)}
-                    , {'wmv_params': ParameterValue(LaunchConfiguration('bgs_wmv_params_arg'), value_type=str)}
-                    , {'blob_params': ParameterValue(LaunchConfiguration('blob_params_arg'), value_type=str)}
+                    , {'vibe_params': "{\"threshold\": 70, \"bgSamples\": 32, \"requiredBGSamples\": 1, \"learningRate\": 2}"}
+                    , {'wmv_params': "{\"enableWeight\": true, \"enableThreshold\": true, \"threshold\": 60.0, \"weight1\": 0.5, \"weight2\": 0.3, \"weight3\": 0.2}"}
+                    , {'blob_params': "{\"sizeThreshold\": 11, \"areaThreshold\": 121, \"minDistance\": 121, \"maxBlobs\": 50}"}
                 ],
-                extra_arguments=[{'use_intra_process_comms': True}]),
+                extra_arguments=[{'use_intra_process_comms': True}],
+                condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'minimal'" ]))
+            ),
+            #Low sensitivity:
+            ComposableNode(
+                package='bob_image_processing',
+                plugin='BackgroundSubtractor',
+                name='background_subtractor_node',
+                parameters=[{'bgs': LaunchConfiguration('bgs_algorithm_arg')}
+                    , {'vibe_params': "{\"threshold\": 55, \"bgSamples\": 32, \"requiredBGSamples\": 1, \"learningRate\": 2}"}
+                    , {'wmv_params': "{\"enableWeight\": true, \"enableThreshold\": true, \"threshold\": 45.0, \"weight1\": 0.5, \"weight2\": 0.3, \"weight3\": 0.2}"}
+                    , {'blob_params': "{\"sizeThreshold\": 8, \"areaThreshold\": 64, \"minDistance\": 64, \"maxBlobs\": 50}"}
+                ],
+                extra_arguments=[{'use_intra_process_comms': True}],
+                condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'low'" ]))
+            ),
+            #Medium sensitivity:
+            ComposableNode(
+                package='bob_image_processing',
+                plugin='BackgroundSubtractor',
+                name='background_subtractor_node',
+                parameters=[{'bgs': LaunchConfiguration('bgs_algorithm_arg')}
+                    , {'vibe_params': "{\"threshold\": 40, \"bgSamples\": 16, \"requiredBGSamples\": 1, \"learningRate\": 2}"}
+                    , {'wmv_params': "{\"enableWeight\": true, \"enableThreshold\": true, \"threshold\": 30.0, \"weight1\": 0.5, \"weight2\": 0.3, \"weight3\": 0.2}"}
+                    , {'blob_params': "{\"sizeThreshold\": 4, \"areaThreshold\": 16, \"minDistance\": 16, \"maxBlobs\": 50}"}
+                ],
+                extra_arguments=[{'use_intra_process_comms': True}],
+                condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'medium'" ]))
+            ),
+            #High sensitivity:
+            ComposableNode(
+                package='bob_image_processing',
+                plugin='BackgroundSubtractor',
+                name='background_subtractor_node',
+                parameters=[{'bgs': LaunchConfiguration('bgs_algorithm_arg')}
+                    , {'vibe_params': "{\"threshold\": 30, \"bgSamples\": 16, \"requiredBGSamples\": 1, \"learningRate\": 2}"}
+                    , {'wmv_params': "{\"enableWeight\": true, \"enableThreshold\": true, \"threshold\": 15.0, \"weight1\": 0.5, \"weight2\": 0.3, \"weight3\": 0.2}"}
+                    , {'blob_params': "{\"sizeThreshold\": 2, \"areaThreshold\": 4, \"minDistance\": 4, \"maxBlobs\": 50}"}
+                ],
+                extra_arguments=[{'use_intra_process_comms': True}],
+                condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'high'" ]))
+            ),            
+
+
             ComposableNode(
                 package='bob_tracking',
                 plugin='TrackProvider',
@@ -119,7 +164,6 @@ def generate_launch_description():
                     ('bob/resizer/target', 'bob/camera/all_sky/bayer/resized')],
                 parameters=[{'resize_height': 960}],
                 extra_arguments=[{'use_intra_process_comms': True}],
-                condition=IfCondition(PythonExpression([LaunchConfiguration('optimised_arg'), " == False" ])),
                 ),
             ComposableNode(
                 package='bob_image_processing',
@@ -160,15 +204,31 @@ def generate_launch_description():
 
         LogInfo(
             condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'video'" ])),
-            msg=['Source launch argument = VIDEO source.']),
+            msg=['Frame source is set to: VIDEO.']),
 
         LogInfo(
             condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'rtsp'" ])),
-            msg=['Source launch argument = RTSP source.']),
+            msg=['Frame source is set to: RTSP Camera.']),
 
         LogInfo(
             condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'usb'" ])),
-            msg=['Source launch argument = USB source.']),
+            msg=['Frame source is set to: USB Camera.']),
+
+        LogInfo(
+            condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'minimal'" ])),
+            msg=['Tracking sensitivity is set to: MINIMAL.']),
+
+        LogInfo(
+            condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'low'" ])),
+            msg=['Tracking sensitivity is set to: LOW.']),
+
+        LogInfo(
+            condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'medium'" ])),
+            msg=['Tracking sensitivity is set to: MEDIUM.']),
+
+        LogInfo(
+            condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'high'" ])),
+            msg=['Tracking sensitivity is set to: HIGH.']),
 
         rtsp_container,
         processing_pipeline_container

@@ -5,7 +5,6 @@ from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy, QoS
 from typing import List
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
-from sensor_msgs.msg import Image
 from bob_shared.node_runner import NodeRunner
 from bob_shared.enumerations import DayNightEnum
 from bob_interfaces.msg import ObserverDayNight
@@ -16,20 +15,23 @@ class DayNightClassifierNode(Node):
   def __init__(self, subscriber_qos_profile: QoSProfile, publisher_qos_profile: QoSProfile):
     super().__init__('bob_day_night_estimator')
 
-    self.timer = None
-    self.br = CvBridge()
+    self.declare_parameters(
+      namespace='',
+      parameters=
+      [('observer_timer_interval', 30),
+       ('observer_day_night_brightness_threshold', 95)])
 
-    #TODO: Move this into some sort of config
-    self.timer_interval = 30
+    self.br = CvBridge()
+    self.timer_interval = self.get_parameter('observer_timer_interval').value
     self.msg_image = None
-    self.day_night_estimator = DayNightEstimator.Classifier()
+    self.day_night_estimator = DayNightEstimator.Classifier(self.get_parameter('observer_day_night_brightness_threshold').value)
 
     self.timer = self.create_timer(self.timer_interval, self.day_night_classifier)
 
     self.pub_environment_data = self.create_publisher(ObserverDayNight, 'bob/observer/day_night_classifier', publisher_qos_profile)
 
     # setup services, publishers and subscribers    
-    self.sub_camera = self.create_subscription(Image, 'bob/camera/all_sky/bayer/resized', self.camera_callback, subscriber_qos_profile)
+    self.sub_camera = self.create_subscription(Image, 'bob/observer_frame/source', self.camera_callback, subscriber_qos_profile)
 
     self.get_logger().info(f'{self.get_name()} node is up and running.')
    

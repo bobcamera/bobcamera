@@ -11,6 +11,7 @@ from .synthetic_data import DroneSyntheticData, PlaneSyntheticData
 from .simulation_test import SimulationTest
 from .simulation_test_case import SimulationTestCase
 from .simulation_test_case_runner import SimulationTestCaseRunner
+from .object_simulator import MovingCircle
 
 class SimulationOverlayProviderNode(Node):
 
@@ -30,6 +31,8 @@ class SimulationOverlayProviderNode(Node):
     self.height = self.get_parameter('height').value
     self.width = self.get_parameter('width').value
     self.target_object_diameter = self.get_parameter('target_object_diameter').value
+
+    self.moving_circles = [MovingCircle(self.width, self.height, 0) for i in range(4)]
 
     self.test_case_runner = SimulationTestCaseRunner([
       SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=self.target_object_diameter, loop=False)], (self.width, self.height), simulation_name='Drone'),
@@ -52,10 +55,11 @@ class SimulationOverlayProviderNode(Node):
         try:
           input_frame = self.br.imgmsg_to_cv2(msg_image)
           frame_synthetic = self.test_case_runner.run(input_frame)
-
+          for circle in self.moving_circles:
+              circle.move()
+              circle.draw(frame_synthetic, (10, 10, 20))
           frame_synthetic_msg = self.br.cv2_to_imgmsg(frame_synthetic, encoding=msg_image.encoding)
           frame_synthetic_msg.header = msg_image.header
-
           self.pub_synthetic_frame.publish(frame_synthetic_msg)        
         except Exception as e:
           self.get_logger().error(f"Exception during frame overlay simulation. Error: {e}.")

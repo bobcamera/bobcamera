@@ -14,7 +14,8 @@
 #include "bob_interfaces/msg/tracking_state.hpp"
 #include "bob_interfaces/msg/track_trajectory_array.hpp"
 
-#include "tracking/video_tracker.hpp"
+#include "tracking/cv_trackers/video_tracker.hpp"
+#include "tracking/sort/include/sort_tracker.h"
 
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
@@ -28,7 +29,7 @@ public:
     COMPOSITION_PUBLIC
     explicit TrackProvider(const rclcpp::NodeOptions & options)
         : ParameterNode("frame_provider_node", options)
-        , video_tracker_({{"tracker_type", "MOSSE"}}, get_logger()) // CSRT, MOSSE, KCF
+        , video_tracker_({{"tracker_type", "MOSSE"}}, get_logger()) // CV only currently - CSRT, MOSSE, KCF
     {
         timer_ = this->create_wall_timer(std::chrono::seconds(1), std::bind(&TrackProvider::init, this));
     }
@@ -44,7 +45,8 @@ private:
     rclcpp::Publisher<bob_interfaces::msg::TrackDetectionArray>::SharedPtr pub_tracker_detects;
     rclcpp::Publisher<bob_interfaces::msg::TrackTrajectoryArray>::SharedPtr pub_tracker_trajectory;
     rclcpp::Publisher<bob_interfaces::msg::TrackTrajectoryArray>::SharedPtr pub_tracker_prediction;
-    VideoTracker video_tracker_;
+    // VideoTracker video_tracker_;
+    SORT::Tracker video_tracker_;
     rclcpp::TimerBase::SharedPtr timer_;
 
     friend std::shared_ptr<TrackProvider> std::make_shared<TrackProvider>();
@@ -147,7 +149,7 @@ private:
         pub_tracker_tracking_state->publish(tracking_state_msg);
     }
 
-    void add_detects_to_msg(const Tracker &tracker, bob_interfaces::msg::TrackDetectionArray &detection_2d_array_msg)
+    void add_detects_to_msg(const auto &tracker, bob_interfaces::msg::TrackDetectionArray &detection_2d_array_msg)
     {
         auto bbox = tracker.get_bbox();
         vision_msgs::msg::BoundingBox2D bbox_msg;
@@ -164,7 +166,7 @@ private:
         detection_2d_array_msg.detections.push_back(detect_msg);
     }
 
-    void add_trajectories_to_msg(const Tracker &tracker, bob_interfaces::msg::TrackTrajectoryArray &trajectory_array_msg)
+    void add_trajectories_to_msg(const auto &tracker, bob_interfaces::msg::TrackTrajectoryArray &trajectory_array_msg)
     {
         bob_interfaces::msg::TrackTrajectory track_msg;
         track_msg.id = std::to_string(tracker.get_id()) + std::string("-") + std::to_string(tracker.get_tracking_state());
@@ -181,7 +183,7 @@ private:
         trajectory_array_msg.trajectories.push_back(track_msg);
     }
 
-    void add_predictions_to_msg(const Tracker &tracker, bob_interfaces::msg::TrackTrajectoryArray &prediction_array_msg)
+    void add_predictions_to_msg(const auto &tracker, bob_interfaces::msg::TrackTrajectoryArray &prediction_array_msg)
     {
         bob_interfaces::msg::TrackTrajectory track_msg;
         track_msg.id = std::to_string(tracker.get_id()) + std::string("-") + std::to_string(tracker.get_tracking_state());
