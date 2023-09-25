@@ -11,8 +11,8 @@ export BOB_OPTIMISED=${BOB_OPTIMISED:-"True"}
 # export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 # export FASTRTPS_DEFAULT_PROFILES_FILE=/workspaces/bobcamera/src/ros2/config/fastdds.xml
 # export RMW_FASTRTPS_USE_QOS_FROM_XML=1
-export RMW_IMPLEMENTATION={RMW_IMPLEMENTATION:-"rmw_fastrtps_cpp"}
-export FASTRTPS_DEFAULT_PROFILES_FILE={FASTRTPS_DEFAULT_PROFILES_FILE:-"/workspaces/bobcamera/src/ros2/config/fastdds.xml"}
+export RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION:-"rmw_fastrtps_cpp"}
+export FASTRTPS_DEFAULT_PROFILES_FILE=${FASTRTPS_DEFAULT_PROFILES_FILE:-"/workspaces/bobcamera/src/ros2/config/fastdds.xml"}
 export BOB_BGS_ALGORITHM=${BOB_BGS_ALGORITHM:-"vibe"} # or wmv
 
 # sensitivity options are "'minimal'", "'low'", "'medium'", "'high'"
