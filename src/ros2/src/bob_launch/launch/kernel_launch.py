@@ -83,6 +83,14 @@ def generate_launch_description():
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'usb'" ])),
             ),
+            ComposableNode(
+                package='bob_image_processing',  
+                plugin='MaskApplication',  
+                name='mask_application_node',  
+                parameters=[{'mask_file': LaunchConfiguration('tracking_maskfile_arg')}],
+                extra_arguments=[{'use_intra_process_comms': True}],
+                condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_usemask_arg'), " == 'True'"])),  
+            ),
 
             #Minimal sensitivity:
             ComposableNode(
@@ -93,6 +101,7 @@ def generate_launch_description():
                     , {'vibe_params': "{\"threshold\": 70, \"bgSamples\": 32, \"requiredBGSamples\": 1, \"learningRate\": 2}"}
                     , {'wmv_params': "{\"enableWeight\": true, \"enableThreshold\": true, \"threshold\": 60.0, \"weight1\": 0.5, \"weight2\": 0.3, \"weight3\": 0.2}"}
                     , {'blob_params': "{\"sizeThreshold\": 11, \"areaThreshold\": 121, \"minDistance\": 121, \"maxBlobs\": 50}"}
+                    , {'use_mask': LaunchConfiguration('tracking_usemask_arg')}
                 ],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'minimal'" ]))
@@ -106,6 +115,7 @@ def generate_launch_description():
                     , {'vibe_params': "{\"threshold\": 55, \"bgSamples\": 32, \"requiredBGSamples\": 1, \"learningRate\": 2}"}
                     , {'wmv_params': "{\"enableWeight\": true, \"enableThreshold\": true, \"threshold\": 45.0, \"weight1\": 0.5, \"weight2\": 0.3, \"weight3\": 0.2}"}
                     , {'blob_params': "{\"sizeThreshold\": 8, \"areaThreshold\": 64, \"minDistance\": 64, \"maxBlobs\": 50}"}
+                    , {'use_mask': LaunchConfiguration('tracking_usemask_arg')}
                 ],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'low'" ]))
@@ -119,6 +129,7 @@ def generate_launch_description():
                     , {'vibe_params': "{\"threshold\": 40, \"bgSamples\": 16, \"requiredBGSamples\": 1, \"learningRate\": 2}"}
                     , {'wmv_params': "{\"enableWeight\": true, \"enableThreshold\": true, \"threshold\": 30.0, \"weight1\": 0.5, \"weight2\": 0.3, \"weight3\": 0.2}"}
                     , {'blob_params': "{\"sizeThreshold\": 4, \"areaThreshold\": 16, \"minDistance\": 16, \"maxBlobs\": 50}"}
+                    , {'use_mask': LaunchConfiguration('tracking_usemask_arg')}
                 ],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'medium'" ]))
@@ -132,6 +143,7 @@ def generate_launch_description():
                     , {'vibe_params': "{\"threshold\": 30, \"bgSamples\": 16, \"requiredBGSamples\": 1, \"learningRate\": 2}"}
                     , {'wmv_params': "{\"enableWeight\": true, \"enableThreshold\": true, \"threshold\": 15.0, \"weight1\": 0.5, \"weight2\": 0.3, \"weight3\": 0.2}"}
                     , {'blob_params': "{\"sizeThreshold\": 2, \"areaThreshold\": 4, \"minDistance\": 4, \"maxBlobs\": 50}"}
+                    , {'use_mask': LaunchConfiguration('tracking_usemask_arg')}
                 ],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'high'" ]))
@@ -229,6 +241,10 @@ def generate_launch_description():
         LogInfo(
             condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'high'" ])),
             msg=['Tracking sensitivity is set to: HIGH.']),
+
+        LogInfo(
+            condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_usemask_arg'), " == 'True'" ])),
+            msg=['Masking is set to: ON.']),
 
         rtsp_container,
         processing_pipeline_container

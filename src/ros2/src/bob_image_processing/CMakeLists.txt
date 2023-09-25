@@ -71,4 +71,12 @@ ament_target_dependencies(frame_compressor PUBLIC rclcpp sensor_msgs vision_msgs
 rclcpp_components_register_nodes(frame_compressor "FrameCompressor")
 install(TARGETS frame_compressor DESTINATION lib)
 
+# Mask Application Node
+add_library(mask_application_node SHARED src/mask_application.cpp)
+target_compile_definitions(mask_application_node PRIVATE "COMPOSITION_BUILDING_DLL")
+target_link_libraries(mask_application_node PUBLIC jsoncpp boblib)
+ament_target_dependencies(mask_application_node PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge OpenCV rclcpp_components bob_camera)
+rclcpp_components_register_nodes(mask_application_node "MaskApplication")
+install(TARGETS mask_application_node DESTINATION lib)
+
 ament_package()
