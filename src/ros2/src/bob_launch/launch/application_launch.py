@@ -27,7 +27,7 @@ def generate_launch_description():
     
     bgs_algorithm_value = EnvironmentVariable('BOB_BGS_ALGORITHM', default_value="vibe")    
     tracking_sensitivity_arg_value  = EnvironmentVariable('BOB_TRACKING_SENSITIVITY', default_value="'high'")
-    tracking_usemask_arg_value  = EnvironmentVariable('BOB_TRACKING_USEMASK', default_value="'False'")
+    tracking_usemask_arg_value  = EnvironmentVariable('BOB_TRACKING_USEMASK', default_value="False")
     tracking_maskfile_arg_value  = EnvironmentVariable('BOB_TRACKING_MASK_FILE', default_value="'mask.pgm'")
 
     #print(f'Generating launch description....')

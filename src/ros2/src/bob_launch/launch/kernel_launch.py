@@ -89,7 +89,7 @@ def generate_launch_description():
                 name='mask_application_node',  
                 parameters=[{'mask_file': LaunchConfiguration('tracking_maskfile_arg')}],
                 extra_arguments=[{'use_intra_process_comms': True}],
-                condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_usemask_arg'), " == 'True'"])),  
+                condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_usemask_arg'), " == True"])),  
             ),
 
             #Minimal sensitivity:

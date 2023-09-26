@@ -155,11 +155,10 @@ private:
                 }
             ),
             ParameterNode::ActionParam(
-                rclcpp::Parameter("use_mask", "true"), 
+                rclcpp::Parameter("use_mask", true), 
                 [this](const rclcpp::Parameter& param) 
                 {
-                    std::string mask_value = param.as_string();
-                    bool should_use_mask = (mask_value == "true" || mask_value == "True"); // You might want to make this case-insensitive for robustness.
+                    bool should_use_mask = param.as_bool();
 
                     RCLCPP_INFO(get_logger(), "Setting masking: %s", should_use_mask ? "True" : "False");
 
