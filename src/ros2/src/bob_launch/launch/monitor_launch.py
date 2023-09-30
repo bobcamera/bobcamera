@@ -35,8 +35,10 @@ def generate_launch_description():
         name='tracking_monitor',
         parameters=[
             #params,
-            {'observer_tracker_monitor_timer_interval': 5},
-            {'observer_tracking_profile_high_switch_threshold': 15}],
+            {'observer_tracker_monitor_busy_interval': 5},
+            {'observer_tracker_monitor_idle_interval': 60},
+            {'observer_tracking_profile_busy_switch_threshold': 5},
+            {'observer_tracker_sample_set': 5}],
     )
 
     prometheus__node = Node(
