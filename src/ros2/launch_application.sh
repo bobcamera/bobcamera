@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# source options are "'rtsp'", "'usb'", "'video'", "'simulate'", "'rtsp_overlay'"
-export BOB_SOURCE=${BOB_SOURCE:-"'video'"}
+# source options are "'rtsp'", "'usb'", "'video'", "'simulate'", "'rtsp_overlay'", "'video_overlay'"
+export BOB_SOURCE=${BOB_SOURCE:-"'video_overlay'"}
 export BOB_RTSP_URL=${BOB_RTSP_URL:-"rtsp://sky360:Sky360Sky!@10.20.30.75:554/cam/realmonitor?channel=1&subtype=0"}
-export BOB_RTSP_WIDTH=${BOB_RTSP_WIDTH:-"2048"}
-export BOB_RTSP_HEIGHT=${BOB_RTSP_HEIGHT:-"1536"}
+export BOB_RTSP_WIDTH=${BOB_RTSP_WIDTH:-"1920"}
+export BOB_RTSP_HEIGHT=${BOB_RTSP_HEIGHT:-"1080"}
 export BOB_CAMERA_ID=${BOB_CAMERA_ID:-"0"}
 export BOB_ENABLE_VISUALISER=${BOB_ENABLE_VISUALISER:-"True"}
 export BOB_OPTIMISED=${BOB_OPTIMISED:-"True"}
@@ -23,7 +23,7 @@ export BOB_TRACKING_USEMASK=${BOB_TRACKING_USEMASK:-"False"}
 export BOB_TRACKING_MASK_FILE=${BOB_TRACKING_MASK_FILE:-"mask.pgm"}
 
 # simulation
-export BOB_SIMULATION_WIDTH=${BOB_SIMULATION_WIDTH:- "2048"}
-export BOB_SIMULATION_HEIGHT=${BOB_SIMULATION_HEIGHT:- "1536"}
+export BOB_SIMULATION_WIDTH=${BOB_SIMULATION_WIDTH:- "1920"}
+export BOB_SIMULATION_HEIGHT=${BOB_SIMULATION_HEIGHT:- "1080"}
 
 ./launcher.sh application_launch.py
