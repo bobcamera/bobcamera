@@ -58,6 +58,23 @@ def generate_launch_description():
         executable='component_container',
         composable_node_descriptions=[
 
+            #ComposableNode(
+            #    package='ros2_ipcamera',
+            #    plugin='ros2_ipcamera::IpCamera',
+            #    name='ipcamera',
+            #    remappings=[
+            #        ('/ipcamera/image_raw', 'bob/camera/all_sky/bayer'),
+            #        ('/ipcamera/camera_info', 'bob/camera/all_sky/camera_info')],
+            #    parameters=[
+            #        #params,
+            #        {'rtsp_uri': LaunchConfiguration('rtsp_url_arg')},
+            #        {'image_topic': 'image_raw'},
+            #        {'image_width': LaunchConfiguration('rtsp_width_arg')},
+            #        {'image_height': LaunchConfiguration('rtsp_height_arg')},
+            #        {'camera_calibration_file': config_file}],
+            #    extra_arguments=[{'use_intra_process_comms': True}],
+            #    condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'rtsp'" ]))
+            #),
             ComposableNode(
                 package='bob_camera',
                 plugin='WebCameraVideo',

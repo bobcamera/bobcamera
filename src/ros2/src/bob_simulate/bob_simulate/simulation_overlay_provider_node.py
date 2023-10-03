@@ -7,10 +7,6 @@ from cv_bridge import CvBridge
 from typing import List
 from sensor_msgs.msg import Image
 from bob_shared.node_runner import NodeRunner
-from .synthetic_data import DroneSyntheticData, PlaneSyntheticData
-from .simulation_test import SimulationTest
-from .simulation_test_case import SimulationTestCase
-from .simulation_test_case_runner import SimulationTestCaseRunner
 from .object_simulator import MovingCircle
 
 class SimulationOverlayProviderNode(Node):
@@ -34,12 +30,6 @@ class SimulationOverlayProviderNode(Node):
 
     self.moving_circles = [MovingCircle(self.width, self.height, 0) for i in range(4)]
 
-    self.test_case_runner = SimulationTestCaseRunner([
-      SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=self.target_object_diameter, loop=False)], (self.width, self.height), simulation_name='Drone'),
-      SimulationTestCase(self, [SimulationTest(PlaneSyntheticData(), target_object_diameter=self.target_object_diameter, loop=False)], (self.width, self.height), simulation_name='Plane'),
-      SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=self.target_object_diameter, loop=False), SimulationTest(PlaneSyntheticData(), target_object_diameter=5, loop=False)], (self.width, self.height), simulation_name='Drone & Plane'),
-    ])
-
     # setup services, publishers and subscribers
     self.sub_camera = self.create_subscription(Image, 'bob/simulation/input_frame', self.camera_callback, subscriber_qos_profile)
     self.pub_synthetic_frame = self.create_publisher(Image, 'bob/simulation/output_frame', publisher_qos_profile)
@@ -50,30 +40,17 @@ class SimulationOverlayProviderNode(Node):
 
     if not msg_image is None:
 
-      if self.test_case_runner.active:
-
-        try:
-          input_frame = self.br.imgmsg_to_cv2(msg_image)
-          frame_synthetic = self.test_case_runner.run(input_frame)
-          for circle in self.moving_circles:
-              circle.move()
-              circle.draw(frame_synthetic, (10, 10, 20))
-          frame_synthetic_msg = self.br.cv2_to_imgmsg(frame_synthetic, encoding=msg_image.encoding)
-          frame_synthetic_msg.header = msg_image.header
-          self.pub_synthetic_frame.publish(frame_synthetic_msg)        
-        except Exception as e:
-          self.get_logger().error(f"Exception during frame overlay simulation. Error: {e}.")
-          self.get_logger().error(tb.format_exc())
-      
-      else:
-        self.get_logger().info(f'{self.get_name()} Overlay simulation complete, restarting.')
-
-        self.test_case_runner = SimulationTestCaseRunner([
-          SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=self.target_object_diameter, loop=False)], (self.width, self.height), simulation_name='Drone'),
-          SimulationTestCase(self, [SimulationTest(PlaneSyntheticData(), target_object_diameter=self.target_object_diameter, loop=False)], (self.width, self.height), simulation_name='Plane'),
-          SimulationTestCase(self, [SimulationTest(DroneSyntheticData(), target_object_diameter=self.target_object_diameter, loop=False), SimulationTest(PlaneSyntheticData(), target_object_diameter=5, loop=False)], (self.width, self.height), simulation_name='Drone & Plane'),
-        ])
-
+      try:
+        input_frame = self.br.imgmsg_to_cv2(msg_image)
+        for circle in self.moving_circles:
+            circle.move()
+            circle.draw(input_frame, (10, 10, 20))
+        frame_synthetic_msg = self.br.cv2_to_imgmsg(input_frame, encoding=msg_image.encoding)
+        frame_synthetic_msg.header = msg_image.header
+        self.pub_synthetic_frame.publish(frame_synthetic_msg)        
+      except Exception as e:
+        self.get_logger().error(f"Exception during frame overlay simulation. Error: {e}.")
+        self.get_logger().error(tb.format_exc())
 
 def main(args=None):
 
