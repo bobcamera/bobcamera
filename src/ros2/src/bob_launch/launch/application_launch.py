@@ -23,7 +23,7 @@ def generate_launch_description():
     
     simulation_width_arg_value = EnvironmentVariable('BOB_SIMULATION_WIDTH', default_value="1920")
     simulation_height_arg_value = EnvironmentVariable('BOB_SIMULATION_HEIGHT', default_value="1080")
-    simulation_target_object_diameter_arg_value = EnvironmentVariable('BOB_SIMULATION_TARGET_OBJ_DIA', default_value="5")
+    simulation_num_objects_arg_value = EnvironmentVariable('BOB_SIMULATION_NUM_OBJECTS', default_value="5")
     
     bgs_algorithm_value = EnvironmentVariable('BOB_BGS_ALGORITHM', default_value="vibe")    
     tracking_sensitivity_arg_value  = EnvironmentVariable('BOB_TRACKING_SENSITIVITY', default_value="'high'")
@@ -92,10 +92,10 @@ def generate_launch_description():
         description="Simulation image height."
         )
 
-    simulation_target_object_diameter_arg = DeclareLaunchArgument(
-        'simulation_target_object_diameter_arg',
-        default_value=simulation_target_object_diameter_arg_value,
-        description="Simulation target object diameter."
+    simulation_num_objects_arg = DeclareLaunchArgument(
+        'simulation_num_objects_arg',
+        default_value=simulation_num_objects_arg_value,
+        description="Simulation number of objects."
         )
     
     bgs_algorithm_arg = DeclareLaunchArgument(
@@ -132,7 +132,7 @@ def generate_launch_description():
         
         simulation_width_arg,
         simulation_height_arg,
-        simulation_target_object_diameter_arg,
+        simulation_num_objects_arg,
 
         camera_id_arg,
         enable_visualiser_arg,
@@ -144,11 +144,11 @@ def generate_launch_description():
         tracking_usemask_arg,
         tracking_maskfile_arg,
 
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource([
-                launch_package_dir, 
-                '/simulation_launch.py']),
-        ),
+        # IncludeLaunchDescription(
+        #     PythonLaunchDescriptionSource([
+        #         launch_package_dir, 
+        #         '/simulation_launch.py']),
+        # ),
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([

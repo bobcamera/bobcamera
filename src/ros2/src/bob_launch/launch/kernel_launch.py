@@ -51,6 +51,32 @@ def generate_launch_description():
         output='screen',
     )
 
+    rtsp_overlay_container = ComposableNodeContainer(
+        name='rtsp_container',
+        namespace='',
+        package='rclcpp_components',
+        executable='component_container',
+        composable_node_descriptions=[
+            ComposableNode(
+                package='ros2_ipcamera',
+                plugin='ros2_ipcamera::IpCamera',
+                name='ipcamera',
+                remappings=[
+                    ('/ipcamera/image_raw', 'bob/simulation/input_frame'),
+                    ('/ipcamera/camera_info', 'bob/camera/all_sky/camera_info')],
+                parameters=[
+                    #params,
+                    {'rtsp_uri': LaunchConfiguration('rtsp_url_arg')},
+                    {'image_topic': 'image_raw'},
+                    {'image_width': LaunchConfiguration('rtsp_width_arg')},
+                    {'image_height': LaunchConfiguration('rtsp_height_arg')},
+                    {'camera_calibration_file': config_file}],
+                extra_arguments=[{'use_intra_process_comms': True}]),
+        ],
+        condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'rtsp_overlay'" ])),
+        output='screen',
+    )
+
     processing_pipeline_container = ComposableNodeContainer(
         name='track_container',
         namespace='',
@@ -99,6 +125,52 @@ def generate_launch_description():
                     , {'camera_id': LaunchConfiguration('camera_id_arg')}],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'usb'" ])),
+            ),
+            ComposableNode(
+                package='bob_simulator', 
+                plugin='MovingObjectsSimulation', 
+                name='simulated_frame_provider_node',  
+                parameters=[{'image_publish_topic': 'bob/simulation/output_frame'} 
+                    , {'height': LaunchConfiguration('simulation_height_arg')}
+                    , {'width': LaunchConfiguration('simulation_width_arg')}
+                    , {'num_objects': LaunchConfiguration('simulation_num_objects_arg')}
+                    ],
+                remappings=[
+                    ('bob/simulation/output_frame', 'bob/camera/all_sky/bayer')
+                ],
+                extra_arguments=[{'use_intra_process_comms': True}],
+                condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'simulate'" ])),  
+            ) , 
+            ComposableNode(
+                package='bob_camera',
+                plugin='WebCameraVideo',
+                name='web_camera_video_node',
+                parameters=[{'image_publish_topic': 'bob/simulation/input_frame'}
+                    , {'image_info_publish_topic': 'bob/camera/all_sky/image_info'}
+                    , {'camera_info_publish_topic': 'bob/camera/all_sky/camera_info'}
+                    , {'is_video': True}
+                    , {'videos': [video_file1, video_file2, video_file3]}
+                    , {'resize_height': 0}],
+                extra_arguments=[{'use_intra_process_comms': True}],
+                condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'video_overlay'" ])),
+            ),
+            ComposableNode(
+                package='bob_simulator',
+                plugin='SimulationOverlayProviderNode',  
+                name='simulation_overlay_provider_node',
+                parameters=[
+                    {"height": LaunchConfiguration('simulation_height_arg')},
+                    {"width": LaunchConfiguration('simulation_width_arg')},
+                    {"num_objects": LaunchConfiguration('simulation_num_objects_arg')}
+                ],
+                remappings=[('bob/simulation/output_frame', '/bob/camera/all_sky/bayer')],
+                extra_arguments=[{'use_intra_process_comms': True}],
+                condition=IfCondition(PythonExpression([
+                    LaunchConfiguration('source_arg'), 
+                    " == 'rtsp_overlay'", 
+                    " or ", 
+                    LaunchConfiguration('source_arg'), 
+                    " == 'video_overlay'"]))
             ),
             ComposableNode(
                 package='bob_image_processing',  
@@ -214,22 +286,34 @@ def generate_launch_description():
                     ('bob/resizer/target', 'bob/frames/annotated/resized')],
                 parameters=[{'resize_height': 960}],
                 extra_arguments=[{'use_intra_process_comms': True}]),  
-            ComposableNode(
-                package='bob_simulate', 
-                plugin='ObjectSimulator', 
-                name='simulated_frame_provider_node',  
-                # parameters=[],  # Any parameters you might have
-                # remappings=[
-                #     ('bob/object_simulator/frame', 'bob/camera/all_sky/bayer')
-                # ],
-                extra_arguments=[{'use_intra_process_comms': True}],
-                condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'simulate'" ])),  # New source_arg value for the simulator
-            )                  
+            # ComposableNode(
+            #     package='bob_simulator', 
+            #     plugin='MovingObjectsSimulation', 
+            #     name='simulated_frame_provider_node',  
+            #     # parameters=[],  # Any parameters you might have
+            #     remappings=[
+            #         ('bob/simulation/output_frame', 'bob/camera/all_sky/bayer')
+            #     ],
+            #     extra_arguments=[{'use_intra_process_comms': True}],
+            #     condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'simulate'" ])),  # New source_arg value for the simulator
+            # )                  
         ],
         output='screen',
     )    
 
     return launch.LaunchDescription([
+
+        LogInfo(
+            condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'rtsp_overlay'" ])),
+            msg=['Frame source is set to: RTSP OVERLAY.']),
+
+        LogInfo(
+            condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'simulate'" ])),
+            msg=['Frame source is set to: SIMULATION.']),
+
+        LogInfo(
+            condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'video_overlay'" ])),
+            msg=['Frame source is set to: VIDEO OVERLAY.']),
 
         LogInfo(
             condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'video'" ])),
@@ -264,6 +348,7 @@ def generate_launch_description():
             msg=['Masking is set to: ON.']),
 
         rtsp_container,
+        rtsp_overlay_container,
         processing_pipeline_container
         ]
     )
