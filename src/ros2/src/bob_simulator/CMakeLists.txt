@@ -65,6 +65,6 @@ ament_target_dependencies(simulation_overlay_provider_node
     rclcpp_components
     OpenCV)
 rclcpp_components_register_nodes(simulation_overlay_provider_node PLUGIN "SimulationOverlayProviderNode")   
-install(TARGETS simulation_overlay_provider_node DESTINATION lib/${PROJECT_NAME})
+install(TARGETS simulation_overlay_provider_node DESTINATION lib)
 
 ament_package()
