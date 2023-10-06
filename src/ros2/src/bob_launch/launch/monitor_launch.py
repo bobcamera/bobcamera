@@ -41,16 +41,25 @@ def generate_launch_description():
             {'observer_tracker_sample_set': 5}],
     )
 
-    prometheus__node = Node(
+    prometheus_node = Node(
         package='bob_monitor',
         #namespace='bob',
         executable='prometheus_metrics',
         name='prometheus_metrics'
     )
 
+    video_recorder_node = Node(
+        package='bob_observer',
+        #namespace='bob',
+        executable='video_recorder',
+        name='video_recorder',
+        parameters=[],
+    )    
+
     return LaunchDescription([
         day_night_classifier_node,
         cloud_estimator_node,
         tracking_monitor_node,
-        prometheus__node   
+        prometheus_node,
+        #video_recorder_node
     ])
