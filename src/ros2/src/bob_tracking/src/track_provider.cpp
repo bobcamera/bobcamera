@@ -10,9 +10,7 @@
 
 #include <sensor_msgs/msg/image.hpp>
 #include <vision_msgs/msg/bounding_box2_d_array.hpp>
-#include "bob_interfaces/msg/track_detection_array.hpp"
-#include "bob_interfaces/msg/tracking_state.hpp"
-#include "bob_interfaces/msg/track_trajectory_array.hpp"
+#include "bob_interfaces/msg/tracking.hpp"
 
 #include "tracking/cv_trackers/video_tracker.hpp"
 #include "tracking/sort/include/sort_tracker.h"
@@ -41,10 +39,7 @@ private:
     std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> masked_frame_subscription_;
     std::shared_ptr<message_filters::Subscriber<vision_msgs::msg::BoundingBox2DArray>> detector_bounding_boxes_subscription_;
     std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, vision_msgs::msg::BoundingBox2DArray>> time_synchronizer_;
-    rclcpp::Publisher<bob_interfaces::msg::TrackingState>::SharedPtr pub_tracker_tracking_state;
-    rclcpp::Publisher<bob_interfaces::msg::TrackDetectionArray>::SharedPtr pub_tracker_detects;
-    rclcpp::Publisher<bob_interfaces::msg::TrackTrajectoryArray>::SharedPtr pub_tracker_trajectory;
-    rclcpp::Publisher<bob_interfaces::msg::TrackTrajectoryArray>::SharedPtr pub_tracker_prediction;
+    rclcpp::Publisher<bob_interfaces::msg::Tracking>::SharedPtr pub_tracker_tracking_;
     // VideoTracker video_tracker_;
     SORT::Tracker video_tracker_;
     rclcpp::TimerBase::SharedPtr timer_;
@@ -73,10 +68,7 @@ private:
         time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, vision_msgs::msg::BoundingBox2DArray>>(*masked_frame_subscription_, *detector_bounding_boxes_subscription_, 10);
         time_synchronizer_->registerCallback(&TrackProvider::callback, this);
 
-        pub_tracker_tracking_state = create_publisher<bob_interfaces::msg::TrackingState>("bob/tracker/tracking_state", pub_qos_profile);
-        pub_tracker_detects = create_publisher<bob_interfaces::msg::TrackDetectionArray>("bob/tracker/detections", pub_qos_profile);
-        pub_tracker_trajectory = create_publisher<bob_interfaces::msg::TrackTrajectoryArray>("bob/tracker/trajectory", pub_qos_profile);
-        pub_tracker_prediction = create_publisher<bob_interfaces::msg::TrackTrajectoryArray>("bob/tracker/prediction", pub_qos_profile);
+        pub_tracker_tracking_ = create_publisher<bob_interfaces::msg::Tracking>("bob/tracker/tracking", pub_qos_profile);
     }
 
     void callback(const sensor_msgs::msg::Image::SharedPtr &image_msg, const vision_msgs::msg::BoundingBox2DArray::SharedPtr &bounding_boxes_msg)
@@ -94,10 +86,7 @@ private:
 
             video_tracker_.update_trackers(bboxes, img);
 
-            publish_detect_array(image_msg->header);
-            publish_trajectory_array(image_msg->header);
-            publish_prediction_array(image_msg->header);
-            publish_tracking_state(image_msg->header);
+            publish_tracking(image_msg->header);
         }
         catch (cv_bridge::Exception &e)
         {
@@ -105,51 +94,25 @@ private:
         }
     }
 
-    void publish_detect_array(std_msgs::msg::Header &header)
+    void publish_tracking(std_msgs::msg::Header &header)
     {
-        bob_interfaces::msg::TrackDetectionArray detection_array_msg;
-        detection_array_msg.header = header;
+        bob_interfaces::msg::Tracking tracking_msg;
+        tracking_msg.header = header;
+        tracking_msg.state.trackable = video_tracker_.get_total_trackable_trackers();
+        tracking_msg.state.alive = video_tracker_.get_total_live_trackers();
+        tracking_msg.state.started = video_tracker_.get_total_trackers_started();
+        tracking_msg.state.ended = video_tracker_.get_total_trackers_finished();
+
         for (const auto &tracker : video_tracker_.get_live_trackers())
         {
-            add_detects_to_msg(tracker, detection_array_msg);
+            add_track_detection(tracker, tracking_msg.detections);
+            add_trajectory_detection(tracker, tracking_msg.trajectories);
+            add_prediction(tracker, tracking_msg.predictions);
         }
-        pub_tracker_detects->publish(detection_array_msg);
+        pub_tracker_tracking_->publish(tracking_msg);
     }
 
-    void publish_trajectory_array(std_msgs::msg::Header &header)
-    {
-        bob_interfaces::msg::TrackTrajectoryArray trajectory_array_msg;
-        trajectory_array_msg.header = header;
-        for (const auto &tracker : video_tracker_.get_live_trackers())
-        {
-            add_trajectories_to_msg(tracker, trajectory_array_msg);
-        }
-        pub_tracker_trajectory->publish(trajectory_array_msg);
-    }
-
-    void publish_prediction_array(std_msgs::msg::Header &header)
-    {
-        bob_interfaces::msg::TrackTrajectoryArray prediction_array_msg;
-        prediction_array_msg.header = header;
-        for (const auto &tracker : video_tracker_.get_live_trackers())
-        {
-            add_predictions_to_msg(tracker, prediction_array_msg);
-        }
-        pub_tracker_prediction->publish(prediction_array_msg);
-    }
-
-    void publish_tracking_state(std_msgs::msg::Header &header)
-    {
-        bob_interfaces::msg::TrackingState tracking_state_msg;
-        tracking_state_msg.header = header;
-        tracking_state_msg.trackable = video_tracker_.get_total_trackable_trackers();
-        tracking_state_msg.alive = video_tracker_.get_total_live_trackers();
-        tracking_state_msg.started = video_tracker_.get_total_trackers_started();
-        tracking_state_msg.ended = video_tracker_.get_total_trackers_finished();
-        pub_tracker_tracking_state->publish(tracking_state_msg);
-    }
-
-    void add_detects_to_msg(const auto &tracker, bob_interfaces::msg::TrackDetectionArray &detection_2d_array_msg)
+    void add_track_detection(const auto &tracker, std::vector<bob_interfaces::msg::TrackDetection> &detection_array)
     {
         auto bbox = tracker.get_bbox();
         vision_msgs::msg::BoundingBox2D bbox_msg;
@@ -163,10 +126,10 @@ private:
         detect_msg.state = (int)tracker.get_tracking_state();
         detect_msg.bbox = bbox_msg;
 
-        detection_2d_array_msg.detections.push_back(detect_msg);
+        detection_array.push_back(detect_msg);
     }
 
-    void add_trajectories_to_msg(const auto &tracker, bob_interfaces::msg::TrackTrajectoryArray &trajectory_array_msg)
+    void add_trajectory_detection(const auto &tracker, std::vector<bob_interfaces::msg::TrackTrajectory> &trajectory_array)
     {
         bob_interfaces::msg::TrackTrajectory track_msg;
         track_msg.id = std::to_string(tracker.get_id()) + std::string("-") + std::to_string(tracker.get_tracking_state());
@@ -180,10 +143,10 @@ private:
             track_msg.trajectory.push_back(point);
         }
 
-        trajectory_array_msg.trajectories.push_back(track_msg);
+        trajectory_array.push_back(track_msg);
     }
 
-    void add_predictions_to_msg(const auto &tracker, bob_interfaces::msg::TrackTrajectoryArray &prediction_array_msg)
+    void add_prediction(const auto &tracker, std::vector<bob_interfaces::msg::TrackTrajectory> &prediction_array)
     {
         bob_interfaces::msg::TrackTrajectory track_msg;
         track_msg.id = std::to_string(tracker.get_id()) + std::string("-") + std::to_string(tracker.get_tracking_state());
@@ -196,7 +159,7 @@ private:
             track_msg.trajectory.push_back(point);
         }
 
-        prediction_array_msg.trajectories.push_back(track_msg);
+        prediction_array.push_back(track_msg);
     }
 };
 

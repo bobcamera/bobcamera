@@ -1,7 +1,3 @@
-# Defines the tracking state of the application and is updated on every frame processed
-
-std_msgs/Header header
-
 # The number of blobs being tracked that have been promoted to a state of: ACTIVE_TARGET
 int32 trackable
 
