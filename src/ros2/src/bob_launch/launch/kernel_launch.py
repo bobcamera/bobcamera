@@ -238,17 +238,22 @@ def generate_launch_description():
                 condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'high'" ]))
             ),            
 
-
             ComposableNode(
                 package='bob_tracking',
                 plugin='TrackProvider',
                 name='track_provider_node',
                 extra_arguments=[{'use_intra_process_comms': True}]),
-            #ComposableNode(
-            #    package='bob_recorder',
-            #    plugin='RosbagRecorder',
-            #    name='rosbag_recorder_node',
-            #    extra_arguments=[{'use_intra_process_comms': True}]),                    
+            ComposableNode(
+                package='bob_recorder',
+                plugin='VideoRecorder',
+                name='video_recorder_node',
+                parameters=[{'video_directory': 'recordings'}
+                    , {'img_topic': 'bob/camera/all_sky/bayer'}
+                    , {'tracking_topic': 'bob/tracker/tracking'}
+                    , {'codec': 'X264'}
+                    , {'video_fps': 30.0}
+                ],
+                extra_arguments=[{'use_intra_process_comms': True}]),                    
             ComposableNode(
                 package='bob_image_processing',
                 plugin='AnnotatedFrameProvider',

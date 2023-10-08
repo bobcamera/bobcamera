@@ -59,8 +59,6 @@ private:
         pub_annotated_frame_ = create_publisher<sensor_msgs::msg::Image>("bob/frames/annotated", pub_qos_profile);
         time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::Tracking>>(*sub_masked_frame_, *sub_tracking_, 10);
         time_synchronizer_->registerCallback(&AnnotatedFrameProvider::callback, this);
-
-        RCLCPP_INFO(get_logger(), "Finishing AnnotatedFrameProvider");
     }
 
     void callback(const sensor_msgs::msg::Image::SharedPtr& image_msg,

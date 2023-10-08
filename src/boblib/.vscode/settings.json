@@ -1,3 +1,7 @@
 {
-    "cmake.configureOnOpen": false
+    "cmake.configureOnOpen": false,
+    "files.associations": {
+        "typeindex": "cpp",
+        "typeinfo": "cpp"
+    }
 }

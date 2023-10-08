@@ -7,12 +7,7 @@
 #include <message_filters/time_synchronizer.h>
 
 #include <sensor_msgs/msg/image.hpp>
-// #include "bob_interfaces/msg/tracking_state.hpp"
-// #include "bob_interfaces/msg/track_detection_array.hpp"
-// #include "bob_interfaces/msg/track_trajectory_array.hpp"
-#include <vision_msgs/msg/bounding_box2_d_array.hpp>
-
-//#include "annotated_frame/annotated_frame_creator.hpp"
+#include "bob_interfaces/msg/tracking.hpp"
 
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
@@ -26,21 +21,15 @@ public:
     COMPOSITION_PUBLIC
     explicit RosbagRecorder(const rclcpp::NodeOptions & options) 
         : ParameterNode("rosbag_recorder", options)
-        //, annotated_frame_creator_(std::map<std::string, std::string>())
     {
         timer_ = create_wall_timer(std::chrono::seconds(1), std::bind(&RosbagRecorder::init, this));
     }
 
 private:
     std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> sub_masked_frame_;
-    // std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::TrackingState>> sub_tracking_state_;
-    // std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::TrackDetectionArray>> sub_tracker_detections_;
-    // std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::TrackTrajectoryArray>> sub_tracker_trajectory_;
-    // std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::TrackTrajectoryArray>> sub_tracker_prediction_;
-    // std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::TrackingState, 
-    //     bob_interfaces::msg::TrackDetectionArray, bob_interfaces::msg::TrackTrajectoryArray, bob_interfaces::msg::TrackTrajectoryArray>> time_synchronizer_;
+    std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::Tracking>> sub_tracking_;
+    std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::Tracking>> time_synchronizer_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_annotated_frame_;
-    //AnnotatedFrameCreator annotated_frame_creator_;
     rclcpp::TimerBase::SharedPtr timer_;
 
     friend std::shared_ptr<RosbagRecorder> std::make_shared<RosbagRecorder>();
@@ -58,37 +47,27 @@ private:
         auto rmw_qos_profile = sub_qos_profile.get_rmw_qos_profile();
 
         sub_masked_frame_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(shared_from_this(), "bob/camera/all_sky/bayer", rmw_qos_profile);
-        // sub_tracking_state_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::TrackingState>>(shared_from_this(), "bob/tracker/tracking_state", rmw_qos_profile);
-        // sub_tracker_detections_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::TrackDetectionArray>>(shared_from_this(), "bob/tracker/detections", rmw_qos_profile);
-        // sub_tracker_trajectory_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::TrackTrajectoryArray>>(shared_from_this(), "bob/tracker/trajectory", rmw_qos_profile);
-        // sub_tracker_prediction_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::TrackTrajectoryArray>>(shared_from_this(), "bob/tracker/prediction", rmw_qos_profile);
+        sub_tracking_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::Tracking>>(shared_from_this(), "bob/tracker/tracking", rmw_qos_profile);
 
-        // time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::TrackingState, bob_interfaces::msg::TrackDetectionArray, 
-        //     bob_interfaces::msg::TrackTrajectoryArray, bob_interfaces::msg::TrackTrajectoryArray>>(*sub_masked_frame_, *sub_tracking_state_, *sub_tracker_detections_, *sub_tracker_trajectory_, *sub_tracker_prediction_, 10);
-        // time_synchronizer_->registerCallback(&RosbagRecorder::callback, this);
+        time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::Tracking>>(*sub_masked_frame_, *sub_tracking_, 10);
+        time_synchronizer_->registerCallback(&RosbagRecorder::callback, this);
     }
 
-    // void callback(const sensor_msgs::msg::Image::SharedPtr& image_msg
-    //             , const bob_interfaces::msg::TrackingState::SharedPtr& tracking_state_msg
-    //             , const bob_interfaces::msg::TrackDetectionArray::SharedPtr& detections_msg
-    //             , const bob_interfaces::msg::TrackTrajectoryArray::SharedPtr& trajectory_msg
-    //             , const bob_interfaces::msg::TrackTrajectoryArray::SharedPtr& prediction_msg)
-    // {
-    //     try
-    //     {
-    //         if(((int)tracking_state_msg.get()->trackable) > 0) 
-    //         {
-    //             cv::Mat img;
-    //             ImageUtils::convert_image_msg(image_msg, img, true);
-
-    //             RCLCPP_INFO(get_logger(), "Recorder Logic goes here --- Recording.....");
-    //         }
-    //     }
-    //     catch (cv_bridge::Exception &e)
-    //     {
-    //         RCLCPP_ERROR(get_logger(), "CV bridge exception: %s", e.what());
-    //     }
-    // }
+    void callback(const sensor_msgs::msg::Image::SharedPtr& image_msg
+                , const bob_interfaces::msg::Tracking::SharedPtr& tracking_msg)
+    {
+        try
+        {
+            if (tracking_msg->state.trackable > 0) 
+            {
+                RCLCPP_INFO(get_logger(), "Recorder Logic goes here --- Recording.....");
+            }
+        }
+        catch (cv_bridge::Exception &e)
+        {
+            RCLCPP_ERROR(get_logger(), "CV bridge exception: %s", e.what());
+        }
+    }
 };
 
 int main(int argc, char **argv)
