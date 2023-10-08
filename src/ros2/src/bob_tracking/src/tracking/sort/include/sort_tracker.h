@@ -53,7 +53,7 @@ namespace SORT
         int total_trackers_started_;  
         int total_trackers_finished_;
         
-        size_t tracker_max_active_trackers_ = 25;
+        size_t tracker_max_active_trackers_ = 50;
     };
 
 }

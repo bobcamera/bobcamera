@@ -29,6 +29,7 @@ def generate_launch_description():
                 package='bob_visualizers',
                 plugin='FrameViewer',
                 name='frame_viewer_node',
+                #parameters=[{"topics": ["bob/camera/all_sky/bayer"]}]
                 parameters=[{"topics": ["bob/frames/annotated/resized"]}],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([

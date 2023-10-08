@@ -1,0 +1,25 @@
+// See https://aka.ms/vscode-remote/devcontainer.json for format details.
+{
+    "build": {
+        "dockerfile": "Dockerfile",
+        "context": ".."
+    },
+	"runArgs": [
+		"--privileged",
+		"--network=host",
+		"--cap-add=SYS_PTRACE"
+	],
+	"containerEnv": {
+		"DISPLAY": "${localEnv:DISPLAY}",
+		"LIBGL_ALWAYS_SOFTWARE": "1" // Needed for software rendering of opengl
+	},
+	// Set *default* container specific settings.json values on container create.
+	"settings": {
+		"terminal.integrated.profiles.linux": {
+			"bash": {
+				"path": "bash"
+			}
+		},
+		"terminal.integrated.defaultProfile.linux": "bash"
+	},
+}

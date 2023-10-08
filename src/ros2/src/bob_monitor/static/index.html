@@ -8,11 +8,11 @@
     
     <p>To see this page update:</p>
     <ul>
-      <li>Run a Rosbridge connection at <code>ws://localhost:8081</code></li>
+      <li>Run a Rosbridge connection at <code>ws://localhost:9090</code></li>
       <li>Start publishing ROS messages to <code>/bob/tracker/tracking_state/json"</code></li>
     </ul>
     
-    <p>View the full tutorial at <a href="https://foxglove.dev/blog/using-rosbridge-with-ros1" target="_blank">Using Rosbridge with ROS 1</a> or <a href="https://foxglove.dev/blog/using-rosbridge-with-ros2" target="_blank">Using Rosbridge with ROS 2</a>.</p>
+    <p>View the full tutorial at <a href="https://foxglove.dev/blog/using-rosbridge-with-ros2" target="_blank">Using Rosbridge with ROS 2</a>.</p>
     
     <hr/>
     
@@ -23,7 +23,7 @@
 
     <script type="text/javascript" type="text/javascript">
       // Create ros object to communicate over your Rosbridge connection
-      const ros = new ROSLIB.Ros({ url : 'ws://localhost:8081' });
+      const ros = new ROSLIB.Ros({ url : 'ws://localhost:9090' });
 
      // When the Rosbridge server connects, fill the span with id “status" with “successful"
      ros.on('connection', () => {

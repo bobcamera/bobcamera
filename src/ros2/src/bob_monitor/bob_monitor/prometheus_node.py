@@ -25,7 +25,7 @@ class PrometheusNode(object):
     self.sub_status = self.node.create_subscription(TrackingState, 'bob/tracker/tracking_state', self.state_callback, subscriber_qos_profile)
     self.pub_tracking_state_json = self.node.create_publisher(String, 'bob/tracker/tracking_state/json', publisher_qos_profile)
 
-    self.metrics_server = MetricsServer(8082)
+    self.metrics_server = MetricsServer()
 
     # tornado event loop stuff
     self.event_loop = None

@@ -1,6 +1,8 @@
+import os
+from glob import glob
 from setuptools import setup
 
-package_name = 'bob_observer'
+package_name = 'bob_webapi'
 
 setup(
     name=package_name,
@@ -10,6 +12,7 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        (os.path.join('share', package_name, 'masks'), glob('masks/*.*')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -17,12 +20,10 @@ setup(
     maintainer_email='michael.groenewald@gmail.com',
     description='TODO: Package description',
     license='TODO: License declaration',
+    tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'cloud_estimator = bob_observer.cloud_estimator_node:main',
-            'day_night_classifier = bob_observer.day_night_classifier_node:main',
-            'tracking_monitor = bob_observer.tracker_monitoring_node:main',
-            'video_recorder = bob_observer.image_to_video_node:main',
+            'mask_webapi = bob_webapi.mask_webapi_node:main',
         ],
     },
 )

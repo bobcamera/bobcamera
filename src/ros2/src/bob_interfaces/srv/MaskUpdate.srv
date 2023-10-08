@@ -1,4 +1,3 @@
-string mask_type
 string file_name
 sensor_msgs/Image mask
 ---

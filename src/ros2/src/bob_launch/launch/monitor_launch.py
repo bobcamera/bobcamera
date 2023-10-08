@@ -35,20 +35,31 @@ def generate_launch_description():
         name='tracking_monitor',
         parameters=[
             #params,
-            {'observer_tracker_monitor_timer_interval': 5},
-            {'observer_tracking_profile_high_switch_threshold': 15}],
+            {'observer_tracker_monitor_busy_interval': 5},
+            {'observer_tracker_monitor_idle_interval': 60},
+            {'observer_tracking_profile_busy_switch_threshold': 5},
+            {'observer_tracker_sample_set': 5}],
     )
 
-    prometheus__node = Node(
+    prometheus_node = Node(
         package='bob_monitor',
         #namespace='bob',
         executable='prometheus_metrics',
         name='prometheus_metrics'
     )
 
+    video_recorder_node = Node(
+        package='bob_observer',
+        #namespace='bob',
+        executable='video_recorder',
+        name='video_recorder',
+        parameters=[],
+    )    
+
     return LaunchDescription([
         day_night_classifier_node,
         cloud_estimator_node,
         tracking_monitor_node,
-        prometheus__node   
+        prometheus_node,
+        #video_recorder_node
     ])

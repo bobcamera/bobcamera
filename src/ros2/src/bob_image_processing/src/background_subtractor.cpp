@@ -24,6 +24,8 @@ public:
     COMPOSITION_PUBLIC
     explicit BackgroundSubtractor(const rclcpp::NodeOptions & options)
         : ParameterNode("background_subtractor_node", options)
+        , pub_qos_profile_(10)
+        , sub_qos_profile_(10)
         , enable_profiling_(false)
     {
         init();
@@ -46,6 +48,9 @@ private:
     std::unique_ptr<boblib::blobs::ConnectedBlobDetection> blob_detector_ptr_{nullptr};
     boblib::utils::Profiler profiler_;
     bool enable_profiling_;
+    
+    rclcpp::QoS pub_qos_profile_;
+    rclcpp::QoS sub_qos_profile_;
 
     std::unique_ptr<boblib::bgs::VibeParams> vibe_params_;
     std::unique_ptr<boblib::bgs::WMVParams> wmv_params_;
@@ -53,20 +58,14 @@ private:
 
     void init()
     {
-        rclcpp::QoS sub_qos_profile(10);
-        sub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
-        sub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
-        sub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
+        
+        sub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
+        sub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
+        sub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
 
-        rclcpp::QoS pub_qos_profile(10);
-        pub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
-        pub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
-        pub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
-
-        image_subscription_ = create_subscription<sensor_msgs::msg::Image>("bob/camera/all_sky/bayer", sub_qos_profile,
-            std::bind(&BackgroundSubtractor::imageCallback, this, std::placeholders::_1));
-        image_publisher_ = create_publisher<sensor_msgs::msg::Image>("bob/frames/all_sky/foreground_mask", pub_qos_profile);
-        detection_publisher_ = create_publisher<vision_msgs::msg::BoundingBox2DArray>("bob/detector/all_sky/bounding_boxes", pub_qos_profile);
+        pub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
+        pub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
+        pub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
 
         declare_node_parameters();
     }
@@ -155,6 +154,26 @@ private:
                     }
                 }
             ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("use_mask", true), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    bool should_use_mask = param.as_bool();
+
+                    RCLCPP_INFO(get_logger(), "Setting masking: %s", should_use_mask ? "True" : "False");
+
+                    std::string topic_name = should_use_mask ? "bob/camera/all_sky/bayer_masked" : "bob/camera/all_sky/bayer";
+
+                    image_subscription_ = create_subscription<sensor_msgs::msg::Image>(
+                        topic_name, 
+                        sub_qos_profile_,
+                        std::bind(&BackgroundSubtractor::imageCallback, this, std::placeholders::_1)
+                    );
+                    image_publisher_ = create_publisher<sensor_msgs::msg::Image>("bob/frames/all_sky/foreground_mask", pub_qos_profile_);
+                    detection_publisher_ = create_publisher<vision_msgs::msg::BoundingBox2DArray>("bob/detector/all_sky/bounding_boxes", pub_qos_profile_);
+                }
+            ),
+
             ParameterNode::ActionParam(
                 rclcpp::Parameter("blob_params", R"({"sizeThreshold": 7, "areaThreshold": 49, "minDistance": 40, "maxBlobs": 50})"), 
                 [this](const rclcpp::Parameter& param) 

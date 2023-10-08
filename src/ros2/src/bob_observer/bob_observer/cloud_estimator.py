@@ -61,9 +61,11 @@ class CloudEstimator():
             mu_a = abs(mu_a)
 
         diff=5
+        t_n=0
 
         t_n_decimal=((mu_b-mu_a) /(np.log(mu_b)-np.log(mu_a)))
-        t_n = np.ceil(t_n_decimal*100)/100; 
+        if math.isnan(t_n_decimal) == False:
+            t_n = np.ceil(t_n_decimal*100)/100; 
 
         iter = 1
         while True:
@@ -93,16 +95,17 @@ class CloudEstimator():
             if mu_a < 0:
                 mu_a = abs(mu_a)
         
-            t_nplus1_decimal = (mu_b - mu_a) / (np.log(mu_b) - np.log(mu_a))
-            t_nplus1 = math.ceil(t_nplus1_decimal * 100) / 100
+            t_nplus1_decimal = (mu_b-mu_a)/(np.log(mu_b)-np.log(mu_a))
+            if math.isnan(t_nplus1_decimal) == False:
+                t_nplus1 = math.ceil(t_nplus1_decimal * 100) / 100
         
-            diff = abs(t_nplus1 - t_n)
-            t_n = t_nplus1
+                diff = abs(t_nplus1 - t_n)
+                t_n = t_nplus1
         
-            if diff == 0:
-                break
+                if diff == 0:
+                    break
         
-            iter += 1
+                iter += 1
 
         ThresholdValue = t_n
 
