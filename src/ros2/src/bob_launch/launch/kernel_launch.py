@@ -252,6 +252,7 @@ def generate_launch_description():
                     , {'tracking_topic': 'bob/tracker/tracking'}
                     , {'codec': 'X264'}
                     , {'video_fps': 30.0}
+                    , {'seconds_save': 2}
                 ],                
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('enable_recording_arg'), " == True"])),  

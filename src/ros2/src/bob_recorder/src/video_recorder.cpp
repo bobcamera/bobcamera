@@ -1,4 +1,5 @@
 #include <filesystem>
+#include <mutex>
 
 #include <opencv2/opencv.hpp>
 
@@ -23,25 +24,36 @@ public:
     COMPOSITION_PUBLIC
     explicit VideoRecorder(const rclcpp::NodeOptions & options) 
         : ParameterNode("video_recorder", options)
-        , recording_(false)
+        , current_state_(RecordingState::BeforeStart)
     {
         timer_ = create_wall_timer(std::chrono::seconds(1), std::bind(&VideoRecorder::init, this));
     }
 
 private:
+    enum class RecordingState {
+        BeforeStart,
+        BetweenEvents,
+        AfterEnd
+    };
+
     std::string video_directory_;
     std::string img_topic_;
     std::string tracking_topic_;
     double video_fps_;
     std::string codec_str_;
+    int number_seconds_save_;
     std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> sub_masked_frame_;
     std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::Tracking>> sub_tracking_;
     std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::Tracking>> time_synchronizer_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_annotated_frame_;
     rclcpp::TimerBase::SharedPtr timer_;
 
-    cv::VideoWriter video_writer_;
-    bool recording_;
+    std::unique_ptr<cv::VideoWriter> video_writer_ptr_;
+    RecordingState current_state_;
+    std::mutex buffer_mutex_;
+    size_t current_end_frame_;
+    size_t total_pre_frames_;
+    std::unique_ptr<std::deque<std::unique_ptr<cv::Mat>>> pre_buffer_ptr_;
 
     friend std::shared_ptr<VideoRecorder> std::make_shared<VideoRecorder>();
 
@@ -50,6 +62,9 @@ private:
         RCLCPP_INFO(get_logger(), "Initializing VideoRecorder");
 
         timer_->cancel();
+
+        pre_buffer_ptr_ = std::make_unique<std::deque<std::unique_ptr<cv::Mat>>>();
+        video_writer_ptr_ = std::make_unique<cv::VideoWriter>();
 
         declare_node_parameters();
 
@@ -76,7 +91,7 @@ private:
         }
 
         return true;
-    }    
+    }
 
     void declare_node_parameters()
     {
@@ -103,10 +118,31 @@ private:
             ),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("video_fps", 30.0), 
-                [this](const rclcpp::Parameter& param) {video_fps_ = param.as_double();}
+                [this](const rclcpp::Parameter& param) 
+                {
+                    video_fps_ = param.as_double();
+                    total_pre_frames_ = (size_t)(number_seconds_save_ * video_fps_);
+                }
+            ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("seconds_save", 2), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    number_seconds_save_ = param.as_int();
+                    total_pre_frames_ = (size_t)(number_seconds_save_ * video_fps_);
+                }
             ),
         };
         add_action_parameters(params);
+    }
+
+    void add_to_ring_buffer(const cv::Mat& img)
+    {
+        if (pre_buffer_ptr_->size() >= total_pre_frames_) 
+        {
+            pre_buffer_ptr_->pop_front();
+        }
+        pre_buffer_ptr_->push_back(std::make_unique<cv::Mat>(img.clone()));
     }
 
     void callback(const sensor_msgs::msg::Image::SharedPtr& image_msg
@@ -114,21 +150,55 @@ private:
     {
         try
         {
+            std::unique_lock<std::mutex> lock(buffer_mutex_);
+
             cv::Mat img;
             ImageUtils::convert_image_msg(image_msg, img, true);
-            
-            if (!recording_ && tracking_msg->state.trackable > 0) 
+
+            switch (current_state_) 
             {
-                open_new_video(img.size(), img.channels() == 3);
-            }
-            else if (recording_ && tracking_msg->state.trackable == 0) 
-            {
-                close_video();
-            }
-            
-            if (recording_)
-            {
-                video_writer_.write(img);
+            case RecordingState::BeforeStart:
+                if (tracking_msg->state.trackable > 0) 
+                {
+                    current_state_ = RecordingState::BetweenEvents;
+                    if (open_new_video(img.size(), img.channels() == 3))
+                    {
+                        video_writer_ptr_->write(img);
+                    }
+                } 
+                else 
+                {
+                    add_to_ring_buffer(img);
+                }
+                break;
+
+            case RecordingState::BetweenEvents:
+                video_writer_ptr_->write(img);
+                if (tracking_msg->state.trackable == 0) 
+                {
+                    current_state_ = RecordingState::AfterEnd;
+                    current_end_frame_ = total_pre_frames_;
+                }
+                break;
+
+            case RecordingState::AfterEnd:
+                if (current_end_frame_ == 0) 
+                {
+                    close_video();
+                    current_state_ = RecordingState::BeforeStart;
+                }
+                else 
+                {
+                    video_writer_ptr_->write(img);
+                    --current_end_frame_;
+
+                    // If we receive a wake while ending, get back recording
+                    if (tracking_msg->state.trackable > 0) 
+                    {
+                        current_state_ = RecordingState::BetweenEvents;
+                    }
+                }
+                break;
             }
         }
         catch (std::exception &e)
@@ -147,18 +217,34 @@ private:
         return oss.str();
     }
 
-    void open_new_video(const cv::Size& frame_size, bool is_color)
+    bool open_new_video(const cv::Size& frame_size, bool is_color)
     {
-        auto name = video_directory_ + "/video_" + generate_filename() + ".mkv";
-        int codec = cv::VideoWriter::fourcc(codec_str_[0], codec_str_[1], codec_str_[2], codec_str_[3]);
+        // Create the video
+        const auto name = video_directory_ + "/video_" + generate_filename() + ".mkv";
+        const int codec = cv::VideoWriter::fourcc(codec_str_[0], codec_str_[1], codec_str_[2], codec_str_[3]);
         RCLCPP_INFO(get_logger(), "new video: %s, codec: %s, fps: %g", name.c_str(), codec_str_.c_str(), video_fps_);
-        recording_ = video_writer_.open(name, codec, video_fps_, frame_size, is_color);
+        if (video_writer_ptr_->open(name, codec, video_fps_, frame_size, is_color))
+        {
+            // Save the current pre-buffer into the video
+            RCLCPP_INFO(get_logger(), "writing pre: %ld", pre_buffer_ptr_->size());
+            for (const auto& img_ptr : *pre_buffer_ptr_)
+            {
+                video_writer_ptr_->write(*img_ptr);
+            }
+            pre_buffer_ptr_->clear();
+            return true;
+        }
+        else
+        {
+            RCLCPP_ERROR(get_logger(), "Error creating video: %s", name.c_str());
+            current_state_ = RecordingState::BeforeStart;
+        }
+        return false;
     }
 
     void close_video()
     {
-        recording_ = false;
-        video_writer_.release();
+        video_writer_ptr_->release();
     }
 };
 

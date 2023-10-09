@@ -10,10 +10,18 @@
 class ImageUtils 
 {
 public:
-    static void convert_image_msg(const sensor_msgs::msg::Image::SharedPtr image_msg, cv::Mat &_image_out, bool debayer)
+    static void convert_image_msg(const sensor_msgs::msg::Image::SharedPtr image_msg, cv::Mat &_image_out, bool debayer, bool copy = false)
     {
-        auto img = cv_bridge::toCvShare(image_msg)->image;
-        debayer_image(img, _image_out, image_msg->encoding, debayer);
+        if (!copy)
+        {
+            auto img = cv_bridge::toCvShare(image_msg)->image;
+            debayer_image(img, _image_out, image_msg->encoding, debayer);
+        }
+        else
+        {
+            auto img = cv_bridge::toCvCopy(image_msg)->image;
+            debayer_image(img, _image_out, image_msg->encoding, debayer);
+        }
     }
 
     static inline int convert_bayer_pattern(const std::string& _bayerFormat)
