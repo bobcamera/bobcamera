@@ -101,6 +101,7 @@ def generate_launch_description():
             #    extra_arguments=[{'use_intra_process_comms': True}],
             #    condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'rtsp'" ]))
             #),
+
             ComposableNode(
                 package='bob_camera',
                 plugin='WebCameraVideo',
@@ -180,7 +181,6 @@ def generate_launch_description():
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_usemask_arg'), " == True"])),  
             ),
-
             #Minimal sensitivity:
             ComposableNode(
                 package='bob_image_processing',
@@ -237,12 +237,12 @@ def generate_launch_description():
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'high'" ]))
             ),            
-
             ComposableNode(
                 package='bob_tracking',
                 plugin='TrackProvider',
                 name='track_provider_node',
-                extra_arguments=[{'use_intra_process_comms': True}]),
+                extra_arguments=[{'use_intra_process_comms': True}]
+            ),
             ComposableNode(
                 package='bob_recorder',
                 plugin='VideoRecorder',
@@ -252,14 +252,16 @@ def generate_launch_description():
                     , {'tracking_topic': 'bob/tracker/tracking'}
                     , {'codec': 'X264'}
                     , {'video_fps': 30.0}
-                ],
-                extra_arguments=[{'use_intra_process_comms': True}]),                    
+                ],                
+                extra_arguments=[{'use_intra_process_comms': True}],
+                condition=IfCondition(PythonExpression([LaunchConfiguration('enable_recording_arg'), " == True"])),  
+            ),
             ComposableNode(
                 package='bob_image_processing',
                 plugin='AnnotatedFrameProvider',
                 name='annotated_frame_provider_node',
-                extra_arguments=[{'use_intra_process_comms': True}]),
-            
+                extra_arguments=[{'use_intra_process_comms': True}]
+            ),
             # Nodes for resizing the image in order to stick it on the network for display
             ComposableNode(
                 package='bob_image_processing',
@@ -270,7 +272,7 @@ def generate_launch_description():
                     ('bob/resizer/target', 'bob/camera/all_sky/bayer/resized')],
                 parameters=[{'resize_height': 960}],
                 extra_arguments=[{'use_intra_process_comms': True}],
-                ),
+            ),
             ComposableNode(
                 package='bob_image_processing',
                 plugin='FrameResizer',
@@ -281,7 +283,7 @@ def generate_launch_description():
                 parameters=[{'resize_height': 960}],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('optimised_arg'), " == False" ])),
-                ),
+            ),
             ComposableNode(
                 package='bob_image_processing',
                 plugin='FrameResizer',
@@ -290,7 +292,8 @@ def generate_launch_description():
                     ('bob/resizer/source', 'bob/frames/annotated'),
                     ('bob/resizer/target', 'bob/frames/annotated/resized')],
                 parameters=[{'resize_height': 960}],
-                extra_arguments=[{'use_intra_process_comms': True}]),  
+                extra_arguments=[{'use_intra_process_comms': True}]
+            ),
             # ComposableNode(
             #     package='bob_simulator', 
             #     plugin='MovingObjectsSimulation', 
@@ -349,8 +352,12 @@ def generate_launch_description():
             msg=['Tracking sensitivity is set to: HIGH.']),
 
         LogInfo(
-            condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_usemask_arg'), " == 'True'" ])),
+            condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_usemask_arg'), " == True" ])),
             msg=['Masking is set to: ON.']),
+
+        LogInfo(
+            condition=IfCondition(PythonExpression([LaunchConfiguration('enable_recording_arg'), " == True" ])),
+            msg=['Recording is set to: ON.']),
 
         rtsp_container,
         rtsp_overlay_container,
