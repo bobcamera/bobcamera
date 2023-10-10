@@ -192,12 +192,15 @@ private:
                     video_writer_ptr_->write(img);
                     --current_end_frame_;
 
-                    // If we receive a wake while ending, get back recording
+                    // If we receive a wake while ending, get back recording and clear pre-buffer
                     if (tracking_msg->state.trackable > 0) 
                     {
                         current_state_ = RecordingState::BetweenEvents;
+                        pre_buffer_ptr_->clear();
                     }
                 }
+                // Always add to pre-buffer
+                add_to_ring_buffer(img);
                 break;
             }
         }
