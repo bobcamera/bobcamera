@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 # Load the video
-cap = cv2.VideoCapture('../../test/fisheye_videos/brad_drone_1.mp4')
+cap = cv2.VideoCapture('../../../test/fisheye_videos/brad_drone_1.mp4')
 if not cap.isOpened():
     print("Error: Could not open video.")
     exit()
