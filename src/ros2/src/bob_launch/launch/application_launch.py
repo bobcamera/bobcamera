@@ -20,6 +20,7 @@ def generate_launch_description():
     enable_visualiser_arg_value = EnvironmentVariable('BOB_ENABLE_VISUALISER', default_value="True")
     optimised_arg_value = EnvironmentVariable('BOB_OPTIMISED', default_value="False")
     enable_rosbridge_arg_value = EnvironmentVariable('BOB_ENABLE_ROSBRIDGE', default_value="False")
+    enable_recording_arg_value = EnvironmentVariable('BOB_ENABLE_RECORDING', default_value="False")
     
     simulation_width_arg_value = EnvironmentVariable('BOB_SIMULATION_WIDTH', default_value="1920")
     simulation_height_arg_value = EnvironmentVariable('BOB_SIMULATION_HEIGHT', default_value="1080")
@@ -71,7 +72,7 @@ def generate_launch_description():
     optimised_arg = DeclareLaunchArgument(
         'optimised_arg',
         default_value=optimised_arg_value,
-        description="Argument for the enabling of the visualiser screen."
+        description="Argument for the enabling optimisation i.e. only list annotated frame in visualiser."
         )
 
     enable_rosbridge_arg = DeclareLaunchArgument(
@@ -79,7 +80,13 @@ def generate_launch_description():
         default_value=enable_rosbridge_arg_value,
         description="Argument for the enabling of the ROS Bridge."
         )
-    
+
+    enable_recording_arg = DeclareLaunchArgument(
+        'enable_recording_arg',
+        default_value=enable_recording_arg_value,
+        description="Argument for the enabling of the recorder."
+        )
+
     simulation_width_arg = DeclareLaunchArgument(
         'simulation_width_arg',
         default_value=simulation_width_arg_value,
@@ -138,6 +145,7 @@ def generate_launch_description():
         enable_visualiser_arg,
         optimised_arg,
         enable_rosbridge_arg,
+        enable_recording_arg,
 
         bgs_algorithm_arg,
         tracking_sensitivity_arg,

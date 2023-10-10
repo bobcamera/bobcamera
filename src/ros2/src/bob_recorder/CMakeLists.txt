@@ -37,13 +37,12 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
     add_definitions(-Wno-missing-braces)
 ENDIF()
 
-# Annotated Frame Provider Node
-add_library(rosbag_recorder SHARED src/rosbag_recorder.cpp)
-target_compile_definitions(rosbag_recorder PRIVATE "COMPOSITION_BUILDING_DLL")
-target_link_libraries(rosbag_recorder PUBLIC boblib)
-ament_target_dependencies(rosbag_recorder PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV rclcpp_components bob_interfaces)
-rclcpp_components_register_nodes(rosbag_recorder "RosbagRecorder")
-install(TARGETS rosbag_recorder DESTINATION lib)
-# install(TARGETS annotated_frame_provider_node DESTINATION lib/${PROJECT_NAME})
+# Video Recorder Node
+add_library(video_recorder SHARED src/video_recorder.cpp)
+target_compile_definitions(video_recorder PRIVATE "COMPOSITION_BUILDING_DLL")
+target_link_libraries(video_recorder PUBLIC boblib)
+ament_target_dependencies(video_recorder PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV rclcpp_components bob_interfaces)
+rclcpp_components_register_nodes(video_recorder "VideoRecorder")
+install(TARGETS video_recorder DESTINATION lib)
 
 ament_package()

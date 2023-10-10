@@ -8,7 +8,7 @@ import threading
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy, QoSHistoryPolicy
 from std_msgs.msg import String
 from bob_shared.node_runner import NodeRunner
-from bob_interfaces.msg import TrackingState
+from bob_interfaces.msg import Tracking, TrackingState
 
 from .metrics_server import MetricsServer
 from .handlers import PrometheusMetricsHandler
@@ -22,8 +22,8 @@ class PrometheusNode(object):
 
     self.node = rclpy.create_node(node_name)
 
-    self.sub_status = self.node.create_subscription(TrackingState, 'bob/tracker/tracking_state', self.state_callback, subscriber_qos_profile)
-    self.pub_tracking_state_json = self.node.create_publisher(String, 'bob/tracker/tracking_state/json', publisher_qos_profile)
+    self.sub_status = self.node.create_subscription(Tracking, 'bob/tracker/tracking', self.state_callback, subscriber_qos_profile)
+    self.pub_tracking_state_json = self.node.create_publisher(String, 'bob/tracker/tracking/json', publisher_qos_profile)
 
     self.metrics_server = MetricsServer()
 
@@ -45,10 +45,10 @@ class PrometheusNode(object):
   def destroy_node(self):
     self.node.destroy_node()
 
-  def state_callback(self, msg_tracking_state:TrackingState):
-    PrometheusMetricsHandler.state = msg_tracking_state
+  def state_callback(self, msg_tracking:Tracking):
+    PrometheusMetricsHandler.state = msg_tracking.state
     string_msg = String()
-    string_msg.data = f"{{\"trackable\":{msg_tracking_state.trackable}, \"alive\":{msg_tracking_state.alive}, \"started\":{msg_tracking_state.started}, \"ended\":{msg_tracking_state.ended}}}"
+    string_msg.data = f"{{\"trackable\":{msg_tracking.state.trackable}, \"alive\":{msg_tracking.state.alive}, \"started\":{msg_tracking.state.started}, \"ended\":{msg_tracking.state.ended}}}"
     self.pub_tracking_state_json.publish(string_msg)    
 
 def main(args=None):

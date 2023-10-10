@@ -12,9 +12,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <cv_bridge/cv_bridge.hpp>
 
-#include "bob_interfaces/msg/tracking_state.hpp"
-#include "bob_interfaces/msg/track_detection_array.hpp"
-#include "bob_interfaces/msg/track_trajectory_array.hpp"
+#include "bob_interfaces/msg/tracking.hpp"
 
 #include "../../bob_shared/include/tracking_state.hpp"
 
@@ -46,10 +44,7 @@ public:
     }
 
     cv::Mat create_frame(const cv::Mat& annotated_frame,
-                         const bob_interfaces::msg::TrackingState& msg_tracking_state,
-                         const bob_interfaces::msg::TrackDetectionArray& msg_detection_array,
-                         const bob_interfaces::msg::TrackTrajectoryArray& msg_trajectory_array,
-                         const bob_interfaces::msg::TrackTrajectoryArray& msg_prediction_array)
+                         const bob_interfaces::msg::Tracking& msg_tracking)
     {
         int cropped_track_counter = 0;
         bool enable_cropped_tracks = true; // settings.at("visualiser_show_cropped_tracks");
@@ -62,10 +57,10 @@ public:
         int total_width = frame_size.width;
 
         std::string status_message = "(bob) Tracker Status: trackable:" +
-                                     std::to_string(msg_tracking_state.trackable) +
-                                     ", alive:" + std::to_string(msg_tracking_state.alive) +
-                                     ", started:" + std::to_string(msg_tracking_state.started) +
-                                     ", ended:" + std::to_string(msg_tracking_state.ended);
+                                     std::to_string(msg_tracking.state.trackable) +
+                                     ", alive:" + std::to_string(msg_tracking.state.alive) +
+                                     ", started:" + std::to_string(msg_tracking.state.started) +
+                                     ", ended:" + std::to_string(msg_tracking.state.ended);
 
         if (total_width != fontScaleWidth)
         {
@@ -76,7 +71,7 @@ public:
         cv::putText(annotated_frame, status_message, cv::Point(25, 50), cv::FONT_HERSHEY_SIMPLEX,
                     fontScale, font_colour, 2);
 
-        for (const auto &detection : msg_detection_array.detections)
+        for (const auto &detection : msg_tracking.detections)
         {
             auto id = detection.id;
             TrackingStateEnum tracking_state = TrackingStateEnum(detection.state);
@@ -112,7 +107,7 @@ public:
             }
         }
 
-        for (const auto &trajectory : msg_trajectory_array.trajectories)
+        for (const auto &trajectory : msg_tracking.trajectories)
         {
             const auto &trajectory_array = trajectory.trajectory;
             const bob_interfaces::msg::TrackPoint *previous_trajectory_point = nullptr;
@@ -133,7 +128,7 @@ public:
             }
         }
 
-        for (const auto &prediction : msg_prediction_array.trajectories)
+        for (const auto &prediction : msg_tracking.trajectories)
         {
             const auto &prediction_array = prediction.trajectory;
             if (final_trajectory_points.count(prediction.id) > 0)
