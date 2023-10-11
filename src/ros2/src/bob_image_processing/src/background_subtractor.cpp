@@ -24,9 +24,9 @@ public:
     COMPOSITION_PUBLIC
     explicit BackgroundSubtractor(const rclcpp::NodeOptions & options)
         : ParameterNode("background_subtractor_node", options)
+        , enable_profiling_(false)
         , pub_qos_profile_(10)
         , sub_qos_profile_(10)
-        , enable_profiling_(false)
     {
         init();
     }
@@ -58,7 +58,6 @@ private:
 
     void init()
     {
-        
         sub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
         sub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
         sub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
