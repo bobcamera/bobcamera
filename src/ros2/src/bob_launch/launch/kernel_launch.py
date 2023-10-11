@@ -246,10 +246,26 @@ def generate_launch_description():
             ComposableNode(
                 package='bob_recorder',
                 plugin='VideoRecorder',
-                name='video_recorder_node',
-                parameters=[{'video_directory': 'recordings'}
+                name='allsky_recorder_node',
+                parameters=[{'video_directory': 'recordings/allsky'}
                     , {'img_topic': 'bob/camera/all_sky/bayer'}
                     , {'tracking_topic': 'bob/tracker/tracking'}
+                    , {'prefix': ''}
+                    , {'codec': 'X264'}
+                    , {'video_fps': 30.0}
+                    , {'seconds_save': 2}
+                ],                
+                extra_arguments=[{'use_intra_process_comms': True}],
+                condition=IfCondition(PythonExpression([LaunchConfiguration('enable_recording_arg'), " == True"])),  
+            ),
+            ComposableNode(
+                package='bob_recorder',
+                plugin='VideoRecorder',
+                name='foreground_mask_recorder_node',
+                parameters=[{'video_directory': 'recordings/foreground_mask'}
+                    , {'img_topic': 'bob/frames/all_sky/foreground_mask'}
+                    , {'tracking_topic': 'bob/tracker/tracking'}
+                    , {'prefix': ''}
                     , {'codec': 'X264'}
                     , {'video_fps': 30.0}
                     , {'seconds_save': 2}
