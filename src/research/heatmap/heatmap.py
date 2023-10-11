@@ -12,7 +12,7 @@ USAGE = 'python heatmap/heatmap.py -d <<directory-of-videos>> -m <<mask-filename
 
 def process_dir(input_dir, mask_filename=None):
 
-    processed_dir = os.path.join(input_dir, "processed")
+    processed_dir = os.path.join(input_dir, f'heatmaps-{datetime.now().strftime("%Y%m%d-%H%M%S")}')
     if not os.path.isdir(processed_dir):
         os.mkdir(processed_dir)
 
