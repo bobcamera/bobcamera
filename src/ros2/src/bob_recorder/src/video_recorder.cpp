@@ -41,6 +41,7 @@ private:
     std::string tracking_topic_;
     double video_fps_;
     std::string codec_str_;
+    std::string prefix_str_;
     int number_seconds_save_;
     std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> sub_masked_frame_;
     std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::Tracking>> sub_tracking_;
@@ -112,6 +113,10 @@ private:
                 rclcpp::Parameter("tracking_topic", "bob/tracker/tracking"), 
                 [this](const rclcpp::Parameter& param) {tracking_topic_ = param.as_string();}
             ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("prefix", "video"), 
+                [this](const rclcpp::Parameter& param) {prefix_str_ = param.as_string();}
+            ),            
             ParameterNode::ActionParam(
                 rclcpp::Parameter("codec", "X264"), 
                 [this](const rclcpp::Parameter& param) {codec_str_ = param.as_string();}
@@ -223,7 +228,7 @@ private:
     bool open_new_video(const cv::Size& frame_size, bool is_color)
     {
         // Create the video
-        const auto name = video_directory_ + "/video_" + generate_filename() + ".mkv";
+        const auto name = video_directory_ + "/" + prefix_str_ + generate_filename() + ".mkv";
         const int codec = cv::VideoWriter::fourcc(codec_str_[0], codec_str_[1], codec_str_[2], codec_str_[3]);
         RCLCPP_INFO(get_logger(), "new video: %s, codec: %s, fps: %g", name.c_str(), codec_str_.c_str(), video_fps_);
         if (video_writer_ptr_->open(name, codec, video_fps_, frame_size, is_color))
