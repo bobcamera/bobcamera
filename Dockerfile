@@ -259,10 +259,16 @@ ENV BOB_SOURCE="'rtsp'" \
     BOB_CAMERA_ID="0" \
     BOB_ENABLE_VISUALISER="False" \
     BOB_OPTIMISED="True" \
+    BOB_ENABLE_RECORDING="False" \
     RMW_IMPLEMENTATION="rmw_fastrtps_cpp" \
     FASTRTPS_DEFAULT_PROFILES_FILE="/workspaces/bobcamera/src/ros2/config/fastdds.xml" \
-    BOB_RTSP_WIDTH="1920" \
-    BOB_RTSP_HEIGHT="1080"
+    BOB_BGS_ALGORITHM="vibe" \
+    BOB_TRACKING_SENSITIVITY="'medium'" \
+    BOB_TRACKING_USEMASK="False" \
+    BOB_TRACKING_MASK_FILE="assets/masks/mask.jpg" \
+    BOB_SIMULATION_WIDTH="1920" \
+    BOB_SIMULATION_HEIGHT="1080" \
+    BOB_SIMULATION_NUM_OBJECTS="5"
 
 COPY entrypoint.sh /
 ENTRYPOINT ["/entrypoint.sh"]

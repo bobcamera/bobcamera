@@ -18,3 +18,9 @@ services:
       - "9090:9090"
     environment:  # add in .env
       - BOB_RTSP_URL=${BOB_RTSP_URL}
+    volumes: 
+      - ${PWD}/assets/:/workspaces/bobcamera/src/ros2/assets/
+
+volumes:
+  assets:
+    driver: local
