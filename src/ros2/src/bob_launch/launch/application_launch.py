@@ -152,12 +152,6 @@ def generate_launch_description():
         tracking_usemask_arg,
         tracking_maskfile_arg,
 
-        # IncludeLaunchDescription(
-        #     PythonLaunchDescriptionSource([
-        #         launch_package_dir, 
-        #         '/simulation_launch.py']),
-        # ),
-
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([
                 launch_package_dir, 
