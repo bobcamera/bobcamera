@@ -15,8 +15,7 @@ def generate_launch_description():
         executable='mask_webapi',
         name='mask_webapi',
         parameters=[
-            #params,
-            #{'observer_timer_interval': 30},
+            {'masks_folder': 'assets/masks'},
             #{'observer_day_night_brightness_threshold': 95}
         ],
         remappings=[

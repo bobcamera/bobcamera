@@ -14,6 +14,9 @@ class MaskWebApiNode(Node):
   def __init__(self):
     super().__init__('bob_mask_webapi')
 
+    self.declare_parameters(namespace='', parameters=[('masks_folder', 'assets/masks')])
+    self.masks_folder = self.get_parameter('masks_folder').value
+
     self.br = CvBridge()
 
     # setup services, publishers and subscribers
@@ -24,9 +27,8 @@ class MaskWebApiNode(Node):
 
   def get_mask_callback(self, request, response):
 
-    try:
-      masks_folder = self.videos_folder = os.path.join(get_package_share_directory('bob_webapi'), 'masks')
-      mask_file_path = os.path.join(masks_folder, request.file_name)
+    try:      
+      mask_file_path = os.path.join(self.masks_folder, request.file_name)
 
       if os.path.exists(mask_file_path) == False:
         self.get_logger().error(f'Mask path {request.file_name} does not exist.')
