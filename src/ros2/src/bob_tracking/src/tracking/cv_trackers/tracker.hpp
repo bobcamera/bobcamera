@@ -15,7 +15,9 @@
 
 #include "track_prediction.hpp"
 
-#include "../../bob_shared/include/tracking_state.hpp"
+#include "tracking_state.hpp"
+
+#include "../base_tracker.hpp"
 
 class CvTracker
 {
@@ -119,10 +121,12 @@ private:
 };
 
 class Tracker
+    //: public BaseTrack
 {
 public:
-    Tracker(const std::map<std::string, std::string> &settings, int id, const cv::Mat &frame, const cv::Rect &bbox, rclcpp::Logger logger)
-        : settings(settings), tracker_(settings), id(id), track_predictor(id, bbox), logger_(logger)
+    Tracker(const std::map<std::string, std::string> &settings, int id, const cv::Mat &frame, const cv::Rect &bbox)
+        : //BaseTrack(), 
+        settings(settings), tracker_(settings), id(id), track_predictor(id, bbox)
     {
         tracker_.init(frame, bbox);
         bboxes.push_back(bbox);
@@ -147,7 +151,7 @@ public:
         return this->id == other.id;
     }
 
-    const cv::Rect& get_bbox() const
+    cv::Rect get_bbox() const
     {
         return bboxes.back();
     }
@@ -296,8 +300,6 @@ private:
     std::map<std::string, std::string> settings;
     CvTracker tracker_;
     int id;
-    // cv::Ptr<cv::Tracker> cv2_tracker;
-    // cv::Ptr<cv::legacy::Tracker> cv2_legacy_tracker;
     std::vector<cv::Rect> bboxes;
     int stationary_track_counter;
     int active_track_counter;
@@ -309,7 +311,6 @@ private:
     std::vector<std::pair<cv::Point, TrackingStateEnum>> center_points;
     TrackPrediction track_predictor;
     std::vector<cv::Point> predictor_center_points;
-    rclcpp::Logger logger_;
     bool is_init;
 
     bool track_path_plotting_enabled;

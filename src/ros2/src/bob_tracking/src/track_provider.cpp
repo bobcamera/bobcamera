@@ -12,8 +12,10 @@
 #include <vision_msgs/msg/bounding_box2_d_array.hpp>
 #include "bob_interfaces/msg/tracking.hpp"
 
-#include "tracking/cv_trackers/video_tracker.hpp"
+//#include "tracking/cv_trackers/video_tracker.hpp"
 #include "tracking/sort/include/sort_tracker.h"
+
+#include <boblib/api/utils/profiler.hpp>
 
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
@@ -27,8 +29,9 @@ public:
     COMPOSITION_PUBLIC
     explicit TrackProvider(const rclcpp::NodeOptions & options)
         : ParameterNode("frame_provider_node", options)
-        , video_tracker_({{"tracker_type", "MOSSE"}}, get_logger()) // CV only currently - CSRT, MOSSE, KCF
+        , enable_profiling_(false)
     {
+        video_tracker_ = std::unique_ptr<BaseTracker>(new SORT::Tracker(std::map<std::string, std::string>({{"tracker_type", "MOSSE"}}))); // CV only currently - CSRT, MOSSE, KCF
         timer_ = this->create_wall_timer(std::chrono::seconds(1), std::bind(&TrackProvider::init, this));
     }
 
@@ -36,13 +39,17 @@ private:
     using Clock = std::chrono::high_resolution_clock;
     using TimePoint = std::chrono::time_point<Clock>;
 
+    boblib::utils::Profiler profiler_;
+    bool enable_profiling_;
+
     std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> masked_frame_subscription_;
     std::shared_ptr<message_filters::Subscriber<vision_msgs::msg::BoundingBox2DArray>> detector_bounding_boxes_subscription_;
     std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, vision_msgs::msg::BoundingBox2DArray>> time_synchronizer_;
     rclcpp::Publisher<bob_interfaces::msg::Tracking>::SharedPtr pub_tracker_tracking_;
-    // VideoTracker video_tracker_;
-    SORT::Tracker video_tracker_;
     rclcpp::TimerBase::SharedPtr timer_;
+
+    //VideoTracker video_tracker_;
+    std::unique_ptr<BaseTracker> video_tracker_;
 
     friend std::shared_ptr<TrackProvider> std::make_shared<TrackProvider>();
 
@@ -69,12 +76,150 @@ private:
         time_synchronizer_->registerCallback(&TrackProvider::callback, this);
 
         pub_tracker_tracking_ = create_publisher<bob_interfaces::msg::Tracking>("bob/tracker/tracking", pub_qos_profile);
+
+        declare_node_parameters();
+    }
+
+    void declare_node_parameters()
+    {
+        std::vector<ParameterNode::ActionParam> params = {
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("enable_profiling", false), 
+                [this](const rclcpp::Parameter& param) {enable_profiling_ = param.as_bool();}
+            ),
+            // ParameterNode::ActionParam(
+            //     rclcpp::Parameter("vibe_params", R"({"threshold": 50, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 2})"), 
+            //     [this](const rclcpp::Parameter& param) 
+            //     {
+            //         Json::CharReaderBuilder builder;
+            //         std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+            //         std::string errors;
+            //         Json::Value jsonObj;
+            //         std::string jsonData = param.as_string();
+
+            //         if (reader->parse(jsonData.c_str(), jsonData.c_str() + jsonData.size(), &jsonObj, &errors)) 
+            //         {
+            //             auto threshold = jsonObj["threshold"].asInt();
+            //             auto bgSamples = jsonObj["bgSamples"].asInt();
+            //             auto requiredBGSamples = jsonObj["requiredBGSamples"].asInt();
+            //             auto learningRate = jsonObj["learningRate"].asInt();
+
+            //             vibe_params_ = std::make_unique<boblib::bgs::VibeParams>(threshold, bgSamples, requiredBGSamples, learningRate);
+
+            //             if (bgs_type_ == Vibe)
+            //             {
+            //                 createBGS(Vibe);
+            //             }
+            //         } 
+            //         else 
+            //         {
+            //             RCLCPP_ERROR(get_logger(), "1. Failed to parse the JSON data: %s", errors.c_str());
+            //         }
+            //     }
+            // ),
+            // ParameterNode::ActionParam(
+            //     rclcpp::Parameter("wmv_params", R"({"enableWeight": true, "enableThreshold": true, "threshold": 25.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2})"), 
+            //     [this](const rclcpp::Parameter& param) 
+            //     {
+            //         Json::CharReaderBuilder builder;
+            //         std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+            //         std::string errors;
+            //         Json::Value jsonObj;
+            //         std::string jsonData = param.as_string();
+
+            //         if (reader->parse(jsonData.c_str(), jsonData.c_str() + jsonData.size(), &jsonObj, &errors)) 
+            //         {
+            //             auto enableWeight = jsonObj["enableWeight"].asBool();
+            //             auto enableThreshold = jsonObj["enableThreshold"].asInt();
+            //             auto threshold = jsonObj["threshold"].asFloat();
+            //             auto weight1 = jsonObj["weight1"].asFloat();
+            //             auto weight2 = jsonObj["weight2"].asFloat();
+            //             auto weight3 = jsonObj["weight3"].asFloat();
+
+            //             wmv_params_ = std::make_unique<boblib::bgs::WMVParams>(enableWeight, enableThreshold, threshold, weight1, weight2, weight3);
+
+            //             if (bgs_type_ == WMV)
+            //             {
+            //                 createBGS(WMV);
+            //             }
+            //         } 
+            //         else 
+            //         {
+            //             RCLCPP_ERROR(get_logger(), "2. Failed to parse the JSON data: %s", errors.c_str());
+            //         }
+            //     }
+            // ),
+            // ParameterNode::ActionParam(
+            //     rclcpp::Parameter("bgs", "vibe"), 
+            //     [this](const rclcpp::Parameter& param) 
+            //     {
+            //         RCLCPP_INFO(get_logger(), "Setting BGS: %s", param.as_string().c_str());
+            //         if (param.as_string() == "vibe")
+            //         {
+            //             bgsPtr = createBGS(Vibe);
+            //         }
+            //         else
+            //         {
+            //             bgsPtr = createBGS(WMV);
+            //         }
+            //     }
+            // ),
+            // ParameterNode::ActionParam(
+            //     rclcpp::Parameter("use_mask", true), 
+            //     [this](const rclcpp::Parameter& param) 
+            //     {
+            //         bool should_use_mask = param.as_bool();
+
+            //         RCLCPP_INFO(get_logger(), "Setting masking: %s", should_use_mask ? "True" : "False");
+
+            //         std::string topic_name = should_use_mask ? "bob/camera/all_sky/bayer_masked" : "bob/camera/all_sky/bayer";
+
+            //         image_subscription_ = create_subscription<sensor_msgs::msg::Image>(
+            //             topic_name, 
+            //             sub_qos_profile_,
+            //             std::bind(&BackgroundSubtractor::imageCallback, this, std::placeholders::_1)
+            //         );
+            //         image_publisher_ = create_publisher<sensor_msgs::msg::Image>("bob/frames/all_sky/foreground_mask", pub_qos_profile_);
+            //         detection_publisher_ = create_publisher<vision_msgs::msg::BoundingBox2DArray>("bob/detector/all_sky/bounding_boxes", pub_qos_profile_);
+            //     }
+            // ),
+
+            // ParameterNode::ActionParam(
+            //     rclcpp::Parameter("blob_params", R"({"sizeThreshold": 7, "areaThreshold": 49, "minDistance": 40, "maxBlobs": 50})"), 
+            //     [this](const rclcpp::Parameter& param) 
+            //     {
+            //         Json::CharReaderBuilder builder;
+            //         std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+            //         std::string errors;
+            //         Json::Value jsonObj;
+            //         std::string jsonData = param.as_string();
+
+            //         if (reader->parse(jsonData.c_str(), jsonData.c_str() + jsonData.size(), &jsonObj, &errors)) 
+            //         {
+            //             auto sizeThreshold = jsonObj["sizeThreshold"].asInt();
+            //             auto areaThreshold = jsonObj["areaThreshold"].asInt();
+            //             auto minDistance = jsonObj["minDistance"].asInt();
+            //             auto maxBlobs = jsonObj["maxBlobs"].asInt();
+
+            //             blob_params_ = std::make_unique<boblib::blobs::ConnectedBlobDetectionParams>(sizeThreshold, areaThreshold, minDistance, maxBlobs);
+            //             blob_detector_ptr_ = std::make_unique<boblib::blobs::ConnectedBlobDetection>(*blob_params_);
+            //         } 
+            //         else 
+            //         {
+            //             RCLCPP_ERROR(get_logger(), "Failed to parse the JSON data: %s", errors.c_str());
+            //         }
+            //     }
+            // ),
+        };
+        add_action_parameters(params);
     }
 
     void callback(const sensor_msgs::msg::Image::SharedPtr &image_msg, const vision_msgs::msg::BoundingBox2DArray::SharedPtr &bounding_boxes_msg)
     {
         try
         {
+            profile_start("Frame");
+
             cv::Mat img;
             ImageUtils::convert_image_msg(image_msg, img, true);
 
@@ -84,13 +229,16 @@ private:
                 bboxes.push_back(cv::Rect(bbox2D.center.position.x - bbox2D.size_x / 2, bbox2D.center.position.y - bbox2D.size_y / 2, bbox2D.size_x, bbox2D.size_y));
             }
 
-            video_tracker_.update_trackers(bboxes, img);
+            video_tracker_->update_trackers(bboxes, img);
 
             publish_tracking(image_msg->header);
+
+            profile_stop("Frame");
+            profile_dump();
         }
-        catch (cv_bridge::Exception &e)
+        catch (std::exception &e)
         {
-            RCLCPP_ERROR(get_logger(), "CV bridge exception: %s", e.what());
+            RCLCPP_ERROR(get_logger(), "exception: %s", e.what());
         }
     }
 
@@ -98,12 +246,12 @@ private:
     {
         bob_interfaces::msg::Tracking tracking_msg;
         tracking_msg.header = header;
-        tracking_msg.state.trackable = video_tracker_.get_total_trackable_trackers();
-        tracking_msg.state.alive = video_tracker_.get_total_live_trackers();
-        tracking_msg.state.started = video_tracker_.get_total_trackers_started();
-        tracking_msg.state.ended = video_tracker_.get_total_trackers_finished();
+        tracking_msg.state.trackable = video_tracker_->get_total_trackable_trackers();
+        tracking_msg.state.alive = video_tracker_->get_total_live_trackers();
+        tracking_msg.state.started = video_tracker_->get_total_trackers_started();
+        tracking_msg.state.ended = video_tracker_->get_total_trackers_finished();
 
-        for (const auto &tracker : video_tracker_.get_live_trackers())
+        for (const auto &tracker : video_tracker_->get_live_trackers())
         {
             add_track_detection(tracker, tracking_msg.detections);
             add_trajectory_detection(tracker, tracking_msg.trajectories);
@@ -114,7 +262,7 @@ private:
 
     void add_track_detection(const auto &tracker, std::vector<bob_interfaces::msg::TrackDetection> &detection_array)
     {
-        auto bbox = tracker.get_bbox();
+        auto bbox = tracker->get_bbox();
         vision_msgs::msg::BoundingBox2D bbox_msg;
         bbox_msg.center.position.x = bbox.x + bbox.width / 2;
         bbox_msg.center.position.y = bbox.y + bbox.height / 2;
@@ -122,8 +270,8 @@ private:
         bbox_msg.size_y = bbox.height;
 
         bob_interfaces::msg::TrackDetection detect_msg;
-        detect_msg.id = tracker.get_id();
-        detect_msg.state = (int)tracker.get_tracking_state();
+        detect_msg.id = tracker->get_id();
+        detect_msg.state = (int)tracker->get_tracking_state();
         detect_msg.bbox = bbox_msg;
 
         detection_array.push_back(detect_msg);
@@ -132,9 +280,9 @@ private:
     void add_trajectory_detection(const auto &tracker, std::vector<bob_interfaces::msg::TrackTrajectory> &trajectory_array)
     {
         bob_interfaces::msg::TrackTrajectory track_msg;
-        track_msg.id = std::to_string(tracker.get_id()) + std::string("-") + std::to_string(tracker.get_tracking_state());
+        track_msg.id = std::to_string(tracker->get_id()) + std::string("-") + std::to_string(tracker->get_tracking_state());
 
-        for (const auto &center_point : tracker.get_center_points())
+        for (const auto &center_point : tracker->get_center_points())
         {
             bob_interfaces::msg::TrackPoint point;
             point.center.x = center_point.first.x;
@@ -149,9 +297,9 @@ private:
     void add_prediction(const auto &tracker, std::vector<bob_interfaces::msg::TrackTrajectory> &prediction_array)
     {
         bob_interfaces::msg::TrackTrajectory track_msg;
-        track_msg.id = std::to_string(tracker.get_id()) + std::string("-") + std::to_string(tracker.get_tracking_state());
+        track_msg.id = std::to_string(tracker->get_id()) + std::string("-") + std::to_string(tracker->get_tracking_state());
 
-        for (const auto &center_point : tracker.get_predictor_center_points())
+        for (const auto &center_point : tracker->get_predictor_center_points())
         {
             bob_interfaces::msg::TrackPoint point;
             point.center.x = center_point.x;
@@ -160,6 +308,35 @@ private:
         }
 
         prediction_array.push_back(track_msg);
+    }
+
+    inline void profile_start(const std::string& region)
+    {
+        if (enable_profiling_)
+        {
+            profiler_.start(region);
+        }
+    }
+
+    inline void profile_stop(const std::string& region)
+    {
+        if (enable_profiling_)
+        {
+            profiler_.stop(region);
+        }
+    }
+
+    inline void profile_dump()
+    {
+        if (enable_profiling_)
+        {
+            if (profiler_.get_data("Frame").duration_in_seconds() > 1.0)
+            {
+                auto report = profiler_.report();
+                RCLCPP_INFO(get_logger(), report.c_str());
+                profiler_.reset();
+            }
+        }
     }
 };
 

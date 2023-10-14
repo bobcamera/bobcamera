@@ -4,18 +4,20 @@
 #include "../include/kalman_filter.h"
 #include "../../bob_shared/include/tracking_state.hpp"
 #include "utils.h"
+#include "../../base_tracker.hpp"
 
-
-class Track {
+class Track 
+    : public BaseTrack
+{
 public:
     Track();
-    ~Track() = default;
 
-    void Init(const cv::Rect& bbox);
-    void Predict();
-    void Update(const cv::Rect& bbox);
-    float GetNIS() const;
-    bool isActive() const;
+    void init(const cv::Rect& bbox);
+    void predict();
+    void update(const cv::Rect& bbox);
+    float get_NIS() const;
+    bool is_active() const;
+
     bool is_tracking() const;
     int get_id() const;
     int get_coast_cycles() const;
@@ -28,8 +30,8 @@ public:
     bool bbox_overlap(const cv::Rect &r1, const cv::Rect &r2) const;
 
 private:
-    Eigen::VectorXd ConvertBboxToObservation(const cv::Rect& bbox) const;
-    cv::Rect ConvertStateToBbox(const Eigen::VectorXd &state) const;
+    Eigen::VectorXd convert_bbox_to_observation(const cv::Rect& bbox) const;
+    cv::Rect convert_state_to_bbox(const Eigen::VectorXd &state) const;
     
     SORT::KalmanFilter kf_;
     TrackingStateEnum tracking_state_;

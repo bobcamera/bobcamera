@@ -12,13 +12,16 @@
 
 #include <opencv2/opencv.hpp>
 
+#include "../base_tracker.hpp"
 #include "tracker.hpp"
 
 class VideoTracker
+    //: public BaseTracker
 {
 public:
-    VideoTracker(const std::map<std::string, std::string> &settings, rclcpp::Logger logger)
-        : settings(settings), total_trackers_finished(0), total_trackers_started(0), logger_(logger)
+    VideoTracker(const std::map<std::string, std::string> &settings)
+        : //BaseTracker(settings), 
+        total_trackers_finished(0), total_trackers_started(0)
     {
         tracker_min_centre_point_distance_between_bboxes = 64; // settings["tracker_min_centre_point_distance_between_bboxes"]
         tracker_max_active_trackers = 10;                      // settings["tracker_max_active_trackers"]
@@ -51,7 +54,8 @@ public:
     {
         total_trackers_started += 1;
 
-        Tracker tracker(settings, total_trackers_started, frame, bbox, logger_);
+        // Tracker tracker(settings, total_trackers_started, frame, bbox);
+        Tracker tracker({}, total_trackers_started, frame, bbox);
         tracker.update(frame);
         live_trackers.push_back(tracker);
     }
@@ -186,13 +190,11 @@ public:
     }
 
 private:
-    std::map<std::string, std::string> settings;
     int total_trackers_finished;
     int total_trackers_started;
     std::vector<Tracker> live_trackers;
     int tracker_min_centre_point_distance_between_bboxes;
     size_t tracker_max_active_trackers;
-    rclcpp::Logger logger_;
 };
 
 #endif

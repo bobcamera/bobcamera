@@ -1,15 +1,14 @@
 #include "include/track.h"
 
-
 Track::Track() 
-    : kf_(8, 4),
-      tracking_state_(ProvisionaryTarget),
-      track_stationary_threshold_(25),
-      stationary_track_counter_(0),
-      coast_cycles_(0),
-      hit_streak_(0)
+    : BaseTrack()
+    , kf_(8, 4)
+    , tracking_state_(ProvisionaryTarget)
+    , track_stationary_threshold_(25)
+    , stationary_track_counter_(0)
+    , coast_cycles_(0)
+    , hit_streak_(0)
 {
-
     /*** Define constant velocity model ***/
     // state - center_x, center_y, width, height, v_cx, v_cy, v_width, v_height
     kf_.F_ <<
@@ -58,7 +57,7 @@ Track::Track()
 }
 // Get predicted locations from existing trackers
 // dt is time elapsed between the current and previous measurements
-void Track::Predict() 
+void Track::predict() 
 {
     kf_.Predict();
     
@@ -111,9 +110,8 @@ void Track::Predict()
     last_bbox_ = predicted_bbox; // Update the last_bbox_
 }
 
-
 // Update matched trackers with assigned detections
-void Track::Update(const cv::Rect& bbox) 
+void Track::update(const cv::Rect& bbox) 
 {
     coast_cycles_ = 0;
     hit_streak_++;
@@ -124,7 +122,7 @@ void Track::Update(const cv::Rect& bbox)
     }
 
     // observation - center_x, center_y, area, ratio
-    Eigen::VectorXd observation = ConvertBboxToObservation(bbox);
+    Eigen::VectorXd observation = convert_bbox_to_observation(bbox);
     kf_.Update(observation);
 
     cv::Point center(bbox.x + bbox.width / 2, bbox.y + bbox.height / 2);
@@ -137,27 +135,26 @@ void Track::Update(const cv::Rect& bbox)
 
 }
 
-
 // Create and initialize new trackers for unmatched detections, with initial bounding box
-void Track::Init(const cv::Rect &bbox) {
-    kf_.x_.head(4) << ConvertBboxToObservation(bbox);
+void Track::init(const cv::Rect &bbox) 
+{
+    kf_.x_.head(4) << convert_bbox_to_observation(bbox);
     hit_streak_++;
 }
-
 
 /**
  * Returns the current bounding box estimate
  * @return
  */
-cv::Rect Track::get_bbox() const {
-    return ConvertStateToBbox(kf_.x_);
+cv::Rect Track::get_bbox() const 
+{
+    return convert_state_to_bbox(kf_.x_);
 }
 
-
-float Track::GetNIS() const {
+float Track::get_NIS() const 
+{
     return kf_.NIS_;
 }
-
 
 /**
  * Takes a bounding box in the form [x, y, width, height] and returns z in the form
@@ -167,7 +164,8 @@ float Track::GetNIS() const {
  * @param bbox
  * @return
  */
-Eigen::VectorXd Track::ConvertBboxToObservation(const cv::Rect& bbox) const{
+Eigen::VectorXd Track::convert_bbox_to_observation(const cv::Rect& bbox) const
+{
     Eigen::VectorXd observation = Eigen::VectorXd::Zero(4);
     auto width = static_cast<float>(bbox.width);
     auto height = static_cast<float>(bbox.height);
@@ -177,7 +175,6 @@ Eigen::VectorXd Track::ConvertBboxToObservation(const cv::Rect& bbox) const{
     return observation;
 }
 
-
 /**
  * Takes a bounding box in the centre form [x,y,s,r] and returns it in the form
  * [x1,y1,x2,y2] where x1,y1 is the top left and x2,y2 is the bottom right
@@ -185,21 +182,23 @@ Eigen::VectorXd Track::ConvertBboxToObservation(const cv::Rect& bbox) const{
  * @param state
  * @return
  */
-cv::Rect Track::ConvertStateToBbox(const Eigen::VectorXd &state) const {
+cv::Rect Track::convert_state_to_bbox(const Eigen::VectorXd &state) const 
+{
     // state - center_x, center_y, width, height, v_cx, v_cy, v_width, v_height
-    auto width = std::max(0, static_cast<int>(state[2]));
-    auto height = std::max(0, static_cast<int>(state[3]));
-    auto tl_x = static_cast<int>(state[0] - width / 2.0);
-    auto tl_y = static_cast<int>(state[1] - height / 2.0);
-    cv::Rect rect(cv::Point(tl_x, tl_y), cv::Size(width, height));
-    return rect;
+    const auto width = std::max(0, static_cast<int>(state[2]));
+    const auto height = std::max(0, static_cast<int>(state[3]));
+    const auto tl_x = static_cast<int>(state[0] - width / 2.0);
+    const auto tl_y = static_cast<int>(state[1] - height / 2.0);
+    return {tl_x, tl_y, width, height};
 }
 
-bool Track::isActive() const {
+bool Track::is_active() const 
+{
     return tracking_state_ == ActiveTarget;
 }
 
-TrackingStateEnum Track::get_tracking_state() const {
+TrackingStateEnum Track::get_tracking_state() const 
+{
     return tracking_state_;
 }
 
@@ -235,13 +234,9 @@ const std::vector<cv::Point>& Track::get_predictor_center_points() const
 
 bool Track::bbox_overlap(const cv::Rect &r1, const cv::Rect &r2) const
 {
-    if ((r1.width == 0 || r1.height == 0 || r2.width == 0 || r2.height == 0) ||
+    return !((r1.width == 0 || r1.height == 0 || r2.width == 0 || r2.height == 0) ||
         (r1.x > (r2.x + r2.width) || r2.x > (r1.x + r1.width)) ||
-        (r1.y > (r2.y + r2.height) || r2.y > (r1.y + r1.height)))
-    {
-        return false;
-    }
-    return true;
+        (r1.y > (r2.y + r2.height) || r2.y > (r1.y + r1.height)));
 }
 
 int Track::get_coast_cycles() const 
