@@ -155,6 +155,12 @@ def generate_launch_description():
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([
                 launch_package_dir, 
+                '/update_rtsp_camera_info_launch.py']),
+        ),
+
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource([
+                launch_package_dir, 
                 '/kernel_launch.py']),
         ),
 
