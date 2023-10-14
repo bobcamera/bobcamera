@@ -32,7 +32,7 @@ public:
         , enable_profiling_(false)
     {
         video_tracker_ = std::unique_ptr<BaseTracker>(new SORT::Tracker(std::map<std::string, std::string>({{"tracker_type", "MOSSE"}}))); // CV only currently - CSRT, MOSSE, KCF
-        timer_ = this->create_wall_timer(std::chrono::seconds(1), std::bind(&TrackProvider::init, this));
+        timer_ = create_wall_timer(std::chrono::seconds(1), std::bind(&TrackProvider::init, this));
     }
 
 private:
@@ -118,38 +118,6 @@ private:
             //     }
             // ),
             // ParameterNode::ActionParam(
-            //     rclcpp::Parameter("wmv_params", R"({"enableWeight": true, "enableThreshold": true, "threshold": 25.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2})"), 
-            //     [this](const rclcpp::Parameter& param) 
-            //     {
-            //         Json::CharReaderBuilder builder;
-            //         std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
-            //         std::string errors;
-            //         Json::Value jsonObj;
-            //         std::string jsonData = param.as_string();
-
-            //         if (reader->parse(jsonData.c_str(), jsonData.c_str() + jsonData.size(), &jsonObj, &errors)) 
-            //         {
-            //             auto enableWeight = jsonObj["enableWeight"].asBool();
-            //             auto enableThreshold = jsonObj["enableThreshold"].asInt();
-            //             auto threshold = jsonObj["threshold"].asFloat();
-            //             auto weight1 = jsonObj["weight1"].asFloat();
-            //             auto weight2 = jsonObj["weight2"].asFloat();
-            //             auto weight3 = jsonObj["weight3"].asFloat();
-
-            //             wmv_params_ = std::make_unique<boblib::bgs::WMVParams>(enableWeight, enableThreshold, threshold, weight1, weight2, weight3);
-
-            //             if (bgs_type_ == WMV)
-            //             {
-            //                 createBGS(WMV);
-            //             }
-            //         } 
-            //         else 
-            //         {
-            //             RCLCPP_ERROR(get_logger(), "2. Failed to parse the JSON data: %s", errors.c_str());
-            //         }
-            //     }
-            // ),
-            // ParameterNode::ActionParam(
             //     rclcpp::Parameter("bgs", "vibe"), 
             //     [this](const rclcpp::Parameter& param) 
             //     {
@@ -161,52 +129,6 @@ private:
             //         else
             //         {
             //             bgsPtr = createBGS(WMV);
-            //         }
-            //     }
-            // ),
-            // ParameterNode::ActionParam(
-            //     rclcpp::Parameter("use_mask", true), 
-            //     [this](const rclcpp::Parameter& param) 
-            //     {
-            //         bool should_use_mask = param.as_bool();
-
-            //         RCLCPP_INFO(get_logger(), "Setting masking: %s", should_use_mask ? "True" : "False");
-
-            //         std::string topic_name = should_use_mask ? "bob/camera/all_sky/bayer_masked" : "bob/camera/all_sky/bayer";
-
-            //         image_subscription_ = create_subscription<sensor_msgs::msg::Image>(
-            //             topic_name, 
-            //             sub_qos_profile_,
-            //             std::bind(&BackgroundSubtractor::imageCallback, this, std::placeholders::_1)
-            //         );
-            //         image_publisher_ = create_publisher<sensor_msgs::msg::Image>("bob/frames/all_sky/foreground_mask", pub_qos_profile_);
-            //         detection_publisher_ = create_publisher<vision_msgs::msg::BoundingBox2DArray>("bob/detector/all_sky/bounding_boxes", pub_qos_profile_);
-            //     }
-            // ),
-
-            // ParameterNode::ActionParam(
-            //     rclcpp::Parameter("blob_params", R"({"sizeThreshold": 7, "areaThreshold": 49, "minDistance": 40, "maxBlobs": 50})"), 
-            //     [this](const rclcpp::Parameter& param) 
-            //     {
-            //         Json::CharReaderBuilder builder;
-            //         std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
-            //         std::string errors;
-            //         Json::Value jsonObj;
-            //         std::string jsonData = param.as_string();
-
-            //         if (reader->parse(jsonData.c_str(), jsonData.c_str() + jsonData.size(), &jsonObj, &errors)) 
-            //         {
-            //             auto sizeThreshold = jsonObj["sizeThreshold"].asInt();
-            //             auto areaThreshold = jsonObj["areaThreshold"].asInt();
-            //             auto minDistance = jsonObj["minDistance"].asInt();
-            //             auto maxBlobs = jsonObj["maxBlobs"].asInt();
-
-            //             blob_params_ = std::make_unique<boblib::blobs::ConnectedBlobDetectionParams>(sizeThreshold, areaThreshold, minDistance, maxBlobs);
-            //             blob_detector_ptr_ = std::make_unique<boblib::blobs::ConnectedBlobDetection>(*blob_params_);
-            //         } 
-            //         else 
-            //         {
-            //             RCLCPP_ERROR(get_logger(), "Failed to parse the JSON data: %s", errors.c_str());
             //         }
             //     }
             // ),
@@ -260,51 +182,51 @@ private:
         pub_tracker_tracking_->publish(tracking_msg);
     }
 
-    void add_track_detection(const auto &tracker, std::vector<bob_interfaces::msg::TrackDetection> &detection_array)
+    void add_track_detection(const std::shared_ptr<BaseTrack> &tracker, std::vector<bob_interfaces::msg::TrackDetection> &detection_array)
     {
         auto bbox = tracker->get_bbox();
-        vision_msgs::msg::BoundingBox2D bbox_msg;
-        bbox_msg.center.position.x = bbox.x + bbox.width / 2;
-        bbox_msg.center.position.y = bbox.y + bbox.height / 2;
-        bbox_msg.size_x = bbox.width;
-        bbox_msg.size_y = bbox.height;
 
         bob_interfaces::msg::TrackDetection detect_msg;
         detect_msg.id = tracker->get_id();
         detect_msg.state = (int)tracker->get_tracking_state();
-        detect_msg.bbox = bbox_msg;
+        detect_msg.bbox.center.position.x = bbox.x + bbox.width / 2;
+        detect_msg.bbox.center.position.y = bbox.y + bbox.height / 2;
+        detect_msg.bbox.size_x = bbox.width;
+        detect_msg.bbox.size_y = bbox.height;
 
         detection_array.push_back(detect_msg);
     }
 
-    void add_trajectory_detection(const auto &tracker, std::vector<bob_interfaces::msg::TrackTrajectory> &trajectory_array)
+    void add_trajectory_detection(const std::shared_ptr<BaseTrack> &tracker, std::vector<bob_interfaces::msg::TrackTrajectory> &trajectory_array)
     {
         bob_interfaces::msg::TrackTrajectory track_msg;
         track_msg.id = std::to_string(tracker->get_id()) + std::string("-") + std::to_string(tracker->get_tracking_state());
 
+        size_t i = 0;
+        track_msg.trajectory.resize(tracker->get_center_points().size());
         for (const auto &center_point : tracker->get_center_points())
         {
-            bob_interfaces::msg::TrackPoint point;
+            bob_interfaces::msg::TrackPoint& point = track_msg.trajectory[i++];
             point.center.x = center_point.first.x;
             point.center.y = center_point.first.y;
             point.tracking_state = (int)center_point.second;
-            track_msg.trajectory.push_back(point);
         }
 
         trajectory_array.push_back(track_msg);
     }
 
-    void add_prediction(const auto &tracker, std::vector<bob_interfaces::msg::TrackTrajectory> &prediction_array)
+    void add_prediction(const std::shared_ptr<BaseTrack> &tracker, std::vector<bob_interfaces::msg::TrackTrajectory> &prediction_array)
     {
         bob_interfaces::msg::TrackTrajectory track_msg;
         track_msg.id = std::to_string(tracker->get_id()) + std::string("-") + std::to_string(tracker->get_tracking_state());
 
+        size_t i = 0;
+        track_msg.trajectory.resize(tracker->get_predictor_center_points().size());
         for (const auto &center_point : tracker->get_predictor_center_points())
         {
-            bob_interfaces::msg::TrackPoint point;
+            bob_interfaces::msg::TrackPoint& point = track_msg.trajectory[i++];
             point.center.x = center_point.x;
             point.center.y = center_point.y;
-            track_msg.trajectory.push_back(point);
         }
 
         prediction_array.push_back(track_msg);
