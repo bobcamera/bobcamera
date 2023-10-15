@@ -16,7 +16,6 @@ def generate_launch_description():
         name='mask_webapi',
         parameters=[
             {'masks_folder': 'assets/masks'},
-            #{'observer_day_night_brightness_threshold': 95}
         ],
         remappings=[
             #('bob/observer_frame/source', 'bob/camera/all_sky/bayer/resized')
