@@ -12,10 +12,16 @@ class MaskWebApiNode(Node):
   def __init__(self):
     super().__init__('bob_mask_webapi')
 
-    self.declare_parameters(namespace='', parameters=[('masks_folder', 'assets/masks')])
+    self.declare_parameters(namespace='', parameters=[
+      ('masks_folder', 'assets/masks'),
+      ('width', 1920),
+      ('height', 1080)])
+    
     self.masks_folder = self.get_parameter('masks_folder').value
+    self.mask_width = self.get_parameter('width').value
+    self.mask_height = self.get_parameter('height').value
 
-    self.get_logger().info(f'Masks path {self.masks_folder}.')
+    self.get_logger().debug(f'Masks path {self.masks_folder}, width {self.mask_width}, height {self.mask_height}.')
 
     self.br = CvBridge()
 
@@ -52,8 +58,15 @@ class MaskWebApiNode(Node):
 
   def write_mask_file(self, request, response):
 
-    mask_image = self.br.imgmsg_to_cv2(request.mask)
+    # explicitly set the encoding to match that from the GUI
+    mask_image = self.br.imgmsg_to_cv2(request.mask, "mono8")
     mask_file_path = os.path.join(self.masks_folder, request.file_name)
+
+    width, height = mask_image.shape
+
+    if (width != self.mask_width and height != self.mask_height):
+      self.get_logger().info(f'Mask being resized from --> to w: {width} -> {self.mask_width}, h: {height} -> {self.mask_height}.')
+      mask_image = cv2.resize(mask_image, (self.mask_width, self.mask_height), interpolation = cv2.INTER_LINEAR)
 
     if os.path.exists(mask_file_path) == False:
       self.get_logger().info(f'Mask path {mask_file_path} does not exist, adding mask.')
