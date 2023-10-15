@@ -6,7 +6,10 @@ from launch.conditions import IfCondition
 from launch.substitutions import PythonExpression, LaunchConfiguration 
 from ament_index_python.packages import get_package_share_directory
 
-def launch_setup(context):
+def application_config(context):
+    pass
+
+def camera_info_config(context):
 
     # get the values provided as part of the launch arguments
     width = int(LaunchConfiguration('rtsp_width_arg').perform(context))
@@ -24,12 +27,14 @@ def launch_setup(context):
     with open(config_file, 'w') as write:
         yaml.dump(yaml_output, write, sort_keys = False)
 
-def generate_launch_description():    
-    opaqueFunction = OpaqueFunction(function = launch_setup)
+def generate_launch_description():
+    application_config_func = OpaqueFunction(function = application_config)
+    camera_info_config_func = OpaqueFunction(function = camera_info_config)
     #opaqueFunction.condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'rtsp' or 'rtsp_overlay'" ]))
 
     return LaunchDescription([
-        opaqueFunction
+        application_config_func,
+        camera_info_config_func
     ])
 
 

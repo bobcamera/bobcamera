@@ -155,7 +155,7 @@ def generate_launch_description():
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([
                 launch_package_dir, 
-                '/update_rtsp_camera_info_launch.py']),
+                '/update_config_files_launch.py']),
         ),
 
         IncludeLaunchDescription(
@@ -167,19 +167,19 @@ def generate_launch_description():
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([
                 launch_package_dir, 
-                '/display_launch.py'])
+                '/display_infrastructure_launch.py'])
         ),
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([
                 launch_package_dir, 
-                '/monitor_launch.py'])
+                '/monitoring_infrastructure_launch.py'])
         ),
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([
                 launch_package_dir, 
-                '/rosbridge_launch.py'])
+                '/web_infrastructure_launch.py'])
         ),
 
         RegisterEventHandler(
