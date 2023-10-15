@@ -1,0 +1,192 @@
+import cv2
+import numpy as np
+
+from datetime import datetime
+import os
+import getopt
+import sys
+import shutil
+from pathlib import Path
+from cloud_estimator import CloudEstimator
+from day_night_classifier import DayNightEnum, DayNightEstimator
+
+
+USAGE = 'python heatmap/heatmap-v2.py -d <<directory-containing-allsky and foreground_mask directories>> -m <<mask-filename>>'
+
+def process_dir(recordings_dir, mask_filename=None):
+
+    foreground_mask_dir = os.path.join(recordings_dir, "foreground_mask")
+    allsky_dir = os.path.join(recordings_dir, "allsky")
+    heatmaps_dir = os.path.join(recordings_dir, "heatmaps")
+
+    if not os.path.isdir(heatmaps_dir):
+        os.mkdir(heatmaps_dir)
+
+    foreground_mask_processed_dir = os.path.join(foreground_mask_dir, f'processed-{datetime.now().strftime("%Y%m%d-%H%M%S")}')
+    if not os.path.isdir(foreground_mask_processed_dir):
+        os.mkdir(foreground_mask_processed_dir)
+
+    allsky_processed_dir = os.path.join(allsky_dir, f'processed-{datetime.now().strftime("%Y%m%d-%H%M%S")}')
+    if not os.path.isdir(allsky_processed_dir):
+        os.mkdir(allsky_processed_dir)
+
+    allsky_files = set(os.listdir(allsky_dir))
+    sorted_files = os.listdir(foreground_mask_dir)
+    sorted_files.sort()
+
+    # Filter out files that don't have corresponding allsky files
+    sorted_files = [f for f in sorted_files if f in allsky_files]
+
+    for filename in sorted_files:
+        foreground_mask_path = os.path.join(foreground_mask_dir, filename)
+        allsky_path = os.path.join(allsky_dir, filename)
+
+        if os.path.isdir(foreground_mask_path) or os.path.isdir(allsky_path):
+            continue
+
+        base = os.path.basename(filename)
+        root_name = os.path.splitext(base)[0]
+        heatmap_filename = os.path.join(heatmaps_dir, root_name + ".png")
+
+        # generate heatmap file
+        process_file(foreground_mask_path, allsky_path, heatmap_filename, mask_filename)
+
+        # move files to prcessed folders
+        foreground_mask_processed_path = os.path.join(foreground_mask_processed_dir, filename)
+        shutil.move(foreground_mask_path, foreground_mask_processed_path)
+        allsky_processed_path = os.path.join(allsky_processed_dir, filename)
+        shutil.move(allsky_path, allsky_processed_path)        
+
+def process_file(foreground_mask_path, allsky_path, heatmap_filename, mask_filename=None):
+
+    print(f"Loading foreground mask video from: {foreground_mask_path}, allsky video from: {allsky_path}")
+
+    # Load the video
+    cap = cv2.VideoCapture(foreground_mask_path)
+    cap_allsky = cv2.VideoCapture(allsky_path)
+    if not cap.isOpened():
+        print(f"Error: Could not open foreground mask video at {foreground_mask_path}.")
+        return
+
+    if not cap_allsky.isOpened():
+        print(f"Error: Could not open allsky video at {allsky_path}.")
+        return
+
+    # Load the mask (important)
+    mask = None
+    if mask_filename is not None and Path.exists(mask_filename):
+        mask = cv2.imread(mask_filename, cv2.IMREAD_GRAYSCALE) 
+        if mask is None:
+            print("Error: Could not load PGM mask.")
+            exit()
+
+    ret, prev_frame = cap.read()
+    if not ret:
+        print("Error: Could not read frame.")
+        exit()
+
+    prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
+
+    if mask is not None:
+        assert prev_gray.shape == mask.shape, "Mask and video dimensions do not match!"
+
+    # Initialize an empty heatmap
+    heatmap = np.zeros_like(prev_gray, dtype=np.float32)
+
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    ret_allsky, frame_allsky = cap_allsky.read()
+    if not ret_allsky or frame_allsky is None:
+        print("Error: Couldn't read the first frame from the allsky video.")
+        return
+
+    day_night_estimator = DayNightEstimator.Classifier(95)
+    day_night_estimation, average_brightness = day_night_estimator.estimate(frame_allsky)
+
+    cloud_estimator = None
+    match day_night_estimation:
+        case DayNightEnum.Day:
+            cloud_estimator = CloudEstimator.Day()
+        case DayNightEnum.Night:
+            cloud_estimator = CloudEstimator.Night()
+
+    cloud_estimation = cloud_estimator.estimate(frame_allsky)
+
+    print(f'Day/Night classifier: {str(day_night_estimation)}, {average_brightness}, cloudy classifier estimation: {cloud_estimation}')
+
+    while True:
+        ret, mask_frame = cap.read()
+
+        if not ret:
+            print("Finished processing all frames from foreground video.")
+            break
+
+        gray_mask_frame = cv2.cvtColor(mask_frame, cv2.COLOR_BGR2GRAY)
+
+        if mask is not None:
+            gray_mask_frame *= mask / 255.0
+
+        heatmap += gray_mask_frame
+
+        current_frame = int(cap.get(cv2.CAP_PROP_POS_FRAMES))
+        progress_percent = (current_frame / total_frames) * 100
+        print(f"Processing: {progress_percent:.2f}% done", end="\r")
+
+    cap.release()
+
+    # Normalize the heatmap for visualization
+    heatmap_normalized = cv2.normalize(heatmap, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+    threshold_value = np.percentile(heatmap_normalized, 99)
+
+    _, thresholded_heatmap = cv2.threshold(heatmap_normalized, threshold_value, 255, cv2.THRESH_TOZERO)
+
+    match day_night_estimation:
+        case DayNightEnum.Day:
+            heatmap_colored = cv2.applyColorMap(thresholded_heatmap, cv2.COLORMAP_JET) # day
+        case DayNightEnum.Night:
+            heatmap_colored = cv2.applyColorMap(thresholded_heatmap, cv2.COLORMAP_RAINBOW) # night
+
+    heatmap_bgra = cv2.cvtColor(heatmap_colored, cv2.COLOR_BGR2BGRA)
+    heatmap_bgra[thresholded_heatmap == 0, 3] = 0  # Set alpha channel to 0 for transparent regions
+
+    # Overlay the 4-channel heatmap on the max motion frame
+    alpha = heatmap_bgra[:, :, 3] / 255.0
+    overlay = (heatmap_bgra[:, :, :3] * alpha[:, :, np.newaxis] + frame_allsky * (1 - alpha[:, :, np.newaxis])).astype(np.uint8)
+
+    cv2.imwrite(heatmap_filename, overlay)
+
+def main(argv):
+
+    print(f"Open CV Version: {cv2.__version__}")
+
+    try:
+        opts, args = getopt.getopt(argv, "hd:", [])
+    except getopt.GetoptError:
+        print(USAGE)
+        sys.exit(2)
+
+    video_directory = None
+    mask_filename = None
+    for opt, arg in opts:
+        if opt == '-h':
+            print(USAGE)
+            sys.exit()
+        if opt == '-m':
+            mask_filename = arg
+        if opt == '-d':
+            video_directory = arg                        
+
+    print(f"video_directory: {video_directory}, mask_filename: {mask_filename}")
+
+    if video_directory is not None:
+        recordings_directory = os.path.dirname(video_directory)
+        print(f"recordings_directory: {recordings_directory}")
+
+        if os.path.isdir(recordings_directory):
+            process_dir(recordings_directory, mask_filename)
+        else:
+            print(USAGE)
+            sys.exit()
+
+if __name__ == '__main__':
+    main(sys.argv[1:])

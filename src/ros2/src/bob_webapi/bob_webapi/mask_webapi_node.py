@@ -3,8 +3,6 @@ import os
 import rclpy
 import cv2
 from rclpy.node import Node
-from typing import List
-from ament_index_python.packages import get_package_share_directory
 from cv_bridge import CvBridge
 from bob_interfaces.srv import Mask, MaskUpdate
 from bob_shared.node_runner import NodeRunner
@@ -13,6 +11,17 @@ class MaskWebApiNode(Node):
 
   def __init__(self):
     super().__init__('bob_mask_webapi')
+
+    self.declare_parameters(namespace='', parameters=[
+      ('masks_folder', 'assets/masks'),
+      ('width', 1920),
+      ('height', 1080)])
+    
+    self.masks_folder = self.get_parameter('masks_folder').value
+    self.mask_width = self.get_parameter('width').value
+    self.mask_height = self.get_parameter('height').value
+
+    self.get_logger().debug(f'Masks path {self.masks_folder}, width {self.mask_width}, height {self.mask_height}.')
 
     self.br = CvBridge()
 
@@ -24,12 +33,11 @@ class MaskWebApiNode(Node):
 
   def get_mask_callback(self, request, response):
 
-    try:
-      masks_folder = self.videos_folder = os.path.join(get_package_share_directory('bob_webapi'), 'masks')
-      mask_file_path = os.path.join(masks_folder, request.file_name)
+    try:      
+      mask_file_path = os.path.join(self.masks_folder, request.file_name)
 
       if os.path.exists(mask_file_path) == False:
-        self.get_logger().error(f'Mask path {request.file_name} does not exist.')
+        self.get_logger().error(f'Mask path {mask_file_path} does not exist.')
 
       mask_image = cv2.imread(mask_file_path, cv2.IMREAD_GRAYSCALE)
       response.mask = self.br.cv2_to_imgmsg(mask_image)
@@ -50,14 +58,20 @@ class MaskWebApiNode(Node):
 
   def write_mask_file(self, request, response):
 
-    mask_image = self.br.imgmsg_to_cv2(request.mask)
-    masks_folder = self.videos_folder = os.path.join(get_package_share_directory('bob_webapi'), 'masks')
-    mask_file_path = os.path.join(masks_folder, request.file_name)
+    # explicitly set the encoding to match that from the GUI
+    mask_image = self.br.imgmsg_to_cv2(request.mask, "mono8")
+    mask_file_path = os.path.join(self.masks_folder, request.file_name)
+
+    width, height = mask_image.shape
+
+    if (width != self.mask_width and height != self.mask_height):
+      self.get_logger().info(f'Mask being resized from --> to w: {width} -> {self.mask_width}, h: {height} -> {self.mask_height}.')
+      mask_image = cv2.resize(mask_image, (self.mask_width, self.mask_height), interpolation = cv2.INTER_LINEAR)
 
     if os.path.exists(mask_file_path) == False:
-      self.get_logger().info(f'Mask path {request.file_name} does not exist, adding mask.')
+      self.get_logger().info(f'Mask path {mask_file_path} does not exist, adding mask.')
     else:
-      self.get_logger().info(f'Mask path {request.file_name} does exist, overwriting.')
+      self.get_logger().info(f'Mask path {mask_file_path} does exist, overwriting.')
 
     response.success = cv2.imwrite(mask_file_path, mask_image)
 

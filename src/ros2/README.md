@@ -50,7 +50,6 @@ Run the setup script to setup dev container. This is required for rosbridge_suit
 
 * update the environment variables for both camera rtsp credentials and frame size in `./launch_application.sh`
 * set the BOB_SOURCE environment variable to be `"'rtsp'"`
-* update frame size in `./src/bob_launch/config/camera_info.yaml`
 
 #### Update USB cam details if you are using a USB camera
 

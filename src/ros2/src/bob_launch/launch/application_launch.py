@@ -152,11 +152,11 @@ def generate_launch_description():
         tracking_usemask_arg,
         tracking_maskfile_arg,
 
-        # IncludeLaunchDescription(
-        #     PythonLaunchDescriptionSource([
-        #         launch_package_dir, 
-        #         '/simulation_launch.py']),
-        # ),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource([
+                launch_package_dir, 
+                '/update_config_files_launch.py']),
+        ),
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([
@@ -167,19 +167,19 @@ def generate_launch_description():
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([
                 launch_package_dir, 
-                '/display_launch.py'])
+                '/display_infrastructure_launch.py'])
         ),
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([
                 launch_package_dir, 
-                '/monitor_launch.py'])
+                '/monitoring_infrastructure_launch.py'])
         ),
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([
                 launch_package_dir, 
-                '/rosbridge_launch.py'])
+                '/web_infrastructure_launch.py'])
         ),
 
         RegisterEventHandler(
