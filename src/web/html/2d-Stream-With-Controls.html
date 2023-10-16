@@ -454,23 +454,25 @@ var updateMaskService = new ROSLIB.Service({ros : ros, name : '/bob/webapi/mask/
                     // Invert the mask colors
                     function invertMaskColors(canvas,context) {
                         invert = !invert;
-                        alert(`Mask invertion set to: ${invert}`);
-                        /*let imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                        alert(`Mask inversion set to: ${invert}`);
+
+                        /* MikeG: Unfortunately I can't get this to work so have now done the inverse processing on the server's side
+
+                        let imageData = ctx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
                         let data = imageData.data;
                         for (let i = 0; i < data.length; i += 4) {
-                            if (data[i] === 0
-                            && data[i + 1] === 0
-                            && data[i + 2] === 0
-                            && data[i + 3] === 255) {
-                                data[i + 3] = 0; // If the pixel is black, set it to transparent
+                            if (data[i] === 0 && data[i + 1] === 0 && data[i + 2] === 0 && data[i + 3] === 255) {
+                            // If the pixel is black (masked), set it to transparent
+                                data[i + 3] = 0;
                             } else if (data[i + 3] === 0) {
-                                data[i] = 0; // If the pixel is transparent, set it to black
+                                // If the pixel is transparent, set it to black (masked)
+                                data[i] = 0;
                                 data[i + 1] = 0;
                                 data[i + 2] = 0;
                                 data[i + 3] = 255;
                             }
                         }
-                        context.putImageData(imageData, 0, 0);*/
+                        ctx.putImageData(imageData, 0, 0);*/
                     }
 
                     function saveMaskSVG() {
