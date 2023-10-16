@@ -355,6 +355,7 @@ var updateMaskService = new ROSLIB.Service({ros : ros, name : '/bob/webapi/mask/
                     let editMode = false;
                     var polygons = [];
                     let offset = 0;
+                    let invert = false;
 
                     function sendMaskJPG() {
                         const tempCanvas = document.createElement('canvas');
@@ -373,6 +374,7 @@ var updateMaskService = new ROSLIB.Service({ros : ros, name : '/bob/webapi/mask/
                             rawPixelData.push(grayValue);
                         }
                         var request = new ROSLIB.ServiceRequest({
+                            invert: invert,
                             file_name: 'mask.jpg', // or .pgm
                             mask: {
                                 header: {
@@ -451,8 +453,9 @@ var updateMaskService = new ROSLIB.Service({ros : ros, name : '/bob/webapi/mask/
 
                     // Invert the mask colors
                     function invertMaskColors(canvas,context) {
-                        console.log("invertMaskColors")
-                        let imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                        invert = !invert;
+                        alert(`Mask invertion set to: ${invert}`);
+                        /*let imageData = context.getImageData(0, 0, canvas.width, canvas.height);
                         let data = imageData.data;
                         for (let i = 0; i < data.length; i += 4) {
                             if (data[i] === 0
@@ -467,7 +470,7 @@ var updateMaskService = new ROSLIB.Service({ros : ros, name : '/bob/webapi/mask/
                                 data[i + 3] = 255;
                             }
                         }
-                        context.putImageData(imageData, 0, 0);
+                        context.putImageData(imageData, 0, 0);*/
                     }
 
                     function saveMaskSVG() {
