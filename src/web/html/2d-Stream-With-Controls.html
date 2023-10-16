@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
     <head>
         <style>
 
@@ -139,7 +140,7 @@
             ros.on('connection', function () { console.log('Connected to websocket server.'); });
             ros.on('error', function (error) { console.log('Error connecting to websocket server: ', error); });
             ros.on('close', function () { console.log('Connection to websocket server closed.'); });
-            var updateMaskService = new ROSLIB.Service({ros : ros, name : '/bob/webapi/mask/update', serviceType : 'bob_interfaces/srv/MaskUpdate'
+var updateMaskService = new ROSLIB.Service({ros : ros, name : '/bob/webapi/mask/update', serviceType : 'bob_interfaces/srv/MaskUpdate'
             });
         </script>
     </head>
@@ -204,11 +205,10 @@
             <button id="maskControlsToggleBtn">View Image Mask Controls</button>
             <div id="maskControlsContainer">
                 <p><div><label for="editMaskBtn"><button id="editMaskBtn">Edit Mask</button></label>
-                <!-- <label for="sendMaskToService"><button id="sendMaskToService">Send Mask to Service</button></label> -->
                 <label for="sendMaskJPG"><button id="sendMaskJPG" class="hidden">Send as ROS2 Msg</button></label>
                 <label for="clearMaskBtn"><button id="clearMaskBtn" class="hidden">Clear Mask</button></label>
+                <label for="invertMaskBtn"><button id="invertMaskBtn" class="hidden">Invert Mask</button></label>
                 <label for="cancelMaskBtn"><button id="cancelMaskBtn" class="hidden">Cancel</button></label></div></p>
-                <p><div><label for="invertMaskBtn"><button id="invertMaskBtn" class="hidden">Invert Mask</button></label></div></p>
                 <p><div><label for="saveMaskJPG"><button id="saveMaskJPG" class="hidden">Download JPG</button></label>
                 <label for="saveMaskSVG"><button id="saveMaskSVG" class="hidden">Download SVG</button></label></div>
             </div>
@@ -451,6 +451,7 @@
 
                     // Invert the mask colors
                     function invertMaskColors(canvas,context) {
+                        console.log("invertMaskColors")
                         let imageData = context.getImageData(0, 0, canvas.width, canvas.height);
                         let data = imageData.data;
                         for (let i = 0; i < data.length; i += 4) {
@@ -514,27 +515,28 @@
                         document.getElementById('editMaskBtn').textContent = 'Edit Mask';
                         document.getElementById('editMaskBtn').classList.remove('stop-edit');
                         document.getElementById('clearMaskBtn').classList.add("hidden");
+                        document.getElementById('invertMaskBtn').classList.add("hidden");
                         document.getElementById('cancelMaskBtn').classList.add("hidden");
                         redrawCanvas();
                         if (polygons[polygons.length - 1].length === 0) { polygons.pop(); }
                     }
                     // Publish the Mask Image by creating a message and publishing it to the ROS2 Topic
                     // function sendMaskJPG() {
-                    //     console.log("sendMaskJPG");
-                    //     const tempCanvas = document.createElement('canvas');
-                    //     tempCanvas.width = maskCanvas.width;
-                    //     tempCanvas.height = maskCanvas.height;
-                    //     const tempCtx = tempCanvas.getContext('2d');
-                    //     tempCtx.fillStyle = 'white';
-                    //     tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-                    //     tempCtx.drawImage(maskCanvas, 0, 0);
-                    //     const jpgDataUrl = tempCanvas.toDataURL('image/jpeg');
-                    //     console.log("jpgDataUrl:" + jpgDataUrl)
-                    //     var data = jpgDataUrl
-                    //     var imageMessage = new ROSLIB.Message({ format: "jpeg", data: data.replace("data:image/jpeg;base64,", "") });
-                    //     console.log("ROSLIB.Message: "+imageMessage);
-                    //     console.log("ROSLIB.Topic: "+maskProviderTopic);
-                    //     maskProviderTopic.publish(imageMessage);
+                        //     console.log("sendMaskJPG");
+                        //     const tempCanvas = document.createElement('canvas');
+                        //     tempCanvas.width = maskCanvas.width;
+                        //     tempCanvas.height = maskCanvas.height;
+                        //     const tempCtx = tempCanvas.getContext('2d');
+                        //     tempCtx.fillStyle = 'white';
+                        //     tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                        //     tempCtx.drawImage(maskCanvas, 0, 0);
+                        //     const jpgDataUrl = tempCanvas.toDataURL('image/jpeg');
+                        //     console.log("jpgDataUrl:" + jpgDataUrl)
+                        //     var data = jpgDataUrl
+                        //     var imageMessage = new ROSLIB.Message({ format: "jpeg", data: data.replace("data:image/jpeg;base64,", "") });
+                        //     console.log("ROSLIB.Message: "+imageMessage);
+                        //     console.log("ROSLIB.Topic: "+maskProviderTopic);
+                        //     maskProviderTopic.publish(imageMessage);
                     // }
 
                     // EVENT LISTENERS
@@ -609,6 +611,7 @@
                             document.getElementById('editMaskBtn').textContent = 'Save Mask';
                             document.getElementById('editMaskBtn').classList.add('stop-edit');
                             document.getElementById('clearMaskBtn').classList.remove("hidden");
+                            document.getElementById('invertMaskBtn').classList.remove("hidden");
                             document.getElementById('cancelMaskBtn').classList.remove("hidden");
                             // document.getElementById('sendMaskJPG').classList.remove("hidden"); // To show
                             if (polygons.length === 0 || polygons[polygons.length - 1].length > 0) { polygons.push([]); }
@@ -618,6 +621,7 @@
                             document.getElementById('editMaskBtn').textContent = 'Edit Mask';
                             document.getElementById('editMaskBtn').classList.remove('stop-edit');
                             document.getElementById('clearMaskBtn').classList.add("hidden");
+                            document.getElementById('invertMaskBtn').classList.add("hidden");
                             document.getElementById('cancelMaskBtn').classList.add("hidden");
                             // document.getElementById('sendMaskJPG').classList.add("hidden"); // To hide
                             redrawCanvas();
@@ -670,6 +674,7 @@
                             document.getElementById('maskControlsToggleBtn').textContent = 'View Image Mask Controls';
                         }
                     });
+
 
         </script>
     </body>
