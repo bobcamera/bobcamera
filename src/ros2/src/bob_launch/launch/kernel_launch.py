@@ -22,10 +22,9 @@ def generate_launch_description():
 
     video_file1 = '/workspaces/bobcamera/test/fisheye_videos/mike_drone.mp4'
     video_file2 = '/workspaces/bobcamera/test/fisheye_videos/Dahua-20220901-184734.mp4'
-    video_file3 = '/workspaces/bobcamera/test/fisheye_videos/brad_drone_1.mp4'
-    
+    video_file3 = '/workspaces/bobcamera/test/fisheye_videos/brad_drone_1.mp4'    
 
-    processing_pipeline_container = ComposableNodeContainer(
+    kernel_container = ComposableNodeContainer(
         name='track_container',
         namespace='',
         package='rclcpp_components',
@@ -329,6 +328,6 @@ def generate_launch_description():
             condition=IfCondition(PythonExpression([LaunchConfiguration('enable_recording_arg'), " == True" ])),
             msg=['Recording is set to: ON.']),
 
-        processing_pipeline_container
+        kernel_container
         ]
     )
