@@ -278,16 +278,16 @@
     var currentRos2ImageTopic = ros2ImageTopic2; // Set the ROS2 Topic to Subscribe to
     var compressedImageMsgType = 'sensor_msgs/msg/CompressedImage'; // define the Msg Type of the ROS2 Subsc. Topic
 
-    var maskProviderTopic = new ROSLIB.Topic({
-        ros: ros,
-        name: currentRos2ImageTopic+"/mask",
-        messageType: compressedImageMsgType
-    });
-
     var topicStream = new ROSLIB.Topic({
         ros: ros,
         name: currentRos2ImageTopic,
         messageType: compressedImageMsgType
+    });
+
+    var updateMaskService = new ROSLIB.Service({
+        ros : ros, 
+        name : '/bob/webapi/mask/update', 
+        serviceType : 'bob_interfaces/srv/MaskUpdate'
     });
 
     function init() {
@@ -334,7 +334,6 @@
     }
 
     function sendMaskJPG() {
-        console.log("sendMaskJPG");
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = maskCanvas.width;
         tempCanvas.height = maskCanvas.height;
@@ -342,13 +341,37 @@
         tempCtx.fillStyle = 'white';
         tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
         tempCtx.drawImage(maskCanvas, 0, 0);
-        const jpgDataUrl = tempCanvas.toDataURL('image/jpeg');
-        console.log("jpgDataUrl: "+jpgDataUrl);
-        var data = jpgDataUrl;
-        var imageMessage = new ROSLIB.Message({ format: "jpeg", data: data.replace("data:image/jpeg;base64,", "") });
-        console.log("ROSLIB.Message: "+imageMessage);
-        console.log("ROSLIB.Topic: "+maskProviderTopic);
-        maskProviderTopic.publish(imageMessage);
+
+        const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+        const rawPixelData = [];
+        for (let i = 0; i < imageData.data.length; i += 4) {
+            // Convert RGB to grayscale using the ITU-R BT.709 standard
+            const grayValue = Math.round(imageData.data[i] * 0.2126 + imageData.data[i + 1] * 0.7152 + imageData.data[i + 2] * 0.0722);
+            rawPixelData.push(grayValue);
+        }
+        var request = new ROSLIB.ServiceRequest({
+            invert: false,
+            file_name: 'mask.jpg', // or .pgm
+            mask: {
+                header: {
+                    // ...header data
+                },
+                height: tempCanvas.height,
+                width: tempCanvas.width,
+                encoding: "mono8",
+                is_bigendian: 0,
+                step: tempCanvas.width,  
+                data: rawPixelData  
+            }
+        });
+
+        updateMaskService.callService(request, function(result) {
+            if (result.success) {
+                console.log("Mask sent successfully!");
+            } else {
+                console.error("Failed to send mask:", result.message);
+            }
+        });
     }
 
     function displayImage() {
