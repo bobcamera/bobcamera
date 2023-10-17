@@ -17,15 +17,21 @@ endif ()
 
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_components REQUIRED)
+find_package(rclcpp_lifecycle REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(vision_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
+find_package(image_transport REQUIRED)
 find_package(rcl_interfaces REQUIRED)
+find_package(camera_info_manager REQUIRED)
+find_package(camera_calibration_parsers REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(boblib REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
-find_package(rclcpp_components REQUIRED)
+
 
 include_directories(${OpenCV_INCLUDE_DIRS})
 include_directories("../bob_shared/include")
@@ -83,5 +89,20 @@ ament_target_dependencies(web_camera_video_node PUBLIC
     Boost)
 rclcpp_components_register_nodes(web_camera_video_node "WebCameraVideo")
 install(TARGETS web_camera_video_node DESTINATION lib)
+
+# IP Camera Node
+add_library(ipcamera_node SHARED src/ipcamera_node.cpp)
+target_compile_definitions(ipcamera_node PRIVATE "COMPOSITION_BUILDING_DLL")
+ament_target_dependencies(ipcamera_node PUBLIC
+  rclcpp
+  rclcpp_components
+  cv_bridge
+  OpenCV
+  sensor_msgs
+  camera_info_manager
+  camera_calibration_parsers
+  image_transport)
+rclcpp_components_register_nodes(ipcamera_node "IPCamera")
+install(TARGETS ipcamera_node DESTINATION lib)
 
 ament_package()
