@@ -7,6 +7,7 @@
 #include <cv_bridge/cv_bridge.hpp>
 #include <camera_info_manager/camera_info_manager.hpp>
 #include <visibility_control.h>
+#include <image_transport/image_transport.hpp>
 #include "rclcpp_components/register_node_macro.hpp"
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
@@ -18,7 +19,7 @@ public:
         : ParameterNode("ipcamera_node", options),
           cinfo_manager_(nullptr),
           camera_calibration_file_param_(""),
-          image_publisher_(nullptr),
+          //image_publisher_(nullptr),
           pub_qos_profile_(10),
           source_(""),
           width_(640),
@@ -37,13 +38,15 @@ public:
         configure();
 
         timer_ = create_wall_timer(std::chrono::milliseconds(10), std::bind(&IPCamera::timer_callback, this));
-        image_publisher_ = create_publisher<sensor_msgs::msg::Image>("~/image_raw", pub_qos_profile_);
+        // image_publisher_ = create_publisher<sensor_msgs::msg::Image>("~/image_raw", pub_qos_profile_);
+		image_publisher_ = image_transport::create_camera_publisher(this, "~/image_raw", pub_qos_profile_.get_rmw_qos_profile());
     }
 
 private:
     std::shared_ptr<camera_info_manager::CameraInfoManager> cinfo_manager_;
     std::string camera_calibration_file_param_;
-    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
+    // rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
+	image_transport::CameraPublisher image_publisher_;
     rclcpp::QoS pub_qos_profile_;
     rclcpp::TimerBase::SharedPtr timer_;
 
@@ -127,7 +130,8 @@ private:
 		cap_ >> frame;
 		if (!frame.empty()) {
 			convert_frame_to_message(frame, frame_id_, *msg, *camera_info_msg);
-			image_publisher_->publish(*msg);
+			// image_publisher_->publish(*msg);
+			image_publisher_.publish(std::move(msg), camera_info_msg);
 			++frame_id_;
 		}
 		else {
