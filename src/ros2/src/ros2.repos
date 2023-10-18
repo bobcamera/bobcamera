@@ -8,10 +8,10 @@ repositories:
     type: git
     url: https://github.com/ros-perception/image_common.git
     version: humble
-  ros2_ipcamera: 
-    type: git
-    url: https://github.com/bobcamera/ros2_ipcamera.git
-    version: master
+  #ros2_ipcamera: 
+  #  type: git
+  #  url: https://github.com/bobcamera/ros2_ipcamera.git
+  #  version: master
   #usb_cam:
   #  type: git
   #  url: https://github.com/ros-drivers/usb_cam.git

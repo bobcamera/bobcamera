@@ -210,7 +210,7 @@ def generate_launch_description():
                 package='bob_recorder',
                 plugin='VideoRecorder',
                 name='allsky_recorder_node',
-                parameters=[{'video_directory': 'recordings/allsky'}
+                parameters=[{'video_directory': 'assets/recordings/allsky'}
                     , {'img_topic': 'bob/camera/all_sky/bayer'}
                     , {'tracking_topic': 'bob/tracker/tracking'}
                     , {'prefix': ''}
@@ -225,7 +225,7 @@ def generate_launch_description():
                 package='bob_recorder',
                 plugin='VideoRecorder',
                 name='foreground_mask_recorder_node',
-                parameters=[{'video_directory': 'recordings/foreground_mask'}
+                parameters=[{'video_directory': 'assets/recordings/foreground_mask'}
                     , {'img_topic': 'bob/frames/all_sky/foreground_mask'}
                     , {'tracking_topic': 'bob/tracker/tracking'}
                     , {'prefix': ''}
