@@ -38,14 +38,18 @@ public:
         configure();
 
         timer_ = create_wall_timer(std::chrono::milliseconds(10), std::bind(&IPCamera::timer_callback, this));
-        // image_publisher_ = create_publisher<sensor_msgs::msg::Image>("~/image_raw", pub_qos_profile_);
 		image_publisher_ = image_transport::create_camera_publisher(this, "~/image_raw", pub_qos_profile_.get_rmw_qos_profile());
+
+		startCapture();
     }
 
+	~IPCamera()
+	{
+		stopCapture();
+	}
 private:
     std::shared_ptr<camera_info_manager::CameraInfoManager> cinfo_manager_;
     std::string camera_calibration_file_param_;
-    // rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
 	image_transport::CameraPublisher image_publisher_;
     rclcpp::QoS pub_qos_profile_;
     rclcpp::TimerBase::SharedPtr timer_;
@@ -55,6 +59,37 @@ private:
     int width_;
     int height_;
     size_t frame_id_;
+	std::thread      mCaptureThread;
+	std::mutex       mFrameMutex;
+	bool             mRun;
+	cv::Mat          mCurrentFrame;
+
+	void captureLoop()
+	{
+		while(mRun)
+		{
+			cv::Mat frame;
+			cap_ >> frame;
+			{
+				const std::lock_guard<std::mutex> lock(mFrameMutex);
+				mCurrentFrame = frame;
+			}
+			std::this_thread::yield(); // Allow other threads to run
+		}
+	}
+
+	void startCapture()
+	{
+		mRun = true;
+		mCaptureThread = std::thread(&IPCamera::captureLoop, this);
+	}
+
+	void stopCapture()
+	{
+		mRun = false;
+		if (mCaptureThread.joinable())
+			mCaptureThread.join();
+	}
 
 	void initialize_parameters()
 	{
@@ -121,21 +156,27 @@ private:
 	void timer_callback()
 	{
 		rclcpp::Logger node_logger = get_logger();
-
-		auto camera_info_msg = std::make_shared<sensor_msgs::msg::CameraInfo>(cinfo_manager_->getCameraInfo());
 		cv::Mat frame;
-		auto msg = std::make_unique<sensor_msgs::msg::Image>();
-		msg->is_bigendian = false;
+		{
+			const std::lock_guard<std::mutex> lock(mFrameMutex);
+			frame = mCurrentFrame.clone();
+		}
 
-		cap_ >> frame;
-		if (!frame.empty()) {
-			convert_frame_to_message(frame, frame_id_, *msg, *camera_info_msg);
-			// image_publisher_->publish(*msg);
-			image_publisher_.publish(std::move(msg), camera_info_msg);
+		if (!frame.empty())
+		{
+			std_msgs::msg::Header header;
+			header.stamp = get_clock()->now();
+			header.frame_id = std::to_string(frame_id_); 
+
+			auto image_msg = cv_bridge::CvImage(header, frame.channels() == 1 ? sensor_msgs::image_encodings::MONO8 : sensor_msgs::image_encodings::BGR8, frame).toImageMsg();
+			auto camera_info_msg = std::make_shared<sensor_msgs::msg::CameraInfo>(cinfo_manager_->getCameraInfo());
+			image_publisher_.publish(std::move(image_msg), camera_info_msg);
+
 			++frame_id_;
 		}
-		else {
-    		RCLCPP_WARN(node_logger, "Received an empty frame from the camera source: %s", source_.c_str());
+		else 
+		{
+			RCLCPP_WARN(node_logger, "Received an empty frame from the camera source: %s", source_.c_str());
 		}
 	}
 
@@ -164,7 +205,7 @@ private:
 		msg.step = static_cast<sensor_msgs::msg::Image::_step_type>(frame.step);
 		size_t size = frame.step * frame.rows;
 		msg.data.resize(size);
-		std::copy(frame.data, frame.data + size, msg.data.begin());
+		memcpy(&msg.data[0], frame.data, size);
 
 		rclcpp::Time timestamp = get_clock()->now();
 
