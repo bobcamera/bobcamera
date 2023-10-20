@@ -6,7 +6,6 @@ import os
 import getopt
 import sys
 import shutil
-from pathlib import Path
 from cloud_estimator import CloudEstimator
 from day_night_classifier import DayNightEnum, DayNightEstimator
 
@@ -74,7 +73,7 @@ def process_file(foreground_mask_path, allsky_path, heatmap_filename, mask_filen
 
     # Load the mask (important)
     mask = None
-    if mask_filename is not None and Path.exists(mask_filename):
+    if mask_filename is not None and os.path.exists(mask_filename):
         mask = cv2.imread(mask_filename, cv2.IMREAD_GRAYSCALE) 
         if mask is None:
             print("Error: Could not load PGM mask.")
@@ -112,7 +111,7 @@ def process_file(foreground_mask_path, allsky_path, heatmap_filename, mask_filen
 
     cloud_estimation = cloud_estimator.estimate(frame_allsky)
 
-    print(f'Day/Night classifier: {str(day_night_estimation)}, {average_brightness}, cloudy classifier estimation: {cloud_estimation}')
+    #print(f'Day/Night classifier: {str(day_night_estimation)}, {average_brightness}, cloudy classifier estimation: {cloud_estimation}')
 
     while True:
         ret, mask_frame = cap.read()
@@ -124,7 +123,8 @@ def process_file(foreground_mask_path, allsky_path, heatmap_filename, mask_filen
         gray_mask_frame = cv2.cvtColor(mask_frame, cv2.COLOR_BGR2GRAY)
 
         if mask is not None:
-            gray_mask_frame *= mask / 255.0
+            #gray_mask_frame *= mask / 255.0
+            np.multiply(gray_mask_frame, (mask / 255.0), out=gray_mask_frame, casting='unsafe')
 
         heatmap += gray_mask_frame
 
@@ -160,7 +160,9 @@ def main(argv):
     print(f"Open CV Version: {cv2.__version__}")
 
     try:
-        opts, args = getopt.getopt(argv, "hd:", [])
+        argv = sys.argv[1:] 
+        opts, args = getopt.getopt(argv, "h:m:d:", ["help=", "mask=", "directory="])
+        #print(f"opts: {opts}, args: {args}")
     except getopt.GetoptError:
         print(USAGE)
         sys.exit(2)
@@ -168,19 +170,19 @@ def main(argv):
     video_directory = None
     mask_filename = None
     for opt, arg in opts:
-        if opt == '-h':
+        if opt in ['-h', '--help']: 
             print(USAGE)
             sys.exit()
-        if opt == '-m':
+        if opt in ['-m', '--mask']: 
             mask_filename = arg
-        if opt == '-d':
+        if opt in ['-d', '--directory']: 
             video_directory = arg                        
 
     print(f"video_directory: {video_directory}, mask_filename: {mask_filename}")
 
     if video_directory is not None:
         recordings_directory = os.path.dirname(video_directory)
-        print(f"recordings_directory: {recordings_directory}")
+        #print(f"recordings_directory: {recordings_directory}")
 
         if os.path.isdir(recordings_directory):
             process_dir(recordings_directory, mask_filename)
