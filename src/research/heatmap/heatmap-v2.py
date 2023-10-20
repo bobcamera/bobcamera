@@ -8,11 +8,11 @@ import sys
 import shutil
 from cloud_estimator import CloudEstimator
 from day_night_classifier import DayNightEnum, DayNightEstimator
-
+from utils import scale_image
 
 USAGE = 'python heatmap/heatmap-v2.py -d <<directory-containing-allsky and foreground_mask directories>> -m <<mask-filename>>'
 
-def process_dir(recordings_dir, mask_filename=None):
+def process_dir(recordings_dir, mask_filename=None, scale=True):
 
     foreground_mask_dir = os.path.join(recordings_dir, "foreground_mask")
     allsky_dir = os.path.join(recordings_dir, "allsky")
@@ -56,7 +56,7 @@ def process_dir(recordings_dir, mask_filename=None):
         allsky_processed_path = os.path.join(allsky_processed_dir, filename)
         shutil.move(allsky_path, allsky_processed_path)        
 
-def process_file(foreground_mask_path, allsky_path, heatmap_filename, mask_filename=None):
+def process_file(foreground_mask_path, allsky_path, heatmap_filename, mask_filename=None, scale=True):
 
     print(f"Loading foreground mask video from: {foreground_mask_path}, allsky video from: {allsky_path}")
 
@@ -153,6 +153,9 @@ def process_file(foreground_mask_path, allsky_path, heatmap_filename, mask_filen
     alpha = heatmap_bgra[:, :, 3] / 255.0
     overlay = (heatmap_bgra[:, :, :3] * alpha[:, :, np.newaxis] + frame_allsky * (1 - alpha[:, :, np.newaxis])).astype(np.uint8)
 
+    if scale:
+        overlay = scale_image(overlay, 720, 720)
+
     cv2.imwrite(heatmap_filename, overlay)
 
 def main(argv):
@@ -169,6 +172,7 @@ def main(argv):
 
     video_directory = None
     mask_filename = None
+    scale = True
     for opt, arg in opts:
         if opt in ['-h', '--help']: 
             print(USAGE)
@@ -185,7 +189,7 @@ def main(argv):
         #print(f"recordings_directory: {recordings_directory}")
 
         if os.path.isdir(recordings_directory):
-            process_dir(recordings_directory, mask_filename)
+            process_dir(recordings_directory, mask_filename, scale=scale)
         else:
             print(USAGE)
             sys.exit()
