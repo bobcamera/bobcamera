@@ -48,7 +48,7 @@ def generate_launch_description():
         name='prometheus_metrics_node',
         parameters=[
             #params,
-            {'port': 8085}],
+            {'port': 8082}],
     )
 
     return LaunchDescription([
