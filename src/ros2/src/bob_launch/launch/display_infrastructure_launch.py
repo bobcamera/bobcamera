@@ -1,11 +1,16 @@
+import os
 from launch import LaunchDescription
 from launch_ros.actions import ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
 from launch.actions import LogInfo
 from launch.substitutions import PythonExpression, LaunchConfiguration
 from launch.conditions import IfCondition
+from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
+
+    # Get the application config
+    config = os.path.join(get_package_share_directory('bob_launch'), 'config', 'app_config.yaml')
 
     display_container = ComposableNodeContainer(
         name='display_container',
@@ -17,7 +22,7 @@ def generate_launch_description():
                 package='bob_visualizers',
                 plugin='FrameViewer',
                 name='multi_frame_viewer_node',
-                parameters=[{"topics": ["bob/camera/all_sky/bayer/resized", "bob/frames/all_sky/foreground_mask/resized", "bob/frames/annotated/resized"]}],
+                parameters = [config],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([
                     LaunchConfiguration('enable_visualiser_arg'), 
@@ -29,8 +34,7 @@ def generate_launch_description():
                 package='bob_visualizers',
                 plugin='FrameViewer',
                 name='single_frame_viewer_node',
-                #parameters=[{"topics": ["bob/camera/all_sky/bayer"]}]
-                parameters=[{"topics": ["bob/frames/annotated/resized"]}],
+                parameters = [config],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([
                     LaunchConfiguration('enable_visualiser_arg'), 
@@ -57,7 +61,7 @@ def generate_launch_description():
                 remappings=[
                     ('bob/compressor/source', 'bob/frames/annotated/resized'),
                     ('bob/compressor/target', 'bob/frames/annotated/resized/compressed')],
-                parameters=[{'compression_quality': 95}],
+                parameters = [config],
                 extra_arguments=[{'use_intra_process_comms': True}]),
 
             # New node for compressing the bayer image
@@ -68,7 +72,7 @@ def generate_launch_description():
                 remappings=[
                     ('bob/compressor/source', 'bob/camera/all_sky/bayer/resized'),
                     ('bob/compressor/target', 'bob/camera/all_sky/bayer/resized/compressed')],
-                parameters=[{'compression_quality': 95}],
+                parameters = [config],
                 extra_arguments=[{'use_intra_process_comms': True}]),             
         ],
         output='screen',

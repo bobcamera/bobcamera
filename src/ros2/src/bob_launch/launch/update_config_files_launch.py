@@ -26,12 +26,12 @@ def application_config(context):
     bgs_algo = str(LaunchConfiguration('bgs_algorithm_arg').perform(context))
 
     tracking_mask_file = str(LaunchConfiguration('tracking_maskfile_arg').perform(context))
-    tracking_use_mask = bool(LaunchConfiguration('tracking_usemask_arg').perform(context))
+    tracking_use_mask = LaunchConfiguration('tracking_usemask_arg').perform(context) in ('True', 'true')
     tracking_mask_dir = os.path.dirname(tracking_mask_file)
 
     # Get the config directory
     config_dir = os.path.join(get_package_share_directory('bob_launch'), 'config')
-    camera_config_file = os.path.join(config_dir, "camera_info.yaml")
+    camera_config_file = 'file://' + os.path.join(config_dir, "camera_info.yaml")
     app_config_file = os.path.join(config_dir, "app_config.yaml")
 
     with open(app_config_file, 'r') as read:
@@ -94,7 +94,8 @@ def application_config(context):
 
     # Update the camera_info file with the provided launch arguments
     with open(app_config_file, 'w') as write:
-        yaml.dump(yaml_output, write, sort_keys = False)
+        yaml.Dumper.ignore_aliases = lambda *args: True
+        yaml.dump(yaml_output, write, sort_keys = False, width=1080)
 
 def camera_info_config(context):
 

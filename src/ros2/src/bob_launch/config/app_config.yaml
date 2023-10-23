@@ -92,6 +92,7 @@ high_background_subtractor_node:
 
 track_provider_node:
   ros__parameters:
+    pass: True
 
 allsky_recorder_node:
   ros__parameters:
@@ -115,6 +116,7 @@ foreground_mask_recorder_node:
 
 annotated_frame_provider_node:
   ros__parameters:
+    pass: True
 
 bayer_frame_resizer_node:
   ros__parameters:
