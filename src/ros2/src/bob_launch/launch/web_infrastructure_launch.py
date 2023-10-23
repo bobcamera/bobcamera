@@ -14,7 +14,7 @@ def generate_launch_description():
         package='bob_webapi',
         #namespace='bob',
         executable='mask_webapi',
-        name='mask_webapi',
+        name='mask_webapi_node',
         parameters=[
             {'masks_folder': 'assets/masks'},
             {'width': LaunchConfiguration('rtsp_width_arg')},

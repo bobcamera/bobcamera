@@ -34,10 +34,10 @@ def generate_launch_description():
             ComposableNode(
                package='bob_camera',
                plugin='IPCamera',
-               name='ipcamera',
+               name='rstp_camera_node',
                remappings=[
-                   ('/ipcamera/image_raw', 'bob/camera/all_sky/bayer'),
-                   ('/ipcamera/camera_info', 'bob/camera/all_sky/camera_info')],
+                   ('/rstp_camera_node/image_raw', 'bob/camera/all_sky/bayer'),
+                   ('/rstp_camera_node/camera_info', 'bob/camera/all_sky/camera_info')],
                parameters=[
                    #params,
                    {'rtsp_uri': LaunchConfiguration('rtsp_url_arg')},
@@ -51,10 +51,10 @@ def generate_launch_description():
             ComposableNode(
                package='bob_camera',
                plugin='IPCamera',
-               name='ipcamera',
+               name='rstp_overlay_camera_node',
                remappings=[
-                   ('/ipcamera/image_raw', 'bob/simulation/input_frame'),
-                   ('/ipcamera/camera_info', 'bob/camera/all_sky/camera_info')],
+                   ('/rstp_overlay_camera_node/image_raw', 'bob/simulation/input_frame'),
+                   ('/rstp_overlay_camera_node/camera_info', 'bob/camera/all_sky/camera_info')],
                parameters=[
                    #params,
                    {'rtsp_uri': LaunchConfiguration('rtsp_url_arg')},
@@ -108,7 +108,7 @@ def generate_launch_description():
             ComposableNode(
                 package='bob_camera',
                 plugin='WebCameraVideo',
-                name='web_camera_video_node',
+                name='web_camera_video_overlay_node',
                 parameters=[{'image_publish_topic': 'bob/simulation/input_frame'}
                     , {'image_info_publish_topic': 'bob/camera/all_sky/image_info'}
                     , {'camera_info_publish_topic': 'bob/camera/all_sky/camera_info'}
@@ -148,7 +148,7 @@ def generate_launch_description():
             ComposableNode(
                 package='bob_image_processing',
                 plugin='BackgroundSubtractor',
-                name='background_subtractor_node',
+                name='minimal_background_subtractor_node',
                 parameters=[{'bgs': LaunchConfiguration('bgs_algorithm_arg')}
                     , {'vibe_params': "{\"threshold\": 70, \"bgSamples\": 32, \"requiredBGSamples\": 1, \"learningRate\": 4}"}
                     , {'wmv_params': "{\"enableWeight\": true, \"enableThreshold\": true, \"threshold\": 60.0, \"weight1\": 0.5, \"weight2\": 0.3, \"weight3\": 0.2}"}
@@ -162,7 +162,7 @@ def generate_launch_description():
             ComposableNode(
                 package='bob_image_processing',
                 plugin='BackgroundSubtractor',
-                name='background_subtractor_node',
+                name='low_background_subtractor_node',
                 parameters=[{'bgs': LaunchConfiguration('bgs_algorithm_arg')}
                     , {'vibe_params': "{\"threshold\": 55, \"bgSamples\": 32, \"requiredBGSamples\": 1, \"learningRate\": 4}"}
                     , {'wmv_params': "{\"enableWeight\": true, \"enableThreshold\": true, \"threshold\": 45.0, \"weight1\": 0.5, \"weight2\": 0.3, \"weight3\": 0.2}"}
@@ -176,7 +176,7 @@ def generate_launch_description():
             ComposableNode(
                 package='bob_image_processing',
                 plugin='BackgroundSubtractor',
-                name='background_subtractor_node',
+                name='medium_background_subtractor_node',
                 parameters=[{'bgs': LaunchConfiguration('bgs_algorithm_arg')}
                     , {'vibe_params': "{\"threshold\": 40, \"bgSamples\": 16, \"requiredBGSamples\": 1, \"learningRate\": 8}"}
                     , {'wmv_params': "{\"enableWeight\": true, \"enableThreshold\": true, \"threshold\": 30.0, \"weight1\": 0.5, \"weight2\": 0.3, \"weight3\": 0.2}"}
@@ -190,7 +190,7 @@ def generate_launch_description():
             ComposableNode(
                 package='bob_image_processing',
                 plugin='BackgroundSubtractor',
-                name='background_subtractor_node',
+                name='high_background_subtractor_node',
                 parameters=[{'bgs': LaunchConfiguration('bgs_algorithm_arg')}
                     , {'vibe_params': "{\"threshold\": 30, \"bgSamples\": 16, \"requiredBGSamples\": 1, \"learningRate\": 8}"}
                     , {'wmv_params': "{\"enableWeight\": true, \"enableThreshold\": true, \"threshold\": 15.0, \"weight1\": 0.5, \"weight2\": 0.3, \"weight3\": 0.2}"}

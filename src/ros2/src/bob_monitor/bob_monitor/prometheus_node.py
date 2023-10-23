@@ -22,10 +22,17 @@ class PrometheusNode(object):
 
     self.node = rclpy.create_node(node_name)
 
+    self.logger = self.node._logger
+
     self.sub_status = self.node.create_subscription(Tracking, 'bob/tracker/tracking', self.state_callback, subscriber_qos_profile)
     self.pub_tracking_state_json = self.node.create_publisher(String, 'bob/tracker/tracking/json', publisher_qos_profile)
 
-    self.metrics_server = MetricsServer()
+    self.node.declare_parameters(namespace='', parameters=[('port', 8082)])
+    self.metrics_server_port = self.node.get_parameter('port').value
+
+    self.logger.info(f'bob_prometheus --> metrics server ports {self.metrics_server_port}.')
+
+    self.metrics_server = MetricsServer(port=self.metrics_server_port)
 
     # tornado event loop stuff
     self.event_loop = None
@@ -35,8 +42,7 @@ class PrometheusNode(object):
 
     # tornado event loop. all the web server and web socket stuff happens here
     threading.Thread(target = self.event_loop.start, daemon = True).start()
-
-    self.logger = self.node._logger
+    
     self.logger.info(f'{node_name} node is up and running.')
 
   def start(self):

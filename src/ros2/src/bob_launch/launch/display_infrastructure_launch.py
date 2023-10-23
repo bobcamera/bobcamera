@@ -16,7 +16,7 @@ def generate_launch_description():
             ComposableNode(
                 package='bob_visualizers',
                 plugin='FrameViewer',
-                name='frame_viewer_node',
+                name='multi_frame_viewer_node',
                 parameters=[{"topics": ["bob/camera/all_sky/bayer/resized", "bob/frames/all_sky/foreground_mask/resized", "bob/frames/annotated/resized"]}],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([
@@ -28,7 +28,7 @@ def generate_launch_description():
             ComposableNode(
                 package='bob_visualizers',
                 plugin='FrameViewer',
-                name='frame_viewer_node',
+                name='single_frame_viewer_node',
                 #parameters=[{"topics": ["bob/camera/all_sky/bayer"]}]
                 parameters=[{"topics": ["bob/frames/annotated/resized"]}],
                 extra_arguments=[{'use_intra_process_comms': True}],

@@ -7,7 +7,7 @@ def generate_launch_description():
         package='bob_observer',
         #namespace='bob',
         executable='day_night_classifier',
-        name='day_night_classifier',
+        name='day_night_classifier_node',
         parameters=[
             #params,
             {'observer_timer_interval': 30},
@@ -20,7 +20,7 @@ def generate_launch_description():
         package='bob_observer',
         #namespace='bob',
         executable='cloud_estimator',
-        name='cloud_estimator',
+        name='cloud_estimator_node',
         parameters=[
             #params,
             {'observer_timer_interval': 30}],
@@ -32,7 +32,7 @@ def generate_launch_description():
         package='bob_observer',
         #namespace='bob',
         executable='tracking_monitor',
-        name='tracking_monitor',
+        name='tracking_monitor_node',
         parameters=[
             #params,
             {'observer_tracker_monitor_busy_interval': 5},
@@ -45,7 +45,10 @@ def generate_launch_description():
         package='bob_monitor',
         #namespace='bob',
         executable='prometheus_metrics',
-        name='prometheus_metrics'
+        name='prometheus_metrics_node',
+        parameters=[
+            #params,
+            {'port': 8085}],
     )
 
     return LaunchDescription([
