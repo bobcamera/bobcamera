@@ -22,7 +22,6 @@ def application_config(context):
 
     app_config_file_src = os.path.join(get_package_share_directory('bob_launch'), 'config', 'app_config.yaml')
     app_config_file = 'assets/config/app_config.yaml'
-    camera_config_file = 'file://assets/config/camera_info.yaml'
 
     # get the values provided as part of the launch arguments
     rtsp_url = LaunchConfiguration('rtsp_url_arg').perform(context)
@@ -51,13 +50,11 @@ def application_config(context):
             yaml_output['rstp_camera_node']['ros__parameters']['rtsp_uri'] = rtsp_url
             yaml_output['rstp_camera_node']['ros__parameters']['image_width'] = image_width
             yaml_output['rstp_camera_node']['ros__parameters']['image_height'] = image_height
-            yaml_output['rstp_camera_node']['ros__parameters']['camera_calibration_file'] = camera_config_file
         
             # rstp_overlay_camera_node
             yaml_output['rstp_overlay_camera_node']['ros__parameters']['rtsp_uri'] = rtsp_url
             yaml_output['rstp_overlay_camera_node']['ros__parameters']['image_width'] = image_width
             yaml_output['rstp_overlay_camera_node']['ros__parameters']['image_height'] = image_height
-            yaml_output['rstp_overlay_camera_node']['ros__parameters']['camera_calibration_file'] = camera_config_file
 
             # web_camera_video_node
             yaml_output['usb_camera_node']['ros__parameters']['camera_id'] = camera_id
