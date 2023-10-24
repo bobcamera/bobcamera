@@ -1,10 +1,22 @@
 import os
 import yaml
+from launch.actions import LogInfo
 from launch import LaunchDescription
 from launch.actions import OpaqueFunction
 from launch.conditions import IfCondition
 from launch.substitutions import PythonExpression, LaunchConfiguration 
 from ament_index_python.packages import get_package_share_directory
+
+def create_storage_folders(context):
+    # TODO: Parameterise these a bit better, or drive them from the UI or something but for now
+    # hard coding them will have to do.
+    os.makedirs('assets', exist_ok=True)
+    os.makedirs('assets/config', exist_ok=True)
+    os.makedirs('assets/recordings', exist_ok=True)
+    os.makedirs('assets/recordings/allsky', exist_ok=True)
+    os.makedirs('assets/recordings/foreground_mask', exist_ok=True)
+    os.makedirs('assets/recordings/heatmaps', exist_ok=True)
+    os.makedirs('assets/masks', exist_ok=True)
 
 def application_config(context):
 
@@ -88,6 +100,10 @@ def application_config(context):
             yaml.Dumper.ignore_aliases = lambda *args: True
             yaml.dump(yaml_output, write, sort_keys = False, width=1080)
 
+        with open('assets/config/app_config.yaml', 'w') as write:
+            yaml.Dumper.ignore_aliases = lambda *args: True
+            yaml.dump(yaml_output, write, sort_keys = False, width=1080)            
+
 def camera_config(context):
 
     # get the values provided as part of the launch arguments
@@ -105,15 +121,13 @@ def camera_config(context):
         yaml.dump(yaml_output, write, sort_keys = False)
 
 def generate_launch_description():
+    create_storage_folders_func = OpaqueFunction(function = create_storage_folders)
     application_config_func = OpaqueFunction(function = application_config)
     camera_info_config_func = OpaqueFunction(function = camera_config)
     #opaqueFunction.condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'rtsp' or 'rtsp_overlay'" ]))
 
     return LaunchDescription([
+        create_storage_folders_func,
         application_config_func,
-        camera_info_config_func
+        camera_info_config_func,
     ])
-
-
-
-

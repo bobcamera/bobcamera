@@ -155,29 +155,36 @@ private:
 
 	void timer_callback()
 	{
-		rclcpp::Logger node_logger = get_logger();
-		cv::Mat frame;
-		{
-			const std::lock_guard<std::mutex> lock(mFrameMutex);
-			frame = mCurrentFrame.clone();
-		}
+		try
+        {
+			rclcpp::Logger node_logger = get_logger();
+			cv::Mat frame;
+			{
+				const std::lock_guard<std::mutex> lock(mFrameMutex);
+				frame = mCurrentFrame.clone();
+			}
 
-		if (!frame.empty())
-		{
-			std_msgs::msg::Header header;
-			header.stamp = get_clock()->now();
-			header.frame_id = std::to_string(frame_id_); 
+			if (!frame.empty())
+			{
+				std_msgs::msg::Header header;
+				header.stamp = get_clock()->now();
+				header.frame_id = std::to_string(frame_id_); 
 
-			auto image_msg = cv_bridge::CvImage(header, frame.channels() == 1 ? sensor_msgs::image_encodings::MONO8 : sensor_msgs::image_encodings::BGR8, frame).toImageMsg();
-			auto camera_info_msg = std::make_shared<sensor_msgs::msg::CameraInfo>(cinfo_manager_->getCameraInfo());
-			image_publisher_.publish(std::move(image_msg), camera_info_msg);
+				auto image_msg = cv_bridge::CvImage(header, frame.channels() == 1 ? sensor_msgs::image_encodings::MONO8 : sensor_msgs::image_encodings::BGR8, frame).toImageMsg();
+				auto camera_info_msg = std::make_shared<sensor_msgs::msg::CameraInfo>(cinfo_manager_->getCameraInfo());
+				image_publisher_.publish(std::move(image_msg), camera_info_msg);
 
-			++frame_id_;
+				++frame_id_;
+			}
+			else 
+			{
+				RCLCPP_WARN(node_logger, "Received an empty frame from the camera source: %s", source_.c_str());
+			}
 		}
-		else 
-		{
-			RCLCPP_WARN(node_logger, "Received an empty frame from the camera source: %s", source_.c_str());
-		}
+        catch (cv::Exception &cve)
+        {
+            RCLCPP_ERROR(get_logger(), "Open CV exception: %s", cve.what());
+        } 		
 	}
 
 	std::string mat_type2encoding(int mat_type)

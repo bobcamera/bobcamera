@@ -270,6 +270,10 @@ private:
         {
             RCLCPP_ERROR(this->get_logger(), "CV bridge exception: %s", e.what());
         }
+        catch (cv::Exception &cve)
+        {
+            RCLCPP_ERROR(get_logger(), "Open CV exception: %s", cve.what());
+        }
     }
 
     void add_bboxes(vision_msgs::msg::BoundingBox2DArray &bbox2D_array, const std::vector<cv::Rect> &bboxes)
