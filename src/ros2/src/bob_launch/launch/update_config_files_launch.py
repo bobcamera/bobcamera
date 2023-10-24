@@ -20,8 +20,9 @@ def create_storage_folders(context):
 
 def application_config(context):
 
-    app_config_file = os.path.join(get_package_share_directory('bob_launch'), 'config', 'app_config.yaml')
-    camera_config_file = 'file://' + os.path.join(get_package_share_directory('bob_launch'), 'config', 'camera_info.yaml')
+    app_config_file_src = os.path.join(get_package_share_directory('bob_launch'), 'config', 'app_config.yaml')
+    app_config_file = 'assets/config/app_config.yaml'
+    camera_config_file = 'file://assets/config/camera_info.yaml'
 
     # get the values provided as part of the launch arguments
     rtsp_url = LaunchConfiguration('rtsp_url_arg').perform(context)
@@ -43,7 +44,7 @@ def application_config(context):
 
     if update_config:
         
-        with open(app_config_file, 'r') as read:
+        with open(app_config_file_src, 'r') as read:
             yaml_output = yaml.safe_load(read)
 
             # rstp_camera_node
@@ -100,18 +101,16 @@ def application_config(context):
             yaml.Dumper.ignore_aliases = lambda *args: True
             yaml.dump(yaml_output, write, sort_keys = False, width=1080)
 
-        with open('assets/config/app_config.yaml', 'w') as write:
-            yaml.Dumper.ignore_aliases = lambda *args: True
-            yaml.dump(yaml_output, write, sort_keys = False, width=1080)            
-
 def camera_config(context):
 
     # get the values provided as part of the launch arguments
     image_width = int(LaunchConfiguration('rtsp_width_arg').perform(context))
     image_height = int(LaunchConfiguration('rtsp_height_arg').perform(context))
 
-    camera_config_file = os.path.join(get_package_share_directory('bob_launch'), 'config', 'camera_info.yaml')
-    with open(camera_config_file, 'r') as read:
+    camera_config_file_src = os.path.join(get_package_share_directory('bob_launch'), 'config', 'camera_info.yaml')
+    camera_config_file = 'assets/config/camera_info.yaml'
+
+    with open(camera_config_file_src, 'r') as read:
         yaml_output = yaml.safe_load(read)
         yaml_output['image_width'] = image_width
         yaml_output['image_height'] = image_height

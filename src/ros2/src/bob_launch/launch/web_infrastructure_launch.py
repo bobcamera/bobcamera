@@ -9,7 +9,8 @@ from ament_index_python.packages import get_package_share_directory
 def generate_launch_description():
 
     # Get the application config
-    config = os.path.join(get_package_share_directory('bob_launch'), 'config', 'app_config.yaml')
+    #config = os.path.join(get_package_share_directory('bob_launch'), 'config', 'app_config.yaml')
+    config = 'assets/config/app_config.yaml'
 
     ros_bridge_package_dir = get_package_share_directory('rosbridge_server')
 
