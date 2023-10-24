@@ -8,7 +8,7 @@ from .handlers import NoCacheStaticFileHandler, PrometheusMetricsHandler
 
 class MetricsServer():
 
-  def __init__(self, port=8082):
+  def __init__(self, port):
 
     tornado_settings = {
       'debug': True, 

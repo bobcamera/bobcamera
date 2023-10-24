@@ -8,14 +8,6 @@ repositories:
     type: git
     url: https://github.com/ros-perception/image_common.git
     version: humble
-  ros2_ipcamera: 
-    type: git
-    url: https://github.com/bobcamera/ros2_ipcamera.git
-    version: master
-  #usb_cam:
-  #  type: git
-  #  url: https://github.com/ros-drivers/usb_cam.git
-  #  version: ros2
   # Package allowing the creation of RX type nodes
   #rxros2_py:
   #  type: git

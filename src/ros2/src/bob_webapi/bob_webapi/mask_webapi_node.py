@@ -60,6 +60,7 @@ class MaskWebApiNode(Node):
 
     # explicitly set the encoding to match that from the GUI
     mask_image = self.br.imgmsg_to_cv2(request.mask, "mono8")
+
     mask_file_path = os.path.join(self.masks_folder, request.file_name)
 
     width, height = mask_image.shape
@@ -67,6 +68,9 @@ class MaskWebApiNode(Node):
     if (width != self.mask_width and height != self.mask_height):
       self.get_logger().info(f'Mask being resized from --> to w: {width} -> {self.mask_width}, h: {height} -> {self.mask_height}.')
       mask_image = cv2.resize(mask_image, (self.mask_width, self.mask_height), interpolation = cv2.INTER_LINEAR)
+
+    if (request.invert):
+      mask_image = cv2.bitwise_not(mask_image)
 
     if os.path.exists(mask_file_path) == False:
       self.get_logger().info(f'Mask path {mask_file_path} does not exist, adding mask.')

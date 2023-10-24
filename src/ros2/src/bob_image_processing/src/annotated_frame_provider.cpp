@@ -78,6 +78,10 @@ private:
         {
             RCLCPP_ERROR(get_logger(), "CV bridge exception: %s", e.what());
         }
+        catch (cv::Exception &cve)
+        {
+            RCLCPP_ERROR(get_logger(), "Open CV exception: %s", cve.what());
+        }        
     }
 };
 

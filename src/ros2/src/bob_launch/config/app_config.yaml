@@ -1,0 +1,186 @@
+# Kernel
+rstp_camera_node:
+  ros__parameters:
+    rtsp_uri: ''
+    image_topic: 'image_raw'
+    image_width: 0
+    image_height: 0
+    camera_calibration_file: 'file:///workspaces/bobcamera/src/ros2/assets/config/camera_info.yaml'
+
+rstp_overlay_camera_node:
+  ros__parameters:
+    rtsp_uri: ''
+    image_topic: 'image_raw'
+    image_width: 0
+    image_height: 0
+    camera_calibration_file: 'file:///workspaces/bobcamera/src/ros2/assets/config/camera_info.yaml'
+
+web_camera_video_node:
+  ros__parameters:
+    image_publish_topic: 'bob/camera/all_sky/bayer'
+    image_info_publish_topic: 'bob/camera/all_sky/image_info'
+    camera_info_publish_topic: 'bob/camera/all_sky/camera_info'
+    is_video: True
+    videos:
+    - /workspaces/bobcamera/test/fisheye_videos/mike_drone.mp4
+    - /workspaces/bobcamera/test/fisheye_videos/Dahua-20220901-184734.mp4
+    - /workspaces/bobcamera/test/fisheye_videos/brad_drone_1.mp4
+    resize_height: 0
+
+usb_camera_node:
+  ros__parameters:
+    image_publish_topic: 'bob/camera/all_sky/bayer'
+    image_info_publish_topic: 'bob/camera/all_sky/image_info'
+    camera_info_publish_topic: 'bob/camera/all_sky/camera_info'
+    is_video: False
+    camera_id: 0
+    resize_height: 0
+
+simulated_frame_provider_node:
+  ros__parameters:
+    height: 0
+    width: 0
+    num_objects: 0
+
+web_camera_video_overlay_node:
+  ros__parameters:
+    image_publish_topic: 'bob/simulation/input_frame'
+    image_info_publish_topic: 'bob/camera/all_sky/image_info'
+    camera_info_publish_topic: 'bob/camera/all_sky/camera_info'
+    is_video: True
+    videos:
+    - /workspaces/bobcamera/test/fisheye_videos/mike_drone.mp4
+    - /workspaces/bobcamera/test/fisheye_videos/Dahua-20220901-184734.mp4
+    - /workspaces/bobcamera/test/fisheye_videos/brad_drone_1.mp4
+    resize_height: 0
+
+simulation_overlay_provider_node:
+  ros__parameters:
+    height: 0
+    width: 0
+    num_objects: 0
+
+mask_application_node:
+  ros__parameters:
+    mask_file: ''
+
+minimal_background_subtractor_node:
+  ros__parameters:
+    bgs: ''
+    vibe_params: '{"threshold": 70, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 4}'
+    wmv_params: '{"enableWeight": true, "enableThreshold": true, "threshold": 60.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}'
+    blob_params: '{"sizeThreshold": 11, "areaThreshold": 121, "minDistance": 121, "maxBlobs": 50}'
+    use_mask: False
+
+low_background_subtractor_node:
+  ros__parameters:
+    bgs: ''
+    vibe_params: '{"threshold": 55, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 4}'
+    wmv_params: '{"enableWeight": true, "enableThreshold": true, "threshold": 45.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}'
+    blob_params: '{"sizeThreshold": 8, "areaThreshold": 64, "minDistance": 64, "maxBlobs": 50}'
+    use_mask: False
+
+medium_background_subtractor_node:
+  ros__parameters:
+    bgs: ''
+    vibe_params: '{"threshold": 40, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 8}'
+    wmv_params: '{"enableWeight": true, "enableThreshold": true, "threshold": 30.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}'
+    blob_params: '{"sizeThreshold": 4, "areaThreshold": 16, "minDistance": 16, "maxBlobs": 50}'
+    use_mask: False
+
+high_background_subtractor_node:
+  ros__parameters:
+    bgs: ''
+    vibe_params: '{"threshold": 30, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 8}'
+    wmv_params: '{"enableWeight": true, "enableThreshold": true, "threshold": 15.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}'
+    blob_params: '{"sizeThreshold": 2, "areaThreshold": 4, "minDistance": 4, "maxBlobs": 50}'
+    use_mask: False
+
+track_provider_node:
+  ros__parameters:
+    pass: True
+
+allsky_recorder_node:
+  ros__parameters:
+    video_directory: 'assets/recordings/allsky'
+    img_topic: 'bob/camera/all_sky/bayer'
+    tracking_topic: 'bob/tracker/tracking'
+    prefix: ''
+    codec: 'X264'
+    video_fps: 15.0
+    seconds_save: 2
+
+foreground_mask_recorder_node:
+  ros__parameters:
+    video_directory: 'assets/recordings/foreground_mask'
+    img_topic: 'bob/frames/all_sky/foreground_mask'
+    tracking_topic: 'bob/tracker/tracking'
+    prefix: ''
+    codec: 'X264'
+    video_fps: 15.0
+    seconds_save: 2
+
+annotated_frame_provider_node:
+  ros__parameters:
+    pass: True
+
+bayer_frame_resizer_node:
+  ros__parameters:
+    resize_height: 960
+
+foreground_mask_frame_resizer_node:
+  ros__parameters:
+    resize_height: 960
+
+annotated_frame_resizer_node:
+  ros__parameters:
+    resize_height: 960
+
+# Display
+multi_frame_viewer_node:
+  ros__parameters:
+    topics: 
+      - 'bob/camera/all_sky/bayer/resized'
+      - 'bob/frames/all_sky/foreground_mask/resized'
+      - 'bob/frames/annotated/resized'
+
+single_frame_viewer_node:
+  ros__parameters:
+    topics: 
+      - 'bob/frames/annotated/resized'
+
+annotated_frame_compressor_node:
+  ros__parameters:
+    compression_quality: 95
+
+bayer_compressor_node:
+  ros__parameters:
+    compression_quality: 95
+
+# Monitoring infrastructure
+day_night_classifier_node:
+  ros__parameters:
+    observer_timer_interval: 30
+    observer_day_night_brightness_threshold: 95
+
+cloud_estimator_node:
+  ros__parameters:
+    observer_timer_interval: 30
+
+tracking_monitor_node:
+  ros__parameters:
+    observer_tracker_monitor_busy_interval: 5
+    observer_tracker_monitor_idle_interval: 60
+    observer_tracking_profile_busy_switch_threshold: 5
+    observer_tracker_sample_set: 5
+
+prometheus_metrics_node:
+  ros__parameters:
+    port: 8082
+
+# Web infrastructure
+mask_webapi_node:
+  ros__parameters:
+    masks_folder: ''
+    width: 0
+    height: 0

@@ -14,6 +14,7 @@ services:
     build:
       context: .
       target: bob-ros2-dev-install
+    #user: "${UID}:${GID}"
     ports:
       - "9090:9090"
     environment:  # add in .env

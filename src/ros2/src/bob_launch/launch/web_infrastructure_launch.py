@@ -8,18 +8,18 @@ from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
 
+    # Get the application config
+    #config = os.path.join(get_package_share_directory('bob_launch'), 'config', 'app_config.yaml')
+    config = 'assets/config/app_config.yaml'
+
     ros_bridge_package_dir = get_package_share_directory('rosbridge_server')
 
     mask_webapi_node = Node(
         package='bob_webapi',
         #namespace='bob',
         executable='mask_webapi',
-        name='mask_webapi',
-        parameters=[
-            {'masks_folder': 'assets/masks'},
-            {'width': LaunchConfiguration('rtsp_width_arg')},
-            {'height': LaunchConfiguration('rtsp_height_arg')},            
-        ],
+        name='mask_webapi_node',
+        parameters = [config],
         remappings=[
             #('bob/observer_frame/source', 'bob/camera/all_sky/bayer/resized')
         ],

@@ -12,6 +12,8 @@ def generate_launch_description():
 
     launch_package_dir = get_package_share_directory('bob_launch')
 
+    update_config_from_env_vars_arg_value = EnvironmentVariable('BOB_UPDATE_CONFIG_FROM_ENV_VARS', default_value="True")
+
     source_arg_value = EnvironmentVariable('BOB_SOURCE', default_value="'video'")
     rtsp_url_arg_value = EnvironmentVariable('BOB_RTSP_URL', default_value="")
     rtsp_width_arg_value = EnvironmentVariable('BOB_RTSP_WIDTH', default_value="")
@@ -32,6 +34,12 @@ def generate_launch_description():
     tracking_maskfile_arg_value  = EnvironmentVariable('BOB_TRACKING_MASK_FILE', default_value="'mask.pgm'")
 
     #print(f'Generating launch description....')
+
+    update_config_from_env_vars_arg = DeclareLaunchArgument(
+        'update_config_from_env_vars_arg',
+        default_value=update_config_from_env_vars_arg_value,
+        description="Update application config file from environment variables."
+        )
 
     source_arg = DeclareLaunchArgument(
         'source_arg',
@@ -130,6 +138,8 @@ def generate_launch_description():
         )    
 
     return LaunchDescription([
+
+        update_config_from_env_vars_arg,
 
         source_arg,
 

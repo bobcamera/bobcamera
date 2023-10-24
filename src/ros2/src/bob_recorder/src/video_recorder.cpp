@@ -166,7 +166,7 @@ private:
                 if (tracking_msg->state.trackable > 0) 
                 {
                     current_state_ = RecordingState::BetweenEvents;
-                    if (open_new_video(img.size(), img.channels() == 3))
+                    if (open_new_video(image_msg, img.size(), img.channels() == 3))
                     {
                         video_writer_ptr_->write(img);
                     }
@@ -215,20 +215,21 @@ private:
         }
     }
 
-    static std::string generate_filename()
+    static std::string generate_filename(const sensor_msgs::msg::Image::SharedPtr& image_msg)
     {
-        auto t = std::time(nullptr);
-        auto tm = *std::localtime(&t);
-
-        std::ostringstream oss;
-        oss << std::put_time(&tm, "%Y%m%d_%H%M%S");
+        auto stamp = rclcpp::Time(image_msg -> header.stamp);       
+        // MikeG I do not know how to convert this time type to a formatted string version of itself, so for the moment just use seconds
+        // We need to use the time from the header so that if we write out multiple video files they all have the same name
+        // std::string s = std::format("%Y%m%d_%H%M%S", time);
+        std::ostringstream oss;        
+        oss << unsigned(stamp.seconds());
         return oss.str();
     }
 
-    bool open_new_video(const cv::Size& frame_size, bool is_color)
+    bool open_new_video(const sensor_msgs::msg::Image::SharedPtr& image_msg, const cv::Size& frame_size, bool is_color)
     {
         // Create the video
-        const auto name = video_directory_ + "/" + prefix_str_ + generate_filename() + ".mkv";
+        const auto name = video_directory_ + "/" + prefix_str_ + generate_filename(image_msg) + ".mkv";
         const int codec = cv::VideoWriter::fourcc(codec_str_[0], codec_str_[1], codec_str_[2], codec_str_[3]);
         RCLCPP_INFO(get_logger(), "new video: %s, codec: %s, fps: %g", name.c_str(), codec_str_.c_str(), video_fps_);
         if (video_writer_ptr_->open(name, codec, video_fps_, frame_size, is_color))

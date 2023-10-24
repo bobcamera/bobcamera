@@ -1,17 +1,19 @@
+import os
 from launch import LaunchDescription
 from launch_ros.actions import Node
+from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
     
+    #config = os.path.join(get_package_share_directory('bob_launch'), 'config', 'app_config.yaml')
+    config = 'assets/config/app_config.yaml'
+
     day_night_classifier_node = Node(
         package='bob_observer',
         #namespace='bob',
         executable='day_night_classifier',
-        name='day_night_classifier',
-        parameters=[
-            #params,
-            {'observer_timer_interval': 30},
-            {'observer_day_night_brightness_threshold': 95}],
+        name='day_night_classifier_node',
+        parameters = [config],
         remappings=[
             ('bob/observer_frame/source', 'bob/camera/all_sky/bayer/resized')],
     )
@@ -20,10 +22,8 @@ def generate_launch_description():
         package='bob_observer',
         #namespace='bob',
         executable='cloud_estimator',
-        name='cloud_estimator',
-        parameters=[
-            #params,
-            {'observer_timer_interval': 30}],
+        name='cloud_estimator_node',
+        parameters = [config],
         remappings=[
             ('bob/observer_frame/source', 'bob/camera/all_sky/bayer/resized')],        
     )
@@ -32,20 +32,16 @@ def generate_launch_description():
         package='bob_observer',
         #namespace='bob',
         executable='tracking_monitor',
-        name='tracking_monitor',
-        parameters=[
-            #params,
-            {'observer_tracker_monitor_busy_interval': 5},
-            {'observer_tracker_monitor_idle_interval': 60},
-            {'observer_tracking_profile_busy_switch_threshold': 5},
-            {'observer_tracker_sample_set': 5}],
+        name='tracking_monitor_node',
+        parameters = [config],
     )
 
     prometheus_node = Node(
         package='bob_monitor',
         #namespace='bob',
         executable='prometheus_metrics',
-        name='prometheus_metrics'
+        name='prometheus_metrics_node',
+        parameters = [config],
     )
 
     return LaunchDescription([
