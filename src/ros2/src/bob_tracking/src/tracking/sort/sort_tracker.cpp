@@ -23,7 +23,6 @@ namespace SORT
         return (float)interArea / (float)(boxAArea + boxBArea - interArea);
     }
 
-
     void Tracker::hungarian_matching(const std::vector<std::vector<float>>& iou_matrix,
                                     size_t nrows, size_t ncols,
                                     std::vector<std::vector<float>>& association) 
@@ -64,8 +63,8 @@ namespace SORT
                                                 std::map<int, std::shared_ptr<Track>>& tracks,
                                                 std::map<int, cv::Rect>& matched,
                                                 std::vector<cv::Rect>& unmatched_det,
-                                                float iou_threshold) {
-
+                                                float iou_threshold) 
+    {
         // Set all detection as unmatched if no tracks existing
         if (tracks.empty()) 
         {
@@ -115,7 +114,7 @@ namespace SORT
                     // It builds 1 to 1 association, so we can break from here
                     break;
                 }
-                j++;
+                ++j;
             }
             // if detection cannot match with any tracks
             if (!matched_flag) 

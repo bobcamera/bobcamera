@@ -32,6 +32,7 @@ public:
         , enable_profiling_(false)
     {
         video_tracker_ = std::unique_ptr<BaseTracker>(new SORT::Tracker(std::map<std::string, std::string>({{"tracker_type", "MOSSE"}}))); // CV only currently - CSRT, MOSSE, KCF
+        
         timer_ = create_wall_timer(std::chrono::seconds(1), std::bind(&TrackProvider::init, this));
     }
 

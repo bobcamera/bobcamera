@@ -3,12 +3,6 @@
 #define __BASE_TRACKER_HPP__
 
 #include <vector>
-#include <thread>
-#include <stdexcept>
-#include <algorithm>
-#include <map>
-#include <vector>
-#include <queue>
 
 #include <opencv2/opencv.hpp>
 
