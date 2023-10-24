@@ -10,10 +10,6 @@ def application_config(context):
 
     app_config_file = os.path.join(get_package_share_directory('bob_launch'), 'config', 'app_config.yaml')
     camera_config_file = 'file://' + os.path.join(get_package_share_directory('bob_launch'), 'config', 'camera_info.yaml')
-    videos = [
-        '/workspaces/bobcamera/test/fisheye_videos/mike_drone.mp4',
-        '/workspaces/bobcamera/test/fisheye_videos/Dahua-20220901-184734.mp4',
-        '/workspaces/bobcamera/test/fisheye_videos/brad_drone_1.mp4']
 
     # get the values provided as part of the launch arguments
     rtsp_url = LaunchConfiguration('rtsp_url_arg').perform(context)
@@ -51,18 +47,12 @@ def application_config(context):
             yaml_output['rstp_overlay_camera_node']['ros__parameters']['camera_calibration_file'] = camera_config_file
 
             # web_camera_video_node
-            yaml_output['web_camera_video_node']['ros__parameters']['videos'] = videos
-
-            # web_camera_video_node
             yaml_output['usb_camera_node']['ros__parameters']['camera_id'] = camera_id
 
             # simulated_frame_provider_node
             yaml_output['simulated_frame_provider_node']['ros__parameters']['num_objects'] = simulation_num_objects
             yaml_output['simulated_frame_provider_node']['ros__parameters']['height'] = simulation_height
             yaml_output['simulated_frame_provider_node']['ros__parameters']['width'] = simulation_width
-
-            # web_camera_video_overlay_node
-            yaml_output['web_camera_video_overlay_node']['ros__parameters']['videos'] = videos
 
             # simulation_overlay_provider_node
             yaml_output['simulation_overlay_provider_node']['ros__parameters']['num_objects'] = simulation_num_objects

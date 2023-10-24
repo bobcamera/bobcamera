@@ -21,7 +21,10 @@ web_camera_video_node:
     image_info_publish_topic: 'bob/camera/all_sky/image_info'
     camera_info_publish_topic: 'bob/camera/all_sky/camera_info'
     is_video: True
-    videos: []
+    videos:
+    - /workspaces/bobcamera/test/fisheye_videos/mike_drone.mp4
+    - /workspaces/bobcamera/test/fisheye_videos/Dahua-20220901-184734.mp4
+    - /workspaces/bobcamera/test/fisheye_videos/brad_drone_1.mp4
     resize_height: 0
 
 usb_camera_node:
@@ -45,7 +48,10 @@ web_camera_video_overlay_node:
     image_info_publish_topic: 'bob/camera/all_sky/image_info'
     camera_info_publish_topic: 'bob/camera/all_sky/camera_info'
     is_video: True
-    videos: []
+    videos:
+    - /workspaces/bobcamera/test/fisheye_videos/mike_drone.mp4
+    - /workspaces/bobcamera/test/fisheye_videos/Dahua-20220901-184734.mp4
+    - /workspaces/bobcamera/test/fisheye_videos/brad_drone_1.mp4
     resize_height: 0
 
 simulation_overlay_provider_node:
