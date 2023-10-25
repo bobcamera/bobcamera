@@ -18,6 +18,12 @@
 
 #include <visibility_control.h>
 
+enum class SourceType {
+    USB_CAMERA,
+    VIDEO_FILE,
+    RTSP_STREAM
+};
+
 class WebCameraVideo
     : public ParameterNode
 {
@@ -27,6 +33,7 @@ public:
         : ParameterNode("web_camera_video_node", options)
         , current_video_idx_(0)
         , run_(false)
+        , fps_(25.0)
     {
         qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
         qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
@@ -47,7 +54,6 @@ private:
     rclcpp::Publisher<bob_camera::msg::ImageInfo>::SharedPtr image_info_publisher_;
     rclcpp::Publisher<bob_camera::msg::CameraInfo>::SharedPtr camera_info_publisher_;
     bob_camera::msg::CameraInfo camera_info_msg_;
-    bool is_video_;
     int camera_id_;
     int resize_height_;
     std::vector<std::string> videos_;
@@ -56,9 +62,12 @@ private:
     std::string image_info_publish_topic_;
     std::string camera_info_publish_topic_;
     rclcpp::TimerBase::SharedPtr timer_;
+    SourceType source_type_;
+    std::string rtsp_uri_;
 
     std::thread capture_thread_;
     bool run_;
+    double fps_;
 
     void timer_callback()
     {
@@ -74,10 +83,12 @@ private:
 
     void captureLoop()
     {
+        std::chrono::milliseconds delay_duration = fps_ > 0 ? std::chrono::milliseconds(static_cast<int>(1000.0 / fps_)) : std::chrono::milliseconds(0);
+
         while (run_)
         {
             cv::Mat image;
-            if (!video_capture_.read(image) && is_video_)
+            if (!video_capture_.read(image))
             {
                 current_video_idx_ = current_video_idx_ >= (videos_.size() - 1) ? 0 : current_video_idx_ + 1;
                 open_camera();
@@ -105,7 +116,14 @@ private:
             camera_info_msg_.header = header;
             camera_info_publisher_->publish(camera_info_msg_);
 
-            std::this_thread::yield();
+            if (fps_ > 0)
+            {
+                std::this_thread::sleep_for(delay_duration);
+            }
+            else
+            {
+                std::this_thread::yield();
+            }
         }
     }
 
@@ -153,8 +171,19 @@ private:
                 [this](const rclcpp::Parameter& param) {resize_height_ = param.as_int();}
             ),
             ParameterNode::ActionParam(
-                rclcpp::Parameter("is_video", false), 
-                [this](const rclcpp::Parameter& param) {is_video_ = param.as_bool();}
+                rclcpp::Parameter("source_type", "USB_CAMERA"), 
+                [this](const rclcpp::Parameter& param) {
+                    std::string type = param.as_string();
+                    if (type == "USB_CAMERA") {
+                        source_type_ = SourceType::USB_CAMERA;
+                    } else if (type == "VIDEO_FILE") {
+                        source_type_ = SourceType::VIDEO_FILE;
+                    } else if (type == "RTSP_STREAM") {
+                        source_type_ = SourceType::RTSP_STREAM;
+                    } else {
+                        RCLCPP_ERROR(get_logger(), "Invalid source type: %s", type.c_str());
+                    }
+                }
             ),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("camera_id", 0), 
@@ -164,26 +193,50 @@ private:
                 rclcpp::Parameter("videos", std::vector<std::string>({""})), 
                 [this](const rclcpp::Parameter& param) {videos_ = param.as_string_array();}
             ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("rtsp_uri", ""), 
+                [this](const rclcpp::Parameter& param) { rtsp_uri_ = param.as_string();}
+            ),
         };
         add_action_parameters(params);
     }
 
     inline void open_camera()
     {
-        if (!is_video_)
+        switch (source_type_)
         {
-            camera_id_ = get_parameter("camera_id").get_value<rclcpp::ParameterType::PARAMETER_INTEGER>();
-            RCLCPP_INFO(get_logger(), "Camera %d opening", camera_id_);
-            video_capture_.open(camera_id_);
-            setHighestResolution(video_capture_);
+            case SourceType::USB_CAMERA:
+            {
+                camera_id_ = get_parameter("camera_id").get_value<rclcpp::ParameterType::PARAMETER_INTEGER>();
+                RCLCPP_INFO(get_logger(), "Camera %d opening", camera_id_);
+                video_capture_.open(camera_id_);
+                setHighestResolution(video_capture_);
+            }
+            break;
+
+            case SourceType::VIDEO_FILE:
+            {
+                auto video_path = videos_[current_video_idx_];
+                RCLCPP_INFO(get_logger(), "Video '%s' opening", video_path.c_str());
+                video_capture_.open(video_path);
+            }
+            break;
+
+            case SourceType::RTSP_STREAM:
+            {
+                RCLCPP_INFO(get_logger(), "RTSP Stream '%s' opening", rtsp_uri_.c_str());
+                video_capture_.open(rtsp_uri_);
+            }
+            break;
         }
-        else
+
+        if (video_capture_.isOpened())
         {
-            auto video_path = videos_[current_video_idx_];
-            RCLCPP_INFO(get_logger(), "Video '%s' opening", video_path.c_str());
-            video_capture_.open(video_path);
+            fps_ = video_capture_.get(cv::CAP_PROP_FPS);
+            RCLCPP_INFO(get_logger(), "fps: %f", fps_);
         }
     }
+
 
     inline bool setHighestResolution(cv::VideoCapture &cap)
     {
@@ -249,8 +302,8 @@ private:
     inline void create_camera_info_msg()
     {
         camera_info_msg_.id = "web_camera_node";
-        camera_info_msg_.model = is_video_ ? "video" : "web camera";
-        camera_info_msg_.serial_num = is_video_ ? videos_[current_video_idx_] : std::to_string(camera_id_);
+        // camera_info_msg_.model = is_video_ ? "video" : "web camera";
+        // camera_info_msg_.serial_num = is_video_ ? videos_[current_video_idx_] : std::to_string(camera_id_);
         camera_info_msg_.overscan.start_x = 0;
         camera_info_msg_.overscan.start_y = 0;
         camera_info_msg_.overscan.width = 0;

@@ -22,7 +22,7 @@ def generate_launch_description():
 
             ComposableNode(
                package='bob_camera',
-               plugin='IPCamera',
+               plugin='WebCameraVideo',
                name='rstp_camera_node',
                remappings=[
                    ('/rstp_camera_node/image_raw', 'bob/camera/all_sky/bayer'),
@@ -33,7 +33,7 @@ def generate_launch_description():
             ),
             ComposableNode(
                 package='bob_camera',
-                plugin='IPCamera',
+                plugin='WebCameraVideo',
                 name='rstp_overlay_camera_node',
                 remappings=[
                     ('/rstp_overlay_camera_node/image_raw', 'bob/simulation/input_frame'),
