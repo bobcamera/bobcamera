@@ -164,16 +164,14 @@ private:
 				frame = mCurrentFrame.clone();
 			}
 
+			auto camera_info_msg = std::make_shared<sensor_msgs::msg::CameraInfo>(cinfo_manager_->getCameraInfo());
+			auto msg = std::make_unique<sensor_msgs::msg::Image>();
+      		msg->is_bigendian = false;
+
 			if (!frame.empty())
 			{
-				std_msgs::msg::Header header;
-				header.stamp = get_clock()->now();
-				header.frame_id = std::to_string(frame_id_); 
-
-				auto image_msg = cv_bridge::CvImage(header, frame.channels() == 1 ? sensor_msgs::image_encodings::MONO8 : sensor_msgs::image_encodings::BGR8, frame).toImageMsg();
-				auto camera_info_msg = std::make_shared<sensor_msgs::msg::CameraInfo>(cinfo_manager_->getCameraInfo());
-				image_publisher_.publish(std::move(image_msg), camera_info_msg);
-
+				convert_frame_to_message(frame, frame_id_, *msg, *camera_info_msg);
+				this->image_publisher_.publish(std::move(msg), camera_info_msg);
 				++frame_id_;
 			}
 			else 
