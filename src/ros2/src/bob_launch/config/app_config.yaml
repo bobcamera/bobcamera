@@ -11,7 +11,9 @@ rstp_camera_node:
 rstp_overlay_camera_node:
   ros__parameters:
     rtsp_uri: ''
-    image_topic: 'image_raw'
+    image_publish_topic: 'bob/simulation/input_frame'
+    image_info_publish_topic: 'bob/camera/all_sky/image_info'
+    camera_info_publish_topic: 'bob/camera/all_sky/camera_info'
     source_type: 'RTSP_STREAM'
     image_width: 0
     image_height: 0
