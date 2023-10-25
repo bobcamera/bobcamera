@@ -25,18 +25,19 @@ public:
     COMPOSITION_PUBLIC
     explicit WebCameraVideo(const rclcpp::NodeOptions & options)
         : ParameterNode("web_camera_video_node", options)
-        , current_video_idx_{0}
+        , current_video_idx_(0)
+        , run_(false)
     {
         qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
         qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
         qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
 
-        declare_node_parameters();    
+        timer_ = create_wall_timer(std::chrono::seconds(2), std::bind(&WebCameraVideo::timer_callback, this));
+    }
 
-        open_camera();
-        create_camera_info_msg();
-
-        timer_ = create_wall_timer(std::chrono::milliseconds(10), std::bind(&WebCameraVideo::timer_callback, this));
+    ~WebCameraVideo()
+    {
+        stop_capture();
     }
 
 private:
@@ -56,37 +57,72 @@ private:
     std::string camera_info_publish_topic_;
     rclcpp::TimerBase::SharedPtr timer_;
 
+    std::thread capture_thread_;
+    bool run_;
+
     void timer_callback()
     {
-        cv::Mat image;
-        if (!video_capture_.read(image) && is_video_)
-        {
-            current_video_idx_ = current_video_idx_ >= (videos_.size() - 1) ? 0 : current_video_idx_ + 1;
-            open_camera();
-            video_capture_.read(image);
-        }
+        timer_->cancel();
 
-        if (resize_height_ > 0)
-        {
-            const double aspect_ratio = (double)image.size().width / (double)image.size().height;
-            const int frame_height = resize_height_;
-            const int frame_width = (int)(aspect_ratio * (double)frame_height);
-            cv::resize(image, image, cv::Size(frame_width, frame_height));
-        }
+        declare_node_parameters();    
 
-        std_msgs::msg::Header header;
-        header.stamp = now();
-        header.frame_id = generate_uuid();
-
-        auto image_msg = cv_bridge::CvImage(header, image.channels() == 1 ? sensor_msgs::image_encodings::MONO8 : sensor_msgs::image_encodings::BGR8, image).toImageMsg();
-        image_publisher_->publish(*image_msg);
-
-        auto image_info_msg = generate_image_info(header, image);
-        image_info_publisher_->publish(image_info_msg);
-
-        camera_info_msg_.header = header;
-        camera_info_publisher_->publish(camera_info_msg_);
+        open_camera();
+        create_camera_info_msg();
+        
+        start_capture();
     }
+
+    void captureLoop()
+    {
+        while (run_)
+        {
+            cv::Mat image;
+            if (!video_capture_.read(image) && is_video_)
+            {
+                current_video_idx_ = current_video_idx_ >= (videos_.size() - 1) ? 0 : current_video_idx_ + 1;
+                open_camera();
+                video_capture_.read(image);
+            }
+
+            if (resize_height_ > 0)
+            {
+                const double aspect_ratio = (double)image.size().width / (double)image.size().height;
+                const int frame_height = resize_height_;
+                const int frame_width = (int)(aspect_ratio * (double)frame_height);
+                cv::resize(image, image, cv::Size(frame_width, frame_height));
+            }
+
+            std_msgs::msg::Header header;
+            header.stamp = now();
+            header.frame_id = generate_uuid();
+
+            auto image_msg = cv_bridge::CvImage(header, image.channels() == 1 ? sensor_msgs::image_encodings::MONO8 : sensor_msgs::image_encodings::BGR8, image).toImageMsg();
+            image_publisher_->publish(*image_msg);
+
+            auto image_info_msg = generate_image_info(header, image);
+            image_info_publisher_->publish(image_info_msg);
+
+            camera_info_msg_.header = header;
+            camera_info_publisher_->publish(camera_info_msg_);
+
+            std::this_thread::yield();
+        }
+    }
+
+    void start_capture()
+	{
+		run_ = true;
+		capture_thread_ = std::thread(&WebCameraVideo::captureLoop, this);
+	}
+
+	void stop_capture()
+	{
+		run_ = false;
+		if (capture_thread_.joinable())
+        {
+			capture_thread_.join();
+        }
+	}
     
     void declare_node_parameters()
     {
