@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import time
 
 from datetime import datetime
 import os
@@ -8,11 +9,12 @@ import sys
 import shutil
 from cloud_estimator import CloudEstimator
 from day_night_classifier import DayNightEnum, DayNightEstimator
-from utils import scale_image
 
 USAGE = 'python heatmap/heatmap-v2.py -d <<directory-containing-allsky and foreground_mask directories>> -m <<mask-filename>>'
 
-def process_dir(recordings_dir, mask_filename=None, scale=True):
+def process_dir(recordings_dir, mask_filename=None, resize_factor=1, create_timelapse=True):
+
+    start_time = time.time()
 
     foreground_mask_dir = os.path.join(recordings_dir, "foreground_mask")
     allsky_dir = os.path.join(recordings_dir, "allsky")
@@ -48,7 +50,7 @@ def process_dir(recordings_dir, mask_filename=None, scale=True):
         heatmap_filename = os.path.join(heatmaps_dir, root_name + ".png")
 
         # generate heatmap file
-        process_file(foreground_mask_path, allsky_path, heatmap_filename, mask_filename)
+        process_file(foreground_mask_path, allsky_path, heatmap_filename, mask_filename, resize_factor=resize_factor)
 
         # move files to prcessed folders
         foreground_mask_processed_path = os.path.join(foreground_mask_processed_dir, filename)
@@ -56,7 +58,17 @@ def process_dir(recordings_dir, mask_filename=None, scale=True):
         allsky_processed_path = os.path.join(allsky_processed_dir, filename)
         shutil.move(allsky_path, allsky_processed_path)        
 
-def process_file(foreground_mask_path, allsky_path, heatmap_filename, mask_filename=None, scale=True):
+    print(f"Generating heatmap images took: {int((time.time() - start_time))} seconds")
+    timelapse_start_time = time.time()
+
+    if create_timelapse:
+        heatmap_timelapse_filename = os.path.join(heatmaps_dir, f'heapmap-timelapse-{datetime.now().strftime("%Y%m%d-%H%M%S")}' + ".mp4")
+        process_timelapse(heatmaps_dir, heatmap_timelapse_filename)
+
+    print(f"Generating heatmap timelapse video took: {int((time.time() - timelapse_start_time))} seconds")
+    print(f"Heatmap processing completed in: {int((time.time() - start_time))} seconds and processed {int(len(sorted_files))} videos")
+
+def process_file(foreground_mask_path, allsky_path, heatmap_filename, mask_filename=None, resize_factor=1):
 
     print(f"Loading foreground mask video from: {foreground_mask_path}, allsky video from: {allsky_path}")
 
@@ -153,10 +165,55 @@ def process_file(foreground_mask_path, allsky_path, heatmap_filename, mask_filen
     alpha = heatmap_bgra[:, :, 3] / 255.0
     overlay = (heatmap_bgra[:, :, :3] * alpha[:, :, np.newaxis] + frame_allsky * (1 - alpha[:, :, np.newaxis])).astype(np.uint8)
 
-    if scale:
-        overlay = scale_image(overlay, 720, 720)
+    h, w, _ = overlay.shape
+    size = (int(w * resize_factor), int(h * resize_factor))
+    overlay = cv2.resize(overlay, size)
 
     cv2.imwrite(heatmap_filename, overlay)
+
+def process_timelapse(input_folder, output_file, fps=30, resize_factor=1):
+
+    # Get all the files from the input_folder
+    files = [os.path.join(input_folder, f) for f in os.listdir(input_folder) if f.endswith(".jpg") or f.endswith(".png")]
+    
+    # Sort the files based on their names (change the logic if your files aren't named in a sortable way)
+    files.sort()
+
+    # Check if there are any files to process
+    if not files:
+        print("No images found in the specified directory!")
+        return
+
+    # Find out the frame width and height from the first image
+    frame = cv2.imread(files[0])
+    h, w, _ = frame.shape
+    size = (int(w * resize_factor), int(h * resize_factor))
+    
+    # Define the codec using VideoWriter_fourcc and create a VideoWriter object
+    out = cv2.VideoWriter(output_file, cv2.VideoWriter_fourcc(*'X264'), fps, size)
+
+    for i in range(len(files)):
+
+        base = os.path.basename(files[i])
+        file_root_name = os.path.splitext(base)[0]
+
+        img = cv2.imread(files[i])
+        if resize_factor != 1:
+            img = cv2.resize(img, size)
+
+        stamp_frame(img, file_root_name)
+
+        #for i in range(int(fps/2)): # 0.5 seconds per frame
+        for j in range(fps): # 1 second per frame
+            out.write(img)
+
+        print(f"Processed: {i + 1}/{len(files)}", end="\r")
+
+    out.release()
+
+def stamp_frame(frame, filename, font_size=0.5, font_color=(255, 255, 255), font_thickness=1):
+    h, w, _ = frame.shape
+    cv2.putText(frame, f"Heatmap for video: {filename}", (25, h-25), cv2.FONT_HERSHEY_SIMPLEX, font_size, font_color, font_thickness)
 
 def main(argv):
 
@@ -172,7 +229,6 @@ def main(argv):
 
     video_directory = None
     mask_filename = None
-    scale = True
     for opt, arg in opts:
         if opt in ['-h', '--help']: 
             print(USAGE)
@@ -189,7 +245,7 @@ def main(argv):
         #print(f"recordings_directory: {recordings_directory}")
 
         if os.path.isdir(recordings_directory):
-            process_dir(recordings_directory, mask_filename, scale=scale)
+            process_dir(recordings_directory, mask_filename, resize_factor=0.3)
         else:
             print(USAGE)
             sys.exit()
