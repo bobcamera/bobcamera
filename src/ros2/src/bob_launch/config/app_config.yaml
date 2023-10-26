@@ -3,6 +3,7 @@ rstp_camera_node:
   ros__parameters:
     rtsp_uri: ''
     image_topic: 'image_raw'
+    source_type: 'RTSP_STREAM'
     image_width: 0
     image_height: 0
     camera_calibration_file: 'file:///workspaces/bobcamera/src/ros2/assets/config/camera_info.yaml'
@@ -10,7 +11,10 @@ rstp_camera_node:
 rstp_overlay_camera_node:
   ros__parameters:
     rtsp_uri: ''
-    image_topic: 'image_raw'
+    image_publish_topic: 'bob/simulation/input_frame'
+    image_info_publish_topic: 'bob/camera/all_sky/image_info'
+    camera_info_publish_topic: 'bob/camera/all_sky/camera_info'
+    source_type: 'RTSP_STREAM'
     image_width: 0
     image_height: 0
     camera_calibration_file: 'file:///workspaces/bobcamera/src/ros2/assets/config/camera_info.yaml'
@@ -20,7 +24,7 @@ web_camera_video_node:
     image_publish_topic: 'bob/camera/all_sky/bayer'
     image_info_publish_topic: 'bob/camera/all_sky/image_info'
     camera_info_publish_topic: 'bob/camera/all_sky/camera_info'
-    is_video: True
+    source_type: 'VIDEO_FILE'
     videos:
     - /workspaces/bobcamera/test/fisheye_videos/mike_drone.mp4
     - /workspaces/bobcamera/test/fisheye_videos/Dahua-20220901-184734.mp4
@@ -32,7 +36,7 @@ usb_camera_node:
     image_publish_topic: 'bob/camera/all_sky/bayer'
     image_info_publish_topic: 'bob/camera/all_sky/image_info'
     camera_info_publish_topic: 'bob/camera/all_sky/camera_info'
-    is_video: False
+    source_type: 'USB_CAMERA'
     camera_id: 0
     resize_height: 0
 
@@ -47,7 +51,7 @@ web_camera_video_overlay_node:
     image_publish_topic: 'bob/simulation/input_frame'
     image_info_publish_topic: 'bob/camera/all_sky/image_info'
     camera_info_publish_topic: 'bob/camera/all_sky/camera_info'
-    is_video: True
+    source_type: 'VIDEO_FILE'
     videos:
     - /workspaces/bobcamera/test/fisheye_videos/mike_drone.mp4
     - /workspaces/bobcamera/test/fisheye_videos/Dahua-20220901-184734.mp4
