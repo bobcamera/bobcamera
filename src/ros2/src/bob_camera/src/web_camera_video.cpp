@@ -24,6 +24,9 @@ enum class SourceType {
     RTSP_STREAM
 };
 
+using Clock = std::chrono::high_resolution_clock;
+using Duration = std::chrono::duration<double, std::milli>;
+
 class WebCameraVideo
     : public ParameterNode
 {
@@ -87,6 +90,7 @@ private:
 
         while (run_)
         {
+            auto start_time = Clock::now();
             cv::Mat image;
             if (!video_capture_.read(image))
             {
@@ -115,10 +119,12 @@ private:
 
             camera_info_msg_.header = header;
             camera_info_publisher_->publish(camera_info_msg_);
+            auto end_time = Clock::now();
 
-            if (fps_ > 0)
+            if ((fps_ > 0) && (source_type_ == SourceType::VIDEO_FILE))
             {
-                std::this_thread::sleep_for(delay_duration);
+                Duration elapsed_time = end_time - start_time;
+                std::this_thread::sleep_for(delay_duration - elapsed_time);
             }
             else
             {
