@@ -1,0 +1,2 @@
+* * * * * root bash /bob-research/cron/test_crontab.sh
+* * * * * root bash /bob-research/cron/run_heatmap.sh

@@ -239,6 +239,7 @@ RUN mkdir -p /opt/ros2_ws/src \
    && colcon build --allow-overriding cv_bridge
 ENV DEBIAN_FRONTEND=
 
+###################################################################
 #FROM bob-ros2-dev AS bob-ros2-dev-install
 FROM bobcamera/bob-ros2-dev AS bob-ros2-dev-install
 COPY src/ros2 /workspaces/bobcamera/src/ros2
@@ -273,3 +274,19 @@ ENV BOB_SOURCE="'rtsp'" \
 COPY entrypoint.sh /
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["ros2", "launch", "bob_launch", "application_launch.py"]
+
+###################################################################
+FROM bobcamera/bob-ros2-dev AS bob-crontab
+COPY src/research /bob-research
+
+RUN apt-get update && apt-get install cron -y && \
+    chmod +x /bob-research/cron/run_heatmap.sh
+
+ADD src/research/cron/crontab /etc/cron.d/bob-crontab
+
+RUN chmod 0644 /etc/cron.d/bob-crontab && \
+    crontab /etc/cron.d/bob-crontab
+
+# Creating entry point for cron 
+ENTRYPOINT ["cron", "-f"]
+#CMD sh -c 'crontab -l && cron -f'
