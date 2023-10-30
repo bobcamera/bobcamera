@@ -276,11 +276,13 @@ ENTRYPOINT ["/entrypoint.sh"]
 CMD ["ros2", "launch", "bob_launch", "application_launch.py"]
 
 ###################################################################
+# https://lostindetails.com/articles/How-to-run-cron-inside-Docker#dockerfile
 FROM bobcamera/bob-ros2-dev AS bob-crontab
 COPY src/research /bob-research
 
 RUN apt-get update && apt-get install cron -y && \
-    chmod +x /bob-research/cron/run_heatmap.sh
+    chmod +x /bob-research/cron/run_heatmap.sh && \
+    chmod +x /bob-research/cron/test_crontab.sh
 
 ADD src/research/cron/crontab /etc/cron.d/bob-crontab
 
@@ -289,4 +291,3 @@ RUN chmod 0644 /etc/cron.d/bob-crontab && \
 
 # Creating entry point for cron 
 ENTRYPOINT ["cron", "-f"]
-#CMD sh -c 'crontab -l && cron -f'

@@ -14,6 +14,7 @@ USAGE = 'python heatmap/heatmap-v2.py -d <<directory-containing-allsky and foreg
 
 def process_dir(recordings_dir, mask_filename=None, resize_factor=1, create_timelapse=True):
 
+    date_time_for_path = datetime.now()
     start_time = time.time()
 
     foreground_mask_dir = os.path.join(recordings_dir, "foreground_mask")
@@ -23,27 +24,32 @@ def process_dir(recordings_dir, mask_filename=None, resize_factor=1, create_time
     if not os.path.isdir(heatmaps_dir):
         os.mkdir(heatmaps_dir)
 
-    foreground_mask_processed_dir = os.path.join(foreground_mask_dir, f'processed-{datetime.now().strftime("%Y%m%d-%H%M%S")}')
+    allsky_files = os.listdir(allsky_dir)
+    foreground_files = os.listdir(foreground_mask_dir)
+
+    # Filter out files that don't have corresponding allsky files
+    sorted_files = [f for f in foreground_files if f in allsky_files if os.path.isfile(os.path.join(allsky_dir, f))]
+    if len(sorted_files) <= 0:
+        print("No videos found to generate heatmaps from")
+        return
+
+    sorted_files.sort()    
+
+    foreground_mask_processed_dir = os.path.join(foreground_mask_dir, f'processed-{date_time_for_path.strftime("%Y%m%d-%H%M%S")}')
     if not os.path.isdir(foreground_mask_processed_dir):
         os.mkdir(foreground_mask_processed_dir)
 
-    allsky_processed_dir = os.path.join(allsky_dir, f'processed-{datetime.now().strftime("%Y%m%d-%H%M%S")}')
+    allsky_processed_dir = os.path.join(allsky_dir, f'processed-{date_time_for_path.strftime("%Y%m%d-%H%M%S")}')
     if not os.path.isdir(allsky_processed_dir):
         os.mkdir(allsky_processed_dir)
 
-    allsky_files = set(os.listdir(allsky_dir))
-    sorted_files = os.listdir(foreground_mask_dir)
-    sorted_files.sort()
-
-    # Filter out files that don't have corresponding allsky files
-    sorted_files = [f for f in sorted_files if f in allsky_files]
+    heatmaps_processed_dir = os.path.join(heatmaps_dir, f'processed-{date_time_for_path.strftime("%Y%m%d-%H%M%S")}')
+    if not os.path.isdir(heatmaps_processed_dir):
+        os.mkdir(heatmaps_processed_dir)
 
     for filename in sorted_files:
         foreground_mask_path = os.path.join(foreground_mask_dir, filename)
         allsky_path = os.path.join(allsky_dir, filename)
-
-        if os.path.isdir(foreground_mask_path) or os.path.isdir(allsky_path):
-            continue
 
         base = os.path.basename(filename)
         root_name = os.path.splitext(base)[0]
@@ -56,21 +62,24 @@ def process_dir(recordings_dir, mask_filename=None, resize_factor=1, create_time
         foreground_mask_processed_path = os.path.join(foreground_mask_processed_dir, filename)
         shutil.move(foreground_mask_path, foreground_mask_processed_path)
         allsky_processed_path = os.path.join(allsky_processed_dir, filename)
-        shutil.move(allsky_path, allsky_processed_path)        
+        shutil.move(allsky_path, allsky_processed_path)
 
     print(f"Generating heatmap images took: {int((time.time() - start_time))} seconds")
     timelapse_start_time = time.time()
 
     if create_timelapse:
-        heatmap_timelapse_filename = os.path.join(heatmaps_dir, f'heapmap-timelapse-{datetime.now().strftime("%Y%m%d-%H%M%S")}' + ".mp4")
+        heatmap_timelapse_filename = os.path.join(heatmaps_dir, f'heapmap-timelapse-{date_time_for_path.strftime("%Y%m%d-%H%M%S")}' + ".mp4")
         process_timelapse(heatmaps_dir, heatmap_timelapse_filename)
+        heatmap_files = [f for f in os.listdir(heatmaps_dir) if f.endswith(".jpg") or f.endswith(".png")]
+        for heatmap_file in heatmap_files:
+            shutil.move(os.path.join(heatmaps_dir, heatmap_file), os.path.join(heatmaps_processed_dir, heatmap_file))
 
     print(f"Generating heatmap timelapse video took: {int((time.time() - timelapse_start_time))} seconds")
-    print(f"Heatmap processing completed in: {int((time.time() - start_time))} seconds and processed {int(len(sorted_files))} videos")
+    print(f"Heatmap processing completed in: {int((time.time() - start_time))} seconds and processed {len(sorted_files)} videos")
 
 def process_file(foreground_mask_path, allsky_path, heatmap_filename, mask_filename=None, resize_factor=1):
 
-    print(f"Loading foreground mask video from: {foreground_mask_path}, allsky video from: {allsky_path}")
+    print(f"Processing foreground mask video: {foreground_mask_path}, allsky video: {allsky_path}")
 
     # Load the video
     cap = cv2.VideoCapture(foreground_mask_path)
@@ -129,7 +138,6 @@ def process_file(foreground_mask_path, allsky_path, heatmap_filename, mask_filen
         ret, mask_frame = cap.read()
 
         if not ret:
-            print("Finished processing all frames from foreground video.")
             break
 
         gray_mask_frame = cv2.cvtColor(mask_frame, cv2.COLOR_BGR2GRAY)
@@ -181,7 +189,7 @@ def process_timelapse(input_folder, output_file, fps=30, resize_factor=1):
 
     # Check if there are any files to process
     if not files:
-        print("No images found in the specified directory!")
+        print("No images found to generate timelapse from!")
         return
 
     # Find out the frame width and height from the first image
@@ -217,7 +225,7 @@ def stamp_frame(frame, filename, font_size=0.5, font_color=(255, 255, 255), font
 
 def main(argv):
 
-    print(f"Open CV Version: {cv2.__version__}")
+    # print(f"Open CV Version: {cv2.__version__}")
 
     try:
         argv = sys.argv[1:] 
