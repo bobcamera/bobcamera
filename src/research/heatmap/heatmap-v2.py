@@ -209,7 +209,8 @@ def process_timelapse(input_folder, output_file, fps=30, resize_factor=1):
         if resize_factor != 1:
             img = cv2.resize(img, size)
 
-        stamp_frame(img, file_root_name)
+        # record the root video filename on the image so they can be tied together if needs be
+        cv2.putText(img, f"Heatmap for video: {file_root_name}", (25, h-25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
         #for i in range(int(fps/2)): # 0.5 seconds per frame
         for j in range(fps): # 1 second per frame
@@ -218,10 +219,6 @@ def process_timelapse(input_folder, output_file, fps=30, resize_factor=1):
         print(f"Processed: {i + 1}/{len(files)}", end="\r")
 
     out.release()
-
-def stamp_frame(frame, filename, font_size=0.5, font_color=(255, 255, 255), font_thickness=1):
-    h, w, _ = frame.shape
-    cv2.putText(frame, f"Heatmap for video: {filename}", (25, h-25), cv2.FONT_HERSHEY_SIMPLEX, font_size, font_color, font_thickness)
 
 def main(argv):
 
