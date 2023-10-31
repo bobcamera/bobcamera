@@ -1,6 +1,6 @@
-# BOB Tracking Application
+# BOB UAP Detector, Tracker, Recorder
 
-Below are the installation instructions for installing BOB, your friendly neighbourhood UAP finder, tracker and recorder
+Below are the installation instructions for installing BOB, your friendly neighbourhood UAP detector, tracker and recorder
 The application uses Docker and Docker Compose to run, at present we are still in a very early release phase so this the install process is not polished at all. We will endeavour to improve this over time to please bear with us.
 
 ## The following steps will need to be performed in a linux terminal
