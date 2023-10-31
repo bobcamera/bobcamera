@@ -82,7 +82,7 @@ BOB_OPTIMISED="True"
 RMW_IMPLEMENTATION="rmw_fastrtps_cpp"
 FASTRTPS_DEFAULT_PROFILES_FILE="/workspaces/bobcamera/src/ros2/config/fastdds.xml"
 ```
-### 11. Bring up the docker images i.e. the BOB tracking application
+### 11. To start up BOB
 ```
 docker compose up
 ```
