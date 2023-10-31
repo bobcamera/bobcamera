@@ -43,10 +43,6 @@ def process_dir(recordings_dir, mask_filename=None, resize_factor=1, create_time
     if not os.path.isdir(allsky_processed_dir):
         os.mkdir(allsky_processed_dir)
 
-    heatmaps_processed_dir = os.path.join(heatmaps_dir, f'processed-{date_time_for_path.strftime("%Y%m%d-%H%M%S")}')
-    if not os.path.isdir(heatmaps_processed_dir):
-        os.mkdir(heatmaps_processed_dir)
-
     for filename in sorted_files:
         foreground_mask_path = os.path.join(foreground_mask_dir, filename)
         allsky_path = os.path.join(allsky_dir, filename)
@@ -68,6 +64,10 @@ def process_dir(recordings_dir, mask_filename=None, resize_factor=1, create_time
     timelapse_start_time = time.time()
 
     if create_timelapse:
+        heatmaps_processed_dir = os.path.join(heatmaps_dir, f'processed-{date_time_for_path.strftime("%Y%m%d-%H%M%S")}')
+        if not os.path.isdir(heatmaps_processed_dir):
+            os.mkdir(heatmaps_processed_dir)
+
         heatmap_timelapse_filename = os.path.join(heatmaps_dir, f'heapmap-timelapse-{date_time_for_path.strftime("%Y%m%d-%H%M%S")}' + ".mp4")
         process_timelapse(heatmaps_dir, heatmap_timelapse_filename)
         heatmap_files = [f for f in os.listdir(heatmaps_dir) if f.endswith(".jpg") or f.endswith(".png")]
