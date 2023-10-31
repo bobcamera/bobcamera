@@ -13,10 +13,6 @@ sudo apt-get install git curl
 ```
 git clone --recursive https://github.com/bobcamera/bobcamera.git
 ```
-### If you need a specific branch then clone that branch
-```
-git clone --recursive --branch branch-name https://github.com/bobcamera/bobcamera.git
-```
 ### Change directory to bobcamera
 ```
 cd bobcamera
