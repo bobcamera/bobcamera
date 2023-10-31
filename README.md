@@ -21,13 +21,17 @@ set the setup script as executable
 ```
 chmod +x setup.sh
 ```
-run the setup script, this will install docker and cocker compose
+run the setup script, this will install docker and docker compose
 ```
 ./setup.sh
 ```
 reboot the machine
 ```
 sudo shutdown -r now
+```
+navigate back to the bobcamera directory once rebooted
+```
+cd ~/bobcamera
 ```
 create the .env file
 ```
@@ -57,8 +61,8 @@ BOB_SIMULATION_WIDTH="2560"
 BOB_SIMULATION_HEIGHT="2560"
 BOB_SIMULATION_NUM_OBJECTS="5"
 ```
-Bring up the docker images
+bring up the docker images i.e. the application
 ```
 docker compose up
 ```
-use your system browser and browse to [http://127.0.0.1:8080](http://127.0.0.1:8080)
+use your system browser and navigate to [http://127.0.0.1:8080](http://127.0.0.1:8080)
