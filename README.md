@@ -6,6 +6,7 @@ The application uses Docker and Docker Compose to run, at present we are still i
 ## The following steps will need to be performed in a linux terminal
 
 - Ubuntu 23.10 has been tested
+- Ubuntu 22.04 has been tested
 
 ### 1. Install dependencies
 - Git
