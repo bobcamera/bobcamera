@@ -1,8 +1,6 @@
 name: docker build (dev-install)
 
 on:
-  schedule:
-  - cron: "0 10 * * *"
   push:
     branches:
     - "main"
