@@ -145,6 +145,10 @@
                 <a href="2d-Stream-With-Controls.html"><button id="2dViewBtn" title="View Stream in 2D"><i class="far fa-square"></i></button></a>
             </div>
             <div class="metric-header"> ------- Incoming ROS2 Messages ------- </div><br>
+            <div hidden class="metric-readings">
+                <label>BOB Version:</label>
+                <span id="applicationVersion">0</span>
+            </div>
             <div class="metric-readings">
                 <label for="recent_avg_message_rate">
                     <div class="tooltip-container">Incoming Frame Rate: <span class="tooltip-text">The average per second rate for the last 4 incoming ROS2 messages received</span>
@@ -283,6 +287,12 @@
         name: currentRos2ImageTopic,
         messageType: compressedImageMsgType
     });
+    
+    var versionService = new ROSLIB.Service({
+        ros : ros, 
+        name : '/bob/webapi/application/version', 
+        serviceType : 'bob_interfaces/srv/ApplicationVersion'
+    });    
 
     var updateMaskService = new ROSLIB.Service({
         ros : ros, 
@@ -292,6 +302,12 @@
 
     function init() {
         window.addEventListener('DOMContentLoaded', function () {
+            var versionRequest = new ROSLIB.ServiceRequest({empty: ''});
+            versionService.callService(versionRequest, function(result) {
+                console.log("BOB Version:", result.version);
+                document.getElementById('applicationVersion').innerText = result.version;
+            });
+
             topicStream.subscribe(function (message) {
                 updateMessageRate();
                 if (!firstImageReceived) {
@@ -484,28 +500,28 @@
         return maskCanvasCtx;
     }
 
-function updateDimensions() {
-    console.log("updateDimensions");
-    let newHeight = videoStream.offsetHeight;
-    let newWidth = videoStream.offsetWidth;
-    streamContainer.style.height = `${newHeight}px`;
-    streamContainer.style.width = `${newWidth}px`;
-    streamContainer.height = newHeight * devicePixelRatio;
-    streamContainer.width = newWidth * devicePixelRatio;
-    maskCanvas.style.height = `${newHeight}px`;
-    maskCanvas.style.width = `${newWidth}px`;
-    maskCanvas.width = maskCanvas.clientWidth * devicePixelRatio;
-    maskCanvas.height = maskCanvas.clientHeight * devicePixelRatio;
-    bufferingOverlay.style.height = `${newHeight}px`;
-    bufferingOverlay.style.width = `${newWidth}px`;
-    bufferingOverlay.width = newWidth * devicePixelRatio;
-    bufferingOverlay.height = newHeight * devicePixelRatio;
-    maskCanvasCtx.scale(devicePixelRatio, devicePixelRatio);
-    console.log(maskCanvas.clientWidth);
-    console.log(maskCanvas.clientHeight);
-    console.log(maskCanvas.offsetWidth);
-    console.log(maskCanvas.offsetHeight);
-}
+    function updateDimensions() {
+        console.log("updateDimensions");
+        let newHeight = videoStream.offsetHeight;
+        let newWidth = videoStream.offsetWidth;
+        streamContainer.style.height = `${newHeight}px`;
+        streamContainer.style.width = `${newWidth}px`;
+        streamContainer.height = newHeight * devicePixelRatio;
+        streamContainer.width = newWidth * devicePixelRatio;
+        maskCanvas.style.height = `${newHeight}px`;
+        maskCanvas.style.width = `${newWidth}px`;
+        maskCanvas.width = maskCanvas.clientWidth * devicePixelRatio;
+        maskCanvas.height = maskCanvas.clientHeight * devicePixelRatio;
+        bufferingOverlay.style.height = `${newHeight}px`;
+        bufferingOverlay.style.width = `${newWidth}px`;
+        bufferingOverlay.width = newWidth * devicePixelRatio;
+        bufferingOverlay.height = newHeight * devicePixelRatio;
+        maskCanvasCtx.scale(devicePixelRatio, devicePixelRatio);
+        console.log(maskCanvas.clientWidth);
+        console.log(maskCanvas.clientHeight);
+        console.log(maskCanvas.offsetWidth);
+        console.log(maskCanvas.offsetHeight);
+    }
 
     function saveMaskSVG() {
         let svgContent =
