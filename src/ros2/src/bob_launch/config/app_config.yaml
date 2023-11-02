@@ -183,6 +183,10 @@ prometheus_metrics_node:
     port: 8082
 
 # Web infrastructure
+version_webapi_node:
+  ros__parameters:
+    application_version: '0.0.1'
+
 mask_webapi_node:
   ros__parameters:
     masks_folder: ''

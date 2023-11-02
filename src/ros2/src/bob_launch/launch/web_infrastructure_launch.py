@@ -14,6 +14,14 @@ def generate_launch_description():
 
     ros_bridge_package_dir = get_package_share_directory('rosbridge_server')
 
+    version_webapi_node = Node(
+        package='bob_webapi',
+        #namespace='bob',
+        executable='version_webapi',
+        name='version_webapi_node',
+        parameters = [config]
+    )
+
     mask_webapi_node = Node(
         package='bob_webapi',
         #namespace='bob',
@@ -27,6 +35,7 @@ def generate_launch_description():
 
     return LaunchDescription([
 
+        version_webapi_node,
         mask_webapi_node,
 
         IncludeLaunchDescription(

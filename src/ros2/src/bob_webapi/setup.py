@@ -23,6 +23,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'version_webapi = bob_webapi.version_webapi_node:main',
             'mask_webapi = bob_webapi.mask_webapi_node:main',
         ],
     },
