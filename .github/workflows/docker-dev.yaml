@@ -1,9 +1,11 @@
 name: docker build (dev)
 
 on:
+  schedule:
+  - cron: "0 10 * * *"
   push:
     branches:
-    - "main"
+    - "**"
     tags:
     - "v*.*.*"
   pull_request:
