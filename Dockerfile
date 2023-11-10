@@ -240,8 +240,8 @@ RUN mkdir -p /opt/ros2_ws/src \
 ENV DEBIAN_FRONTEND=
 
 ###################################################################
-#FROM bob-ros2-dev AS bob-ros2-dev-builder
-FROM bobcamera/bob-ros2-dev AS bob-ros2-dev-builder
+#FROM bob-ros2-dev AS bob-ros2-dev-install
+FROM bobcamera/bob-ros2-dev AS bob-ros2-dev-install
 COPY src/ros2 /workspaces/bobcamera/src/ros2
 WORKDIR /workspaces/bobcamera/src/ros2
 
@@ -252,14 +252,6 @@ RUN vcs import < src/ros2.repos src && \
     rosdep install --from-paths src --ignore-src -y && \
     colcon build --parallel-workers $(nproc) --cmake-args -DCMAKE_BUILD_TYPE=Release && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-###################################################################
-#FROM bob-ros2-dev AS bob-ros2-dev-install
-FROM bobcamera/bob-ros2-dev AS bob-ros2-dev-install
-# Copy the compiled libs
-COPY --from=bob-ros2-dev-builder /workspaces/bobcamera/src/ros2/install /workspaces/bobcamera/src/ros2/install
-COPY --from=bob-ros2-dev-builder /workspaces/bobcamera/src/ros2/config /workspaces/bobcamera/src/ros2/config
-WORKDIR /workspaces/bobcamera/src/ros2
 
 ENV BOB_SOURCE="'rtsp'" \
     BOB_RTSP_URL="rtsp://bob:bob!@10.20.30.75:554/cam/realmonitor?channel=1&subtype=0" \
