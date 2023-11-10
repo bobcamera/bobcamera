@@ -267,9 +267,10 @@ ENV BOB_SOURCE="'rtsp'" \
     BOB_TRACKING_SENSITIVITY="'medium'" \
     BOB_TRACKING_USEMASK="False" \
     BOB_TRACKING_MASK_FILE="assets/masks/mask.jpg" \
-    BOB_SIMULATION_WIDTH="1920" \
-    BOB_SIMULATION_HEIGHT="1080" \
-    BOB_SIMULATION_NUM_OBJECTS="5"
+    BOB_SIMULATION_WIDTH="2560" \
+    BOB_SIMULATION_HEIGHT="2560" \
+    BOB_SIMULATION_NUM_OBJECTS="5" \
+    BOB_ENABLE_VISUALISER="False"
 
 COPY entrypoint.sh /
 ENTRYPOINT ["/entrypoint.sh"]
@@ -289,5 +290,5 @@ ADD src/research/cron/crontab /etc/cron.d/bob-crontab
 RUN chmod 0644 /etc/cron.d/bob-crontab && \
     crontab /etc/cron.d/bob-crontab
 
-# Creating entry point for cron 
+# Creating entry point for cron
 ENTRYPOINT ["cron", "-f"]
