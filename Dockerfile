@@ -1,7 +1,9 @@
 # Run this ONE TIME
 # docker buildx create --name builder_mp --use --bootstrap
 
-# docker buildx build --push --platform linux/amd64,linux/arm64 -f Dockerfile . -t bobcamera/boblib-app:1.0.0 -t bobcamera/boblib-app:latest --target boblib-app
+# docker buildx build --push --platform linux/amd64 -f Dockerfile . -t bobcamera/boblib-app:1.0.1 -t bobcamera/boblib-app:latest --target boblib-app
+# docker buildx build --push --platform linux/amd64 -f Dockerfile . -t bobcamera/boblib:1.0.0 -t bobcamera/boblib:latest --target boblib
+# docker buildx build --push --platform linux/amd64 -f Dockerfile . -t bobcamera/ros2-dev:1.0.1 -t bobcamera/bob-ros2-dev:latest --target bob-ros2-dev
 # docker buildx build --push --platform linux/amd64,linux/arm64 -f Dockerfile . -t bobcamera/ros2-dev:1.0.4 -t bobcamera/bob-ros2-dev:latest --target bob-ros2-dev
 
 # docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY bobcamera/boblib-app:latest bash
@@ -49,7 +51,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
 
 ###################################################################
 FROM builder AS opencv
-ENV OPENCV_VERSION=4.8.0
+ENV OPENCV_VERSION=4.8.1
 RUN cd /tmp \
     && wget --no-check-certificate -O opencv-$OPENCV_VERSION.zip https://github.com/opencv/opencv/archive/$OPENCV_VERSION.zip \
     && wget --no-check-certificate -O opencv_contrib-$OPENCV_VERSION.zip https://github.com/opencv/opencv_contrib/archive/$OPENCV_VERSION.zip \
@@ -132,7 +134,7 @@ FROM ubuntu:22.04 AS boblib-app
 # Copy the compiled libs
 COPY --from=boblib /usr/local/ /usr/local/
 COPY --from=boblib /opt/bobcamera/src/boblib/install_app.sh /root
-COPY --from=boblib /usr/lib/python3/dist-packages /usr/lib/python3/dist-packages
+COPY --from=boblib /usr/lib/python3 /usr/lib/python3
 COPY --from=qhy /opt/sdk_qhy /opt/sdk_qhy/
 # install dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -148,6 +150,65 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 #TODO: CHANGE PATH
 ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.10/:/usr/local/lib/python3/dist-packages/
 WORKDIR /root
+
+
+# docker buildx build --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-iron-dev:1.0.0 -t bobcamera/bob-ros2-iron-dev:latest --target bob-ros2-iron-dev
+FROM ros:iron AS bob-ros2-iron-dev
+ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.10/:/usr/local/lib/python3/dist-packages/
+ENV DEBIAN_FRONTEND=noninteractive
+ENV ROS_DISTRO=iron
+ENV LANG=en_GB.UTF-8
+ARG USERNAME=ros
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+# Copy the compiled libs
+COPY --from=boblib /usr/local/ /usr/local/
+# COPY --from=boblib /usr/lib/python3 /usr/lib/python3
+COPY --from=qhy /opt/sdk_qhy /opt/sdk_qhy/
+# install dependencies
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
+        libtbb12 libqt5opengl5 libqt5test5 libdc1394-25 libgstreamer-plugins-base1.0-0 \
+        libavcodec58 libavformat58 libswscale5 liblapack3 libatlas-base-dev openexr libhdf5-dev \
+        locales tzdata sudo bash-completion libjsoncpp-dev libboost-python-dev libboost-system-dev libtbb-dev \
+        ros-${ROS_DISTRO}-vision-msgs ros-${ROS_DISTRO}-image-transport \
+    # Install QHY SDK
+    && cd /opt/sdk_qhy && bash install.sh \
+    # Install the libs locally
+    && sh -c 'echo "/usr/local/lib" >> /etc/ld.so.conf.d/opencv.conf' && ldconfig \
+    # cleaning
+    && apt-get autoclean && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
+    && locale-gen en_GB.UTF-8 \
+    && update-locale LC_ALL=en_GB.UTF-8 LANG=en_GB.UTF-8 \
+    && dpkg-reconfigure --frontend noninteractive tzdata \
+    && groupadd --gid $USER_GID $USERNAME \
+    && useradd -s /bin/bash --uid $USER_UID --gid $USER_GID -m $USERNAME \
+    # [Optional] Add sudo support for the non-root user
+    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME\
+    && chmod 0440 /etc/sudoers.d/$USERNAME \
+    && echo "source /usr/share/bash-completion/completions/git" >> /home/$USERNAME/.bashrc \
+    && echo "export DISPLAY=:0" >> /home/$USERNAME/.bashrc \
+    && echo "if [ -f /opt/ros/${ROS_DISTRO}/setup.bash ]; then source /opt/ros/${ROS_DISTRO}/setup.bash; fi" >> /home/$USERNAME/.bashrc
+ENV AMENT_PREFIX_PATH=/opt/ros/${ROS_DISTRO}
+ENV COLCON_PREFIX_PATH=/opt/ros/${ROS_DISTRO}
+ENV LD_LIBRARY_PATH=/opt/ros/${ROS_DISTRO}/lib
+ENV PATH=/opt/ros/${ROS_DISTRO}/bin:$PATH
+ENV PYTHONPATH=$PYTHONPATH:/opt/ros/${ROS_DISTRO}/lib/python3.10/site-packages
+ENV ROS_PYTHON_VERSION=3
+ENV ROS_VERSION=2
+# Building new ros-${ROS_DISTRO}-vision-opencv
+WORKDIR /opt/ros2_ws
+RUN mkdir -p /opt/ros2_ws/src \
+   && git clone https://github.com/ros-perception/vision_opencv.git \
+   && bash /opt/ros/${ROS_DISTRO}/setup.bash \
+   && rosdep update \
+   && rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y \
+   && colcon build
+
+
+
+
+
 
 
 ###################################################################
@@ -187,30 +248,18 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
    && apt-get autoclean && apt-get clean \
    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp \
    && curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg \
-#    && curl -sSL https://raw.githubusercontent.com/eProsima/vulcanexus/main/vulcanexus.key -o /usr/share/keyrings/vulcanexus-archive-keyring.gpg \
    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null \
-#    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/vulcanexus-archive-keyring.gpg] http://repo.vulcanexus.org/debian $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/vulcanexus.list > /dev/null \
    && apt-get update && apt-get install -y \
          ros-${ROS_DISTRO}-ros-base \
          ros-${ROS_DISTRO}-rosbridge-server \
-         ros-${ROS_DISTRO}-rqt* \
          ros-${ROS_DISTRO}-vision-msgs \
+         ros-${ROS_DISTRO}-rmw-cyclonedds-cpp \
          python3-argcomplete \
          python3-vcstool \
          python3-rosdep \
          python3-colcon-common-extensions \
-        #  vulcanexus-humble-base \
+   && apt-get remove libopencv-dev \
    && rm -rf /var/lib/apt/lists/* \
-#    # Build eProsima / prometheus-cpp --> https://github.com/eProsima/prometheus-cpp/
-#    && cd /tmp \
-#    && git clone https://github.com/eProsima/prometheus-cpp.git \
-#    && cd /tmp/prometheus-cpp \
-#    && git submodule init && git submodule update && mkdir build \
-#    && cd /tmp/prometheus-cpp/build \
-#    && cmake .. -DBUILD_SHARED_LIBS=ON -DENABLE_PUSH=OFF -DENABLE_COMPRESSION=OFF \
-#    && cmake --build . -j $(nproc) \
-#    && cmake --install . \
-   #
    && rosdep init || echo "rosdep already initialized" \
    && rosdep update \
    && groupadd --gid $USER_GID $USERNAME \
@@ -245,13 +294,11 @@ FROM bobcamera/bob-ros2-dev AS bob-ros2-dev-install
 COPY src/ros2 /workspaces/bobcamera/src/ros2
 WORKDIR /workspaces/bobcamera/src/ros2
 
-RUN vcs import < src/ros2.repos src && \
-    apt-get -y update && \
-    apt-get -y install libjsoncpp-dev && \
-    rosdep update && \
-    rosdep install --from-paths src --ignore-src -y && \
-    colcon build --parallel-workers $(nproc) --cmake-args -DCMAKE_BUILD_TYPE=Release && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+# RUN vcs import < src/ros2.repos src && \
+#     rosdep update && \
+#     rosdep install --from-paths src --ignore-src -y && \
+#     colcon build --parallel-workers $(nproc) --cmake-args -DCMAKE_BUILD_TYPE=Release && \
+#     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 ENV BOB_SOURCE="'rtsp'" \
     BOB_RTSP_URL="rtsp://bob:bob!@10.20.30.75:554/cam/realmonitor?channel=1&subtype=0" \
@@ -292,3 +339,23 @@ RUN chmod 0644 /etc/cron.d/bob-crontab && \
 
 # Creating entry point for cron
 ENTRYPOINT ["cron", "-f"]
+
+
+
+
+FROM ros:iron AS bob-prod
+
+
+# copy src/ros2 /workspaces/bobcamera/src/ros2/
+
+# copy qhy sdk
+# install qhy sdk
+
+# copy opt/ros2_ws/install
+
+# cp lib/libopencv_* /usr/local/lib
+# cp lib/libboblib.a /usr/local/lib
+
+# RUN apt-get update && apt-get install -y --no-install-recommends \
+#        libtbb12 libqt5opengl5 libqt5test5 libdc1394-25 libgstreamer-plugins-base1.0-0 \
+#        libavcodec58 libavformat58 libswscale5 liblapack3 libatlas-base-dev openexr libhdf5-dev
