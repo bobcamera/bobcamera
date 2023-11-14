@@ -152,25 +152,42 @@ ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.10/:/usr/
 WORKDIR /root
 
 
-# docker buildx build --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-iron-dev:1.0.0 -t bobcamera/bob-ros2-iron-dev:latest --target bob-ros2-iron-dev
+# docker buildx build --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-iron-dev:1.0.5 -t bobcamera/bob-ros2-iron-dev:latest --target bob-ros2-iron-dev
+# docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY ros:iron bash
+
 FROM ros:iron AS bob-ros2-iron-dev
 ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.10/:/usr/local/lib/python3/dist-packages/
 ENV DEBIAN_FRONTEND=noninteractive
-ENV ROS_DISTRO=iron
+ENV AMENT_PREFIX_PATH=/opt/ros/${ROS_DISTRO}
+ENV COLCON_PREFIX_PATH=/opt/ros/${ROS_DISTRO}
+ENV LD_LIBRARY_PATH=/opt/ros/${ROS_DISTRO}/lib
+ENV PATH=/opt/ros/${ROS_DISTRO}/bin:$PATH
+ENV PYTHONPATH=$PYTHONPATH:/opt/ros/${ROS_DISTRO}/lib/python3.10/site-packages
+ENV ROS_PYTHON_VERSION=3
+ENV ROS_VERSION=2
 ENV LANG=en_GB.UTF-8
 ARG USERNAME=ros
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 # Copy the compiled libs
-COPY --from=boblib /usr/local/ /usr/local/
-# COPY --from=boblib /usr/lib/python3 /usr/lib/python3
+#COPY --from=boblib /usr/local/ /usr/local/backup
+COPY --from=boblib /usr/local/lib/libopencv_* /usr/local/lib
+COPY --from=boblib /usr/local/lib/libboblib.a /usr/local/lib
+COPY --from=boblib /usr/local/lib/cmake /usr/local/lib/cmake
+COPY --from=boblib /usr/local/include /usr/local/include
+COPY --from=boblib /usr/local/lib/python3/dist-packages/ /usr/local/lib/python3/dist-packages/
+#COPY --from=boblib /usr/lib/python3/dist-packages/cv2 /usr/lib/python3/dist-packages/cv2
+COPY --from=boblib /usr/lib/python3 /usr/lib/python3
 COPY --from=qhy /opt/sdk_qhy /opt/sdk_qhy/
 # install dependencies
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
         libtbb12 libqt5opengl5 libqt5test5 libdc1394-25 libgstreamer-plugins-base1.0-0 \
         libavcodec58 libavformat58 libswscale5 liblapack3 libatlas-base-dev openexr libhdf5-dev \
         locales tzdata sudo bash-completion libjsoncpp-dev libboost-python-dev libboost-system-dev libtbb-dev \
-        ros-${ROS_DISTRO}-vision-msgs ros-${ROS_DISTRO}-image-transport \
+        ros-${ROS_DISTRO}-vision-msgs ros-${ROS_DISTRO}-image-transport pip \
+    && pip install Pillow \
+    && pip install pymongo \
+    && pip install tornado \
     # Install QHY SDK
     && cd /opt/sdk_qhy && bash install.sh \
     # Install the libs locally
@@ -189,14 +206,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     && echo "source /usr/share/bash-completion/completions/git" >> /home/$USERNAME/.bashrc \
     && echo "export DISPLAY=:0" >> /home/$USERNAME/.bashrc \
     && echo "if [ -f /opt/ros/${ROS_DISTRO}/setup.bash ]; then source /opt/ros/${ROS_DISTRO}/setup.bash; fi" >> /home/$USERNAME/.bashrc
-ENV AMENT_PREFIX_PATH=/opt/ros/${ROS_DISTRO}
-ENV COLCON_PREFIX_PATH=/opt/ros/${ROS_DISTRO}
-ENV LD_LIBRARY_PATH=/opt/ros/${ROS_DISTRO}/lib
-ENV PATH=/opt/ros/${ROS_DISTRO}/bin:$PATH
-ENV PYTHONPATH=$PYTHONPATH:/opt/ros/${ROS_DISTRO}/lib/python3.10/site-packages
-ENV ROS_PYTHON_VERSION=3
-ENV ROS_VERSION=2
-# Building new ros-${ROS_DISTRO}-vision-opencv
+    # Building new ros-${ROS_DISTRO}-vision-opencv
 WORKDIR /opt/ros2_ws
 RUN mkdir -p /opt/ros2_ws/src \
    && git clone https://github.com/ros-perception/vision_opencv.git \
@@ -204,8 +214,6 @@ RUN mkdir -p /opt/ros2_ws/src \
    && rosdep update \
    && rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y \
    && colcon build
-
-
 
 
 

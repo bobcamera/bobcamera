@@ -78,5 +78,6 @@
     },
     "cSpell.words": [
         "rclcpp"
-    ]
+    ],
+    "cmake.configureOnOpen": false
 }
