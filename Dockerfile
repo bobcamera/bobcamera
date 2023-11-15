@@ -156,13 +156,12 @@ WORKDIR /root
 # docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY ros:iron bash
 
 FROM ros:iron AS bob-ros2-iron-dev
-ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.10/:/usr/local/lib/python3/dist-packages/
+ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.10/:/usr/local/lib/python3/dist-packages/:/opt/ros/${ROS_DISTRO}/lib/python3.10/site-packages
+ENV PATH=/opt/ros/${ROS_DISTRO}/bin:$PATH
 ENV DEBIAN_FRONTEND=noninteractive
 ENV AMENT_PREFIX_PATH=/opt/ros/${ROS_DISTRO}
 ENV COLCON_PREFIX_PATH=/opt/ros/${ROS_DISTRO}
 ENV LD_LIBRARY_PATH=/opt/ros/${ROS_DISTRO}/lib
-ENV PATH=/opt/ros/${ROS_DISTRO}/bin:$PATH
-ENV PYTHONPATH=$PYTHONPATH:/opt/ros/${ROS_DISTRO}/lib/python3.10/site-packages
 ENV ROS_PYTHON_VERSION=3
 ENV ROS_VERSION=2
 ENV LANG=en_GB.UTF-8
@@ -170,13 +169,11 @@ ARG USERNAME=ros
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 # Copy the compiled libs
-#COPY --from=boblib /usr/local/ /usr/local/backup
 COPY --from=boblib /usr/local/lib/libopencv_* /usr/local/lib
 COPY --from=boblib /usr/local/lib/libboblib.a /usr/local/lib
 COPY --from=boblib /usr/local/lib/cmake /usr/local/lib/cmake
 COPY --from=boblib /usr/local/include /usr/local/include
 COPY --from=boblib /usr/local/lib/python3/dist-packages/ /usr/local/lib/python3/dist-packages/
-#COPY --from=boblib /usr/lib/python3/dist-packages/cv2 /usr/lib/python3/dist-packages/cv2
 COPY --from=boblib /usr/lib/python3 /usr/lib/python3
 COPY --from=qhy /opt/sdk_qhy /opt/sdk_qhy/
 # install dependencies
@@ -195,18 +192,18 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     # cleaning
     && apt-get autoclean && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
+    # user related install
     && locale-gen en_GB.UTF-8 \
     && update-locale LC_ALL=en_GB.UTF-8 LANG=en_GB.UTF-8 \
     && dpkg-reconfigure --frontend noninteractive tzdata \
     && groupadd --gid $USER_GID $USERNAME \
     && useradd -s /bin/bash --uid $USER_UID --gid $USER_GID -m $USERNAME \
-    # [Optional] Add sudo support for the non-root user
     && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME\
     && chmod 0440 /etc/sudoers.d/$USERNAME \
     && echo "source /usr/share/bash-completion/completions/git" >> /home/$USERNAME/.bashrc \
     && echo "export DISPLAY=:0" >> /home/$USERNAME/.bashrc \
     && echo "if [ -f /opt/ros/${ROS_DISTRO}/setup.bash ]; then source /opt/ros/${ROS_DISTRO}/setup.bash; fi" >> /home/$USERNAME/.bashrc
-    # Building new ros-${ROS_DISTRO}-vision-opencv
+# Building new ros-${ROS_DISTRO}-vision-opencv
 WORKDIR /opt/ros2_ws
 RUN mkdir -p /opt/ros2_ws/src \
    && git clone https://github.com/ros-perception/vision_opencv.git \
