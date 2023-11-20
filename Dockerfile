@@ -5,6 +5,7 @@
 # docker buildx build --push --platform linux/amd64 -f Dockerfile . -t bobcamera/boblib:1.0.0 -t bobcamera/boblib:latest --target boblib
 # docker buildx build --push --platform linux/amd64 -f Dockerfile . -t bobcamera/ros2-dev:1.0.1 -t bobcamera/bob-ros2-dev:latest --target bob-ros2-dev
 # docker buildx build --push --platform linux/amd64,linux/arm64 -f Dockerfile . -t bobcamera/ros2-dev:1.0.4 -t bobcamera/bob-ros2-dev:latest --target bob-ros2-dev
+# docker buildx build --push --platform linux/amd64,linux/arm64 -f Dockerfile . -t bobcamera/bob-ros2-iron-dev:1.0.6 -t bobcamera/bob-ros2-iron-dev:latest --target bob-ros2-iron-dev
 
 # docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY bobcamera/boblib-app:latest bash
 
@@ -147,14 +148,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # cleaning
     && apt-get autoclean && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-#TODO: CHANGE PATH
 ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.10/:/usr/local/lib/python3/dist-packages/
 WORKDIR /root
 
 
 # docker buildx build --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-iron-dev:1.0.5 -t bobcamera/bob-ros2-iron-dev:latest --target bob-ros2-iron-dev
-# docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY ros:iron bash
-
 FROM ros:iron AS bob-ros2-iron-dev
 ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.10/:/usr/local/lib/python3/dist-packages/:/opt/ros/${ROS_DISTRO}/lib/python3.10/site-packages
 ENV PATH=/opt/ros/${ROS_DISTRO}/bin:$PATH
@@ -180,8 +178,8 @@ COPY --from=qhy /opt/sdk_qhy /opt/sdk_qhy/
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
         libtbb12 libqt5opengl5 libqt5test5 libdc1394-25 libgstreamer-plugins-base1.0-0 \
         libavcodec58 libavformat58 libswscale5 liblapack3 libatlas-base-dev openexr libhdf5-dev \
-        locales tzdata sudo bash-completion libjsoncpp-dev libboost-python-dev libboost-system-dev libtbb-dev \
-        ros-${ROS_DISTRO}-vision-msgs ros-${ROS_DISTRO}-image-transport pip \
+        locales tzdata sudo bash-completion libjsoncpp-dev libboost-python-dev libboost-system-dev libtbb-dev pip \
+        ros-${ROS_DISTRO}-vision-msgs ros-${ROS_DISTRO}-image-transport \
     && pip install Pillow \
     && pip install pymongo \
     && pip install tornado \
@@ -345,22 +343,3 @@ RUN chmod 0644 /etc/cron.d/bob-crontab && \
 # Creating entry point for cron
 ENTRYPOINT ["cron", "-f"]
 
-
-
-
-FROM ros:iron AS bob-prod
-
-
-# copy src/ros2 /workspaces/bobcamera/src/ros2/
-
-# copy qhy sdk
-# install qhy sdk
-
-# copy opt/ros2_ws/install
-
-# cp lib/libopencv_* /usr/local/lib
-# cp lib/libboblib.a /usr/local/lib
-
-# RUN apt-get update && apt-get install -y --no-install-recommends \
-#        libtbb12 libqt5opengl5 libqt5test5 libdc1394-25 libgstreamer-plugins-base1.0-0 \
-#        libavcodec58 libavformat58 libswscale5 liblapack3 libatlas-base-dev openexr libhdf5-dev
