@@ -16,8 +16,6 @@
     <depend>rcl_interfaces</depend>
     <depend>boost</depend>
     <depend>rclcpp_components</depend>
-    <depend>camera_calibration_parsers</depend>
-    <depend>camera_info_manager</depend>
 
     <member_of_group>rosidl_interface_packages</member_of_group>
     <build_depend>rosidl_default_generators</build_depend>
