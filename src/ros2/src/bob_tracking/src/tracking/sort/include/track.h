@@ -3,7 +3,6 @@
 #include <opencv2/core.hpp>
 #include "../include/kalman_filter.h"
 #include "../../bob_shared/include/tracking_state.hpp"
-#include "utils.h"
 
 
 class Track {
@@ -20,6 +19,8 @@ public:
     int get_id() const;
     int get_coast_cycles() const;
     void set_id(int x);
+    void set_min_hits(int min_hits);
+    void set_track_stationary_threshold(int thresh);
     cv::Point get_center() const;
     cv::Rect get_bbox() const;
     const std::vector<std::pair<cv::Point, TrackingStateEnum>>& get_center_points() const;
@@ -37,9 +38,10 @@ private:
     std::vector<cv::Point> predictor_center_points_;
     cv::Rect last_bbox_;
 
-    int track_stationary_threshold_; 
+    int track_stationary_threshold_; // base on fps
     int stationary_track_counter_; 
     int coast_cycles_;
     int hit_streak_;
     int id_;
+    int min_hits_; // base on fps
 };

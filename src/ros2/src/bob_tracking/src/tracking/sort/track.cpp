@@ -7,7 +7,8 @@ Track::Track()
       track_stationary_threshold_(25),
       stationary_track_counter_(0),
       coast_cycles_(0),
-      hit_streak_(0)
+      hit_streak_(0),
+      min_hits_(2)
 {
 
     /*** Define constant velocity model ***/
@@ -73,7 +74,7 @@ void Track::Predict()
     } 
     else 
     {
-        if (hit_streak_ >= kMinHits) 
+        if (hit_streak_ >= min_hits_) 
         {
             tracking_state_ = ActiveTarget;
         } 
@@ -83,7 +84,7 @@ void Track::Predict()
         }
     }
 
-    center_points_.push_back(std::make_pair(center, tracking_state_));
+    // center_points_.push_back(std::make_pair(center, tracking_state_));  // THIS NOT NEEDED?
     predictor_center_points_.push_back(center);
 
     // accumulate coast cycle count
@@ -118,7 +119,7 @@ void Track::Update(const cv::Rect& bbox)
     coast_cycles_ = 0;
     hit_streak_++;
 
-    if (hit_streak_ >= kMinHits) 
+    if (hit_streak_ >= min_hits_) 
     {
         tracking_state_ = ActiveTarget;
     }
@@ -216,6 +217,16 @@ int Track::get_id() const
 void Track::set_id(int x) 
 {
     id_ = x;
+}
+
+void Track::set_min_hits(int min_hits)
+{
+    min_hits_ = min_hits;
+}
+
+void Track::set_track_stationary_threshold(int thresh)
+{
+    track_stationary_threshold_ = thresh;
 }
 
 cv::Point Track::get_center() const 
