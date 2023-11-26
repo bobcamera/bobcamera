@@ -11,6 +11,9 @@ Track::Track()
       min_hits_(2)
 {
 
+    float fps = 50.0f; // placeholder
+    float delta_k = 1.0f / fps; 
+
     /*** Define constant velocity model ***/
     // state - center_x, center_y, width, height, v_cx, v_cy, v_width, v_height
     kf_.F_ <<
@@ -41,24 +44,28 @@ Track::Track()
             0, 0, 1, 0, 0, 0, 0, 0,
             0, 0, 0, 1, 0, 0, 0, 0;
 
+    // Represents the uncertainty in the process model
+    // Larger Q suggests uncertainty in process model leading the filter to put more weight on new measurements
     kf_.Q_ <<
-           1, 0, 0, 0, 0, 0, 0, 0,
-            0, 1, 0, 0, 0, 0, 0, 0,
-            0, 0, 1, 0, 0, 0, 0, 0,
-            0, 0, 0, 1, 0, 0, 0, 0,
-            0, 0, 0, 0, 0.01, 0, 0, 0,
-            0, 0, 0, 0, 0, 0.01, 0, 0,
-            0, 0, 0, 0, 0, 0, 0.0001, 0,
-            0, 0, 0, 0, 0, 0, 0, 0.0001;
+            1, 0, 0, 0, delta_k*4, 0, 0, 0,
+            0, 1, 0, 0, 0, delta_k*4, 0, 0,
+            0, 0, 1, 0, 0, 0, delta_k*4, 0,
+            0, 0, 0, 1, 0, 0, 0, delta_k*4,
+            delta_k*4, 0, 0, 0, 0.6, 0, 0, 0,
+            0, delta_k*4, 0, 0, 0, 0.6, 0, 0,
+            0, 0, 0, delta_k*4, 0, 0, 0.6, 0,
+            0, 0, 0, 0, delta_k*4, 0, 0, 0.6;
 
-    kf_.R_ <<
+    // Represents the uncertainty in the measurements
+    // Larger R places less trust in measurements 
+    kf_.R_ << 
            1, 0, 0,  0,
             0, 1, 0,  0,
-            0, 0, 10, 0,
-            0, 0, 0,  10;
+            0, 0, 1, 0,
+            0, 0, 0,  1;
 }
+
 // Get predicted locations from existing trackers
-// dt is time elapsed between the current and previous measurements
 void Track::Predict() 
 {
     kf_.Predict();
