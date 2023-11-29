@@ -51,10 +51,10 @@ Track::Track()
             0, 1, 0, 0, 0, delta_k*4, 0, 0,
             0, 0, 1, 0, 0, 0, delta_k*4, 0,
             0, 0, 0, 1, 0, 0, 0, delta_k*4,
-            delta_k*4, 0, 0, 0, 0.6, 0, 0, 0,
-            0, delta_k*4, 0, 0, 0, 0.6, 0, 0,
-            0, 0, 0, delta_k*4, 0, 0, 0.6, 0,
-            0, 0, 0, 0, delta_k*4, 0, 0, 0.6;
+            delta_k*4, 0, 0, 0, 0.01, 0, 0, 0,
+            0, delta_k*4, 0, 0, 0, 0.01, 0, 0,
+            0, 0, 0, delta_k*4, 0, 0, 0.01, 0,
+            0, 0, 0, 0, delta_k*4, 0, 0, 0.01;
 
     // Represents the uncertainty in the measurements
     // Larger R places less trust in measurements 
