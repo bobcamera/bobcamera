@@ -2,12 +2,14 @@
 
 
 SORT::Tracker::Tracker(const std::map<std::string, std::string>& settings, rclcpp::Logger logger)
-    : settings_(settings), logger_(logger), total_trackers_started_(0), total_trackers_finished_(0)
+    : settings_(settings), logger_(logger), total_trackers_started_(0), total_trackers_finished_(0),
+     max_coast_cycles_(45), tracker_max_active_trackers_(100)
 {
+
 }
 
-float SORT::Tracker::CalculateIou(const cv::Rect& rect1, const cv::Rect& rect2) {
-
+float SORT::Tracker::CalculateIou(const cv::Rect& rect1, const cv::Rect& rect2) 
+{
     int xA = std::max(rect1.x, rect2.x);
     int yA = std::max(rect1.y, rect2.y);
     int xB = std::min(rect1.x + rect1.width, rect2.x + rect2.width);
@@ -17,13 +19,36 @@ float SORT::Tracker::CalculateIou(const cv::Rect& rect1, const cv::Rect& rect2) 
     int boxAArea = rect1.width * rect1.height;
     int boxBArea = rect2.width * rect2.height;
 
-    return (float) interArea / (boxAArea + boxBArea - interArea);
+    return (float)interArea / (boxAArea + boxBArea - interArea);
+}
+
+// Distance IOU.  Could also try Generalized IOU
+float SORT::Tracker::CalculateDiou(const cv::Rect& rect1, const cv::Rect& rect2) 
+{
+    float iou = CalculateIou(rect1, rect2);
+
+    // Calculate the center distance
+    float centerDistance = std::pow((rect1.x + rect1.width / 2.0f) - (rect2.x + rect2.width / 2.0f), 2) +
+                           std::pow((rect1.y + rect1.height / 2.0f) - (rect2.y + rect2.height / 2.0f), 2);
+
+    // Calculate the diagonal of the smallest enclosing box
+    int enclose_x1 = std::min(rect1.x, rect2.x);
+    int enclose_y1 = std::min(rect1.y, rect2.y);
+    int enclose_x2 = std::max(rect1.x + rect1.width, rect2.x + rect2.width);
+    int enclose_y2 = std::max(rect1.y + rect1.height, rect2.y + rect2.height);
+    float encloseDiagonal = std::pow(enclose_x2 - enclose_x1, 2) + std::pow(enclose_y2 - enclose_y1, 2);
+
+    // Calculate DIoU
+    float diou = iou - (centerDistance / encloseDiagonal);
+
+    return diou;
 }
 
 
 void SORT::Tracker::HungarianMatching(const std::vector<std::vector<float>>& iou_matrix,
                                 size_t nrows, size_t ncols,
-                                std::vector<std::vector<float>>& association) {
+                                std::vector<std::vector<float>>& association) 
+{
 
     Matrix<float> matrix(nrows, ncols);
     // Initialize matrix with IOU values
@@ -56,7 +81,8 @@ void SORT::Tracker::AssociateDetectionsToTrackers(const std::vector<cv::Rect>& d
                                             std::map<int, Track>& tracks,
                                             std::map<int, cv::Rect>& matched,
                                             std::vector<cv::Rect>& unmatched_det,
-                                            float iou_threshold) {
+                                            float iou_threshold) 
+{
 
     // Set all detection as unmatched if no tracks existing
     if (tracks.empty()) {
@@ -79,7 +105,7 @@ void SORT::Tracker::AssociateDetectionsToTrackers(const std::vector<cv::Rect>& d
     for (size_t i = 0; i < detection.size(); i++) {
         size_t j = 0;
         for (const auto& trk : tracks) {
-            iou_matrix[i][j] = CalculateIou(detection[i], trk.second.get_bbox());
+            iou_matrix[i][j] = CalculateDiou(detection[i], trk.second.get_bbox());
             j++;
         }
     }
@@ -168,7 +194,7 @@ void SORT::Tracker::update_trackers(const std::vector<cv::Rect> &detections, con
     /*** Delete lose tracked tracks ***/
     for (auto it = tracks_.begin(); it != tracks_.end();) 
     {
-        if (it->second.get_coast_cycles() > kMaxCoastCycles) 
+        if (it->second.get_coast_cycles() > max_coast_cycles_) 
         {
             it = tracks_.erase(it);
             total_trackers_finished_++; 
@@ -180,7 +206,8 @@ void SORT::Tracker::update_trackers(const std::vector<cv::Rect> &detections, con
     }
 }
 
-const std::vector<Track> SORT::Tracker::get_active_trackers() const {
+const std::vector<Track> SORT::Tracker::get_active_trackers() const 
+{
     std::vector<Track> activeTracks;
     for (const auto &pair : tracks_) 
     {
@@ -203,7 +230,8 @@ const std::vector<Track> SORT::Tracker::get_live_trackers() const
     return live_trackers;
 }
 
-std::map<int, Track> SORT::Tracker::GetTracks() const {
+std::map<int, Track> SORT::Tracker::GetTracks() const 
+{
     return tracks_;
 }
 
@@ -228,3 +256,7 @@ int SORT::Tracker::get_total_trackers_finished() const
     return total_trackers_finished_;
 }
 
+void SORT::Tracker::set_max_coast_cycles(size_t max_coast_cycles)
+{
+    max_coast_cycles_ = max_coast_cycles;
+}

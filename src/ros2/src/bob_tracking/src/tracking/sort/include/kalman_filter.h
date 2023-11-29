@@ -73,6 +73,14 @@ namespace SORT {
         float log_likelihood_delta_;
 
         float NIS_;
+
+        float alpha_;
+
+        float Q_scale_factor_;
+
+        float eps_max_; 
+
+        int count_;
     };
 
 }

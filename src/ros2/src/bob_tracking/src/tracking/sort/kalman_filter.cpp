@@ -32,12 +32,16 @@ SORT::KalmanFilter::KalmanFilter(unsigned int num_states, unsigned int num_obs) 
 
     log_likelihood_delta_ = 0.0;
     NIS_ = 0.0;
+    alpha_ = 1.0f; // Fading memory filter > 1 e.g. 4
+    Q_scale_factor_ = 15.0f;
+    eps_max_ = 1.6f;
+    count_ = 0;
 }
 
 
 void SORT::KalmanFilter::Coast() {
     x_predict_ = F_ * x_;
-    P_predict_ = F_ * P_ * F_.transpose() + Q_;
+    P_predict_ = pow(alpha_,2) * F_ * P_ * F_.transpose() + Q_;
 }
 
 
@@ -61,6 +65,18 @@ void SORT::KalmanFilter::Update(const Eigen::VectorXd& z)
     Eigen::MatrixXd Ht = H_.transpose(); // Transposed observation matrix
     Eigen::MatrixXd S = H_ * P_predict_ * Ht + R_; // Innovation covariance
     NIS_ = y.transpose() * S.inverse() * y; // Normalized Innovation Squared: Measures consistency of filter
+
+    // Basic adaptive filtering
+    if(NIS_ > eps_max_)
+    {
+        Q_ *= Q_scale_factor_;
+        count_ += 1;
+    }
+    else if(count_ > 0)
+    {
+        Q_ /= Q_scale_factor_;
+        count_ -= 1;
+    }
 
     /* 
     P_predict provides confidence in prediction. Smaller values mean higher confidence.
@@ -87,6 +103,12 @@ void SORT::KalmanFilter::Update(const Eigen::VectorXd& z)
     // P_ = (I - K * H_) * P_predict_ * (I - K * H_).transpose() + K * R_ * K.transpose();
     // Update error covariance using Joseph form (commented) or Optimal gain
     P_ = (I - K * H_) * P_predict_;
+
+    // Calculate the log-likelihood of the measurement
+    // float log_likelihood = CalculateLogLikelihood(y, S);
+
+    // Output or store the log-likelihood value for further analysis or adaptive filtering
+    // std::cout << "Log-Likelihood: " << log_likelihood << std::endl;
 }
 
 // Quantifies how probable a given measurement (or observation) is, given the predicted state and the associated uncertainties

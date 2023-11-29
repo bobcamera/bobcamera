@@ -7,8 +7,12 @@ Track::Track()
       track_stationary_threshold_(25),
       stationary_track_counter_(0),
       coast_cycles_(0),
-      hit_streak_(0)
+      hit_streak_(0),
+      min_hits_(2)
 {
+
+    float fps = 50.0f; // placeholder
+    float delta_k = 1.0f / fps; 
 
     /*** Define constant velocity model ***/
     // state - center_x, center_y, width, height, v_cx, v_cy, v_width, v_height
@@ -40,24 +44,28 @@ Track::Track()
             0, 0, 1, 0, 0, 0, 0, 0,
             0, 0, 0, 1, 0, 0, 0, 0;
 
+    // Represents the uncertainty in the process model
+    // Larger Q suggests uncertainty in process model leading the filter to put more weight on new measurements
     kf_.Q_ <<
-           1, 0, 0, 0, 0, 0, 0, 0,
-            0, 1, 0, 0, 0, 0, 0, 0,
-            0, 0, 1, 0, 0, 0, 0, 0,
-            0, 0, 0, 1, 0, 0, 0, 0,
-            0, 0, 0, 0, 0.01, 0, 0, 0,
-            0, 0, 0, 0, 0, 0.01, 0, 0,
-            0, 0, 0, 0, 0, 0, 0.0001, 0,
-            0, 0, 0, 0, 0, 0, 0, 0.0001;
+            1, 0, 0, 0, delta_k*4, 0, 0, 0,
+            0, 1, 0, 0, 0, delta_k*4, 0, 0,
+            0, 0, 1, 0, 0, 0, delta_k*4, 0,
+            0, 0, 0, 1, 0, 0, 0, delta_k*4,
+            delta_k*4, 0, 0, 0, 0.01, 0, 0, 0,
+            0, delta_k*4, 0, 0, 0, 0.01, 0, 0,
+            0, 0, 0, delta_k*4, 0, 0, 0.01, 0,
+            0, 0, 0, 0, delta_k*4, 0, 0, 0.01;
 
-    kf_.R_ <<
+    // Represents the uncertainty in the measurements
+    // Larger R places less trust in measurements 
+    kf_.R_ << 
            1, 0, 0,  0,
             0, 1, 0,  0,
-            0, 0, 10, 0,
-            0, 0, 0,  10;
+            0, 0, 1, 0,
+            0, 0, 0,  1;
 }
+
 // Get predicted locations from existing trackers
-// dt is time elapsed between the current and previous measurements
 void Track::Predict() 
 {
     kf_.Predict();
@@ -73,7 +81,7 @@ void Track::Predict()
     } 
     else 
     {
-        if (hit_streak_ >= kMinHits) 
+        if (hit_streak_ >= min_hits_) 
         {
             tracking_state_ = ActiveTarget;
         } 
@@ -83,7 +91,7 @@ void Track::Predict()
         }
     }
 
-    center_points_.push_back(std::make_pair(center, tracking_state_));
+    // center_points_.push_back(std::make_pair(center, tracking_state_));  // THIS NOT NEEDED?
     predictor_center_points_.push_back(center);
 
     // accumulate coast cycle count
@@ -118,7 +126,7 @@ void Track::Update(const cv::Rect& bbox)
     coast_cycles_ = 0;
     hit_streak_++;
 
-    if (hit_streak_ >= kMinHits) 
+    if (hit_streak_ >= min_hits_) 
     {
         tracking_state_ = ActiveTarget;
     }
@@ -216,6 +224,16 @@ int Track::get_id() const
 void Track::set_id(int x) 
 {
     id_ = x;
+}
+
+void Track::set_min_hits(int min_hits)
+{
+    min_hits_ = min_hits;
+}
+
+void Track::set_track_stationary_threshold(int thresh)
+{
+    track_stationary_threshold_ = thresh;
 }
 
 cv::Point Track::get_center() const 

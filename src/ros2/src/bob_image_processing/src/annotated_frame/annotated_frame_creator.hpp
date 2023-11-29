@@ -178,15 +178,15 @@ public:
         int w = static_cast<int>(bbox_msg.size_x);
         int h = static_cast<int>(bbox_msg.size_y);
 
-        auto size_setting = 64; // settings.find("visualiser_bbox_size");
+        auto size_setting = 32; // settings.find("visualiser_bbox_size");
         int size;
         if (size_setting != 0)
         {
-            size = std::min({w, h, size_setting});
+            size = std::max({w, h, size_setting});
         }
         else
         {
-            size = std::min(w, h);
+            size = std::max(w, h);
         }
 
         int x1 = x + (w / 2) - (size / 2);

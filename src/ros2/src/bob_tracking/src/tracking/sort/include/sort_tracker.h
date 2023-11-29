@@ -7,7 +7,6 @@
 
 #include "../include/track.h"
 #include "../include/munkres.h"
-#include "utils.h"
 
 namespace SORT
 {
@@ -17,7 +16,7 @@ namespace SORT
         ~Tracker() = default;
 
         static float CalculateIou(const cv::Rect& rect1, const cv::Rect& rect2);
-
+        static float CalculateDiou(const cv::Rect& rect1, const cv::Rect& rect2);
         static void HungarianMatching(const std::vector<std::vector<float>>& iou_matrix,
                             size_t nrows, size_t ncols,
                             std::vector<std::vector<float>>& association);
@@ -35,7 +34,8 @@ namespace SORT
                                         std::map<int, Track>& tracks,
                                         std::map<int, cv::Rect>& matched,
                                         std::vector<cv::Rect>& unmatched_det,
-                                        float iou_threshold = 0.001);
+                                        // float iou_threshold = 0.001); // 0 to 1 for IOU
+                                        float iou_threshold = -0.95); // -1 to 1 for DIOU
 
         const std::vector<Track> get_active_trackers() const;
         const std::vector<Track> get_live_trackers() const;
@@ -45,6 +45,7 @@ namespace SORT
         std::map<int, Track> GetTracks() const;
         int get_total_trackers_started() const;
         int get_total_trackers_finished() const;
+        void set_max_coast_cycles(size_t max_coast_cycles);
 
     private:
         std::map<std::string, std::string> settings_;
@@ -52,8 +53,8 @@ namespace SORT
         std::map<int, Track> tracks_;
         int total_trackers_started_;  
         int total_trackers_finished_;
-        
-        size_t tracker_max_active_trackers_ = 50;
+        int max_coast_cycles_; // base on fps
+        size_t tracker_max_active_trackers_;
     };
 
 }

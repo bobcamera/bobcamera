@@ -42,10 +42,6 @@ Open a terminal session:
 2. navigate to the ros2 source location: `cd ./bobcamera/src/ros2`
 3. Open vscode by typing: `code .`
 
-#### Setup 
-
-Run the setup script to setup dev container. This is required for rosbridge_suite and any other third party packages like the ros_ipcamera package: `./setup.sh`
-
 #### Update RTSP cam details if you are using an RTSP camera
 
 * update the environment variables for both camera rtsp credentials and frame size in `./launch_application.sh`
