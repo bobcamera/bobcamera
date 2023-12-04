@@ -182,6 +182,10 @@ prometheus_metrics_node:
   ros__parameters:
     port: 8082
 
+json_track_recorder_node:
+  ros__parameters:
+    json_recorder_directory: 'assets/recordings/json'
+
 # Web infrastructure
 version_webapi_node:
   ros__parameters:

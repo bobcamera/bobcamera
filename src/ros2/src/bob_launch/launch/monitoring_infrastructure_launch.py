@@ -1,6 +1,8 @@
 import os
 from launch import LaunchDescription
 from launch_ros.actions import Node
+from launch.substitutions import PythonExpression, LaunchConfiguration 
+from launch.conditions import IfCondition
 from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
@@ -44,9 +46,20 @@ def generate_launch_description():
         parameters = [config],
     )
 
+    json_track_recorder_node = Node(
+        package='bob_observer',
+        #namespace='bob',
+        executable='json_track_recorder',
+        name='json_track_recorder_node',
+        parameters = [config],
+        condition=IfCondition(PythonExpression([LaunchConfiguration('enable_recording_arg'), " == True"])),  
+    )    
+
     return LaunchDescription([
         day_night_classifier_node,
         cloud_estimator_node,
         tracking_monitor_node,
-        prometheus_node
+        prometheus_node,
+
+        json_track_recorder_node
     ])

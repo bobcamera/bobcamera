@@ -16,6 +16,7 @@ def create_storage_folders(context):
     os.makedirs('assets/recordings/allsky', exist_ok=True)
     os.makedirs('assets/recordings/foreground_mask', exist_ok=True)
     os.makedirs('assets/recordings/heatmaps', exist_ok=True)
+    os.makedirs('assets/recordings/json', exist_ok=True)
     os.makedirs('assets/masks', exist_ok=True)
 
 def application_config(context):

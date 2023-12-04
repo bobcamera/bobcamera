@@ -22,6 +22,7 @@ setup(
             'cloud_estimator = bob_observer.cloud_estimator_node:main',
             'day_night_classifier = bob_observer.day_night_classifier_node:main',
             'tracking_monitor = bob_observer.tracker_monitoring_node:main',
+            'json_track_recorder = bob_observer.json_track_recorder_node:main',
         ],
     },
 )
