@@ -6,10 +6,10 @@ from rclpy.time import Time
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy, QoSHistoryPolicy
 from sensor_msgs.msg import Image
-from vision_msgs.msg import BoundingBox2D
+from vision_msgs.msg import BoundingBox2D, BoundingBox2DArray
 from bob_shared.enumerations import TrackingStateEnum
 from bob_shared.node_runner import NodeRunner
-from bob_interfaces.msg import Tracking, TrackDetection
+from bob_interfaces.msg import Tracking, TrackDetection, TrackTrajectory
 
 class JsonTrackRecorderNode(Node):
 
@@ -33,33 +33,29 @@ class JsonTrackRecorderNode(Node):
 
     self.get_logger().info(f'{self.get_name()} node is up and running.')
    
-  def synced_callback(self, msg_frame:Image, msg_tracking:Tracking):
+  def synced_callback(self, msg_frame: Image, msg_tracking: Tracking):
+      if msg_frame is not None and msg_tracking is not None:
+          try:
+              time_in_secs = int(Time.from_msg(msg_frame.header.stamp).nanoseconds / 1e9)
 
-    if msg_frame is not None and msg_tracking is not None:
+              for i, (detection, trajectory) in enumerate(zip(msg_tracking.detections, msg_tracking.predictions)):
+                  detection_id = detection.id
+                  detection_state = TrackingStateEnum(int(detection.state))
+                  bbox_msg: BoundingBox2D = detection.bbox
+                  track_bbox_info = f'({bbox_msg.center.position.x},{bbox_msg.center.position.y},{bbox_msg.size_x},{bbox_msg.size_y})'
 
-      try:
+                  trajectory_info = 'No prediction'
+                  if trajectory.trajectory:
+                      most_recent_point = trajectory.trajectory[-1]
+                      trajectory_info = f'id={trajectory.id}, center=({most_recent_point.center.x}, {most_recent_point.center.y})'
 
-        if msg_tracking.state.trackable > 0:
+                  self.get_logger().info(
+                      f'Time:[{time_in_secs}], ID:[{detection_id}], State:[{detection_state}], TraBB:[{track_bbox_info}], PredBB:[{trajectory_info}]'
+                  )
 
-            time_in_secs = int(Time.from_msg(msg_frame.header.stamp).nanoseconds / 1e9)
-
-            detection: TrackDetection
-            for detection in msg_tracking.detections:
-
-                id = detection.id
-                tracking_state = TrackingStateEnum(int(detection.state))
-                bbox_msg: BoundingBox2D = detection.bbox
-
-                #bbox = (x, y, w, h)
-                bbox = ((int(bbox_msg.center.position.x - (bbox_msg.size_x / 2)), 
-                              int(bbox_msg.center.position.y - (bbox_msg.size_y / 2)),
-                              bbox_msg.size_x, bbox_msg.size_y))                
-
-                self.get_logger().info(f'recording --> timestamp:[{time_in_secs}], id:[{id}], state:[{tracking_state}], bbox:[{bbox}]')
-
-      except Exception as e:
-        self.get_logger().error(f"Exception during the annotated frame provider. Error: {e}.")
-        self.get_logger().error(tb.format_exc())
+          except Exception as e:
+              self.get_logger().error(f"Exception during the annotated frame provider. Error: {e}.")
+              self.get_logger().error(tb.format_exc())
 
 def main(args=None):
 
