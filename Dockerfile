@@ -33,6 +33,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
         libgstreamer-plugins-base1.0-dev \
         libgstreamer-opencv1.0-0 \
         libgstreamer1.0-dev \
+        gstreamer1.0-tools \
         qtbase5-dev \
         usbutils \
         libusb-1.0-0-dev \
@@ -133,6 +134,8 @@ RUN cd /opt/sdk_qhy && bash install.sh \
     && make install
 ENV PYTHONPATH=$PYTHONPATH:/usr/local/lib/python3/dist-packages/
 
+# docker buildx build --push --platform linux/amd64,linux/arm64 -f Dockerfile . -t bobcamera/bob-boblibapp:1.0.0 -t bobcamera/bob-boblibapp:latest --target boblib-app
+# docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY bobcamera/bob-boblibapp:latest bash
 ###################################################################
 FROM ubuntu:22.04 AS boblib-app
 # Copy the compiled libs
@@ -143,7 +146,7 @@ COPY --from=qhy /opt/sdk_qhy /opt/sdk_qhy/
 # install dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libtbb12 libqt5opengl5 libqt5test5 libdc1394-25 \
-        gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav \
+        gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-vaapi \
         # libavcodec58 libavformat58 libswscale5 \
         # liblapack3 libatlas-base-dev openexr libhdf5-dev \
     # Install QHY SDK
@@ -157,7 +160,7 @@ ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.10/:/usr/
 WORKDIR /root
 
 
-# docker buildx build --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-iron-dev2:1.1.0 -t bobcamera/bob-ros2-iron-dev2:latest --target bob-ros2-iron-dev
+# docker buildx build --push --platform linux/amd64,linux/arm64 -f Dockerfile . -t bobcamera/bob-ros2-iron-dev2:1.1.2 -t bobcamera/bob-ros2-iron-dev2:latest --target bob-ros2-iron-dev
 FROM ros:iron AS bob-ros2-iron-dev
 ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.10/:/usr/local/lib/python3/dist-packages/:/opt/ros/${ROS_DISTRO}/lib/python3.10/site-packages
 ENV PATH=/opt/ros/${ROS_DISTRO}/bin:$PATH
@@ -184,7 +187,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
         libtbb12 libqt5opengl5 libqt5test5 libdc1394-25 libjsoncpp-dev pip \
         # libavcodec58 libavformat58 libswscale5 \
         # liblapack3 libatlas-base-dev openexr libhdf5-dev \
-        gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav \
+        gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-vaapi \
         locales tzdata sudo bash-completion \
         libboost-python-dev libboost-system-dev libtbb-dev \
         ros-${ROS_DISTRO}-vision-msgs ros-${ROS_DISTRO}-image-transport \
@@ -227,7 +230,7 @@ RUN bash /opt/ros/$ROS_DISTRO/setup.bash \
     && colcon build --parallel-workers $(nproc) --cmake-args -DCMAKE_BUILD_TYPE=Release
 
 
-# docker buildx build --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-iron-prod:1.1.1 -t bobcamera/bob-ros2-iron-prod:latest --target bob-ros2-iron-prod
+# docker buildx build --push --platform linux/amd64,linux/arm64 -f Dockerfile . -t bobcamera/bob-ros2-iron-prod:1.1.2 -t bobcamera/bob-ros2-iron-prod:latest --target bob-ros2-iron-prod
 FROM ros:iron-ros-core AS bob-ros2-iron-prod
 ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.10/:/usr/local/lib/python3/dist-packages/:/opt/ros/${ROS_DISTRO}/lib/python3.10/site-packages
 ENV PATH=/opt/ros/${ROS_DISTRO}/bin:$PATH
@@ -257,7 +260,7 @@ COPY --from=bob-ros2-iron-build /opt/ros2_ws/install/ /opt/ros2_ws/install/
 # install dependencies
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
         libtbb12 libqt5opengl5 libqt5test5 libdc1394-25 libjsoncpp-dev pip \
-        gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav \
+        gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-vaapi \
         ros-${ROS_DISTRO}-vision-msgs ros-${ROS_DISTRO}-image-transport \
         # libavcodec58 libavformat58 libswscale5 \
         # liblapack3 libatlas-base-dev openexr libhdf5-dev \

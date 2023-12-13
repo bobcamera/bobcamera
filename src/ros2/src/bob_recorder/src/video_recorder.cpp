@@ -41,6 +41,7 @@ private:
     std::string tracking_topic_;
     double video_fps_;
     std::string codec_str_;
+    std::string pipeline_str_;
     std::string prefix_str_;
     int number_seconds_save_;
     std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> sub_masked_frame_;
@@ -118,8 +119,12 @@ private:
                 [this](const rclcpp::Parameter& param) {prefix_str_ = param.as_string();}
             ),            
             ParameterNode::ActionParam(
-                rclcpp::Parameter("codec", "X264"), 
+                rclcpp::Parameter("codec", "H264"), 
                 [this](const rclcpp::Parameter& param) {codec_str_ = param.as_string();}
+            ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("pipeline", "appsrc ! videoconvert ! x264enc ! matroskamux ! filesink location="), 
+                [this](const rclcpp::Parameter& param) {pipeline_str_ = param.as_string();}
             ),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("video_fps", 30.0), 
@@ -230,9 +235,11 @@ private:
     {
         // Create the video
         const auto name = video_directory_ + "/" + prefix_str_ + generate_filename(image_msg) + ".mkv";
+        const std::string out_pipeline = pipeline_str_ + name;
         const int codec = cv::VideoWriter::fourcc(codec_str_[0], codec_str_[1], codec_str_[2], codec_str_[3]);
         RCLCPP_INFO(get_logger(), "new video: %s, codec: %s, fps: %g", name.c_str(), codec_str_.c_str(), video_fps_);
-        if (video_writer_ptr_->open(name, codec, video_fps_, frame_size, is_color))
+        if (video_writer_ptr_->open(out_pipeline, codec, video_fps_, frame_size, is_color))
+        //if (video_writer_ptr_->open(name, codec, video_fps_, frame_size, is_color))
         {
             // Save the current pre-buffer into the video
             RCLCPP_INFO(get_logger(), "writing pre: %ld", pre_buffer_ptr_->size());
