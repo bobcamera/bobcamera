@@ -26,9 +26,11 @@ find_package(bob_camera REQUIRED)
 find_package(message_filters REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(bob_interfaces REQUIRED)
+find_package(jsoncpp REQUIRED)
 
 include_directories(${OpenCV_INCLUDE_DIRS})
 include_directories("../bob_shared/include")
+include_directories(/usr/include/jsoncpp)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     add_definitions(-O3)
@@ -40,9 +42,17 @@ ENDIF()
 # Video Recorder Node
 add_library(video_recorder SHARED src/video_recorder.cpp)
 target_compile_definitions(video_recorder PRIVATE "COMPOSITION_BUILDING_DLL")
-target_link_libraries(video_recorder PUBLIC boblib)
+target_link_libraries(video_recorder PUBLIC boblib jsoncpp)
 ament_target_dependencies(video_recorder PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV rclcpp_components bob_interfaces)
 rclcpp_components_register_nodes(video_recorder "VideoRecorder")
 install(TARGETS video_recorder DESTINATION lib)
+
+# json Recorder Node
+add_library(json_recorder SHARED src/json_recorder.cpp)
+target_compile_definitions(json_recorder PRIVATE "COMPOSITION_BUILDING_DLL")
+ament_target_dependencies(json_recorder PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters rclcpp_components bob_interfaces)
+target_link_libraries(json_recorder PUBLIC jsoncpp)
+rclcpp_components_register_nodes(json_recorder "JsonRecorder")
+install(TARGETS json_recorder DESTINATION lib)
 
 ament_package()
