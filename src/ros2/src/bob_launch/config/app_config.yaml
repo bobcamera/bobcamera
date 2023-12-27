@@ -110,9 +110,10 @@ allsky_recorder_node:
     img_topic: 'bob/camera/all_sky/bayer'
     tracking_topic: 'bob/tracker/tracking'
     prefix: ''
-    codec: 'X264'
+    codec: 'h264'
     video_fps: 15.0
     seconds_save: 2
+    pipeline: 'appsrc ! videoconvert ! openh264enc bitrate=10240000 qp-min=10 qp-max=51 ! h264parse ! matroskamux ! filesink location='
 
 foreground_mask_recorder_node:
   ros__parameters:
@@ -120,9 +121,10 @@ foreground_mask_recorder_node:
     img_topic: 'bob/frames/all_sky/foreground_mask'
     tracking_topic: 'bob/tracker/tracking'
     prefix: ''
-    codec: 'X264'
+    codec: 'h264'
     video_fps: 15.0
     seconds_save: 2
+    pipeline: 'appsrc ! videoconvert ! openh264enc bitrate=10240000 qp-min=10 qp-max=51 ! h264parse ! matroskamux ! filesink location='
 
 annotated_frame_provider_node:
   ros__parameters:
