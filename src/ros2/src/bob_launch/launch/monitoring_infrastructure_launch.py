@@ -61,5 +61,5 @@ def generate_launch_description():
         tracking_monitor_node,
         prometheus_node,
 
-        json_track_recorder_node
+        #json_track_recorder_node
     ])

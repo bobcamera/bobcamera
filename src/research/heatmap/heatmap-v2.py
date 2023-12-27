@@ -16,10 +16,12 @@ def process_dir(recordings_dir, mask_filename=None, resize_factor=1, create_time
 
     date_time_for_path = datetime.now()
     start_time = time.time()
+    enable_json_file_processing = False
 
     foreground_mask_dir = os.path.join(recordings_dir, "foreground_mask")
     allsky_dir = os.path.join(recordings_dir, "allsky")
     heatmaps_dir = os.path.join(recordings_dir, "heatmaps")
+    json_dir = os.path.join(recordings_dir, "json")
 
     if not os.path.isdir(heatmaps_dir):
         os.mkdir(heatmaps_dir)
@@ -27,13 +29,19 @@ def process_dir(recordings_dir, mask_filename=None, resize_factor=1, create_time
     allsky_files = os.listdir(allsky_dir)
     foreground_files = os.listdir(foreground_mask_dir)
 
+    if os.path.isdir(json_dir):
+        if len(os.listdir(allsky_dir)) > 0:
+            enable_json_file_processing = True
+            print("Json files found, enable json file processing")
+
+    # Video Files
     # Filter out files that don't have corresponding allsky files
-    sorted_files = [f for f in foreground_files if f in allsky_files if os.path.isfile(os.path.join(allsky_dir, f))]
-    if len(sorted_files) <= 0:
+    sorted_video_files = [f for f in foreground_files if f in allsky_files if os.path.isfile(os.path.join(allsky_dir, f))]
+    if len(sorted_video_files) <= 0:
         print("No videos found to generate heatmaps from")
         return
 
-    sorted_files.sort()    
+    sorted_video_files.sort()    
 
     foreground_mask_processed_dir = os.path.join(foreground_mask_dir, f'processed-{date_time_for_path.strftime("%Y%m%d-%H%M%S")}')
     if not os.path.isdir(foreground_mask_processed_dir):
@@ -43,22 +51,36 @@ def process_dir(recordings_dir, mask_filename=None, resize_factor=1, create_time
     if not os.path.isdir(allsky_processed_dir):
         os.mkdir(allsky_processed_dir)
 
-    for filename in sorted_files:
-        foreground_mask_path = os.path.join(foreground_mask_dir, filename)
-        allsky_path = os.path.join(allsky_dir, filename)
+    json_processed_dir = os.path.join(json_dir, f'processed-{date_time_for_path.strftime("%Y%m%d-%H%M%S")}')
+    if not os.path.isdir(json_processed_dir):
+        os.mkdir(json_processed_dir)
+
+    for filename in sorted_video_files:
 
         base = os.path.basename(filename)
         root_name = os.path.splitext(base)[0]
-        heatmap_filename = os.path.join(heatmaps_dir, root_name + ".png")
+
+        foreground_mask_path = os.path.join(foreground_mask_dir, filename)
+        allsky_path = os.path.join(allsky_dir, filename)
+        json_filename = root_name + ".json"
+        json_path = os.path.join(json_dir, json_filename)
+        heatmap_filename = os.path.join(heatmaps_dir, root_name + ".png")        
 
         # generate heatmap file
         process_file(foreground_mask_path, allsky_path, heatmap_filename, mask_filename, resize_factor=resize_factor)
 
-        # move files to prcessed folders
+        # move files to processed folders
         foreground_mask_processed_path = os.path.join(foreground_mask_processed_dir, filename)
         shutil.move(foreground_mask_path, foreground_mask_processed_path)
         allsky_processed_path = os.path.join(allsky_processed_dir, filename)
         shutil.move(allsky_path, allsky_processed_path)
+
+        if enable_json_file_processing:
+            json_processed_path = os.path.join(json_processed_dir, json_filename)
+            if os.path.exists(json_path) and os.path.isfile(json_path):
+                shutil.move(json_path, json_processed_path)
+            else:
+                print(f"Missing json file: {json_filename} for video file {filename}")
 
     print(f"Generating heatmap images took: {int((time.time() - start_time))} seconds")
     timelapse_start_time = time.time()
@@ -75,7 +97,7 @@ def process_dir(recordings_dir, mask_filename=None, resize_factor=1, create_time
             shutil.move(os.path.join(heatmaps_dir, heatmap_file), os.path.join(heatmaps_processed_dir, heatmap_file))
 
     print(f"Generating heatmap timelapse video took: {int((time.time() - timelapse_start_time))} seconds")
-    print(f"Heatmap processing completed in: {int((time.time() - start_time))} seconds and processed {len(sorted_files)} videos")
+    print(f"Heatmap processing completed in: {int((time.time() - start_time))} seconds and processed {len(sorted_video_files)} videos")
 
 def process_file(foreground_mask_path, allsky_path, heatmap_filename, mask_filename=None, resize_factor=1):
 

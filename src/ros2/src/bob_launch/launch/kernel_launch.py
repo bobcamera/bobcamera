@@ -157,14 +157,14 @@ def generate_launch_description():
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('enable_recording_arg'), " == True"])),  
             ),
-            # ComposableNode(
-            #     package='bob_recorder',
-            #     plugin='VideoRecorder',
-            #     name='foreground_mask_recorder_node',
-            #     parameters = [config],
-            #     extra_arguments=[{'use_intra_process_comms': True}],
-            #     condition=IfCondition(PythonExpression([LaunchConfiguration('enable_recording_arg'), " == True"])),  
-            # ),
+            ComposableNode(
+                package='bob_recorder',
+                plugin='VideoRecorder',
+                name='foreground_mask_recorder_node',
+                parameters = [config],
+                extra_arguments=[{'use_intra_process_comms': True}],
+                condition=IfCondition(PythonExpression([LaunchConfiguration('enable_recording_arg'), " == True"])),  
+             ),
             ComposableNode(
                 package='bob_image_processing',
                 plugin='AnnotatedFrameProvider',
