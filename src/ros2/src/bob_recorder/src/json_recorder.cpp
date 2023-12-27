@@ -10,6 +10,7 @@
 #include <message_filters/time_synchronizer.h>
 #include <rclcpp_components/register_node_macro.hpp>
 #include <sensor_msgs/msg/image.hpp>
+#include "bob_camera/msg/camera_info.hpp"
 #include <json/json.h>
 
 #include "bob_interfaces/msg/tracking.hpp"
@@ -23,7 +24,8 @@ public:
     COMPOSITION_PUBLIC
     explicit JsonRecorder(const rclcpp::NodeOptions& options)
         : ParameterNode("json_recorder", options),
-          current_state_(RecordingState::BeforeStart) {
+          current_state_(RecordingState::BeforeStart),
+          is_camera_info_written_(false) {
         timer_ = create_wall_timer(std::chrono::seconds(1), std::bind(&JsonRecorder::init, this));
     }
 
@@ -40,15 +42,18 @@ private:
     std::string tracking_topic_;
     std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::Tracking>> sub_tracking_;
     std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> sub_masked_frame_;
-    std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::Tracking>> time_synchronizer_;
+    std::shared_ptr<message_filters::Subscriber<bob_camera::msg::CameraInfo>> sub_camera_info_;
+    std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::Tracking, bob_camera::msg::CameraInfo>> time_synchronizer_;
     RecordingState current_state_;
     std::mutex buffer_mutex_;
     std::deque<Json::Value> json_pre_buffer_;
+    Json::Value json_camera_info_;
     rclcpp::TimerBase::SharedPtr timer_;
     double video_fps_;
     size_t current_end_frame_;
     size_t total_pre_frames_;
     int number_seconds_save_;
+    bool is_camera_info_written_;
 
     void init() {
         RCLCPP_INFO(get_logger(), "Initializing JsonRecorder");
@@ -65,8 +70,9 @@ private:
 
         sub_masked_frame_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(shared_from_this(), img_topic_, rmw_qos_profile);
         sub_tracking_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::Tracking>>(shared_from_this(), tracking_topic_, rmw_qos_profile);
+        sub_camera_info_ = std::make_shared<message_filters::Subscriber<bob_camera::msg::CameraInfo>>(shared_from_this(), "bob/camera/all_sky/camera_info", rmw_qos_profile);
 
-        time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::Tracking>>(*sub_masked_frame_, *sub_tracking_, 10);
+        time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::Tracking, bob_camera::msg::CameraInfo>>(*sub_masked_frame_, *sub_tracking_, *sub_camera_info_, 10);
         time_synchronizer_->registerCallback(&JsonRecorder::callback, this);
     }
 
@@ -122,7 +128,11 @@ private:
 
     void start_json_recording(const std::string& base_filename)
     {
-        // Write buffered JSON data to file and clear buffer
+        if (!is_camera_info_written_) 
+        {
+            write_json_to_file(json_camera_info_, base_filename);
+            is_camera_info_written_ = true;
+        }
         for (const auto& json : json_pre_buffer_)
         {
             write_json_to_file(json, base_filename);
@@ -165,8 +175,9 @@ private:
         return oss.str();
     }
 
-    void callback(const sensor_msgs::msg::Image::SharedPtr& image_msg
-                , const bob_interfaces::msg::Tracking::SharedPtr& tracking_msg)
+    void callback(const sensor_msgs::msg::Image::SharedPtr& image_msg,
+                const bob_interfaces::msg::Tracking::SharedPtr& tracking_msg,
+                const bob_camera::msg::CameraInfo::SharedPtr& camera_info_msg) 
     {
         try
         {
@@ -201,7 +212,15 @@ private:
             }
             jsonValue["detections"] = jsonDetectionsArray;
 
-            // std::cout << "JSON Data: " << jsonValue.toStyledString() << std::endl;
+            Json::Value jsonCameraInfo;
+            jsonCameraInfo["id"] = camera_info_msg->id;
+            jsonCameraInfo["manufacturer"] = camera_info_msg->manufacturer;
+            jsonCameraInfo["model"] = camera_info_msg->model;
+            jsonCameraInfo["serial_num"] = camera_info_msg->serial_num;
+            jsonCameraInfo["firmware_version"] = camera_info_msg->firmware_version;
+            jsonCameraInfo["num_configurations"] = camera_info_msg->num_configurations;
+            jsonCameraInfo["encoding"] = camera_info_msg->encoding;
+            json_camera_info_["camera_info"] = jsonCameraInfo;
 
             switch (current_state_) 
             {
@@ -230,19 +249,19 @@ private:
                 if (current_end_frame_ == 0) 
                 {
                     current_state_ = RecordingState::BeforeStart;
+                    is_camera_info_written_ = false;
                 }
                 else 
                 {
                     write_json_to_file(jsonValue, base_filename_);
                     --current_end_frame_;
 
-                    // If we receive a wake while ending, get back recording and clear pre-buffer
                     if (tracking_msg->state.trackable > 0) 
                     {
                         current_state_ = RecordingState::BetweenEvents;
                     }
                 }
-                // Always add to pre-buffer
+
                 add_to_json_ring_buffer(jsonValue);
                 break;
             }
