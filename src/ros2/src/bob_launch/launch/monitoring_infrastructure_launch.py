@@ -45,10 +45,19 @@ def generate_launch_description():
         name='prometheus_metrics_node',
         parameters = [config],
     )
+    
+    onvif_node = Node(
+        package='bob_monitor',
+        #namespace='bob',
+        executable='onvif_service',
+        name='onvif_service_node',
+        parameters = [config],
+    )
 
     return LaunchDescription([
-        day_night_classifier_node,
-        cloud_estimator_node,
+        # day_night_classifier_node,
+        # cloud_estimator_node,
         tracking_monitor_node,
         prometheus_node,
+        onvif_node,
     ])

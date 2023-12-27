@@ -5,17 +5,13 @@
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
 #include <cv_bridge/cv_bridge.hpp>
-
 #include <sensor_msgs/msg/image.hpp>
 
 #include "bob_camera/msg/image_info.hpp"
 #include "bob_camera/msg/camera_info.hpp"
-
 #include "parameter_node.hpp"
-
-#include <boblib/api/camera/qhy_camera.hpp>
+#include "bob_interfaces/srv/camera_settings.hpp"
 #include <boblib/api/utils/profiler.hpp>
-
 #include <visibility_control.h>
 
 enum class SourceType {
@@ -42,7 +38,13 @@ public:
         qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
         qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
 
-        timer_ = create_wall_timer(std::chrono::seconds(2), std::bind(&WebCameraVideo::timer_callback, this));
+        one_shot_timer_ = this->create_wall_timer(
+            std::chrono::seconds(2), 
+            [this]() {
+                this->timer_callback(); 
+                this->one_shot_timer_.reset();  
+            }
+        );
     }
 
     ~WebCameraVideo()
@@ -51,7 +53,8 @@ public:
     }
 
 private:
-    rclcpp::QoS qos_profile_{10}; // The depth of the publisher queue
+    rclcpp::Client<bob_interfaces::srv::CameraSettings>::SharedPtr camera_settings_client_;
+    rclcpp::QoS qos_profile_{10}; 
     cv::VideoCapture video_capture_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
     rclcpp::Publisher<bob_camera::msg::ImageInfo>::SharedPtr image_info_publisher_;
@@ -64,7 +67,7 @@ private:
     std::string image_publish_topic_;
     std::string image_info_publish_topic_;
     std::string camera_info_publish_topic_;
-    rclcpp::TimerBase::SharedPtr timer_;
+    rclcpp::TimerBase::SharedPtr one_shot_timer_;
     SourceType source_type_;
     std::string rtsp_uri_;
 
@@ -74,11 +77,12 @@ private:
 
     void timer_callback()
     {
-        timer_->cancel();
+        camera_settings_client_ = this->create_client<bob_interfaces::srv::CameraSettings>("camera_settings");
 
         declare_node_parameters();    
 
         open_camera();
+
         create_camera_info_msg();
         
         start_capture();
@@ -86,12 +90,13 @@ private:
 
     void captureLoop()
     {
-        std::chrono::milliseconds delay_duration = fps_ > 0 ? std::chrono::milliseconds(static_cast<int>(1000.0 / fps_)) : std::chrono::milliseconds(0);
-
+        const auto frame_interval = std::chrono::milliseconds(static_cast<int>(1000.0 / fps_));
+        cv::Mat image;
+        
         while (run_)
         {
-            auto start_time = Clock::now();
-            cv::Mat image;
+            const auto frame_start_time = Clock::now();
+            
             if (!video_capture_.read(image))
             {
                 current_video_idx_ = current_video_idx_ >= (videos_.size() - 1) ? 0 : current_video_idx_ + 1;
@@ -119,16 +124,23 @@ private:
 
             camera_info_msg_.header = header;
             camera_info_publisher_->publish(camera_info_msg_);
-            auto end_time = Clock::now();
+            const auto frame_end_time = Clock::now();
+            const auto processing_duration = frame_end_time - frame_start_time;
+            auto time_to_next_frame = frame_interval - processing_duration;
 
-            if ((fps_ > 0) && (source_type_ == SourceType::VIDEO_FILE))
+            if (time_to_next_frame > std::chrono::milliseconds(0))
             {
-                Duration elapsed_time = end_time - start_time;
-                std::this_thread::sleep_for(delay_duration - elapsed_time);
+                std::this_thread::sleep_for(time_to_next_frame);
             }
             else
             {
-                std::this_thread::yield();
+                // Processing took longer than the frame interval.
+                RCLCPP_WARN(this->get_logger(), 
+                            "Frame processing time (%ld ms) exceeded the frame interval (%ld ms).", 
+                            std::chrono::duration_cast<std::chrono::milliseconds>(processing_duration).count(),
+                            std::chrono::duration_cast<std::chrono::milliseconds>(frame_interval).count());
+
+                std::this_thread::yield(); // Optional, to yield execution.
             }
         }
     }
@@ -205,6 +217,24 @@ private:
             ),
         };
         add_action_parameters(params);
+    }
+
+    void request_camera_settings(const std::string& ip, int port, const std::string& user, const std::string& password,
+                                std::function<void(const bob_interfaces::srv::CameraSettings::Response::SharedPtr&)> user_callback)
+    {
+        auto request = std::make_shared<bob_interfaces::srv::CameraSettings::Request>();
+        request->ip = ip;
+        request->port = port;
+        request->user = user;
+        request->password = password;
+
+        auto response_received_callback = [this, user_callback](rclcpp::Client<bob_interfaces::srv::CameraSettings>::SharedFuture future) {
+            auto response = future.get();
+            user_callback(response);  
+        };
+
+        // Send the request
+        auto result = camera_settings_client_->async_send_request(request, response_received_callback);
     }
 
     inline void open_camera()
@@ -285,7 +315,7 @@ private:
         image_info_msg.roi.width = image.size().width;
         image_info_msg.roi.height = image.size().height;
         image_info_msg.bpp = image.elemSize1() == 1 ? 8 : 16;
-        image_info_msg.bayer_format = image.channels() == 1 ? boblib::camera::QhyCamera::BayerFormat::Mono : boblib::camera::QhyCamera::BayerFormat::Color;
+        // image_info_msg.bayer_format = image.channels() == 1 ? boblib::camera::QhyCamera::BayerFormat::Mono : boblib::camera::QhyCamera::BayerFormat::Color;
         image_info_msg.exposure = 0;
         image_info_msg.gain = 0;
         image_info_msg.offset = 0;
@@ -307,52 +337,19 @@ private:
 
     inline void create_camera_info_msg()
     {
-        camera_info_msg_.id = "web_camera_node";
-        // camera_info_msg_.model = is_video_ ? "video" : "web camera";
-        // camera_info_msg_.serial_num = is_video_ ? videos_[current_video_idx_] : std::to_string(camera_id_);
-        camera_info_msg_.overscan.start_x = 0;
-        camera_info_msg_.overscan.start_y = 0;
-        camera_info_msg_.overscan.width = 0;
-        camera_info_msg_.overscan.height = 0;
-        camera_info_msg_.effective.start_x = 0;
-        camera_info_msg_.effective.start_y = 0;
-        camera_info_msg_.effective.width = (uint32_t)video_capture_.get(cv::CAP_PROP_FRAME_WIDTH);
-        camera_info_msg_.effective.height = (uint32_t)video_capture_.get(cv::CAP_PROP_FRAME_HEIGHT);
-        camera_info_msg_.chip.width_mm = 0;
-        camera_info_msg_.chip.height_mm = 0;
-        camera_info_msg_.chip.pixel_width_um = 0;
-        camera_info_msg_.chip.pixel_height_um = 0;
-        camera_info_msg_.chip.max_image_width = (uint32_t)video_capture_.get(cv::CAP_PROP_FRAME_WIDTH);
-        camera_info_msg_.chip.max_image_height = (uint32_t)video_capture_.get(cv::CAP_PROP_FRAME_HEIGHT);
-        camera_info_msg_.chip.max_bpp = 8;
-        camera_info_msg_.bayer_format = boblib::camera::QhyCamera::BayerFormat::Color;
-        camera_info_msg_.is_color = true;
-        camera_info_msg_.is_cool = false;
-        camera_info_msg_.has_bin1x1_mode = true;
-        camera_info_msg_.has_bin2x2_mode = false;
-        camera_info_msg_.has_bin3x3_mode = false;
-        camera_info_msg_.has_bin4x4_mode = false;
-        camera_info_msg_.gain_limits.min = 0;
-        camera_info_msg_.gain_limits.max = 0;
-        camera_info_msg_.gain_limits.step = 0;
-        camera_info_msg_.offset_limits.min = 0;
-        camera_info_msg_.offset_limits.max = 0;
-        camera_info_msg_.offset_limits.step = 0;
-        camera_info_msg_.usb_traffic_limits.min = 0;
-        camera_info_msg_.usb_traffic_limits.max = 0;
-        camera_info_msg_.usb_traffic_limits.step = 0;
-        camera_info_msg_.red_wb_limits.min = 0;
-        camera_info_msg_.red_wb_limits.max = 0;
-        camera_info_msg_.red_wb_limits.step = 0;
-        camera_info_msg_.green_wb_limits.min = 0;
-        camera_info_msg_.green_wb_limits.max = 0;
-        camera_info_msg_.green_wb_limits.step = 0;
-        camera_info_msg_.blue_wb_limits.min = 0;
-        camera_info_msg_.blue_wb_limits.max = 0;
-        camera_info_msg_.blue_wb_limits.step = 0;
-        camera_info_msg_.temperature_limits.min = 0;
-        camera_info_msg_.temperature_limits.max = 0;
-        camera_info_msg_.temperature_limits.step = 0;
+        auto update_camera_info = [this](const bob_interfaces::srv::CameraSettings::Response::SharedPtr& response) 
+        {
+            camera_info_msg_.id = response->hardware_id;
+            camera_info_msg_.manufacturer = response->manufacturer;
+            camera_info_msg_.model = response->model;
+            camera_info_msg_.serial_num = response->serial_number;
+            camera_info_msg_.firmware_version = response->firmware_version;
+            camera_info_msg_.num_configurations = response->num_configurations;
+            camera_info_msg_.encoding = response->encoding;
+            // ... other fields ... 
+        };
+
+        request_camera_settings("192.168.1.20", 80, "jdm", "bobcamera!", update_camera_info);
     }
 };
 

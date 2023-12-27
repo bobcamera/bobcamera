@@ -1,0 +1,12 @@
+string ip
+int32 port
+string user
+string password
+---
+string manufacturer
+string model
+string firmware_version
+string serial_number
+string hardware_id
+int32 num_configurations
+string encoding

@@ -15,6 +15,7 @@
   <depend>python3-opencv</depend>
 
   <exec_depend>bob_shared</exec_depend>
+  <exec_depend>python-onvif2-zeep</exec_depend>
 
   <export>
     <build_type>ament_python</build_type>
