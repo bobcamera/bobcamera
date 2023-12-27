@@ -12,16 +12,22 @@ from day_night_classifier import DayNightEnum, DayNightEstimator
 
 USAGE = 'python heatmap/heatmap-v2.py -d <<directory-containing-allsky and foreground_mask directories>> -m <<mask-filename>>'
 
+ALLSKY = "allsky"
+FOREGROUND_MASK = "foreground_mask"
+HEATMAPS = "heatmaps"
+JSON = "json"
+HEATMAP_TIMELAPSE = "heatmap-timelapse.mp4"
+
 def process_dir(recordings_dir, mask_filename=None, resize_factor=1, create_timelapse=True):
 
     date_time_for_path = datetime.now()
     start_time = time.time()
     enable_json_file_processing = False
 
-    foreground_mask_dir = os.path.join(recordings_dir, "foreground_mask")
-    allsky_dir = os.path.join(recordings_dir, "allsky")
-    heatmaps_dir = os.path.join(recordings_dir, "heatmaps")
-    json_dir = os.path.join(recordings_dir, "json")
+    foreground_mask_dir = os.path.join(recordings_dir, FOREGROUND_MASK)
+    allsky_dir = os.path.join(recordings_dir, ALLSKY)
+    heatmaps_dir = os.path.join(recordings_dir, HEATMAPS)
+    json_dir = os.path.join(recordings_dir, JSON)
 
     if not os.path.isdir(heatmaps_dir):
         os.mkdir(heatmaps_dir)
@@ -85,12 +91,15 @@ def process_dir(recordings_dir, mask_filename=None, resize_factor=1, create_time
     print(f"Generating heatmap images took: {int((time.time() - start_time))} seconds")
     timelapse_start_time = time.time()
 
+    heatmaps_processed_dir = ""
+    heatmap_timelapse_filename = ""
+
     if create_timelapse:
         heatmaps_processed_dir = os.path.join(heatmaps_dir, f'processed-{date_time_for_path.strftime("%Y%m%d-%H%M%S")}')
         if not os.path.isdir(heatmaps_processed_dir):
             os.mkdir(heatmaps_processed_dir)
 
-        heatmap_timelapse_filename = os.path.join(heatmaps_dir, f'heapmap-timelapse-{date_time_for_path.strftime("%Y%m%d-%H%M%S")}' + ".mp4")
+        heatmap_timelapse_filename = os.path.join(heatmaps_dir, f'heatmap-timelapse-{date_time_for_path.strftime("%Y%m%d-%H%M%S")}' + ".mp4")
         process_timelapse(heatmaps_dir, heatmap_timelapse_filename)
         heatmap_files = [f for f in os.listdir(heatmaps_dir) if f.endswith(".jpg") or f.endswith(".png")]
         for heatmap_file in heatmap_files:
@@ -98,6 +107,9 @@ def process_dir(recordings_dir, mask_filename=None, resize_factor=1, create_time
 
     print(f"Generating heatmap timelapse video took: {int((time.time() - timelapse_start_time))} seconds")
     print(f"Heatmap processing completed in: {int((time.time() - start_time))} seconds and processed {len(sorted_video_files)} videos")
+
+    process_housekeeping(recordings_dir, allsky_processed_dir, foreground_mask_processed_dir, json_processed_dir, heatmaps_processed_dir, 
+                         heatmap_timelapse_filename, create_timelapse, enable_json_file_processing)
 
 def process_file(foreground_mask_path, allsky_path, heatmap_filename, mask_filename=None, resize_factor=1):
 
@@ -241,6 +253,48 @@ def process_timelapse(input_folder, output_file, fps=30, resize_factor=1):
         print(f"Processed: {i + 1}/{len(files)}", end="\r")
 
     out.release()
+
+def process_housekeeping(recordings_dir, allsky_working_dir, foreground_mask_working_dir, json_working_dir, heatmaps_working_dir, 
+                         heatmap_timelapse_working_filename, enable_timelapse, enable_json):
+    
+    date_time_for_path = datetime.now()
+    processed_dir = os.path.join(recordings_dir, f'{date_time_for_path.strftime("%Y%m%d-%H%M%S")}')
+
+    if not os.path.isdir(processed_dir):
+        os.mkdir(processed_dir)
+
+    allsky_processed_dir = os.path.join(processed_dir, ALLSKY)
+    if not os.path.isdir(allsky_processed_dir):
+        os.mkdir(allsky_processed_dir)
+    move_files(allsky_working_dir, allsky_processed_dir)
+
+    foreground_mask_processed_dir = os.path.join(processed_dir, FOREGROUND_MASK)
+    if not os.path.isdir(foreground_mask_processed_dir):
+        os.mkdir(foreground_mask_processed_dir)
+    move_files(foreground_mask_working_dir, foreground_mask_processed_dir)
+
+    if enable_json:
+        json_processed_dir = os.path.join(processed_dir, JSON)
+        if not os.path.isdir(json_processed_dir):
+            os.mkdir(json_processed_dir)
+        move_files(json_working_dir, json_processed_dir)
+
+    if enable_timelapse:
+        heatmap_processed_dir = os.path.join(processed_dir, HEATMAPS)
+        if not os.path.isdir(heatmap_processed_dir):
+            os.mkdir(heatmap_processed_dir)
+        move_files(heatmaps_working_dir, heatmap_processed_dir)
+
+        heatmap_timelapse_filename = os.path.join(processed_dir, HEATMAP_TIMELAPSE)
+        shutil.move(heatmap_timelapse_working_filename, heatmap_timelapse_filename)
+
+def move_files(source_dir, destination_dir):
+    files = os.listdir(source_dir)
+    for filename in files:
+        source_path = os.path.join(source_dir, filename)
+        destination_path = os.path.join(destination_dir, filename)
+        shutil.move(source_path, destination_path)
+    shutil.rmtree(source_dir)
 
 def main(argv):
 
