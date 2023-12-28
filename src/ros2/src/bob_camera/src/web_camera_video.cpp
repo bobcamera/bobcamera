@@ -71,6 +71,11 @@ private:
     SourceType source_type_;
     std::string rtsp_uri_;
 
+    std::string onvif_ip_;
+    int onvif_port_;
+    std::string onvif_user_;
+    std::string onvif_password_;
+    
     std::thread capture_thread_;
     bool run_;
     double fps_;
@@ -215,6 +220,22 @@ private:
                 rclcpp::Parameter("rtsp_uri", ""), 
                 [this](const rclcpp::Parameter& param) { rtsp_uri_ = param.as_string();}
             ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("onvif_ip", "192.168.1.20"),
+                [this](const rclcpp::Parameter& param) { onvif_ip_ = param.as_string(); }
+            ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("onvif_port", 80),
+                [this](const rclcpp::Parameter& param) { onvif_port_ = param.as_int(); }
+            ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("onvif_user", "default_user"),
+                [this](const rclcpp::Parameter& param) { onvif_user_ = param.as_string(); }
+            ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("onvif_password", "default_password"),
+                [this](const rclcpp::Parameter& param) { onvif_password_ = param.as_string(); }
+            ),
         };
         add_action_parameters(params);
     }
@@ -337,19 +358,24 @@ private:
 
     inline void create_camera_info_msg()
     {
-        auto update_camera_info = [this](const bob_interfaces::srv::CameraSettings::Response::SharedPtr& response) 
-        {
-            camera_info_msg_.id = response->hardware_id;
-            camera_info_msg_.manufacturer = response->manufacturer;
-            camera_info_msg_.model = response->model;
-            camera_info_msg_.serial_num = response->serial_number;
-            camera_info_msg_.firmware_version = response->firmware_version;
-            camera_info_msg_.num_configurations = response->num_configurations;
-            camera_info_msg_.encoding = response->encoding;
-            // ... other fields ... 
-        };
-
-        request_camera_settings("192.168.1.20", 80, "jdm", "bobcamera!", update_camera_info);
+        if (source_type_ == SourceType::RTSP_STREAM) {
+            auto update_camera_info = [this](const bob_interfaces::srv::CameraSettings::Response::SharedPtr& response) 
+            {
+                camera_info_msg_.id = response->hardware_id;
+                camera_info_msg_.manufacturer = response->manufacturer;
+                camera_info_msg_.model = response->model;
+                camera_info_msg_.serial_num = response->serial_number;
+                camera_info_msg_.firmware_version = response->firmware_version;
+                camera_info_msg_.num_configurations = response->num_configurations;
+                camera_info_msg_.encoding = response->encoding;
+                // ... other fields ... 
+            };
+            request_camera_settings(onvif_ip_, onvif_port_, onvif_user_, onvif_password_, update_camera_info);
+        } else if (source_type_ == SourceType::USB_CAMERA) {
+            camera_info_msg_.model = "USB Camera";
+        } else if (source_type_ == SourceType::VIDEO_FILE) {
+            camera_info_msg_.model = "Video File";
+        }
     }
 };
 

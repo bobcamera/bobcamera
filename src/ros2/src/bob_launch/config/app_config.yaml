@@ -2,6 +2,10 @@
 rstp_camera_node:
   ros__parameters:
     rtsp_uri: ''
+    onvif_ip: ''
+    onvif_port: 0
+    onvif_user: ''
+    onvif_password: ''
     image_topic: 'image_raw'
     source_type: 'RTSP_STREAM'
     image_width: 0
