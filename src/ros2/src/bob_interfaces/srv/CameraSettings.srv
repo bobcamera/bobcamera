@@ -1,4 +1,4 @@
-string ip
+string host
 int32 port
 string user
 string password

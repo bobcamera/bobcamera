@@ -2,10 +2,10 @@
 rstp_camera_node:
   ros__parameters:
     rtsp_uri: ''
-    onvif_ip: ''
+    onvif_host: ''
     onvif_port: 0
     onvif_user: ''
-    onvif_password: ''
+    onvif_password: ''    
     image_topic: 'image_raw'
     source_type: 'RTSP_STREAM'
     image_width: 0
@@ -195,9 +195,9 @@ prometheus_metrics_node:
   ros__parameters:
     port: 8082
 
-json_track_recorder_node:
+onvif_service_node:
   ros__parameters:
-    json_recorder_directory: 'assets/recordings/json'
+    pass: True
 
 # Web infrastructure
 version_webapi_node:

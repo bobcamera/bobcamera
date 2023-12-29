@@ -52,6 +52,12 @@ def generate_launch_description():
         executable='onvif_service',
         name='onvif_service_node',
         parameters = [config],
+        condition=IfCondition(PythonExpression([
+                    LaunchConfiguration('source_arg'), 
+                    " == 'rtsp'",
+                    " or ", 
+                    LaunchConfiguration('source_arg'), 
+                    " == 'rtsp_overlay'"])),
     )
 
     return LaunchDescription([

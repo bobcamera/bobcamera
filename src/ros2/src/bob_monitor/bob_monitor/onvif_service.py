@@ -19,7 +19,7 @@ class ONVIFService(Node):
             package_share_directory = get_package_share_directory('bob_monitor')
             wsdl_path = package_share_directory
             
-            mycam = ONVIFCamera(request.ip, request.port, request.user, request.password, wsdl_path)
+            mycam = ONVIFCamera(request.host, request.port, request.user, request.password, wsdl_path)
             # Populate the response with the necessary information
             device_info = mycam.devicemgmt.GetDeviceInformation()
             response.manufacturer = device_info.Manufacturer

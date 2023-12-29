@@ -71,7 +71,7 @@ private:
     SourceType source_type_;
     std::string rtsp_uri_;
 
-    std::string onvif_ip_;
+    std::string onvif_host_;
     int onvif_port_;
     std::string onvif_user_;
     std::string onvif_password_;
@@ -221,8 +221,8 @@ private:
                 [this](const rclcpp::Parameter& param) { rtsp_uri_ = param.as_string();}
             ),
             ParameterNode::ActionParam(
-                rclcpp::Parameter("onvif_ip", "192.168.1.20"),
-                [this](const rclcpp::Parameter& param) { onvif_ip_ = param.as_string(); }
+                rclcpp::Parameter("onvif_host", "192.168.1.20"),
+                [this](const rclcpp::Parameter& param) { onvif_host_ = param.as_string(); }
             ),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("onvif_port", 80),
@@ -240,11 +240,11 @@ private:
         add_action_parameters(params);
     }
 
-    void request_camera_settings(const std::string& ip, int port, const std::string& user, const std::string& password,
+    void request_camera_settings(const std::string& host, int port, const std::string& user, const std::string& password,
                                 std::function<void(const bob_interfaces::srv::CameraSettings::Response::SharedPtr&)> user_callback)
     {
         auto request = std::make_shared<bob_interfaces::srv::CameraSettings::Request>();
-        request->ip = ip;
+        request->host = host;
         request->port = port;
         request->user = user;
         request->password = password;
@@ -370,7 +370,7 @@ private:
                 camera_info_msg_.encoding = response->encoding;
                 // ... other fields ... 
             };
-            request_camera_settings(onvif_ip_, onvif_port_, onvif_user_, onvif_password_, update_camera_info);
+            request_camera_settings(onvif_host_, onvif_port_, onvif_user_, onvif_password_, update_camera_info);
         } else if (source_type_ == SourceType::USB_CAMERA) {
             camera_info_msg_.model = "USB Camera";
         } else if (source_type_ == SourceType::VIDEO_FILE) {

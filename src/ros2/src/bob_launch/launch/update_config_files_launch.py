@@ -7,6 +7,8 @@ from launch.conditions import IfCondition
 from launch.substitutions import PythonExpression, LaunchConfiguration 
 from ament_index_python.packages import get_package_share_directory
 
+from onvif2 import ONVIFCamera
+
 def create_storage_folders(context):
     # TODO: Parameterise these a bit better, or drive them from the UI or something but for now
     # hard coding them will have to do.
@@ -25,7 +27,8 @@ def application_config(context):
     app_config_file = 'assets/config/app_config.yaml'
 
     # get the values provided as part of the launch arguments
-    rtsp_url = LaunchConfiguration('rtsp_url_arg').perform(context)
+    source = str(LaunchConfiguration('source_arg').perform(context))
+    rtsp_url = str(LaunchConfiguration('rtsp_url_arg').perform(context))
     image_width = int(LaunchConfiguration('rtsp_width_arg').perform(context))
     image_height = int(LaunchConfiguration('rtsp_height_arg').perform(context))
     camera_id = int(LaunchConfiguration('camera_id_arg').perform(context))
@@ -39,6 +42,30 @@ def application_config(context):
     tracking_mask_file = str(LaunchConfiguration('tracking_maskfile_arg').perform(context))
     tracking_use_mask = LaunchConfiguration('tracking_usemask_arg').perform(context) in ('True', 'true')
     tracking_mask_dir = os.path.dirname(tracking_mask_file)
+
+    is_rtsp_source = source in ('\'rtsp\'', '\'rtsp_overlay\'')
+
+    rtsp_user = rtsp_password = rtsp_host = rtsp_port = ''
+    if is_rtsp_source:
+
+        credstr = rtsp_url[rtsp_url.index("//"):rtsp_url.index("@")]
+        if credstr.startswith("//"):
+            credstr = credstr.replace("//", "")
+
+        cred_array = credstr.split(":")
+
+        hoststr = rtsp_url[rtsp_url.index("@"):]
+
+        hoststr = hoststr[:hoststr.index("/"):]
+        if hoststr.startswith("@"):
+            hoststr = hoststr.replace("@", "")
+
+        host_array = hoststr.split(":")
+
+        rtsp_user = cred_array[0]
+        rtsp_password = cred_array[1]
+        rtsp_host = host_array[0]
+        rtsp_port = int(host_array[1])
 
     update_config = LaunchConfiguration('update_config_from_env_vars_arg').perform(context) in ('True', 'true')
 
@@ -94,6 +121,15 @@ def application_config(context):
             yaml_output['mask_webapi_node']['ros__parameters']['width'] = image_width
             yaml_output['mask_webapi_node']['ros__parameters']['height'] = image_height
 
+            if is_rtsp_source:
+                yaml_output['rstp_camera_node']['ros__parameters']['onvif_user'] = rtsp_user
+                yaml_output['rstp_camera_node']['ros__parameters']['onvif_password'] = rtsp_password
+                yaml_output['rstp_camera_node']['ros__parameters']['onvif_host'] = rtsp_host
+                yaml_output['rstp_camera_node']['ros__parameters']['onvif_port'] = rtsp_port
+
+                # TODO: Can't get this to work for the moment
+                # get_camera_settings(yaml_output, rtsp_host, rtsp_port, rtsp_user, rtsp_password, 'src/bob_monitor/resource/wsdl')
+
         # Update the camera_info file with the provided launch arguments
         with open(app_config_file, 'w') as write:
             yaml.Dumper.ignore_aliases = lambda *args: True
@@ -121,10 +157,85 @@ def generate_launch_description():
     create_storage_folders_func = OpaqueFunction(function = create_storage_folders)
     application_config_func = OpaqueFunction(function = application_config)
     camera_info_config_func = OpaqueFunction(function = camera_config)
-    #opaqueFunction.condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'rtsp' or 'rtsp_overlay'" ]))
 
     return LaunchDescription([
         create_storage_folders_func,
         application_config_func,
         camera_info_config_func,
     ])
+
+def createImagingRequest(imaging, token):
+	requestSetImagingSettings = imaging.create_type("SetImagingSettings")
+	requestSetImagingSettings.VideoSourceToken = token
+	requestSetImagingSettings.ImagingSettings = imaging.GetImagingSettings({'VideoSourceToken': token})
+	return requestSetImagingSettings
+
+def get_camera_settings(yaml_output, ip, port, user, password, wdsl_dir):
+    try:
+        # Connect to the camera
+        mycam = ONVIFCamera(ip, port, user, password, wdsl_dir)
+
+        device_info = mycam.devicemgmt.GetDeviceInformation()
+
+        print("\nCamera Information:")
+        print(f"Manufacturer: {device_info.Manufacturer}")
+        print(f"Model: {device_info.Model}")
+        print(f"Firmware Version: {device_info.FirmwareVersion}")
+        print(f"Serial Number: {device_info.SerialNumber}")
+        print(f"Hardware ID: {device_info.HardwareId}")
+
+        yaml_output['onvif_service_node']['ros__parameters']['manufacturer'] = device_info.Manufacturer
+        yaml_output['onvif_service_node']['ros__parameters']['model'] = device_info.Model
+        yaml_output['onvif_service_node']['ros__parameters']['firmware_version'] = device_info.FirmwareVersion
+        yaml_output['onvif_service_node']['ros__parameters']['serial_number'] = device_info.SerialNumber
+        yaml_output['onvif_service_node']['ros__parameters']['hardware_id'] = device_info.HardwareId
+
+        media2_service = mycam.create_media2_service()
+        profiles = media2_service.GetProfiles()
+    
+        print("\nMedia Profiles and Stream URIs:")
+        for profile in profiles:
+            o = media2_service.create_type('GetStreamUri')
+            o.ProfileToken = profile.token
+            o.Protocol = 'RTSP'
+            uri = media2_service.GetStreamUri(o)  
+            print(f"Token: {profile.token}, RTSP URI: {uri}")
+
+        print("\nVideo Encoder Configurations:")
+        configurations = media2_service.GetVideoEncoderConfigurations()
+        for configuration in configurations:
+            encoding = configuration['Encoding'].lower()
+            if encoding in ['h264', 'h265']:
+                width = configuration['Resolution']['Width']
+                height = configuration['Resolution']['Height']
+                fps = configuration['RateControl']['FrameRateLimit']
+                bitrate = configuration['RateControl']['BitrateLimit']
+                cbr = configuration['RateControl']['ConstantBitRate']
+                gop = configuration['GovLength']
+                profile = configuration['Profile']
+                quality = configuration['Quality']
+
+                print(f"Token: {configuration['token']}, Encoding: {configuration['Encoding']}, "
+                    f"Resolution: {width}x{height}, FPS: {fps}, Bitrate: {bitrate}, CBR: {cbr}, "
+                    f"GOP: {gop}, Profile: {profile}, Quality: {quality}")
+            else:
+                print(f"Token: {configuration['token']}, Encoding: {configuration['Encoding']}")
+
+        # Doesn't work for media2 currently / h265
+        media_service = mycam.create_media_service()
+        media_profile = media_service.GetProfiles()[0]
+        imaging = mycam.create_imaging_service()
+        token = media_profile.VideoSourceConfiguration.SourceToken
+        request = createImagingRequest(imaging, token)
+        imaging_settings = request.ImagingSettings
+        
+        print("\nImaging Settings:")
+        print(f"Brightness: {imaging_settings.Brightness}")
+        print(f"Contrast: {imaging_settings.Contrast}")
+        print(f"Saturation: {imaging_settings.ColorSaturation}")
+        print(f"Sharpness: {imaging_settings.Sharpness}")
+        # Add other settings as required
+        
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
