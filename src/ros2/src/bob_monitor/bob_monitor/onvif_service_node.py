@@ -35,9 +35,10 @@ class ONVIFServiceNode(Node):
 
             response.success = True
 
+            self.get_logger().info(f"Successfully retrieved your {device_info.Manufacturer} camera settings using ONVIF.")
             #self.log_camera_details(mycam)
         except Exception as e:
-            self.log_error(f"Error retrieving camera settings: {e}")
+            self.get_logger().error(f"Error retrieving camera settings using ONVIF: {e}")
             response.success = False
 
         return response
