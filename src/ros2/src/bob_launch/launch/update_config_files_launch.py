@@ -134,9 +134,11 @@ def generate_launch_description():
     camera_info_config_func = OpaqueFunction(function = camera_config)
 
     return LaunchDescription([
+        LogInfo(msg=['Updating config files, this might take a minute, please wait...']),
         create_storage_folders_func,
         application_config_func,
         camera_info_config_func,
+        LogInfo(msg=['Config files update complete.']),
     ])
 
 def get_onvif_config(rtsp_url):

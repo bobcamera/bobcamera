@@ -36,6 +36,7 @@ setup(
         'console_scripts': [
             'prometheus_metrics = bob_monitor.prometheus_node:main',
             'onvif_service = bob_monitor.onvif_service_node:main',
+            'tracking_monitor = bob_monitor.tracker_monitoring_node:main',
         ],
     },
 )

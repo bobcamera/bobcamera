@@ -31,7 +31,7 @@ def generate_launch_description():
     )
     
     tracking_monitor_node = Node(
-        package='bob_observer',
+        package='bob_monitor',
         #namespace='bob',
         executable='tracking_monitor',
         name='tracking_monitor_node',
