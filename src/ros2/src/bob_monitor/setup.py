@@ -35,7 +35,7 @@ setup(
     entry_points={
         'console_scripts': [
             'prometheus_metrics = bob_monitor.prometheus_node:main',
-            'onvif_service = bob_monitor.onvif_service:main',
+            'onvif_service = bob_monitor.onvif_service_node:main',
         ],
     },
 )

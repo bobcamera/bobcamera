@@ -251,7 +251,8 @@ private:
 
         auto response_received_callback = [this, user_callback](rclcpp::Client<bob_interfaces::srv::CameraSettings>::SharedFuture future) {
             auto response = future.get();
-            user_callback(response);  
+            if(response->success)
+                user_callback(response);  
         };
 
         // Send the request

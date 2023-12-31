@@ -5,7 +5,7 @@ rstp_camera_node:
     onvif_host: ''
     onvif_port: 0
     onvif_user: ''
-    onvif_password: ''    
+    onvif_password: ''        
     image_topic: 'image_raw'
     source_type: 'RTSP_STREAM'
     image_width: 0
@@ -197,7 +197,7 @@ prometheus_metrics_node:
 
 onvif_service_node:
   ros__parameters:
-    pass: True
+    onvif_wsdl_path: 'src/bob_monitor/resource/wsdl'
 
 # Web infrastructure
 version_webapi_node:

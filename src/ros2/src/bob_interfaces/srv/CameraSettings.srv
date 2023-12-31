@@ -3,6 +3,7 @@ int32 port
 string user
 string password
 ---
+bool success
 string manufacturer
 string model
 string firmware_version
