@@ -111,7 +111,6 @@ track_provider_node:
 allsky_recorder_node:
   ros__parameters:
     video_directory: 'assets/recordings/allsky'
-    # json_directory: 'assets/recordings/json'
     img_topic: 'bob/camera/all_sky/bayer'
     tracking_topic: 'bob/tracker/tracking'
     prefix: ''
