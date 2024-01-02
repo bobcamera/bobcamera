@@ -1,7 +1,11 @@
 std_msgs/Header header
 string id
+string manufacturer
 string model
 string serial_num
+string firmware_version
+int32 num_configurations
+string encoding
 AreaLimits overscan
 AreaLimits effective
 ChipInfo chip

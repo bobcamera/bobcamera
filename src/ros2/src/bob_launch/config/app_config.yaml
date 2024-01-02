@@ -2,6 +2,10 @@
 rstp_camera_node:
   ros__parameters:
     rtsp_uri: ''
+    onvif_host: ''
+    onvif_port: 0
+    onvif_user: ''
+    onvif_password: ''        
     image_topic: 'image_raw'
     source_type: 'RTSP_STREAM'
     image_width: 0
@@ -114,6 +118,14 @@ allsky_recorder_node:
     video_fps: 15.0
     seconds_save: 2
 
+json_recorder_node:
+  ros__parameters:
+    json_directory: 'assets/recordings/json'
+    img_topic: 'bob/camera/all_sky/bayer'
+    tracking_topic: 'bob/tracker/tracking'
+    video_fps: 15.0
+    seconds_save: 2
+
 foreground_mask_recorder_node:
   ros__parameters:
     video_directory: 'assets/recordings/foreground_mask'
@@ -181,6 +193,10 @@ tracking_monitor_node:
 prometheus_metrics_node:
   ros__parameters:
     port: 8082
+
+onvif_service_node:
+  ros__parameters:
+    onvif_wsdl_path: 'src/bob_monitor/resource/wsdl'
 
 # Web infrastructure
 version_webapi_node:
