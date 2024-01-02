@@ -17,6 +17,12 @@
 
 #include <visibility_control.h>
 
+struct TrackPoint {
+    cv::Point point;
+    double bbox_area; 
+    TrackPoint(const cv::Point& pt, double area) : point(pt), bbox_area(area) {}
+};
+
 class VideoRecorder 
     : public ParameterNode
 {
@@ -37,6 +43,7 @@ private:
     };
 
     std::string video_directory_;
+    std::string heatmap_directory_;
     std::string img_topic_;
     std::string tracking_topic_;
     double video_fps_;
@@ -55,8 +62,30 @@ private:
     size_t current_end_frame_;
     size_t total_pre_frames_;
     std::unique_ptr<std::deque<std::unique_ptr<cv::Mat>>> pre_buffer_ptr_;
+    cv::Mat frame_for_drawing_;
+
+    std::string filename_;
+    std::map<int, std::vector<TrackPoint>> track_trajectories_;
 
     friend std::shared_ptr<VideoRecorder> std::make_shared<VideoRecorder>();
+
+    std::vector<cv::Scalar> predefinedColors = {
+        cv::Scalar(255, 0, 0),     // Bright Red
+        cv::Scalar(0, 255, 0),     // Lime Green
+        cv::Scalar(0, 255, 255),   // Bright Yellow
+        cv::Scalar(255, 0, 255),   // Magenta
+        cv::Scalar(0, 165, 255),   // Orange
+        cv::Scalar(255, 255, 0),   // Bright Cyan
+        cv::Scalar(255, 255, 255), // White
+        cv::Scalar(0, 215, 255),   // Gold
+        cv::Scalar(238, 130, 238), // Violet
+        cv::Scalar(147, 20, 255)   // Deep Pink
+    };
+
+
+    cv::Scalar getColorForTrack(int trackID) {
+        return predefinedColors[trackID % predefinedColors.size()];
+    }
 
     void init()
     {
@@ -103,6 +132,14 @@ private:
                 {
                     video_directory_ = param.as_string();
                     create_dir(video_directory_);
+                }
+            ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("heatmap_directory", "."), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    heatmap_directory_ = param.as_string();
+                    create_dir(heatmap_directory_);
                 }
             ),
             ParameterNode::ActionParam(
@@ -179,16 +216,62 @@ private:
 
             case RecordingState::BetweenEvents:
                 video_writer_ptr_->write(img);
+
+                for (const auto& detection : tracking_msg->detections)
+                {
+                    const auto& bbox = detection.bbox;
+                    double area = bbox.size_x * bbox.size_y; 
+                    track_trajectories_[detection.id].emplace_back(cv::Point(bbox.center.position.x, bbox.center.position.y), area);
+                }
+
                 if (tracking_msg->state.trackable == 0) 
                 {
                     current_state_ = RecordingState::AfterEnd;
                     current_end_frame_ = total_pre_frames_;
+                }
+
+                // Clone frame when the event is nearing its end
+                if (current_state_ == RecordingState::AfterEnd && frame_for_drawing_.empty()) 
+                {
+                    frame_for_drawing_ = img.clone();
                 }
                 break;
 
             case RecordingState::AfterEnd:
                 if (current_end_frame_ == 0) 
                 {
+                    for (const auto& track : track_trajectories_)
+                    {
+                        cv::Scalar track_color = getColorForTrack(track.first); 
+
+                        for (size_t i = 1; i < track.second.size(); i++)
+                        {
+                            int thickness = std::max(1, static_cast<int>(sqrt(track.second[i].bbox_area)));
+                            int thickness_scaled = std::max(1, static_cast<int>(thickness * 0.2));
+                            cv::line(frame_for_drawing_, track.second[i - 1].point, track.second[i].point, track_color, thickness_scaled);
+
+                            if (i == 1)
+                            {
+                                cv::drawMarker(frame_for_drawing_, track.second[0].point, track_color, cv::MARKER_DIAMOND, 10, thickness);
+                                if (track.second.size() > 1) 
+                                {
+                                    cv::arrowedLine(frame_for_drawing_, track.second[0].point, track.second[1].point, track_color, thickness);
+                                }
+                            }
+                            else 
+                            {
+                                cv::drawMarker(frame_for_drawing_, track.second[i].point, track_color, cv::MARKER_CROSS, thickness_scaled, thickness);
+                            }
+                        }
+                    }
+
+                    if (!frame_for_drawing_.empty()) 
+                    {
+                        write_image(frame_for_drawing_, filename_);
+                    }
+
+                    frame_for_drawing_.release();
+                    track_trajectories_.clear();
                     close_video();
                     current_state_ = RecordingState::BeforeStart;
                 }
@@ -226,29 +309,50 @@ private:
         return oss.str();
     }
 
+    bool write_image(const cv::Mat& img, const std::string& filename)
+    {
+        std::string full_path = heatmap_directory_ + "/" + filename + ".jpg";
+        if (cv::imwrite(full_path, img)) 
+        {
+            RCLCPP_INFO(get_logger(), "Writing heatmap image: %s", full_path.c_str());
+            return true;
+        } else 
+        {
+            RCLCPP_ERROR(get_logger(), "Failed to write image: %s", full_path.c_str());
+            return false;
+        }
+    }
+
     bool open_new_video(const sensor_msgs::msg::Image::SharedPtr& image_msg, const cv::Size& frame_size, bool is_color)
     {
-        // Create the video
-        const auto name = video_directory_ + "/" + prefix_str_ + generate_filename(image_msg) + ".mkv";
-        const int codec = cv::VideoWriter::fourcc(codec_str_[0], codec_str_[1], codec_str_[2], codec_str_[3]);
-        RCLCPP_INFO(get_logger(), "new video: %s, codec: %s, fps: %g", name.c_str(), codec_str_.c_str(), video_fps_);
-        if (video_writer_ptr_->open(name, codec, video_fps_, frame_size, is_color))
+        filename_ = generate_filename(image_msg);
+        if (!create_video_file(filename_, frame_size, is_color)) 
         {
-            // Save the current pre-buffer into the video
-            RCLCPP_INFO(get_logger(), "writing pre: %ld", pre_buffer_ptr_->size());
-            for (const auto& img_ptr : *pre_buffer_ptr_)
-            {
-                video_writer_ptr_->write(*img_ptr);
-            }
-            pre_buffer_ptr_->clear();
-            return true;
-        }
-        else
-        {
-            RCLCPP_ERROR(get_logger(), "Error creating video: %s", name.c_str());
+            RCLCPP_ERROR(get_logger(), "Error creating video: %s", filename_.c_str());
             current_state_ = RecordingState::BeforeStart;
+            return false;
         }
-        return false;
+
+        write_pre_buffer_to_video();
+        return true;
+    }
+
+    bool create_video_file(const std::string& filename, const cv::Size& frame_size, bool is_color) 
+    {
+        const auto name = video_directory_ + "/" + prefix_str_ + filename + ".mkv";
+        const int codec = cv::VideoWriter::fourcc(codec_str_[0], codec_str_[1], codec_str_[2], codec_str_[3]);
+        RCLCPP_INFO(get_logger(), "Writing video: %s, codec: %s, fps: %g", name.c_str(), codec_str_.c_str(), video_fps_);
+        return video_writer_ptr_->open(name, codec, video_fps_, frame_size, is_color);
+    }
+
+    void write_pre_buffer_to_video() 
+    {
+        // RCLCPP_INFO(get_logger(), "Writing pre-buffer: %ld frames", pre_buffer_ptr_->size());
+        for (const auto& img_ptr : *pre_buffer_ptr_) 
+        {
+            video_writer_ptr_->write(*img_ptr);
+        }
+        pre_buffer_ptr_->clear();
     }
 
     void close_video()

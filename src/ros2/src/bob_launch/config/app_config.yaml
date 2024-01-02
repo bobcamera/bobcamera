@@ -2,10 +2,10 @@
 rstp_camera_node:
   ros__parameters:
     rtsp_uri: ''
-    onvif_host: ''
-    onvif_port: 0
-    onvif_user: ''
-    onvif_password: ''        
+    onvif_host: '192.168.1.20'
+    onvif_port: 80
+    onvif_user: 'jdm'
+    onvif_password: 'bobcamera!'        
     image_topic: 'image_raw'
     source_type: 'RTSP_STREAM'
     image_width: 0
@@ -111,6 +111,7 @@ track_provider_node:
 allsky_recorder_node:
   ros__parameters:
     video_directory: 'assets/recordings/allsky'
+    heatmap_directory: 'assets/recordings/heatmaps'
     img_topic: 'bob/camera/all_sky/bayer'
     tracking_topic: 'bob/tracker/tracking'
     prefix: ''
