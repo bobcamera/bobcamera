@@ -2,10 +2,10 @@
 rstp_camera_node:
   ros__parameters:
     rtsp_uri: ''
-    onvif_host: '192.168.1.20'
-    onvif_port: 80
-    onvif_user: 'jdm'
-    onvif_password: 'bobcamera!'        
+    onvif_host: ''
+    onvif_port: 0
+    onvif_user: ''
+    onvif_password: ''        
     image_topic: 'image_raw'
     source_type: 'RTSP_STREAM'
     image_width: 0
