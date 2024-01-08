@@ -60,10 +60,19 @@ def generate_launch_description():
                     " == 'rtsp_overlay'"])),
     )
 
+    ptz_manager_node = Node(
+        package='bob_monitor',
+        #namespace='bob',
+        executable='ptz_manager',
+        name='ptz_manager_node',
+        parameters = [config],
+    )
+
     return LaunchDescription([
         # day_night_classifier_node,
         # cloud_estimator_node,
         tracking_monitor_node,
         prometheus_node,
         onvif_node,
+        # ptz_manager_node
     ])
