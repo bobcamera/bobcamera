@@ -72,7 +72,7 @@ def generate_launch_description():
         # day_night_classifier_node,
         # cloud_estimator_node,
         tracking_monitor_node,
-        prometheus_node,
+        # prometheus_node,
         onvif_node,
         # ptz_manager_node
     ])

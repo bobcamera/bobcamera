@@ -290,8 +290,8 @@
     
     var versionService = new ROSLIB.Service({
         ros : ros, 
-        name : '/bob/webapi/application/version', 
-        serviceType : 'bob_interfaces/srv/ApplicationVersion'
+        name : '/bob/webapi/application/info', 
+        serviceType : 'bob_interfaces/srv/ApplicationInfo'
     });    
 
     var updateMaskService = new ROSLIB.Service({
@@ -305,6 +305,7 @@
             var versionRequest = new ROSLIB.ServiceRequest({empty: ''});
             versionService.callService(versionRequest, function(result) {
                 console.log("BOB Version:", result.version);
+                console.log(`BOB Frame Size: w=${result.frame_width}  h=${result.frame_height}`);
                 document.getElementById('applicationVersion').innerText = result.version;
             });
 

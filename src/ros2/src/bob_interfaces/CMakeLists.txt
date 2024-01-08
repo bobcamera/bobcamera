@@ -46,7 +46,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   #"srv/ConfigEntryUpdate.srv"
   #"srv/ConfigEntry.srv"
   #"srv/ConfigEntryArray.srv"
-  "srv/ApplicationVersion.srv"
+  "srv/ApplicationInfo.srv"
   "srv/Mask.srv"
   "srv/MaskUpdate.srv"
   "srv/CameraSettings.srv"

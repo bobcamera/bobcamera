@@ -97,6 +97,10 @@ def application_config(context):
             yaml_output['mask_webapi_node']['ros__parameters']['width'] = image_width
             yaml_output['mask_webapi_node']['ros__parameters']['height'] = image_height
 
+            # info_webapi_node
+            yaml_output['info_webapi_node']['ros__parameters']['frame_width'] = image_width
+            yaml_output['info_webapi_node']['ros__parameters']['frame_height'] = image_height
+
             if source in ('\'rtsp\'', '\'rtsp_overlay\''):
                 (onvif_success, rtsp_user, rtsp_password, rtsp_host, rtsp_port) = get_onvif_config(rtsp_url)
                 if onvif_success:
