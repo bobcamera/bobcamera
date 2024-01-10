@@ -113,6 +113,7 @@ allsky_recorder_node:
     video_directory: 'assets/recordings/allsky'
     heatmap_directory: 'assets/recordings/heatmaps'
     img_topic: 'bob/camera/all_sky/bayer'
+    fg_img_topic: 'bob/frames/all_sky/foreground_mask'
     tracking_topic: 'bob/tracker/tracking'
     prefix: ''
     codec: 'X264'

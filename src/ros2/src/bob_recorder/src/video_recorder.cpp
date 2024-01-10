@@ -45,14 +45,16 @@ private:
     std::string video_directory_;
     std::string heatmap_directory_;
     std::string img_topic_;
+    std::string fg_img_topic_;
     std::string tracking_topic_;
     double video_fps_;
     std::string codec_str_;
     std::string prefix_str_;
     int number_seconds_save_;
     std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> sub_masked_frame_;
+    std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> sub_fg_frame_;
     std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::Tracking>> sub_tracking_;
-    std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::Tracking>> time_synchronizer_;
+    std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image, bob_interfaces::msg::Tracking>> time_synchronizer_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_annotated_frame_;
     rclcpp::TimerBase::SharedPtr timer_;
 
@@ -62,6 +64,8 @@ private:
     size_t current_end_frame_;
     size_t total_pre_frames_;
     std::unique_ptr<std::deque<std::unique_ptr<cv::Mat>>> pre_buffer_ptr_;
+    std::unique_ptr<std::deque<std::unique_ptr<cv::Mat>>> pre_buffer_mask_ptr_;
+    cv::Mat heatmap_accumulator_;
     cv::Mat frame_for_drawing_;
 
     std::string filename_;
@@ -76,7 +80,6 @@ private:
         cv::Scalar(255, 0, 255),   // Magenta
         cv::Scalar(0, 165, 255),   // Orange
         cv::Scalar(255, 255, 0),   // Bright Cyan
-        cv::Scalar(255, 255, 255), // White
         cv::Scalar(0, 215, 255),   // Gold
         cv::Scalar(238, 130, 238), // Violet
         cv::Scalar(147, 20, 255)   // Deep Pink
@@ -94,6 +97,7 @@ private:
         timer_->cancel();
 
         pre_buffer_ptr_ = std::make_unique<std::deque<std::unique_ptr<cv::Mat>>>();
+        pre_buffer_mask_ptr_ = std::make_unique<std::deque<std::unique_ptr<cv::Mat>>>();
         video_writer_ptr_ = std::make_unique<cv::VideoWriter>();
 
         declare_node_parameters();
@@ -105,9 +109,10 @@ private:
         auto rmw_qos_profile = sub_qos_profile.get_rmw_qos_profile();
 
         sub_masked_frame_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(shared_from_this(), img_topic_, rmw_qos_profile);
+        sub_fg_frame_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(shared_from_this(), fg_img_topic_, rmw_qos_profile);
         sub_tracking_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::Tracking>>(shared_from_this(), tracking_topic_, rmw_qos_profile);
 
-        time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::Tracking>>(*sub_masked_frame_, *sub_tracking_, 10);
+        time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image, bob_interfaces::msg::Tracking>>(*sub_masked_frame_, *sub_fg_frame_, *sub_tracking_, 10);
         time_synchronizer_->registerCallback(&VideoRecorder::callback, this);
     }
 
@@ -145,6 +150,10 @@ private:
             ParameterNode::ActionParam(
                 rclcpp::Parameter("img_topic", "bob/camera/all_sky/bayer"), 
                 [this](const rclcpp::Parameter& param) {img_topic_ = param.as_string();}
+            ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("fg_img_topic", "bob/frames/all_sky/foreground_mask"), 
+                [this](const rclcpp::Parameter& param) {fg_img_topic_ = param.as_string();}
             ),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("tracking_topic", "bob/tracker/tracking"), 
@@ -187,7 +196,44 @@ private:
         pre_buffer_ptr_->push_back(std::make_unique<cv::Mat>(img.clone()));
     }
 
+    void add_to_mask_buffer(const cv::Mat& mask)
+    {
+        if (pre_buffer_mask_ptr_->size() >= total_pre_frames_) 
+        {
+            pre_buffer_mask_ptr_->pop_front();
+        }
+        pre_buffer_mask_ptr_->push_back(std::make_unique<cv::Mat>(mask.clone()));
+    }
+
+    void accumulate_mask_frames(cv::Mat &accumulated_mask) 
+    {
+        if (pre_buffer_mask_ptr_->empty()) 
+        {
+            return; 
+        }
+
+        if (accumulated_mask.empty()) 
+        {
+            accumulated_mask = *pre_buffer_mask_ptr_->front();
+        }
+
+        for (auto it = std::next(pre_buffer_mask_ptr_->begin()); it != pre_buffer_mask_ptr_->end(); ++it) 
+        {
+            cv::bitwise_or(accumulated_mask, **it, accumulated_mask);
+        }
+    }
+
+    void generate_heatmap(const cv::Mat &accumulated_mask, cv::Mat &heatmap) 
+    {
+        double min, max;
+        cv::minMaxIdx(accumulated_mask, &min, &max);
+        cv::Mat normalized_mask;
+        accumulated_mask.convertTo(normalized_mask, CV_8UC1, 255.0 / (max - min), -min);
+        cv::applyColorMap(normalized_mask, heatmap, cv::COLORMAP_JET);
+    }
+
     void callback(const sensor_msgs::msg::Image::SharedPtr& image_msg
+                , const sensor_msgs::msg::Image::SharedPtr& image_fg_msg
                 , const bob_interfaces::msg::Tracking::SharedPtr& tracking_msg)
     {
         try
@@ -196,6 +242,9 @@ private:
 
             cv::Mat img;
             ImageUtils::convert_image_msg(image_msg, img, true);
+
+            cv::Mat fg_img;
+            ImageUtils::convert_image_msg(image_fg_msg, fg_img, false);
 
             switch (current_state_) 
             {
@@ -207,15 +256,18 @@ private:
                     {
                         video_writer_ptr_->write(img);
                     }
+                    accumulate_mask_frames(heatmap_accumulator_);
                 } 
                 else 
                 {
                     add_to_ring_buffer(img);
+                    add_to_mask_buffer(fg_img);
                 }
                 break;
 
             case RecordingState::BetweenEvents:
                 video_writer_ptr_->write(img);
+                cv::bitwise_or(heatmap_accumulator_, fg_img, heatmap_accumulator_);
 
                 for (const auto& detection : tracking_msg->detections)
                 {
@@ -240,6 +292,19 @@ private:
             case RecordingState::AfterEnd:
                 if (current_end_frame_ == 0) 
                 {
+                    cv::Mat overlay;
+                    cv::Mat converted_heatmap;
+                    if (heatmap_accumulator_.channels() == 1) 
+                    {
+                        cv::cvtColor(heatmap_accumulator_, converted_heatmap, cv::COLOR_GRAY2BGR);
+                    } 
+                    else 
+                    {
+                        converted_heatmap = heatmap_accumulator_;
+                    }
+                    cv::addWeighted(frame_for_drawing_, 0.5, converted_heatmap, 0.5, 0, overlay);
+                    frame_for_drawing_ = overlay.clone();
+
                     for (const auto& track : track_trajectories_)
                     {
                         cv::Scalar track_color = getColorForTrack(track.first); 
@@ -247,20 +312,13 @@ private:
                         for (size_t i = 1; i < track.second.size(); i++)
                         {
                             int thickness = std::max(1, static_cast<int>(sqrt(track.second[i].bbox_area)));
+                            thickness = std::min(thickness, 10);
                             int thickness_scaled = std::max(1, static_cast<int>(thickness * 0.2));
                             cv::line(frame_for_drawing_, track.second[i - 1].point, track.second[i].point, track_color, thickness_scaled);
 
                             if (i == 1)
                             {
                                 cv::drawMarker(frame_for_drawing_, track.second[0].point, track_color, cv::MARKER_DIAMOND, 10, thickness);
-                                if (track.second.size() > 1) 
-                                {
-                                    cv::arrowedLine(frame_for_drawing_, track.second[0].point, track.second[1].point, track_color, thickness);
-                                }
-                            }
-                            else 
-                            {
-                                cv::drawMarker(frame_for_drawing_, track.second[i].point, track_color, cv::MARKER_CROSS, thickness_scaled, thickness);
                             }
                         }
                     }
@@ -271,6 +329,7 @@ private:
                     }
 
                     frame_for_drawing_.release();
+                    heatmap_accumulator_.release();
                     track_trajectories_.clear();
                     close_video();
                     current_state_ = RecordingState::BeforeStart;
@@ -285,10 +344,12 @@ private:
                     {
                         current_state_ = RecordingState::BetweenEvents;
                         pre_buffer_ptr_->clear();
+                        pre_buffer_mask_ptr_->clear();
                     }
                 }
                 // Always add to pre-buffer
                 add_to_ring_buffer(img);
+                add_to_mask_buffer(fg_img);
                 break;
             }
         }
@@ -347,7 +408,6 @@ private:
 
     void write_pre_buffer_to_video() 
     {
-        // RCLCPP_INFO(get_logger(), "Writing pre-buffer: %ld frames", pre_buffer_ptr_->size());
         for (const auto& img_ptr : *pre_buffer_ptr_) 
         {
             video_writer_ptr_->write(*img_ptr);
