@@ -182,9 +182,6 @@ private:
         try
         {
             std::unique_lock<std::mutex> lock(buffer_mutex_);
-            
-            cv::Mat img;
-            ImageUtils::convert_image_msg(image_msg, img, true);
 
             auto time_stamp = rclcpp::Time(image_msg->header.stamp);
             int time_in_secs = static_cast<int>(time_stamp.seconds());
