@@ -190,27 +190,29 @@ private:
             int time_in_secs = static_cast<int>(time_stamp.seconds());
 
             Json::Value jsonValue;
-            Json::Value jsonDetectionsArray;
 
             jsonValue["time"] = time_in_secs;
             jsonValue["trackable"] = tracking_msg->state.trackable;
 
-            for (const auto& detection : tracking_msg->detections)
-            {
-                Json::Value jsonDetection;
-                jsonDetection["id"] = detection.id;
-                jsonDetection["state"] = detection.state;
+            if (current_state_ == RecordingState::BetweenEvents || current_state_ == RecordingState::AfterEnd) {
+                Json::Value jsonDetectionsArray;
+                for (const auto& detection : tracking_msg->detections) 
+                {
+                    Json::Value jsonDetection;
+                    jsonDetection["id"] = detection.id;
+                    jsonDetection["state"] = detection.state;
 
-                Json::Value jsonBbox;
-                jsonBbox["x"] = detection.bbox.center.position.x;
-                jsonBbox["y"] = detection.bbox.center.position.y;
-                jsonBbox["width"] = detection.bbox.size_x;
-                jsonBbox["height"] = detection.bbox.size_y;
-                jsonDetection["bbox"] = jsonBbox;
+                    Json::Value jsonBbox;
+                    jsonBbox["x"] = detection.bbox.center.position.x;
+                    jsonBbox["y"] = detection.bbox.center.position.y;
+                    jsonBbox["width"] = detection.bbox.size_x;
+                    jsonBbox["height"] = detection.bbox.size_y;
+                    jsonDetection["bbox"] = jsonBbox;
 
-                jsonDetectionsArray.append(jsonDetection);
-            }
-            jsonValue["detections"] = jsonDetectionsArray;
+                    jsonDetectionsArray.append(jsonDetection);
+                }
+                jsonValue["detections"] = jsonDetectionsArray;
+            } 
 
             Json::Value jsonCameraInfo;
             jsonCameraInfo["id"] = camera_info_msg->id;
@@ -261,8 +263,6 @@ private:
                         current_state_ = RecordingState::BetweenEvents;
                     }
                 }
-
-                add_to_json_ring_buffer(jsonValue);
                 break;
             }
         }
