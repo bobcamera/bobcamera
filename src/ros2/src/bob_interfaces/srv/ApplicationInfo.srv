@@ -3,3 +3,4 @@ string empty
 string version
 int32 frame_width
 int32 frame_height
+float64 video_fps
