@@ -152,18 +152,43 @@ private:
     void write_json_to_file(const Json::Value& jsonData, const std::string& base_filename)
     {
         std::string filename = json_directory_ + "/" + base_filename + ".json";
-        // Open the file in append mode
         std::ofstream file(filename, std::ios::app);
-        if (file.is_open())
-        {
-            Json::StreamWriterBuilder builder;
-            std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
-            writer->write(jsonData, &file);
-            file << std::endl; 
-        }
-        else
+
+        if (!file.is_open())
         {
             RCLCPP_ERROR(get_logger(), "Unable to open JSON file: %s", filename.c_str());
+            return;
+        }
+
+        bool isEmpty = file.tellp() == 0; // Check if the file is empty
+        if (!isEmpty && current_state_ != RecordingState::BeforeStart)
+        {
+            file << "," << std::endl;
+        }
+
+        if (isEmpty)
+        {
+            file << "[" << std::endl;
+        }
+
+        Json::StreamWriterBuilder builder;
+        std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
+        writer->write(jsonData, &file);
+        file.close();
+
+        // maybe a better way?
+        if (current_state_ == RecordingState::AfterEnd && current_end_frame_ == 0)
+        {
+            std::ofstream closingBracketFile(filename, std::ios::app);
+            if (closingBracketFile.is_open())
+            {
+                closingBracketFile << "]" << std::endl;
+                closingBracketFile.close();
+            }
+            else
+            {
+                RCLCPP_ERROR(get_logger(), "Unable to open JSON file for closing bracket: %s", filename.c_str());
+            }
         }
     }
 
@@ -184,11 +209,11 @@ private:
             std::unique_lock<std::mutex> lock(buffer_mutex_);
 
             auto time_stamp = rclcpp::Time(image_msg->header.stamp);
-            int time_in_secs = static_cast<int>(time_stamp.seconds());
+            int64_t time_in_nanosecs = time_stamp.nanoseconds();
 
             Json::Value jsonValue;
 
-            jsonValue["time"] = time_in_secs;
+            jsonValue["time_ns"] = time_in_nanosecs;
             jsonValue["trackable"] = tracking_msg->state.trackable;
 
             if (current_state_ == RecordingState::BetweenEvents || current_state_ == RecordingState::AfterEnd) {
@@ -252,8 +277,8 @@ private:
                 }
                 else 
                 {
-                    write_json_to_file(jsonValue, base_filename_);
                     --current_end_frame_;
+                    write_json_to_file(jsonValue, base_filename_);
 
                     if (tracking_msg->state.trackable > 0) 
                     {
