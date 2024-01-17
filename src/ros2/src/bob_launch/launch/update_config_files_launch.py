@@ -32,6 +32,7 @@ def application_config(context):
     image_width = int(LaunchConfiguration('rtsp_width_arg').perform(context))
     image_height = int(LaunchConfiguration('rtsp_height_arg').perform(context))
     camera_id = int(LaunchConfiguration('camera_id_arg').perform(context))
+    fps = float(LaunchConfiguration('fps_arg').perform(context))
 
     simulation_height = int(LaunchConfiguration('simulation_height_arg').perform(context))
     simulation_width = int(LaunchConfiguration('simulation_width_arg').perform(context))
@@ -100,6 +101,16 @@ def application_config(context):
             # info_webapi_node
             yaml_output['info_webapi_node']['ros__parameters']['frame_width'] = image_width
             yaml_output['info_webapi_node']['ros__parameters']['frame_height'] = image_height
+            yaml_output['info_webapi_node']['ros__parameters']['video_fps'] = fps
+
+            # allsky_recorder_node
+            yaml_output['allsky_recorder_node']['ros__parameters']['video_fps'] = fps
+
+            # json_recorder_node
+            yaml_output['json_recorder_node']['ros__parameters']['video_fps'] = fps
+
+            # foreground_mask_recorder_node
+            yaml_output['foreground_mask_recorder_node']['ros__parameters']['video_fps'] = fps
 
             if source in ('\'rtsp\'', '\'rtsp_overlay\''):
                 (onvif_success, rtsp_user, rtsp_password, rtsp_host, rtsp_port) = get_onvif_config(rtsp_url)
