@@ -33,7 +33,7 @@ setup(
     license='TODO: License declaration',
     entry_points={
         'console_scripts': [
-            'onvif_service = bob_ptz.onvif_service_node:main',
+            'onvif_absolute_move = bob_ptz.onvif_absolute_move_ros:main',
         ],
     },
 )

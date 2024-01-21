@@ -14,8 +14,8 @@ def generate_launch_description():
     onvif_node = Node(
         package='bob_ptz',
         #namespace='bob',
-        executable='onvif_service',
-        name='onvif_service_node',
+        executable='onvif_absolute_move',
+        name='onvif_absolute_move_ros',
         parameters = [config],
         condition=IfCondition(PythonExpression([
                     LaunchConfiguration('source_arg'), 
