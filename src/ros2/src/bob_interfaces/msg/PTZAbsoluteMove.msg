@@ -1,0 +1,6 @@
+float32 pospantiltx
+float32 pospantilty
+float32 poszoomx
+float32 speedpantilty
+float32 speedpantiltx
+float32 speedzoomx

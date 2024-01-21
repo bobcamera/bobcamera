@@ -73,6 +73,6 @@ def generate_launch_description():
         # cloud_estimator_node,
         tracking_monitor_node,
         # prometheus_node,
-        onvif_node,
+        # onvif_node,
         # ptz_manager_node
     ])

@@ -35,6 +35,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   #"msg/ClassifiedObjectsArray.msg"
   #"msg/ConfigItem.msg"
   "msg/ObserverCloudEstimation.msg"
+  "msg/PTZAbsoluteMove.msg"
   "msg/ObserverDayNight.msg"
   "msg/TrackingState.msg"
   "msg/TrackPoint.msg"

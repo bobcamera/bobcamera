@@ -186,6 +186,12 @@ def generate_launch_description():
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([
                 launch_package_dir, 
+                '/ptz_infrastructure_launch.py'])
+        ),
+
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource([
+                launch_package_dir, 
                 '/display_infrastructure_launch.py'])
         ),
 
