@@ -1,0 +1,6 @@
+float32 PositionPanTiltX
+float32 PositionPanTiltY
+float32 PositionZoomX
+float32 SpeedPanTiltX
+float32 SpeedPanTiltY
+float32 SpeedZoomX

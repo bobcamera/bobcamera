@@ -424,7 +424,7 @@ IN NO EVENT WILL THE CORPORATION OR ITS MEMBERS OR THEIR AFFILIATES BE LIABLE FO
 								<xs:documentation>A Velocity vector specifying the velocity of pan, tilt and zoom.
 								</xs:documentation>
 							</xs:annotation>
-						</xs:element>
+					</xs:element>
 						<xs:element name="Timeout" type="xs:duration" minOccurs="0">
 							<xs:annotation>
 								<xs:documentation>An optional Timeout parameter.

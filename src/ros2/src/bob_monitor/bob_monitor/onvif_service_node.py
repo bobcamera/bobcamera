@@ -5,6 +5,24 @@ import inspect
 from onvif2 import ONVIFCamera
 
 from bob_shared.node_runner import NodeRunner
+# onvif-cli 
+#  /bin/python3 /home/ros/.local/lib/python3.10/site-packages/onvif2/cli.py -u 'bob' -a 'Sky360Sky!' --host '10.20.30.140' --port 80 --wsdl /workspaces/bobcamera/src/ros2/src/bob_monitor/resource/wsdl
+# >>> cmd devicemgmt GetCapabilities {'Category': 'PTZ'}
+# True: OrderedDict([('Analytics', None), ('Device', None), ('Events', None), ('Imaging', None), ('Media', None), 
+# ('PTZ', OrderedDict([('XAddr', 'http://10.20.30.140/onvif/PTZ'), ('_value_1', None), ('_attr_1', None)])), 
+#('Extension', OrderedDict([('_value_1', [<Element {http://www.onvifext.com/onvif/ext/ver10/schema}hikCapabilities at 0x7fe5db816fc0>]), ('DeviceIO', None), ('Display', None), ('Recording', None), ('Search', None), ('Replay', None), ('Receiver', None), ('AnalyticsDevice', None), ('Extensions', None)])), ('_attr_1', None)])
+# cmd  ptz GotoHomePosition {'ProfileToken': 'Profile_3'}
+# cmd ptz Stop {'ProfileToken': 'Profile_1'}
+# cmd ptz ContinuousMove {'ProfileToken': 'Profile_1','Velocity': {'PanTilt': {'x': 0,'y': 0.2},'Zoom': {'x': 0.0}}}
+# Continous Move Velocity: x: -1...+1, y: -1...+1
+# cmd ptz AbsoluteMove {'ProfileToken': 'Profile_1','Position': {'PanTilt': {'x': 0,'y': 0.0},'Zoom': {'x': 0.0}}}
+# cmd ptz AbsoluteMove {'ProfileToken': 'Profile_1','Position': {'PanTilt': {'x': -0.55,'y': -0.5001},'Zoom': {'x': 0.0}}}
+# Absolute position: x: -1...+1, y: -1...+1
+# cmd ptz RelativeMove {'ProfileToken': 'Profile_1','Translation': {'PanTilt': {'x': 0.2,'y': 0},'Zoom': {'x': 0.0}}}
+
+
+
+
 
 class ONVIFServiceNode(Node):
     def __init__(self):
@@ -95,6 +113,10 @@ class ONVIFServiceNode(Node):
 
             # Doesn't work for media2 currently / h265
             media_service = mycam.create_media_service()
+            #print("First try RelativeMove")
+            #mycam.ptz.RelativeMove({'ProfileToken': 'Profile_1','Translation': {'PanTilt': {'x': 0.2,'y': 0},'Zoom': {'x': 0.0}}})
+            #print("Second try RelativeMove")
+            #mycam.ptz.RelativeMove("{'ProfileToken': 'Profile_1','Translation': {'PanTilt': {'x': 0.2,'y': 0},'Zoom': {'x': 0.0}}}")
             media_profile = media_service.GetProfiles()[0]
             imaging = mycam.create_imaging_service()
             token = media_profile.VideoSourceConfiguration.SourceToken
