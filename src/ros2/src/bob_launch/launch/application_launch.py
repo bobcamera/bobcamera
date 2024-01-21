@@ -19,6 +19,7 @@ def generate_launch_description():
     rtsp_width_arg_value = EnvironmentVariable('BOB_RTSP_WIDTH', default_value="")
     rtsp_height_arg_value = EnvironmentVariable('BOB_RTSP_HEIGHT', default_value="")
     camera_id_arg_value = EnvironmentVariable('BOB_CAMERA_ID', default_value="0")
+    fps_arg_value = EnvironmentVariable('BOB_FPS', default_value="15")
     enable_visualiser_arg_value = EnvironmentVariable('BOB_ENABLE_VISUALISER', default_value="True")
     optimised_arg_value = EnvironmentVariable('BOB_OPTIMISED', default_value="False")
     enable_rosbridge_arg_value = EnvironmentVariable('BOB_ENABLE_ROSBRIDGE', default_value="False")
@@ -69,6 +70,12 @@ def generate_launch_description():
         'camera_id_arg',
         default_value=camera_id_arg_value,
         description="USB Camera Id."
+        )
+
+    fps_arg = DeclareLaunchArgument(
+        'fps_arg',
+        default_value=fps_arg_value,
+        description="FPS of the frames being processed."
         )
 
     enable_visualiser_arg = DeclareLaunchArgument(
@@ -152,6 +159,8 @@ def generate_launch_description():
         simulation_num_objects_arg,
 
         camera_id_arg,
+        fps_arg,
+
         enable_visualiser_arg,
         optimised_arg,
         enable_rosbridge_arg,

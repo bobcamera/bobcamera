@@ -201,8 +201,6 @@
             <div id="maskControlsContainer" class="hidden">
                 <button id="editMaskBtn" title="Edit Mask"><i class="fa-solid fa-pen-to-square"></i></button>
                 <button id="invertMaskBtn" title="Invert Mask" class=""><i class="fas fa-clone"></i></button>
-                <!-- <button id="saveMaskJPG" title="Download JPG"><i class="fas fa-download"></i></button>
-                <button id="saveMaskSVG" title="Download SVG"><i class="fas fa-download"></i></button> -->
                 <button id="sendMaskJPG" title="Send Mask As ROS2 Message" style="background-color: lightgreen;"><i class="fa-solid fa-paper-plane"></i></button>
                 <button id="clearMaskBtn" title="Clear Mask" style="background-color: rosybrown;"><i class="fas fa-trash"></i></button>
                 <button id="cancelMaskBtn" title="Cancel" class="hidden"><i class="fas fa-xmark"></i></i></button>
@@ -215,6 +213,10 @@
             <div id="bufferingOverlay" width="" height="">Buffering... <span id="frames_left"></span></div>
         </div>
 <script type="text/javascript" type="text/javascript">
+
+    // This is the width of the image's actual full size width in pixels that will be used to scale the mask to the full size image
+    let fullSizedImageWidth = 1000; // default value set to 1000
+    let isInverted = false;
 
     // Initialize Variables
     var imageBuffer = [];
@@ -243,15 +245,9 @@
     let bufferingOverlay = document.getElementById('bufferingOverlay');
     let maskCanvasCtx = maskCanvas.getContext('2d');
     let devicePixelRatio = window.devicePixelRatio || 1;
-    // streamContainer.style.height = `${videoStream.offsetHeight}px`;
-    // maskCanvas.width = maskCanvas.clientWidth * devicePixelRatio;
-    // maskCanvas.height = maskCanvas.clientHeight * devicePixelRatio;
-    // maskCanvasCtx.scale(devicePixelRatio, devicePixelRatio);
     const editMaskBtn = document.getElementById('editMaskBtn');
     const invertMaskBtn = document.getElementById('invertMaskBtn');
     const clearMaskBtn = document.getElementById('clearMaskBtn');
-    // const saveMaskJPGBtn = document.getElementById('saveMaskJPG');
-    // const saveMaskSVGBtn = document.getElementById('saveMaskSVG');
     const sendMaskJPGButton = document.getElementById('sendMaskJPG');
     const cancelMaskBtn = document.getElementById('cancelMaskBtn');
     const maskControlsToggleBtn = document.getElementById('maskControlsToggleBtn');
@@ -262,7 +258,7 @@
 
     // Set up the ROS2 Environment Connection
     // Define the WebSockets address of the ROS2 Environment (using roslib.js library)
-    // window.location.hostname is used to get the hostname of the local machine
+    // Get the hostname of the local machine from the window.location.hostname variable
     var websocketsURL = 'ws://' + window.location.hostname + ':9090';
 
     // Create a ROSLIB.Ros object which will connect to the ROS2 environment using WebSockets
@@ -277,39 +273,51 @@
     // Event Listeners for when the connection to the ROS2 environment is closed
     ros.on('close', function () { console.log('Connection to websocket server closed.'); });
 
-    var ros2ImageTopic1 = '/bob/camera/all_sky/bayer/resized/compressed'; // define the ROS2 Subscription Topic 1
-    var ros2ImageTopic2 = '/bob/frames/annotated/resized/compressed'; // define the ROS2 Subscription Topic 2
-    var currentRos2ImageTopic = ros2ImageTopic2; // Set the ROS2 Topic to Subscribe to
-    var compressedImageMsgType = 'sensor_msgs/msg/CompressedImage'; // define the Msg Type of the ROS2 Subsc. Topic
+    var ros2ImageTopic1 = '/bob/camera/all_sky/bayer/resized/compressed'; // Define the ROS2 Subscription Topic 1
+    var ros2ImageTopic2 = '/bob/frames/annotated/resized/compressed'; // Define the ROS2 Subscription Topic 2
+    var currentRos2ImageTopic = ros2ImageTopic2; // Set the ROS2 Topic for subscription
+    var compressedImageMsgType = 'sensor_msgs/msg/CompressedImage'; // Define the Msg Type of the ROS2 Topic
 
+    // Create a ROSLIB.Topic object which will subscribe to the ROS2 Topic
     var topicStream = new ROSLIB.Topic({
         ros: ros,
         name: currentRos2ImageTopic,
         messageType: compressedImageMsgType
     });
-    
-    var versionService = new ROSLIB.Service({
-        ros : ros, 
-        name : '/bob/webapi/application/info', 
-        serviceType : 'bob_interfaces/srv/ApplicationInfo'
-    });    
 
+    // Create a ROSLIB.Service object which will call the  "Application Info" ROS2 Service
+    var versionService = new ROSLIB.Service({
+        ros : ros,
+        name : '/bob/webapi/application/info',
+        serviceType : 'bob_interfaces/srv/ApplicationInfo'
+    });
+
+    // Create a ROSLIB.Service object which will call the "Update Mask" ROS2 Service
     var updateMaskService = new ROSLIB.Service({
-        ros : ros, 
-        name : '/bob/webapi/mask/update', 
+        ros : ros,
+        name : '/bob/webapi/mask/update',
         serviceType : 'bob_interfaces/srv/MaskUpdate'
     });
 
+    // DEFINE FUNCITONS AND EVENT LISTENERS
+
     function init() {
+        // Event Listener for when the page is loaded
         window.addEventListener('DOMContentLoaded', function () {
+            // Call the "Application Info" ROS2 Service
             var versionRequest = new ROSLIB.ServiceRequest({empty: ''});
             versionService.callService(versionRequest, function(result) {
                 console.log("BOB Version:", result.version);
                 console.log(`BOB Frame Size: w=${result.frame_width}  h=${result.frame_height}`);
+
+                // Update the fullSizedImageWidth variable so the mask can be scaled to the full size image
+                fullSizedImageWidth = result.frame_width;
+
                 document.getElementById('applicationVersion').innerText = result.version;
             });
-
+            // Subscribe to the ROS2 Topic
             topicStream.subscribe(function (message) {
+                // Update the Message Rate
                 updateMessageRate();
                 if (!firstImageReceived) {
                     videoStream.src =
@@ -350,47 +358,110 @@
         });
     }
 
+    function invertMaskColors() {
+        let imageData = maskCanvasCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+        let data = imageData.data;
+        for (let i = 0; i < data.length; i += 4) {
+            if (data[i] === 0 && data[i + 1] === 0 && data[i + 2] === 0 && data[i + 3] === 255) {
+                data[i + 3] = 0;
+            } else if (data[i + 3] === 0) {
+                data[i] = 0;
+                data[i + 1] = 0;
+                data[i + 2] = 0;
+                data[i + 3] = 255;
+            }
+        }
+        maskCanvasCtx.putImageData(imageData, 0, 0);
+        isInverted = !isInverted;
+        const jpgDataUrl = maskCanvas.toDataURL('image/jpeg');
+        return maskCanvasCtx;
+    }
+
+    // function saveInvertedMaskJPG(fullSizedImageWidth) {
+    //     const fullWidth = parseFloat(fullSizedImageWidth);
+    //     const scaleFactor = fullWidth / maskCanvas.width;
+    //     const tempCanvas = document.createElement('canvas');
+    //     tempCanvas.width = maskCanvas.width * scaleFactor;
+    //     tempCanvas.height = maskCanvas.height * scaleFactor;
+    //     const tempCtx = tempCanvas.getContext('2d');
+    //     tempCtx.fillStyle = 'black';
+    //     tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+    //     // Draw the polygons
+    //     polygons.forEach(polygon => {
+    //         if (polygon.length > 2) {
+    //             tempCtx.beginPath();
+    //             tempCtx.moveTo(polygon[0].x * scaleFactor, polygon[0].y * scaleFactor);
+    //             for (let i = 1; i < polygon.length; i++) {
+    //                 tempCtx.lineTo(polygon[i].x * scaleFactor, polygon[i].y * scaleFactor);
+    //             }
+    //             tempCtx.closePath();
+    //             tempCtx.fillStyle = 'white';
+    //             tempCtx.fill();
+    //         }
+    //     });
+    //     // Invert the mask if necessary
+    //     if (isInverted) {
+    //         let imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+    //         let data = imageData.data;
+    //         for (let i = 0; i < data.length; i += 4) {
+    //             data[i] = 255 - data[i];
+    //             data[i + 1] = 255 - data[i + 1];
+    //             data[i + 2] = 255 - data[i + 2];
+    //         }
+    //         tempCtx.putImageData(imageData, 0, 0);
+    //     }
+    //     // Save the mask as a JPG
+    //     const jpgDataUrl = tempCanvas.toDataURL('image/jpeg');
+    //     const link = document.createElement('a');
+    //     link.href = jpgDataUrl;
+    //     link.download = 'mask.jpg';
+    //     link.click();
+    // }
+
     function sendMaskJPG() {
+        // Get the fullSizedImageWidth from the "Application Info" ROS2 Service
+        const fullWidth = parseFloat(fullSizedImageWidth);
+        // Scale the mask to the full size image
+        const scaleFactor = fullWidth / maskCanvas.width;
+        // Create a temporary canvas to scale the mask to the full size image
         const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = maskCanvas.width;
-        tempCanvas.height = maskCanvas.height;
+        tempCanvas.width = maskCanvas.width * scaleFactor;
+        tempCanvas.height = maskCanvas.height * scaleFactor;
+        // Draw the polygons on the temporary canvas
         const tempCtx = tempCanvas.getContext('2d');
         tempCtx.fillStyle = 'white';
         tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
         tempCtx.drawImage(maskCanvas, 0, 0);
-
+        // Get the image data from the temporary canvas
         const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+        // Convert the image data to grayscale
         const rawPixelData = [];
         for (let i = 0; i < imageData.data.length; i += 4) {
-            // Convert RGB to grayscale using the ITU-R BT.709 standard
             const grayValue = Math.round(imageData.data[i] * 0.2126 + imageData.data[i + 1] * 0.7152 + imageData.data[i + 2] * 0.0722);
             rawPixelData.push(grayValue);
         }
+        // Create a ROSLIB.ServiceRequest object which will be sent to the ROS2 Service
         var request = new ROSLIB.ServiceRequest({
             invert: false,
-            file_name: 'mask.jpg', // or .pgm
+            file_name: 'mask.jpg',
             mask: {
-                header: {
-                    // ...header data
-                },
+                header: {},
                 height: tempCanvas.height,
                 width: tempCanvas.width,
                 encoding: "mono8",
                 is_bigendian: 0,
-                step: tempCanvas.width,  
-                data: rawPixelData  
+                step: tempCanvas.width,
+                data: rawPixelData
             }
         });
-
+        // Call the "Update Mask" ROS2 Service and send the mask
         updateMaskService.callService(request, function(result) {
-            if (result.success) {
-                console.log("Mask sent successfully!");
-            } else {
-                console.error("Failed to send mask:", result.message);
-            }
+            if (result.success) { console.log("Mask sent successfully!"); }
+            else { console.error("Failed to send mask:", result.message); }
         });
     }
 
+    // Function to display the Camera/Video Image
     function displayImage() {
         frameRate = parseInt(document.getElementById('frame_rate').value);
         if (isPlaying) {
@@ -423,11 +494,16 @@
     }
 
     function updateMessageRate() {
+        // Get the current time
         var currentTime = new Date().getTime();
+        // If lastMessageTime is not null calculate the time difference between the current time and last message time
         if (lastMessageTime !== null) {
+            // Calculate the message rate
             var timeDifference = currentTime - lastMessageTime;
             messageRate = 1000 / timeDifference;
+            // Update the message rate display
             document.getElementById('message_rate').innerText = messageRate.toFixed(2) + " FPS";
+            // Update the total average message rate
             messageCount++;
             totalMessageRate += messageRate; // Update total average message rate
             document.getElementById('total_avg_message_rate').innerText = (totalMessageRate / messageCount).toFixed(2) + " FPS";
@@ -481,26 +557,6 @@
         requestAnimationFrame(update);
     }
 
-    function invertMaskColors() {
-        let imageData = maskCanvasCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
-        let data = imageData.data;
-        for (let i = 0; i < data.length; i += 4) {
-            if (data[i] === 0 && data[i + 1] === 0 && data[i + 2] === 0 && data[i + 3] === 255) {
-                // If the pixel is black (masked), set it to transparent
-                data[i + 3] = 0;
-            } else if (data[i + 3] === 0) {
-                // If the pixel is transparent, set it to black (masked)
-                data[i] = 0;
-                data[i + 1] = 0;
-                data[i + 2] = 0;
-                data[i + 3] = 255;
-            }
-        }
-        maskCanvasCtx.putImageData(imageData, 0, 0);
-        const jpgDataUrl = maskCanvas.toDataURL('image/jpeg');
-        return maskCanvasCtx;
-    }
-
     function updateDimensions() {
         console.log("updateDimensions");
         let newHeight = videoStream.offsetHeight;
@@ -524,59 +580,12 @@
         console.log(maskCanvas.offsetHeight);
     }
 
-    function saveMaskSVG() {
-        let svgContent =
-        `<svg xmlns="http://www.w3.org/2000/svg" width="${maskCanvas.width}" height="${maskCanvas.height}">`;
-        polygons.forEach(polygon => {
-            if (polygon.length > 2) {
-                const pathData = polygon.map((point, index) => {
-                    const command = index === 0 ? 'M' : 'L';
-                    return `${command}${point.x},${point.y}`;
-                }).join(' ') + 'Z';
-                svgContent += `<path d="${pathData}" fill="black" />`;
-            }
-        });
-        svgContent += '</svg>';
-        const svgBlob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
-        const svgUrl = URL.createObjectURL(svgBlob);
-        const link = document.createElement('a');
-        link.href = svgUrl;
-        var maskSVGName = currentRos2ImageTopic+"/mask";
-        var cleanedMaskSVGName = maskSVGName.replace(/\//g, "-")+'.svg';
-        link.download = cleanedMaskSVGName;
-        link.click();
-    }
-
-    function saveMaskJPG() {
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = maskCanvas.width;
-        tempCanvas.height = maskCanvas.height;
-        const tempCtx = tempCanvas.getContext('2d');
-        tempCtx.fillStyle = 'white';
-        tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-        tempCtx.drawImage(maskCanvas, 0, 0);
-        const jpgDataUrl = tempCanvas.toDataURL('image/jpeg');
-        const link = document.createElement('a');
-        link.href = jpgDataUrl;
-        var maskJPGName = currentRos2ImageTopic+"/mask";
-        var cleanedMaskJPGName = maskJPGName.replace(/\//g, "-")+'.jpg';
-        link.download = cleanedMaskJPGName;
-        link.click();
-    }
-
     function cancelButton() {
-        // if (polygons[polygons.length - 1].length === 0) { polygons.pop(); }
         maskCanvas.style.cursor = 'default';
-        // sendMaskJPG();
         editMaskBtn.innerHTML = '<i class="fa-solid fa-pen-to-square"></i>';
-        // add a title to the button
         editMaskBtn.title = 'Edit Mask';
-        // editMaskBtn.textContent = 'Edit Mask';
         editMaskBtn.classList.remove('stop-edit');
-        // Remove the click Event listener to the editMaskBtn then call sendMaskJPG()
-        editMaskBtn.removeEventListener('click', () => {
-            sendMaskJPG();
-        });
+        editMaskBtn.removeEventListener('click', () => { sendMaskJPG(); });
         invertMaskBtn.classList.remove('hidden');
         sendMaskJPGButton.classList.remove('hidden');
         cancelMaskBtn.classList.add('hidden');
@@ -653,22 +662,12 @@
     // Edit Mask Button
     editMaskBtn.addEventListener('click', () => {
         console.log("editMaskBtn");
-        // console.log("editMode: "+editMode);
-        // console.log("polygons: "+polygons);
-        // console.log("polygons.length: "+polygons.length);
-        // console.log(videoStream);
-        // console.log(videoStream.width);
-        // console.log(videoStream.height);
-        // console.log(maskCanvas);
-        // console.log(maskCanvas.width);
-        // console.log(maskCanvas.height);
         editMode = !editMode;
         if (editMode) {
             maskCanvas.style.cursor = 'crosshair';
             editMaskBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i>';
             editMaskBtn.title = 'Save Mask';
             editMaskBtn.classList.add('stop-edit');
-            // remove the hidden class from the invertMaskBtn
             invertMaskBtn.classList.add('hidden');
             sendMaskJPGButton.classList.add('hidden');
             cancelMaskBtn.classList.remove('hidden');
@@ -703,16 +702,6 @@
         sendMaskJPG();
     });
 
-    // Save Mask JPG Button Event Listner
-    // saveMaskJPGBtn.addEventListener('click', () => {
-    //     saveMaskJPG();
-    // });
-
-    // Save Mask SVG Button Event Listner
-    // saveMaskSVGBtn.addEventListener('click', () => {
-    //     saveMaskSVG();
-    // });
-
     // cancel Button Event Listner
     cancelMaskBtn.addEventListener('click', () => {
         cancelButton();
@@ -722,7 +711,6 @@
     invertMaskBtn.addEventListener('click', () => {
         let newCtx = invertMaskColors();
         maskCanvasCtx = newCtx;
-        // maskCanvasCtx =  invertMaskColors();
         update();
     });
 
@@ -747,7 +735,7 @@
 
     window.onload = init();
 
-    // Start the animation loop
+    // Animation loop
     update();
 
 </script>

@@ -39,7 +39,7 @@ IN NO EVENT WILL THE CORPORATION OR ITS MEMBERS OR THEIR AFFILIATES BE LIABLE FO
 	<xs:complexType name="Vector2D">
 		<xs:attribute name="x" type="xs:float" use="required"/>
 		<xs:attribute name="y" type="xs:float" use="required"/>
-		<xs:attribute name="space" type="xs:anyURI" use="optional">
+<!--		<xs:attribute name="space" type="xs:anyURI" use="optional">
 			<xs:annotation>
 				<xs:documentation>
   				Pan/tilt coordinate space selector. The following options are defined:<ul>
@@ -50,11 +50,11 @@ IN NO EVENT WILL THE CORPORATION OR ITS MEMBERS OR THEIR AFFILIATES BE LIABLE FO
 					</ul>
 				</xs:documentation>
 			</xs:annotation>
-		</xs:attribute>
+		</xs:attribute>-->
 	</xs:complexType>
 	<xs:complexType name="Vector1D">
 		<xs:attribute name="x" type="xs:float" use="required"/>
-		<xs:attribute name="space" type="xs:anyURI" use="optional">
+<!--		<xs:attribute name="space" type="xs:anyURI" use="optional">
 			<xs:annotation>
 				<xs:documentation>
 				Zoom coordinate space selector. The following options are defined:<ul style="">
@@ -65,7 +65,7 @@ IN NO EVENT WILL THE CORPORATION OR ITS MEMBERS OR THEIR AFFILIATES BE LIABLE FO
 					</ul>
 				</xs:documentation>
 			</xs:annotation>
-		</xs:attribute>
+		</xs:attribute>-->
 	</xs:complexType>
 	<xs:complexType name="PTZVector">
 		<xs:sequence>

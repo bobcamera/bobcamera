@@ -111,7 +111,9 @@ track_provider_node:
 allsky_recorder_node:
   ros__parameters:
     video_directory: 'assets/recordings/allsky'
+    heatmap_directory: 'assets/recordings/heatmaps'
     img_topic: 'bob/camera/all_sky/bayer'
+    fg_img_topic: 'bob/frames/all_sky/foreground_mask'
     tracking_topic: 'bob/tracker/tracking'
     prefix: ''
     codec: 'X264'
@@ -199,9 +201,12 @@ onvif_service_node:
     onvif_wsdl_path: 'src/bob_monitor/resource/wsdl'
 
 # Web infrastructure
-version_webapi_node:
+info_webapi_node:
   ros__parameters:
     application_version: '0.0.1'
+    frame_width: 0
+    frame_height: 0
+    video_fps: 15.0
 
 mask_webapi_node:
   ros__parameters:
