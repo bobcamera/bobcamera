@@ -1,12 +1,12 @@
 # Kernel
-rstp_camera_node:
+rtsp_camera_node:
   ros__parameters:
     rtsp_uri: ''
     onvif_host: ''
     onvif_port: 0
     onvif_user: ''
     onvif_password: ''        
-    image_publish_topic: 'bob/simulation/input_frame'
+    image_publish_topic: 'bob/camera/all_sky/bayer'
     image_info_publish_topic: 'bob/camera/all_sky/image_info'
     camera_info_publish_topic: 'bob/camera/all_sky/camera_info'
     source_type: 'RTSP_STREAM'
@@ -14,7 +14,7 @@ rstp_camera_node:
     image_height: 0
     camera_calibration_file: 'file:///workspaces/bobcamera/src/ros2/assets/config/camera_info.yaml'
 
-rstp_overlay_camera_node:
+rtsp_overlay_camera_node:
   ros__parameters:
     rtsp_uri: ''
     onvif_host: ''
