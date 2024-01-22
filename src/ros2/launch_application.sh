@@ -28,6 +28,9 @@ export BOB_TRACKING_SENSITIVITY=${BOB_TRACKING_SENSITIVITY:-"'medium'"}
 export BOB_TRACKING_USEMASK=${BOB_TRACKING_USEMASK:-"False"}
 export BOB_TRACKING_MASK_FILE=${BOB_TRACKING_MASK_FILE:-"assets/masks/mask.jpg"}
 
+# videos - a list of ; seperated video files
+export BOB_VIDEOS=${BOB_VIDEOS:-"/workspaces/bobcamera/test/fisheye_videos/mike_drone.mp4;/workspaces/bobcamera/test/fisheye_videos/Dahua-20220901-184734.mp4;/workspaces/bobcamera/test/fisheye_videos/brad_drone_1.mp4"}
+
 # simulation
 export BOB_SIMULATION_WIDTH=${BOB_SIMULATION_WIDTH:- "1920"}
 export BOB_SIMULATION_HEIGHT=${BOB_SIMULATION_HEIGHT:- "1080"}

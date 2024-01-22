@@ -44,6 +44,8 @@ def application_config(context):
     tracking_use_mask = LaunchConfiguration('tracking_usemask_arg').perform(context) in ('True', 'true')
     tracking_mask_dir = os.path.dirname(tracking_mask_file)
 
+    videos = str(LaunchConfiguration('video_arg').perform(context))
+
     update_config = LaunchConfiguration('update_config_from_env_vars_arg').perform(context) in ('True', 'true')
 
     if update_config:
@@ -51,18 +53,24 @@ def application_config(context):
         with open(app_config_file_src, 'r') as read:
             yaml_output = yaml.safe_load(read)
 
-            # rstp_camera_node
-            yaml_output['rstp_camera_node']['ros__parameters']['rtsp_uri'] = rtsp_url
-            yaml_output['rstp_camera_node']['ros__parameters']['image_width'] = image_width
-            yaml_output['rstp_camera_node']['ros__parameters']['image_height'] = image_height
+            # rtsp_camera_node
+            yaml_output['rtsp_camera_node']['ros__parameters']['rtsp_uri'] = rtsp_url
+            yaml_output['rtsp_camera_node']['ros__parameters']['image_width'] = image_width
+            yaml_output['rtsp_camera_node']['ros__parameters']['image_height'] = image_height
         
-            # rstp_overlay_camera_node
-            yaml_output['rstp_overlay_camera_node']['ros__parameters']['rtsp_uri'] = rtsp_url
-            yaml_output['rstp_overlay_camera_node']['ros__parameters']['image_width'] = image_width
-            yaml_output['rstp_overlay_camera_node']['ros__parameters']['image_height'] = image_height
+            # rtsp_overlay_camera_node
+            yaml_output['rtsp_overlay_camera_node']['ros__parameters']['rtsp_uri'] = rtsp_url
+            yaml_output['rtsp_overlay_camera_node']['ros__parameters']['image_width'] = image_width
+            yaml_output['rtsp_overlay_camera_node']['ros__parameters']['image_height'] = image_height
 
             # web_camera_video_node
             yaml_output['usb_camera_node']['ros__parameters']['camera_id'] = camera_id
+
+            # web_camera_video_node
+            yaml_output['web_camera_video_node']['ros__parameters']['videos'] = videos.split(";")
+
+            # web_camera_video_overlay_node
+            yaml_output['web_camera_video_overlay_node']['ros__parameters']['videos'] = videos.split(";")
 
             # simulated_frame_provider_node
             yaml_output['simulated_frame_provider_node']['ros__parameters']['num_objects'] = simulation_num_objects
@@ -115,10 +123,15 @@ def application_config(context):
             if source in ('\'rtsp\'', '\'rtsp_overlay\''):
                 (onvif_success, rtsp_user, rtsp_password, rtsp_host, rtsp_port) = get_onvif_config(rtsp_url)
                 if onvif_success:
-                    yaml_output['rstp_camera_node']['ros__parameters']['onvif_user'] = rtsp_user
-                    yaml_output['rstp_camera_node']['ros__parameters']['onvif_password'] = rtsp_password
-                    yaml_output['rstp_camera_node']['ros__parameters']['onvif_host'] = rtsp_host
-                    yaml_output['rstp_camera_node']['ros__parameters']['onvif_port'] = rtsp_port
+                    yaml_output['rtsp_camera_node']['ros__parameters']['onvif_user'] = rtsp_user
+                    yaml_output['rtsp_camera_node']['ros__parameters']['onvif_password'] = rtsp_password
+                    yaml_output['rtsp_camera_node']['ros__parameters']['onvif_host'] = rtsp_host
+                    yaml_output['rtsp_camera_node']['ros__parameters']['onvif_port'] = rtsp_port
+
+                    yaml_output['rtsp_overlay_camera_node']['ros__parameters']['onvif_user'] = rtsp_user
+                    yaml_output['rtsp_overlay_camera_node']['ros__parameters']['onvif_password'] = rtsp_password
+                    yaml_output['rtsp_overlay_camera_node']['ros__parameters']['onvif_host'] = rtsp_host
+                    yaml_output['rtsp_overlay_camera_node']['ros__parameters']['onvif_port'] = rtsp_port                    
 
         # Update the camera_info file with the provided launch arguments
         with open(app_config_file, 'w') as write:
