@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>3D Stream Projection on Dome</title>
+        <style>
+            body { margin: 0; }
+            canvas { display: block; }
+            #image_sub { display: none; }
+            #main-container {
+                position: absolute;
+            }
+            #three-container {
+                position: absolute;
+                width: 70%;
+                float: left;
+            }
+            #right-container {
+                width: 30%;
+                float: right;
+            }
+        </style>
+        <link src="../lib/materialize.min.css" />
+    </head>
+    <body>
+        <div id="main-container">
+            <div id="three-container">
+                <video id="myVideo" style="display: none;" autoplay muted>
+                    <source src="../assets/simulationVideo.mkv" type="video/mp4">
+                </video>
+            </div>
+            <div id="right-container">
+                <video id="myVideo2" style="display: none;" autoplay muted>
+                    <source src="../assets/simulationVideo.mkv" type="video/mp4">
+                </video>
+            </div>
+        </div>
+
+
+        <script src="../lib/three.min.js"></script>
+        <script src="../lib/OrbitControls.js"></script>
+        <script src="../lib/materialize.min.js"></script>
+        <script type="text/javascript">
+            let displayPointsOutsideBoundaries = true; // Or false, based on your initial requirement
+            let idToPointArrayMap = {};
+            let idToCurveLineMap = new Map();
+            let colorMapping = {};
+            let dataPoints = [];
+            const verticalScalingFactor = 4.000;
+            var initialVerticalScalingFactor = 4.000;
+            let startTime = 1703072584;
+            const fps = 15;
+            const scaleBox = .07;
+            let fov = 75;
+            let near = 0.001;
+            let far = 50000;
+            let videoWidth = 1920;
+            let videoHeight = 1080;
+            let backgroundColor = 0x333333;
+            let pointOpacity = 0.5;
+            let curveThickness = 5;
+            let verticalScaleFacor = 15;
+            const scene = new THREE.Scene();
+            let aspect = window.innerWidth / window.innerHeight;
+            const videoAspectRatio = videoWidth / videoHeight;
+            const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+            camera.position.z = 3364;
+            camera.position.y = 3242;
+            camera.position.x = 4955;
+            const planeWidth = verticalScalingFactor * videoWidth;
+            const planeHeight = planeWidth / videoAspectRatio;
+            const renderer = new THREE.WebGLRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById('three-container').appendChild(renderer.domElement);
+            const light = new THREE.PointLight(0xffffff, 1);
+            light.position.set(0, 0, 100);
+            scene.add(light);
+            const axesHelper = new THREE.AxesHelper( 1500 );
+            scene.add( axesHelper );
+            renderer.setClearColor(backgroundColor, 1);
+            renderer.domElement.addEventListener('click', onMouseClick);
+            const video = document.getElementById('myVideo');
+            const videoTexture = new THREE.VideoTexture(video);
+            const groundGeometry = new THREE.PlaneBufferGeometry(planeWidth, planeHeight);
+            const groundMaterial = new THREE.MeshBasicMaterial({ map: videoTexture });
+            const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
+            groundMesh.rotation.x = -Math.PI / 2;
+            groundMesh.position.x = planeWidth / 2;
+            groundMesh.position.y = 0;
+            groundMesh.position.z = planeHeight / 2;
+            scene.add(groundMesh);
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.target.set(planeWidth/2, 0, planeHeight/2);
+            let meshToFrameMap = new Map();
+            let stopCurvePropagation = false;
+
+            function animate() {
+                requestAnimationFrame(animate);
+                updatePointsVisibility();
+                controls.update();
+                renderer.render(scene, camera);
+            }
+
+            function calculateDynamicScalingFactor(timeElapsed, initialFactor) {
+                // Example: linear reduction of scaling factor over time
+                const reductionRate = 0.001; // Adjust this rate as needed
+                return Math.max(1, initialFactor - timeElapsed * reductionRate);
+            }
+
+            async function loadDataPoints() {
+                try {
+                    const response = await fetch('../data/tracks.json');
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return await response.json();
+                } catch (error) {
+                    console.error('Failed to load data points:', error);
+                }
+            }
+
+            function updatePointsVisibility() {
+                meshToFrameMap.forEach((frameNumber, mesh) => {
+                    let x = mesh.position.x;
+                    let z = mesh.position.z;
+                    let isOutsideBoundaries = (x < 0 || x > planeWidth) || (z < 0 || z > planeHeight);
+
+                    // Update visibility based on the flag and position
+                    if (displayPointsOutsideBoundaries || !isOutsideBoundaries) {
+                        mesh.visible = true;
+                    } else {
+                        mesh.visible = false;
+                    }
+                });
+            }
+
+            // Function to plot a point in 3D space based on the bounding box size
+            function plotPoint(x, y, z, sizeX, sizeY, color, id, frameNumber) {
+                if (stopCurvePropagation) {
+                    return;
+                }
+                const area = sizeX * sizeY;
+                let radius = Math.sqrt(sizeX * sizeX + sizeY * sizeY) / 2;
+                // const radius = 20;
+                const geometry = new THREE.SphereGeometry(radius, 32, 32);
+                const material = new THREE.MeshBasicMaterial({ color: color });
+                material.transparent = true;
+                material.opacity = pointOpacity;
+                const sphere = new THREE.Mesh(geometry, material);
+                sphere.position.set(x, y, z);
+                meshToFrameMap.set(sphere, frameNumber);
+                scene.add(sphere);
+                 // Initialize the array for the ID if it doesn't exist
+                if (!idToPointArrayMap[id]) {
+                    idToPointArrayMap[id] = [];
+                }
+                // Add the new point to the appropriate array
+                idToPointArrayMap[id].push(new THREE.Vector3(x, y, z));
+                updateCurve(id,color);
+            }
+
+            function stopAllCurvePropagation() {
+                stopCurvePropagation = true;
+            }
+
+            // Optionally, a function to resume propagation
+            function resumeAllCurvePropagation() {
+                stopCurvePropagation = false;
+            }
+
+            function onMouseClick(event) {
+                // Calculate mouse position in normalized device coordinates (-1 to +1) for both components
+                mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+                // Update the picking ray with the camera and mouse position
+                raycaster.setFromCamera(mouse, camera);
+                // Calculate objects intersecting the picking ray
+                const intersects = raycaster.intersectObjects(scene.children);
+                for (let intersect of intersects) {
+                    if (meshToFrameMap.has(intersect.object)) {
+                        let frameNumber = meshToFrameMap.get(intersect.object);
+                        console.log("Clicked on point from frame:", frameNumber);
+                        navigateToFrame(frameNumber);
+                        // clearPointsAndCurvesAfterFrame(frameNumber);
+                        stopAllCurvePropagation();
+                        break; // Assuming you want to select the first intersected object
+                    }
+                }
+            }
+
+            function clearPointsAndCurvesAfterFrame(clickedFrameNumber) {
+                // Clear points
+                for (let [mesh, frameNumber] of meshToFrameMap) {
+                    if (frameNumber > clickedFrameNumber) {
+                        scene.remove(mesh);
+                        if (mesh.geometry) mesh.geometry.dispose();
+                        if (mesh.material) mesh.material.dispose();
+                        meshToFrameMap.delete(mesh);
+                    }
+                }
+
+                // Clear curves
+                for (let [id, curveMesh] of idToCurveLineMap) {
+                    let curveFrameNumber = getFrameNumberForCurve(id);
+                    if (curveFrameNumber > clickedFrameNumber) {
+                        scene.remove(curveMesh);
+                        if (curveMesh.geometry) curveMesh.geometry.dispose();
+                        if (curveMesh.material) curveMesh.material.dispose();
+                        idToCurveLineMap.delete(id);
+                    }
+                }
+            }
+
+
+            function getFrameNumberForCurve(id) {
+                let maxFrameNumber = -1;
+
+                // Get all points for the given id
+                const points = idToPointArrayMap[id];
+                if (!points) {
+                    return -1; // Return an invalid frame number if no points are found for the id
+                }
+
+                // Loop through each point to find the maximum frame number
+                points.forEach(point => {
+                    // Find the mesh corresponding to this point
+                    let correspondingMesh = [...meshToFrameMap].find(([mesh, _]) => mesh.position.equals(point));
+                    if (correspondingMesh) {
+                        let frameNumber = meshToFrameMap.get(correspondingMesh[0]);
+                        if (frameNumber > maxFrameNumber) {
+                            maxFrameNumber = frameNumber;
+                        }
+                    }
+                });
+
+                return maxFrameNumber;
+            }
+
+
+
+            function navigateToFrame(frameNumber) {
+                const timeInSeconds = frameNumber / fps;  // fps is the frame rate of the video
+                video.currentTime = timeInSeconds;
+            }
+
+            function updateCurve(id,color) {
+                let points = idToPointArrayMap[id];
+                if (points.length < 2) {
+                    return; // Need at least two points to draw a curve
+                }
+                // Use Catmull-Rom curve for dynamic number of points
+                let curve = new THREE.CatmullRomCurve3(points);
+                // let curvePoints = curve.getPoints(50); // Adjust for smoothness
+                let tubeGeometry = new THREE.TubeGeometry(curve, 64, curveThickness, 8, false); // Adjust these parameters as needed
+                if (idToCurveLineMap[id]) {
+                    idToCurveLineMap[id].geometry.dispose();
+                    idToCurveLineMap[id].geometry = tubeGeometry;
+                } else {
+                    let material = new THREE.MeshBasicMaterial({ color: color });
+                    idToCurveLineMap[id] = new THREE.Mesh(tubeGeometry, material);
+                    scene.add(idToCurveLineMap[id]);
+                }
+                    // let geometry = new THREE.BufferGeometry().setFromPoints(curvePoints);
+
+                //     if (idToCurveLineMap[id]) {
+                //         idToCurveLineMap[id].geometry.dispose();
+                //         idToCurveLineMap[id].geometry = geometry;
+                //     } else {
+                //         let material = new THREE.LineBasicMaterial({ color: generateUniqueColor() });
+                //         idToCurveLineMap[id] = new THREE.Line(geometry, material);
+                //         scene.add(idToCurveLineMap[id]);
+                //     }
+                // }
+                // let geometry = new THREE.BufferGeometry().setFromPoints(curvePoints);
+
+                // if (idToCurveLineMap[id]) {
+                //     idToCurveLineMap[id].geometry.dispose();
+                //     idToCurveLineMap[id].geometry = geometry;
+                // } else {
+                //     let material = new THREE.LineBasicMaterial({
+                //         color: 0xff0000, // Red color
+                //         linewidth: 2,    // Line width
+                //         opacity: 0.75,   // Semi-transparent
+                //         transparent: true
+                //     });
+                //     idToCurveLineMap[id] = new THREE.Line(geometry, material);
+                //     scene.add(idToCurveLineMap[id]);
+                // }
+            }
+            function generateUniqueColor() {
+                let neonColors =
+                ["#ff0000", "#ff3300", "#ff6600", "#ff9900", "#ffcc00", "#ffff00", "#ccff00", "#99ff00", "#66ff00", "#33ff00", "#00ff00", "#00ff33", "#00ff66", "#00ff99", "#00ffcc", "#00ffff", "#00ccff", "#0099ff", "#0066ff", "#0033ff", "#0000ff", "#3300ff", "#6600ff", "#9900ff", "#cc00ff", "#ff00ff", "#ff00cc", "#ff0099", "#ff0066", "#ff0033", "#ff0000", "#ff3300", "#ff6600", "#ff9900", "#ffcc00", "#ffff00", "#ccff00", "#99ff00", "#66ff00", "#33ff00", "#00ff00", "#00ff33", "#00ff66", "#00ff99", "#00ffcc", "#00ffff", "#00ccff", "#0099ff", "#0066ff", "#0033ff", "#0000ff", "#3300ff", "#6600ff", "#9900ff", "#cc00ff", "#ff00ff", "#ff00cc", "#ff0099", "#ff0066", "#ff0033"];
+                let color = neonColors[Math.floor(Math.random() * neonColors.length)];
+                return color;
+            }
+
+            document.addEventListener('DOMContentLoaded', async () => {
+                dataPoints = await loadDataPoints();
+                animate();
+            });
+
+            video.addEventListener('timeupdate', () => {
+                let currentFrameNumber = Math.floor(video.currentTime * fps);
+                // Check if there are no more data points for the current frame
+                if (currentFrameNumber >= dataPoints.length) {
+                    video.pause(); // Stop the video
+                    console.log("Video stopped as data points have run out.");
+                    return; // Exit the function to prevent further execution
+                }
+                let data = dataPoints[currentFrameNumber];
+                if (!data || !data.detections) {
+                    return; // Exit if there's no data for the current frame
+                }
+                data.detections.forEach(detection => {
+                    if (!colorMapping[detection.id]) {
+                        colorMapping[detection.id] = generateUniqueColor();
+                    }
+                    let color = colorMapping[detection.id];
+                    currentFrame = Math.floor(video.currentTime * fps);
+                    let time = currentFrame;
+                    let widthFactor = planeWidth/videoWidth;
+                    let heightFactor = planeHeight/videoHeight;
+                    let centerX = (detection.bbox.x + detection.bbox.width / 2) * widthFactor;
+                    let centerY = (detection.bbox.y + detection.bbox.height / 2) * heightFactor;
+                    let boundingBoxWidth = detection.bbox.width * widthFactor;
+                    let boundingBoxHeight = detection.bbox.height * heightFactor;
+                    plotPoint(centerX, time*verticalScaleFacor, centerY, boundingBoxWidth, boundingBoxHeight, color,detection.id, currentFrameNumber );
+
+                });
+            });
+
+        </script>
+    </body>
+</html>

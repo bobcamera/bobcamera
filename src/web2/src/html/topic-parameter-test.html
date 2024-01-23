@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ROS 2 Web Interaction</title>
+  <script src="../lib/eventemitter2.js"></script>
+  <script src="../lib/roslib.min.js"></script>
+  <!-- <script src="https://static.robotwebtools.org/roslibjs/current/roslib.min.js"></script> -->
+</head>
+<body>
+
+<h1>ROS 2 Web Interaction</h1>
+
+<button onclick="publishTopic()">Publish Topic</button><br><br>
+<button onclick="subscribeTopic()">Subscribe Topic</button><br><br>
+<button onclick="setParameter()">Set Parameter</button><br><br>
+<button onclick="getParameter()">Get Parameter</button><br><br>
+
+<script>
+  // Initialize ROS connection
+  const ros = new ROSLIB.Ros({
+    url: 'ws://localhost:9090'
+  });
+
+  // Topic Publish Example
+  const topic = new ROSLIB.Topic({
+    ros: ros,
+    name: '/my_topic',
+    messageType: 'std_msgs/String'
+  });
+
+  const message = new ROSLIB.Message({
+    data: 'Hello, ROS 2'
+  });
+
+  function publishTopic() {
+    topic.publish(message);
+    console.log('Message published');
+  }
+
+  // Topic Subscribe Example
+  function subscribeTopic() {
+    topic.subscribe((message) => {
+      console.log('Received message:', message.data);
+    });
+    console.log('Subscribed to topic');
+  }
+
+
+//   ros2 param describe /mask_webapi use_sim_time
+
+  // Set Parameter Example
+  const param = new ROSLIB.Param({
+    ros: ros,
+    // name: 'node_name:parameter_name'
+    name: 'mask_webapi:use_sim_time'
+  });
+
+  function setParameter() {
+    param.set('True', (result) => {
+      console.log('Parameter set:', result);
+    });
+  }
+
+  // Get Parameter Example
+  function getParameter() {
+    param.get((value) => {
+      console.log('Received parameter:', value);
+    });
+  }
+
+</script>
+
+</body>
+</html>

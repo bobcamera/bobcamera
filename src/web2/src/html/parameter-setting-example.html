@@ -1,0 +1,77 @@
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <title>ROS 2 Web Interaction</title>
+    <!-- <script src="../lib/eventemitter2.js"></script>
+    <script src="../lib/roslib.min.js"></script> -->
+    <script src="https://cdn.jsdelivr.net/npm/eventemitter2@6.4.9/lib/eventemitter2.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/roslibjs/1.1.0/roslib.min.js" ></script>
+    </head>
+    <body>
+
+    <h1>ROS 2 Parameter Setting Examples</h1>
+
+    <hr>
+    <br>
+    Example Parameter Being Set:
+    <br>
+    <br>
+
+    <label for="nodeName">Node Name:</label>
+    <input type="text" id="nodeName" value="mask_webapi">
+    <br>
+    <br>
+
+    <label for="paramName">Parameter Name:</label>
+    <input type="text" id="paramName" value="use_sim_time">
+    <br>
+    <br>
+
+    <label for="paramValue">Set Parameter to:</label>
+    <input type="text" id="paramValue" value="True">
+    <br>
+    <br>
+
+    <button onclick="setParameter()">Set Parameter</button>
+    <br>
+    <div id="setParameterOutput"></div>
+    <br>
+    <button onclick="getParameter()">Get Parameter</button>
+    <br>
+    <div id="getParameterOutput"></div>
+
+    <script>
+
+    // Initialize ROS connection
+    const ros = new ROSLIB.Ros({
+        url: 'ws://localhost:9090'
+    });
+
+    function setParameter() {
+        const paramName = document.getElementById("paramName").value;
+        const paramValue = document.getElementById("paramValue").value;
+        const node = document.getElementById("nodeName").value;
+        const param = new ROSLIB.Param({
+            ros: ros,
+            name: node + ':' + paramName
+        });
+        param.set(paramValue, (result) => {
+            document.getElementById("setParameterOutput").innerText = 'Parameter set to: ' + paramValue;
+        });
+    }
+
+    function getParameter() {
+        const paramName = document.getElementById("paramName").value;
+        const node = document.getElementById("nodeName").value;
+        const param = new ROSLIB.Param({
+            ros: ros,
+            name: node + ':' + paramName
+        });
+        param.get((value) => {
+            document.getElementById("getParameterOutput").innerText = 'Received parameter: ' + value;
+        });
+    }
+
+    </script>
+    </body>
+    </html>

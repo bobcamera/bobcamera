@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+
+<html>
+
+    <head>
+        <title>Basic 2D Image Stream</title>
+
+        <meta charset="utf-8" />
+
+        <!-- JS Library Needed for Connecting to the ROS2 Environment -->
+        <script src="https://cdn.jsdelivr.net/npm/eventemitter2@6.4.9/lib/eventemitter2.min.js"></script>
+
+        <!-- JS Library Needed for Connecting to the ROS2 Environment -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/roslibjs/1.1.0/roslib.min.js"></script>
+
+        <script>
+            // Set up the connection to the ROS2 environment using the roslib.js library
+
+            // Define the Websockets address of the ROS2 environment
+            var websocketsURL = 'ws://localhost:9090';
+
+            // Create a ROSLIB.Ros object which will connect to the ROS2 environment via websockets
+            var ros = new ROSLIB.Ros({url: websocketsURL});
+
+            // Define callbacks for connection events
+            ros.on('connection', function () {console.log('Connected to websocket server.');});
+
+            // Define callbacks for error events
+            ros.on('error', function (error) {console.log('Error connecting to websocket server: ', error);});
+
+            // Define callbacks for close events
+            ros.on('close', function () {console.log('Connection to websocket server closed.');});
+
+        </script>
+
+    </head>
+
+    <body>
+
+        <img id="imageDisplayWindow" style="width: 100%"/>
+
+        <script type="text/javascript" type="text/javascript">
+
+            // Define the ROS2 Subscription Topic
+            var ros2topic = '/bob/frames/annotated/resized/compressed';
+
+            // Define the Message Type of the ROS2 Subscription Topic
+            var ros2messageType = 'sensor_msgs/msg/CompressedImage';
+
+            // Create a topicStream for subscription
+            var topicStream = new ROSLIB.Topic({ros: ros, name: ros2topic, messageType: ros2messageType});
+
+            // Stream Messages Published From a ROS2 Topic (On each new message arrival, the function is called)
+            topicStream.subscribe(function (message) {
+                // Display Image In imageDisplayWindow element
+                displayImage(message);
+            });
+
+            // Declare a function to display the image in the imageDisplayWindow element
+            function displayImage(message) {
+                document.getElementById('imageDisplayWindow').src = "data:image/jpeg;base64," + message.data;
+            }
+
+        </script>
+
+    </body>
+
+</html>

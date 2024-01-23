@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <!-- <title id="topic_name"></title> -->
+        <meta charset="utf-8" />
+        <script src="../lib/eventemitter2.js"></script>
+        <script src="../lib/roslib.min.js"></script>
+        <script src="../lib/xterm.min.js"></script>
+        <link href="../lib/xterm.min.css" rel="stylesheet">
+    </head>
+    <body>
+        <!-- <span id="topic"></span><br>
+        <span id="message-type"></span><br><br> -->
+        <button id="pause-button">Pause</button>
+        <button id="start-button">Start</button><br><br>
+        <div id="terminal"></div>
+
+        <script type="text/javascript">
+// var topic_name = '/sky360/frames/grey';
+// var message_type = 'sensor_msgs/Image';
+
+// var topic_name = '/sky360/frames/masked';
+// var message_type = 'sensor_msgs/Image';
+
+// var topic_name = '/sky360/frames/masked_background';
+// var message_type = 'sensor_msgs/Image';
+
+// var topic_name = '/sky360/frames/original';
+// var message_type = 'sensor_msgs/Image';
+
+// var topic_name = '/sky360/frames/dense_optical_flow';
+// var message_type = 'sensor_msgs/Image';
+
+var topic_name = '/bob/detector/all_sky/bounding_boxes';
+var message_type = 'vision_msgs/msg/BoundingBox2DArray';
+
+
+
+// var topic_name = '/sky360/camera/original';
+// var topic_name = '/sky360/camera/original/v1';
+// var topic_name = '/sky360/config/entries';
+// var topic_name = '/sky360/config/entry';
+// var topic_name = '/sky360/config/entry/update';
+// var topic_name = '/sky360/config/updated';
+// var topic_name = '/sky360/detector/bgs/bounding_boxes/v1';
+// var topic_name = '/sky360/detector/canny/bounding_boxes';
+// var topic_name = '/sky360/mask/image';
+// var topic_name = '/sky360/maskedcompressed';
+// var topic_name = '/sky360/observer/cloud_estimation';
+// var topic_name = '/sky360/observer/day_night_classifier';
+// var topic_name = '/sky360/simulation/output_frame';
+// var topic_name = '/sky360/tracker/detections';
+// var topic_name = '/sky360/tracker/prediction';
+// var topic_name = '/sky360/tracker/tracking_state';
+// var topic_name = '/sky360/tracker/trajectory';
+// var topic_name = '/sky360/visualiser/annotated_frame';
+// var topic_name = '/sky360/visualiser/dense_optical_flow_frame';
+// var topic_name = '/sky360/visualiser/grey_frame';
+// var topic_name = '/sky360/visualiser/masked_background_frame';
+// var topic_name = '/sky360/visualiser/masked_frame';
+// var topic_name = '/sky360/visualiser/original_camera_frame';
+// var topic_name = '/sky360/visualiser/original_frame';
+// var topic_name = '/sky360/visualiser/tracking_state';
+
+
+
+            const terminal = new Terminal({
+                cursorBlink: true, // Enable blinking cursor
+                cols: 180, // Set the terminal's width (columns).
+                rows: 45, // Set the terminal's height (rows).
+                theme: {
+                    background: '#272822'
+                }
+            });
+            terminal.open(document.getElementById('terminal'));
+
+            function init() {
+                window.addEventListener('DOMContentLoaded', function () {
+                    // Connecting to ROS
+                    var ros = new ROSLIB.Ros({
+                        url: 'ws://localhost:9090'
+                    });
+                    ros.on('connection', function () {
+                        console.log('Connected to websocket server.');
+                    });
+                    ros.on('error', function (error) {
+                        console.log('Error connecting to websocket server: ', error);
+                    });
+                    ros.on('close', function () {
+                        console.log('Connection to websocket server closed.');
+                    });
+                    var currentTopic = new ROSLIB.Topic({
+                        ros: ros,
+                        name: topic_name,
+                        messageType: message_type
+                    });
+
+                    currentTopic.subscribe(function (message) {
+                        console.log(message);
+                        terminal.write('Topic: ' + topic_name + '\n\r');
+                        terminal.write('Msg Type: ' + message_type + ' \n\r');
+                        terminal.write('TimeStamp: ' + JSON.stringify(message.header.stamp.sec) + JSON.stringify(message.header.stamp.nanosec) +'\n\r');
+                        terminal.write('Boxes: ' + JSON.stringify(message.boxes) + '\n\r');
+                        // terminal.write('Format: ' + JSON.stringify(message.format) + '\n\r');
+                        // terminal.write('Data: ' + JSON.stringify(message.data).substr(0, 100) + '...\n\r');
+                        terminal.write('\n\r');
+                    });
+
+                    function startSubscription() {
+                        currentTopic.subscribe();
+                        console.log('Subscription started. Data Truncated to 100 characters.');
+                        terminal.write('Subscribed to Topic: ' + topic_name + '\n\r');
+                        terminal.write('Message Type: ' + message_type + ' \n\r');
+                        terminal.write('Data Truncated to 100 characters. '+ '\n\r');
+                    }
+
+                    // Define function to stop the subscription
+                    function pauseSubscription() {
+                        currentTopic.unsubscribe();
+                        console.log('Subscription paused');
+                        terminal.write('Unsubscribed to ' + topic_name + '\n\r');
+                    }
+
+                    // Add event listeners to the start and stop buttons
+                    var startButton = document.getElementById('start-button');
+                    var pauseButton = document.getElementById('pause-button');
+                    // var messageDetailsButton = document.getElementById('message-details-button');
+
+                    startButton.addEventListener('click', startSubscription);
+                    pauseButton.addEventListener('click', pauseSubscription);
+                    // messageDetailsButton.addEventListener('click', getTopicMessageDetails);
+
+                    // document.getElementById('topic_name').innerHTML = 'Topic: '+topic_name;
+                    // document.getElementById('message-type').innerHTML = 'Message Type: '+message_type;
+                });
+            }
+            window.onload = init();
+        </script>
+    </body>

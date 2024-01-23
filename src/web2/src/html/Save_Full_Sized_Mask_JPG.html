@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body {
+                margin: 0;
+                padding: 0;
+            }
+
+            #maskCanvas {
+                position: absolute;
+                top: 0;
+                left: 0;
+                z-index: 10;
+                border: 1px solid black;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- Add the path of the video you want to test this with here -->
+        <video width="750" id="videoPlayer" controls><source src="../assets/birds_and_plane.mp4" type="video/mp4"></video>
+        <canvas id="maskCanvas"></canvas>
+        <button id="editMaskBtn">Edit Image Mask</button>
+        <button id="clearMaskBtn">Clear Image Mask</button>
+        <button id="invertMaskBtn">Invert Mask</button>
+        <button id="saveMaskJPGBtn">Save Mask as JPG</button>
+        <script>
+
+            // This is the width of the image's actual full size width in pixels that will be used to scale the mask to the full size image
+            let fullSizedImageWidth = 1000;
+
+            const videoPlayer = document.getElementById('videoPlayer');
+            const maskCanvas = document.getElementById('maskCanvas');
+            const ctx = maskCanvas.getContext('2d');
+            const contextMenu = document.getElementById('contextMenu');
+            const editMaskBtn = document.getElementById('editMaskBtn');
+            const clearMaskBtn = document.getElementById('clearMaskBtn');
+            const saveMaskJPGBtn = document.getElementById('saveMaskJPGBtn');
+            const invertMaskBtn = document.getElementById('invertMaskBtn');
+            let drawing = false;
+            let editMode = false;
+            let polygons = [];
+            let offset = 0;
+            let isInverted = false;
+            polygons.push([]);
+
+            function drawPolygon(polygon, fillStyle, drawBorder) {
+                if (polygon.length === 0) { return; }
+                console.log("drawPolygon");
+                console.log("polygon: ", polygon);
+                console.log("polygon[0]: ", polygon[0]);
+                console.log("fillStyle: " + fillStyle);
+                console.log("drawBorder: " + drawBorder);
+                ctx.beginPath();
+                ctx.moveTo(polygon[0].x, polygon[0].y);
+                for (let i = 1; i < polygon.length; i++) {
+                    if (polygon[i]) { ctx.lineTo(polygon[i].x, polygon[i].y); }
+                }
+                ctx.closePath();
+                ctx.fillStyle = fillStyle;
+                ctx.fill();
+                if (drawBorder) {
+                    ctx.setLineDash([5, 5]);
+                    ctx.lineDashOffset = -offset;
+                    ctx.strokeStyle = 'white';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    ctx.lineDashOffset = 0;
+                }
+            }
+
+            function redrawCanvas() {
+                ctx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+                polygons.forEach((polygon, index) => {
+                    const isCurrentPolygon = index === polygons.length - 1;
+                    drawPolygon(polygon, editMode && isCurrentPolygon ? 'rgba(0, 0, 0, 0.1)' : 'rgba(0, 0, 0, 1)', editMode && isCurrentPolygon);
+                });
+            }
+
+            function clearMask() {
+                ctx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+                polygons = [];
+            }
+
+            function update() {
+                if (editMode) {
+                    offset = (offset + 1) % 10;
+                    redrawCanvas();
+                }
+                requestAnimationFrame(update);
+            }
+
+            function invertMaskColors() {
+                let imageData = ctx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+                let data = imageData.data;
+                for (let i = 0; i < data.length; i += 4) {
+                    data[i] = 255 - data[i];
+                    data[i + 1] = 255 - data[i + 1];
+                    data[i + 2] = 255 - data[i + 2];
+                }
+                ctx.putImageData(imageData, 0, 0);
+                isInverted = !isInverted;
+            }
+
+            function saveInvertedMaskJPG(fullSizedImageWidth) {
+                const fullWidth = parseFloat(fullSizedImageWidth);
+                const scaleFactor = fullWidth / maskCanvas.width;
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = maskCanvas.width * scaleFactor;
+                tempCanvas.height = maskCanvas.height * scaleFactor;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.fillStyle = 'black';
+                tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                polygons.forEach(polygon => {
+                    if (polygon.length > 2) {
+                        tempCtx.beginPath();
+                        tempCtx.moveTo(polygon[0].x * scaleFactor, polygon[0].y * scaleFactor);
+                        for (let i = 1; i < polygon.length; i++) {
+                            tempCtx.lineTo(polygon[i].x * scaleFactor, polygon[i].y * scaleFactor);
+                        }
+                        tempCtx.closePath();
+                        tempCtx.fillStyle = 'white';
+                        tempCtx.fill();
+                    }
+                });
+                if (isInverted) {
+                    let imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+                    let data = imageData.data;
+                    for (let i = 0; i < data.length; i += 4) {
+                        data[i] = 255 - data[i];
+                        data[i + 1] = 255 - data[i + 1];
+                        data[i + 2] = 255 - data[i + 2];
+                    }
+                    tempCtx.putImageData(imageData, 0, 0);
+                }
+                const jpgDataUrl = tempCanvas.toDataURL('image/jpeg');
+                const link = document.createElement('a');
+                link.href = jpgDataUrl;
+                link.download = 'mask.jpg';
+                link.click();
+            }
+
+            maskCanvas.addEventListener('mousedown', (e) => {
+                if (!editMode || e.button === 2) return;
+                if (e.detail > 1) {
+                    const currentPolygon = polygons[polygons.length - 1];
+                    if (currentPolygon.length > 2) {
+                        drawing = false;
+                        polygons.push([]);
+                    }
+                    return;
+                }
+                drawing = true;
+                const rect = maskCanvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const currentPolygon = polygons[polygons.length - 1];
+                if (currentPolygon.length > 0) {
+                    const firstNode = currentPolygon[0];
+                    const distance = Math.sqrt(Math.pow(x - firstNode.x, 2) + Math.pow(y - firstNode.y, 2));
+                    if (distance < 10) {
+                        drawing = false;
+                        polygons.push([]);
+                    } else {
+                        currentPolygon.push({ x, y });
+                    }
+                } else {
+                    currentPolygon.push({ x, y });
+                }
+                redrawCanvas();
+            });
+
+            maskCanvas.addEventListener('mousemove', (e) => {
+                if (!drawing || !editMode) return;
+                const rect = maskCanvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const currentPolygon = polygons[polygons.length - 1];
+                currentPolygon.push({ x, y });
+                redrawCanvas();
+                if (editMode) { drawPolygon(currentPolygon, 'rgba(0, 0, 0, 0.1)', true); }
+                currentPolygon.pop();
+            });
+
+            editMaskBtn.addEventListener('click', () => {
+                editMode = !editMode;
+                if (editMode) {
+                    maskCanvas.style.cursor = 'crosshair';
+                    editMaskBtn.textContent = 'Stop Editing Mask';
+                    if (polygons.length === 0 || polygons[polygons.length - 1].length > 0) {
+                        polygons.push([]);
+                    }
+                } else {
+                    maskCanvas.style.cursor = 'default';
+                    editMaskBtn.textContent = 'Edit Image Mask';
+                    redrawCanvas();
+                    if (polygons[polygons.length - 1].length === 0) {
+                        polygons.pop();
+                    }
+                }
+            });
+
+            clearMaskBtn.addEventListener('click', () => {clearMask();if (editMode) { polygons.push([]); }});
+            saveMaskJPGBtn.addEventListener('click', () => {saveInvertedMaskJPG(1000);});
+            invertMaskBtn.addEventListener('click', () => {invertMaskColors();isInverted = !isInverted; });
+            videoPlayer.addEventListener('loadedmetadata', () => {
+                maskCanvas.width = videoPlayer.offsetWidth;
+                maskCanvas.height = videoPlayer.offsetHeight;
+            });
+
+            update(); // Start the animation loop
+        </script>
+    </body>
+
+</html>
