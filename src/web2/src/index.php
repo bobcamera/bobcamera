@@ -1,6 +1,6 @@
 <?php
     $date = $_GET['date'];
-    if (!isset($date)) { $date = '20231129'; }
+    if (!isset($date)) { $date = '20240112'; }
 
     $videoDirectory = dirname(__FILE__) . '/videos/' . $date . '/allsky/';
     $videoDirectory2 = 'videos/' . $date . '/allsky/';
