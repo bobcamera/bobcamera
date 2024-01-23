@@ -214,6 +214,7 @@ private:
             Json::Value jsonValue;
 
             jsonValue["time_ns"] = time_in_nanosecs;
+            jsonValue["frame_id"] = image_msg->header.frame_id;
             jsonValue["trackable"] = tracking_msg->state.trackable;
 
             if (current_state_ == RecordingState::BetweenEvents || current_state_ == RecordingState::AfterEnd) {
