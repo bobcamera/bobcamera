@@ -55,14 +55,14 @@
 </head>
 <body>
     <?php
-        $date = $_GET['date'] ?? '20231129';
+        $date = $_GET['date'] ?? '20240112';
         $time = $_GET['time'] ?? 'defaultTime';
     ?>
 
     <div class="video-container">
         <!-- <div class="fab" onclick="toggleSlider()">☀</div>  -->
         <video id="player" playsinline controls autoplay muted>
-            <source src="<?php echo 'videos/' . $date . '/allsky/' . $time . '.mkv'; ?>" />
+            <source src="<?php echo 'videos/' . $date . '/allsky/' . $time . '.mp4'; ?>" />
         </video>
         <!-- <input type="range" id="brightness-control" min="0" max="200" value="100"> -->
     </div>

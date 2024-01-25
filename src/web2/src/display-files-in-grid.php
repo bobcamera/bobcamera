@@ -7,7 +7,7 @@
     $heatMapDirectory = 'videos/' . $date . '/heatmaps';
     $heatMapImagePath = $heatMapDirectory . '/' . $date . '/' . $time . '.png';
     $heatMapPath = $heatMapDirectory . '/heatmap-timelapse-' . $date . '.mp4';
-    $videoPath = $videoDirectory . $time . '.mkv';
+    $videoPath = $videoDirectory . $time . '.mp4';
 
     if (is_dir($videoDirectory)) {
         echo "<div style='display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;'>";

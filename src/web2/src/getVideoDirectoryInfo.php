@@ -1,6 +1,6 @@
 <?php
 // Sanitize and validate input
-$date = isset($_GET['date']) ? preg_replace("/[^0-9]/", "", $_GET['date']) : '20231129';
+$date = isset($_GET['date']) ? preg_replace("/[^0-9]/", "", $_GET['date']) : '20240112';
 
 // Directories for video and heatmap files
 $videoDirectory = dirname(__FILE__) . '/videos/' . $date . '/allsky/' . $date . '/';
@@ -27,7 +27,7 @@ $time = isset($_GET['time']) ? preg_replace("/[^0-9]/", "", $_GET['time']) : sub
 // Construct file paths
 $heatMapImagePath = $heatMapDirectory . '/' . $date . '/' . $time . '.png';
 $heatMapPath = $heatMapDirectory . '/heatmap-timelapse-' . $date . '.mp4';
-$videoPath = $videoDirectory . $time . '.mkv';
+$videoPath = $videoDirectory . $time . '.mp4';
 
 // Timezone and DateTime format (unused in this snippet)
 $timeZone = new DateTimeZone('America/New_York');
