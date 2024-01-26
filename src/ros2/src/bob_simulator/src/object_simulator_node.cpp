@@ -26,8 +26,8 @@ public:
 
         declare_node_parameters();
 
-        generator_ = std::make_unique<CircleFrameGenerator>(std::map<std::string, int>{{"height", frame_height_}, {"width", frame_width_}}, num_objects_, std::pair<int, int>{2, 10}, std::pair<int, int>{5, 30}, cv::Scalar(255,255,255));
-        timer_ = this->create_wall_timer(std::chrono::milliseconds(10), std::bind(&MovingObjectsSimulation::timer_callback, this));
+        generator_ = std::make_unique<CircleFrameGenerator>(std::map<std::string, int>{{"height", frame_height_}, {"width", frame_width_}}, num_objects_, std::pair<int, int>{40, 150}, std::pair<int, int>{5, 30}, cv::Scalar(255,255,255));
+        timer_ = this->create_wall_timer(std::chrono::milliseconds(static_cast<int>(1000.0 / fps_)), std::bind(&MovingObjectsSimulation::timer_callback, this));
     }
 
 private:
@@ -35,6 +35,7 @@ private:
     int frame_width_;
     int frame_height_;
     int num_objects_;
+    int fps_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
     rclcpp::TimerBase::SharedPtr timer_;
     std::string image_publish_topic_;
@@ -61,6 +62,10 @@ private:
             ParameterNode::ActionParam(
                 rclcpp::Parameter("num_objects", 5), 
                 [this](const rclcpp::Parameter& param) {num_objects_ = param.as_int();}
+            ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("video_fps", 30.0), 
+                [this](const rclcpp::Parameter& param) {fps_ = static_cast<int>(param.as_double());}
             ),
         };
         add_action_parameters(params);
