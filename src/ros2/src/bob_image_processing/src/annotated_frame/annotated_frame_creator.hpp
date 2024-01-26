@@ -64,7 +64,7 @@ public:
 
         if (total_width != fontScaleWidth)
         {
-            fontScale = get_optimal_font_scale(status_message, total_width * 0.65);
+            fontScale = get_optimal_font_scale(status_message, total_width * 0.30);
             fontScaleWidth = total_width;
         }
 
@@ -75,80 +75,107 @@ public:
         {
             auto id = detection.id;
             TrackingStateEnum tracking_state = TrackingStateEnum(detection.state);
-
-            cv::Rect bbox = get_sized_bbox(detection.bbox);
-            detections[detection.id] = bbox;
-            cv::Point p1(bbox.x, bbox.y);
-            cv::Point p2(bbox.x + bbox.width, bbox.y + bbox.height);
-            cv::Scalar color = _color(tracking_state);
-            cv::rectangle(annotated_frame, p1, p2, color, bbox_line_thickness, 1);
-            cv::putText(annotated_frame, std::to_string(id), cv::Point(p1.x, p1.y - 4), cv::FONT_HERSHEY_SIMPLEX, fontScale, color, 2);
-            if (enable_cropped_tracks && tracking_state == TrackingStateEnum::ActiveTarget)
+            if (tracking_state == TrackingStateEnum::ActiveTarget || tracking_state == TrackingStateEnum::ProvisionaryTarget)
             {
-                int margin = (cropped_track_counter == 0) ? 0 : 10;
-                double zoom_w = bbox.width * zoom_factor;
-                double zoom_h = bbox.height * zoom_factor;
-                int cropped_image_x = 10 + (cropped_track_counter * zoom_w) + margin;
-                int cropped_image_y = total_height - (zoom_h + 10);
-                if (cropped_image_x + zoom_w < total_width)
+                cv::Rect bbox = get_sized_bbox(detection.bbox);
+                detections[detection.id] = bbox;
+                cv::Point p1(bbox.x, bbox.y);
+                cv::Point p2(bbox.x + bbox.width, bbox.y + bbox.height);
+                cv::Scalar color = _color(tracking_state);
+
+                double orientation = detection.covariance_ellipse_orientation;
+                double semi_major_axis = detection.covariance_ellipse_semi_major_axis;
+                double semi_minor_axis = detection.covariance_ellipse_semi_minor_axis;
+
+                cv::RotatedRect ellipse;
+                ellipse.center = cv::Point2f(bbox.x + bbox.width / 2, bbox.y + bbox.height / 2);
+                ellipse.size = cv::Size2f(semi_major_axis * 2, semi_minor_axis * 2);
+                ellipse.angle = orientation * 180 / M_PI; 
+
+                if (enable_cropped_tracks)
                 {
-                    try
+                    int margin = (cropped_track_counter == 0) ? 0 : 10;
+                    double zoom_w = bbox.width * zoom_factor;
+                    // double zoom_h = bbox.height * zoom_factor;
+                    int cropped_image_x = 10 + (cropped_track_counter * zoom_w) + margin;
+                    // int cropped_image_y = total_height - (zoom_h + 10);
+                    if (cropped_image_x + zoom_w < total_width)
                     {
-                        cv::Mat cropped_image = annotated_frame(cv::Rect(bbox.x, bbox.y, bbox.width, bbox.height));
-                        cv::resize(cropped_image, cropped_image, cv::Size(zoom_w, zoom_h));
-                        cropped_image.copyTo(annotated_frame(cv::Rect(cropped_image_x, cropped_image_y, zoom_w, zoom_h)));
+                        try
+                        {
+                            cv::Mat cropped_image = annotated_frame(cv::Rect(bbox.x, bbox.y, bbox.width, bbox.height));
+                            const double cropped_percentage = 0.04;  
+                            int cropped_size = static_cast<int>(std::min(total_width, total_height) * cropped_percentage);
+
+                            cv::Mat resized_cropped_image;
+                            cv::resize(cropped_image, resized_cropped_image, cv::Size(cropped_size, cropped_size));
+
+                            int cropped_image_x_position = 10 + (cropped_track_counter * (cropped_size + 10)); 
+                            int cropped_image_y_position = total_height - cropped_size - 10; 
+
+                            resized_cropped_image.copyTo(annotated_frame(cv::Rect(cropped_image_x_position, cropped_image_y_position, cropped_size, cropped_size)));
+
+                            int textHeight = cv::getTextSize(std::to_string(id), cv::FONT_HERSHEY_SIMPLEX, fontScale, 2, nullptr).height;
+                            cv::putText(annotated_frame, std::to_string(id),
+                                        cv::Point(cropped_image_x_position, cropped_image_y_position - textHeight / 2),
+                                        cv::FONT_HERSHEY_SIMPLEX, fontScale, color, 2);
+
+                        }
+                        catch (cv::Exception &e)
+                        {
+                            // Handle the exception
+                        }
+                        cropped_track_counter++;
                     }
-                    catch (cv::Exception &e)
-                    {
-                        // Handle the exception
-                    }
-                    cropped_track_counter++;
                 }
+                cv::rectangle(annotated_frame, p1, p2, color, bbox_line_thickness, 1);
+                cv::putText(annotated_frame, std::to_string(id), cv::Point(p1.x, p1.y - 4), cv::FONT_HERSHEY_SIMPLEX, fontScale, color, 1);
+                cv::ellipse(annotated_frame, ellipse, cv::Scalar(255, 0, 0), 1, cv::LINE_8);
             }
         }
 
-        for (const auto &trajectory : msg_tracking.trajectories)
-        {
-            const auto &trajectory_array = trajectory.trajectory;
-            const bob_interfaces::msg::TrackPoint *previous_trajectory_point = nullptr;
-            for (const auto &trajectory_point : trajectory_array)
-            {
-                if (previous_trajectory_point != nullptr)
-                {
-                    cv::line(annotated_frame,
-                             cv::Point(static_cast<int>(previous_trajectory_point->center.x),
-                                       static_cast<int>(previous_trajectory_point->center.y)),
-                             cv::Point(static_cast<int>(trajectory_point.center.x),
-                                       static_cast<int>(trajectory_point.center.y)),
-                             _color(TrackingStateEnum(trajectory_point.tracking_state)),
-                             bbox_line_thickness);
-                }
-                previous_trajectory_point = &trajectory_point;
-                final_trajectory_points[trajectory.id] = *previous_trajectory_point;
-            }
-        }
+        // for (const auto &trajectory : msg_tracking.trajectories)
+        // {
+        //     const auto &trajectory_array = trajectory.trajectory;
+        //     const bob_interfaces::msg::TrackPoint *previous_trajectory_point = nullptr;
+        //     for (const auto &trajectory_point : trajectory_array)
+        //     {
+        //         if (previous_trajectory_point != nullptr)
+        //         {
+        //             cv::line(annotated_frame,
+        //                      cv::Point(static_cast<int>(previous_trajectory_point->center.x),
+        //                                static_cast<int>(previous_trajectory_point->center.y)),
+        //                      cv::Point(static_cast<int>(trajectory_point.center.x),
+        //                                static_cast<int>(trajectory_point.center.y)),
+        //                      _color(TrackingStateEnum(trajectory_point.tracking_state)),
+        //                      bbox_line_thickness);
+        //         }
+        //         previous_trajectory_point = &trajectory_point;
+        //         final_trajectory_points[trajectory.id] = *previous_trajectory_point;
+        //     }
+        // }
 
-        for (const auto &prediction : msg_tracking.trajectories)
-        {
-            const auto &prediction_array = prediction.trajectory;
-            if (final_trajectory_points.count(prediction.id) > 0)
-            {
-                auto &previous_prediction_point = final_trajectory_points[prediction.id];
-                for (const auto &prediction_point : prediction_array)
-                {
-                    if (!previous_prediction_point.center.x && !previous_prediction_point.center.y)
-                    {
-                        cv::line(annotated_frame,
-                                 cv::Point(static_cast<int>(previous_prediction_point.center.x),
-                                           static_cast<int>(previous_prediction_point.center.y)),
-                                 cv::Point(static_cast<int>(prediction_point.center.x),
-                                           static_cast<int>(prediction_point.center.y)),
-                                 prediction_colour, bbox_line_thickness);
-                    }
-                    previous_prediction_point = prediction_point;
-                }
-            }
-        }
+        // for (const auto &prediction : msg_tracking.trajectories)
+        // {
+        //     const auto &prediction_array = prediction.trajectory;
+        //     if (final_trajectory_points.count(prediction.id) > 0)
+        //     {
+        //         auto &previous_prediction_point = final_trajectory_points[prediction.id];
+        //         for (const auto &prediction_point : prediction_array)
+        //         {
+        //             if (!previous_prediction_point.center.x && !previous_prediction_point.center.y)
+        //             {
+        //                 cv::line(annotated_frame,
+        //                          cv::Point(static_cast<int>(previous_prediction_point.center.x),
+        //                                    static_cast<int>(previous_prediction_point.center.y)),
+        //                          cv::Point(static_cast<int>(prediction_point.center.x),
+        //                                    static_cast<int>(prediction_point.center.y)),
+        //                          prediction_colour, bbox_line_thickness);
+        //             }
+        //             previous_prediction_point = prediction_point;
+        //         }
+        //     }
+        // }
 
         return annotated_frame;
     }
@@ -178,17 +205,7 @@ public:
         int w = static_cast<int>(bbox_msg.size_x);
         int h = static_cast<int>(bbox_msg.size_y);
 
-        auto size_setting = 32; // settings.find("visualiser_bbox_size");
-        int size;
-        if (size_setting != 0)
-        {
-            size = std::max({w, h, size_setting});
-        }
-        else
-        {
-            size = std::max(w, h);
-        }
-
+        int size = std::max(w, h) + 15;
         int x1 = x + (w / 2) - (size / 2);
         int y1 = y + (h / 2) - (size / 2);
         return {x1, y1, size, size};

@@ -16,7 +16,6 @@ def create_storage_folders(context):
     os.makedirs('assets/config', exist_ok=True)
     os.makedirs('assets/recordings', exist_ok=True)
     os.makedirs('assets/recordings/allsky', exist_ok=True)
-    # os.makedirs('assets/recordings/foreground_mask', exist_ok=True)
     os.makedirs('assets/recordings/heatmaps', exist_ok=True)
     os.makedirs('assets/recordings/json', exist_ok=True)
     os.makedirs('assets/masks', exist_ok=True)
@@ -76,11 +75,13 @@ def application_config(context):
             yaml_output['simulated_frame_provider_node']['ros__parameters']['num_objects'] = simulation_num_objects
             yaml_output['simulated_frame_provider_node']['ros__parameters']['height'] = simulation_height
             yaml_output['simulated_frame_provider_node']['ros__parameters']['width'] = simulation_width
+            yaml_output['simulated_frame_provider_node']['ros__parameters']['video_fps'] = fps
 
             # simulation_overlay_provider_node
             yaml_output['simulation_overlay_provider_node']['ros__parameters']['num_objects'] = simulation_num_objects
             yaml_output['simulation_overlay_provider_node']['ros__parameters']['height'] = simulation_height
             yaml_output['simulation_overlay_provider_node']['ros__parameters']['width'] = simulation_width
+            yaml_output['simulation_overlay_provider_node']['ros__parameters']['video_fps'] = fps
 
             # mask_application_node
             yaml_output['mask_application_node']['ros__parameters']['mask_file'] = tracking_mask_file
@@ -113,12 +114,6 @@ def application_config(context):
 
             # allsky_recorder_node
             yaml_output['allsky_recorder_node']['ros__parameters']['video_fps'] = fps
-
-            # json_recorder_node
-            yaml_output['json_recorder_node']['ros__parameters']['video_fps'] = fps
-
-            # foreground_mask_recorder_node
-            yaml_output['foreground_mask_recorder_node']['ros__parameters']['video_fps'] = fps
 
             if source in ('\'rtsp\'', '\'rtsp_overlay\''):
                 (onvif_success, rtsp_user, rtsp_password, rtsp_host, rtsp_port) = get_onvif_config(rtsp_url)
