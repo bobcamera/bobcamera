@@ -12,7 +12,7 @@ namespace SORT
 {
     class Tracker {
     public:
-        Tracker(const std::map<std::string, std::string>& settings, rclcpp::Logger logger);
+        Tracker(rclcpp::Logger logger);
         ~Tracker() = default;
 
         static float CalculateIou(const cv::Rect& rect1, const cv::Rect& rect2);
@@ -48,7 +48,6 @@ namespace SORT
         void set_max_coast_cycles(size_t max_coast_cycles);
 
     private:
-        std::map<std::string, std::string> settings_;
         rclcpp::Logger logger_;
         std::map<int, Track> tracks_;
         int total_trackers_started_;  

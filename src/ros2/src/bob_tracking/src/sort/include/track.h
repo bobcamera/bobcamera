@@ -3,18 +3,19 @@
 #include <opencv2/core.hpp>
 #include "../include/kalman_filter.h"
 #include "../../bob_shared/include/tracking_state.hpp"
-
+#include <rclcpp/rclcpp.hpp>
 
 class Track {
 public:
-    Track();
+Track();
+    Track(rclcpp::Logger logger);
     ~Track() = default;
 
-    void Init(const cv::Rect& bbox);
-    void Predict();
-    void Update(const cv::Rect& bbox);
-    float GetNIS() const;
-    bool isActive() const;
+    void init(const cv::Rect& bbox);
+    void predict();
+    void update(const cv::Rect& bbox);
+    float get_nis() const;
+    bool is_active() const;
     bool is_tracking() const;
     int get_id() const;
     int get_coast_cycles() const;
@@ -26,22 +27,22 @@ public:
     const std::vector<std::pair<cv::Point, TrackingStateEnum>>& get_center_points() const;
     const std::vector<cv::Point>& get_predictor_center_points() const;
     TrackingStateEnum get_tracking_state() const;
-    bool bbox_overlap(const cv::Rect &r1, const cv::Rect &r2) const;
+    std::tuple<double, double, double> get_ellipse() const;
 
 private:
-    Eigen::VectorXd ConvertBboxToObservation(const cv::Rect& bbox) const;
-    cv::Rect ConvertStateToBbox(const Eigen::VectorXd &state) const;
+    Eigen::VectorXd convert_bbox_to_observation(const cv::Rect& bbox) const;
+    cv::Rect convert_state_to_bbox(const Eigen::VectorXd &state) const;
     
     SORT::KalmanFilter kf_;
     TrackingStateEnum tracking_state_;
     std::vector<std::pair<cv::Point, TrackingStateEnum>> center_points_;
     std::vector<cv::Point> predictor_center_points_;
-    cv::Rect last_bbox_;
-
-    int track_stationary_threshold_; // base on fps
-    int stationary_track_counter_; 
+    int track_stationary_threshold_;
+    int stationary_track_counter_;
     int coast_cycles_;
     int hit_streak_;
     int id_;
-    int min_hits_; // base on fps
+    int min_hits_;
+    rclcpp::Logger logger_;
+    cv::Rect last_bbox_;
 };

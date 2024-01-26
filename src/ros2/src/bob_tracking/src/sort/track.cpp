@@ -1,14 +1,25 @@
 #include "include/track.h"
 
+Track::Track() : kf_(8, 4),
+                 tracking_state_(ProvisionaryTarget),
+                 track_stationary_threshold_(50),
+                 stationary_track_counter_(0),
+                 coast_cycles_(0),
+                 hit_streak_(0),
+                 min_hits_(2),
+                 logger_(rclcpp::get_logger("track_logger"))  
+{
+}
 
-Track::Track() 
+Track::Track(rclcpp::Logger logger) 
     : kf_(8, 4),
       tracking_state_(ProvisionaryTarget),
       track_stationary_threshold_(25),
       stationary_track_counter_(0),
       coast_cycles_(0),
       hit_streak_(0),
-      min_hits_(2)
+      min_hits_(2),
+      logger_(logger)
 {
 
     float fps = 50.0f; // placeholder
@@ -24,7 +35,7 @@ Track::Track()
             0, 0, 0, 0, 1, 0, 0, 0,
             0, 0, 0, 0, 0, 1, 0, 0,
             0, 0, 0, 0, 0, 0, 1, 0,
-            0, 0, 0, 0, 0, 0, 0, 1;
+            0, 0, 0, 0, 0, 0, 0, 1;   // time to intercept scaling
 
     // Give high uncertainty to the unobservable initial velocities
     kf_.P_ <<
@@ -66,14 +77,12 @@ Track::Track()
 }
 
 // Get predicted locations from existing trackers
-void Track::Predict() 
+void Track::predict() 
 {
     kf_.Predict();
-    
     cv::Rect predicted_bbox = get_bbox();
     cv::Point center(predicted_bbox.x + predicted_bbox.width / 2, predicted_bbox.y + predicted_bbox.height / 2);
 
-    // hit streak count will be reset
     if (coast_cycles_ > 0) 
     {
         hit_streak_ = 0;
@@ -91,64 +100,38 @@ void Track::Predict()
         }
     }
 
-    // center_points_.push_back(std::make_pair(center, tracking_state_));  // THIS NOT NEEDED?
     predictor_center_points_.push_back(center);
-
-    // accumulate coast cycle count
     coast_cycles_++;
 
-    // Add logic to check if the track is stationary.
-    // cv::Rect predicted_bbox = get_bbox();
-    if (bbox_overlap(last_bbox_, predicted_bbox) == false)
-    {
-        stationary_track_counter_++;
-    }
-    else
-    {
-        stationary_track_counter_ = 0;
-    }
-
-    int stationary_scavanage_threshold = (int)std::floor((double)track_stationary_threshold_ * 1.5);
-
-    // Logic to mark track as lost if stationary for too long.
-    if (stationary_track_counter_ >= track_stationary_threshold_ && stationary_track_counter_ < stationary_scavanage_threshold)
-    {
-        tracking_state_ = LostTarget;
-    }
-
-    last_bbox_ = predicted_bbox; // Update the last_bbox_
+    // last_bbox_ = predicted_bbox; // Update the last_bbox_
 }
 
 
 // Update matched trackers with assigned detections
-void Track::Update(const cv::Rect& bbox) 
+void Track::update(const cv::Rect& bbox) 
 {
     coast_cycles_ = 0;
     hit_streak_++;
 
-    if (hit_streak_ >= min_hits_) 
+    if (hit_streak_ >= min_hits_)
     {
         tracking_state_ = ActiveTarget;
     }
 
     // observation - center_x, center_y, area, ratio
-    Eigen::VectorXd observation = ConvertBboxToObservation(bbox);
+    Eigen::VectorXd observation = convert_bbox_to_observation(bbox);
     kf_.Update(observation);
 
     cv::Point center(bbox.x + bbox.width / 2, bbox.y + bbox.height / 2);
     center_points_.push_back(std::make_pair(center, tracking_state_));
     predictor_center_points_.clear();
 
-    // Reset the stationary track counter since the object is seen moving.
-    stationary_track_counter_ = 0;
-    last_bbox_ = bbox;
-
 }
 
 
 // Create and initialize new trackers for unmatched detections, with initial bounding box
-void Track::Init(const cv::Rect &bbox) {
-    kf_.x_.head(4) << ConvertBboxToObservation(bbox);
+void Track::init(const cv::Rect &bbox) {
+    kf_.x_.head(4) << convert_bbox_to_observation(bbox);
     hit_streak_++;
 }
 
@@ -158,12 +141,16 @@ void Track::Init(const cv::Rect &bbox) {
  * @return
  */
 cv::Rect Track::get_bbox() const {
-    return ConvertStateToBbox(kf_.x_);
+    return convert_state_to_bbox(kf_.x_);
 }
 
 
-float Track::GetNIS() const {
+float Track::get_nis() const {
     return kf_.NIS_;
+}
+
+std::tuple<double, double, double> Track::get_ellipse() const {
+    return kf_.ellipse_;
 }
 
 
@@ -175,7 +162,7 @@ float Track::GetNIS() const {
  * @param bbox
  * @return
  */
-Eigen::VectorXd Track::ConvertBboxToObservation(const cv::Rect& bbox) const{
+Eigen::VectorXd Track::convert_bbox_to_observation(const cv::Rect& bbox) const{
     Eigen::VectorXd observation = Eigen::VectorXd::Zero(4);
     auto width = static_cast<float>(bbox.width);
     auto height = static_cast<float>(bbox.height);
@@ -193,7 +180,7 @@ Eigen::VectorXd Track::ConvertBboxToObservation(const cv::Rect& bbox) const{
  * @param state
  * @return
  */
-cv::Rect Track::ConvertStateToBbox(const Eigen::VectorXd &state) const {
+cv::Rect Track::convert_state_to_bbox(const Eigen::VectorXd &state) const {
     // state - center_x, center_y, width, height, v_cx, v_cy, v_width, v_height
     auto width = std::max(0, static_cast<int>(state[2]));
     auto height = std::max(0, static_cast<int>(state[3]));
@@ -203,7 +190,7 @@ cv::Rect Track::ConvertStateToBbox(const Eigen::VectorXd &state) const {
     return rect;
 }
 
-bool Track::isActive() const {
+bool Track::is_active() const {
     return tracking_state_ == ActiveTarget;
 }
 
@@ -249,17 +236,6 @@ const std::vector<std::pair<cv::Point, TrackingStateEnum>>& Track::get_center_po
 const std::vector<cv::Point>& Track::get_predictor_center_points() const 
 {
     return predictor_center_points_;
-}
-
-bool Track::bbox_overlap(const cv::Rect &r1, const cv::Rect &r2) const
-{
-    if ((r1.width == 0 || r1.height == 0 || r2.width == 0 || r2.height == 0) ||
-        (r1.x > (r2.x + r2.width) || r2.x > (r1.x + r1.width)) ||
-        (r1.y > (r2.y + r2.height) || r2.y > (r1.y + r1.height)))
-    {
-        return false;
-    }
-    return true;
 }
 
 int Track::get_coast_cycles() const 

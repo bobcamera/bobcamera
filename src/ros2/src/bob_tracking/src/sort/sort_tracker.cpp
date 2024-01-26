@@ -1,9 +1,9 @@
 #include "include/sort_tracker.h"
 
 
-SORT::Tracker::Tracker(const std::map<std::string, std::string>& settings, rclcpp::Logger logger)
-    : settings_(settings), logger_(logger), total_trackers_started_(0), total_trackers_finished_(0),
-     max_coast_cycles_(45), tracker_max_active_trackers_(100)
+SORT::Tracker::Tracker(rclcpp::Logger logger)
+    : logger_(logger), total_trackers_started_(0), total_trackers_finished_(0),
+     max_coast_cycles_(25), tracker_max_active_trackers_(100)
 {
 
 }
@@ -143,7 +143,7 @@ void SORT::Tracker::update_trackers(const std::vector<cv::Rect> &detections, con
     {
         predict_threads.emplace_back([&track]() 
         { 
-            track.second.Predict(); 
+            track.second.predict(); 
         });
     }
     for (auto &t : predict_threads) 
@@ -168,7 +168,7 @@ void SORT::Tracker::update_trackers(const std::vector<cv::Rect> &detections, con
         const auto &ID = match.first;
         update_threads.emplace_back([this, &ID, &match]() 
         { 
-            tracks_[ID].Update(match.second); 
+            tracks_[ID].update(match.second); 
         });
     }
     for (auto &t : update_threads) 
@@ -180,8 +180,8 @@ void SORT::Tracker::update_trackers(const std::vector<cv::Rect> &detections, con
     for (const auto &det : unmatched_det) 
     {
         if (tracks_.size() < tracker_max_active_trackers_) {
-            Track tracker;
-            tracker.Init(det);
+            Track tracker(logger_);
+            tracker.init(det);
             total_trackers_started_++; 
             tracker.set_id(total_trackers_started_);
             tracks_[total_trackers_started_] = tracker;
@@ -211,7 +211,7 @@ const std::vector<Track> SORT::Tracker::get_active_trackers() const
     std::vector<Track> activeTracks;
     for (const auto &pair : tracks_) 
     {
-        if (pair.second.isActive()) 
+        if (pair.second.is_active()) 
         {  
             activeTracks.push_back(pair.second);
         }

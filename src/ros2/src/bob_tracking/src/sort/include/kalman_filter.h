@@ -27,6 +27,8 @@ namespace SORT {
          */
         virtual void Coast();
 
+        std::tuple<double, double, double> covarianceEllipse(const Eigen::MatrixXd& P_predict, double deviations);
+
         /**
          * Predict without measurement update
          */
@@ -81,6 +83,8 @@ namespace SORT {
         float eps_max_; 
 
         int count_;
+
+        std::tuple<double, double, double> ellipse_;
     };
 
 }

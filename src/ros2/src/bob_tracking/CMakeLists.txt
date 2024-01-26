@@ -39,12 +39,11 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
 ENDIF()
 
 # Tracking Node
-add_library(track_provider_node SHARED src/track_provider.cpp src/tracking/sort/kalman_filter.cpp src/tracking/sort/sort_tracker.cpp src/tracking/sort/track.cpp)
+add_library(track_provider_node SHARED src/track_provider.cpp src/sort/kalman_filter.cpp src/sort/sort_tracker.cpp src/sort/track.cpp)
 target_compile_definitions(track_provider_node PRIVATE "COMPOSITION_BUILDING_DLL")
 target_link_libraries(track_provider_node PUBLIC boblib)
 ament_target_dependencies(track_provider_node PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV rclcpp_components bob_interfaces)
 rclcpp_components_register_nodes(track_provider_node "TrackProvider")
-# install(TARGETS track_provider_node DESTINATION lib/${PROJECT_NAME})
 install(TARGETS track_provider_node DESTINATION lib)
 
 ament_package()
