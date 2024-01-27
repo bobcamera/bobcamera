@@ -1,5 +1,5 @@
 <?php
-$file = $_GET['file'] ?? 'index.php';
+$file = $_GET['file'] ?? 'heatmaps.php';
 $date = $_GET['date'] ?? '20240112';
 $time = $_GET['time'] ?? '1705000021';
 ?>
