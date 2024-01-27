@@ -24,7 +24,7 @@ def generate_launch_description():
     fps_arg_value = EnvironmentVariable('BOB_FPS', default_value="15")
     
     enable_visualiser_arg_value = EnvironmentVariable('BOB_ENABLE_VISUALISER', default_value="True")
-    optimised_arg_value = EnvironmentVariable('BOB_OPTIMISED', default_value="False")
+    optimised_arg_value = EnvironmentVariable('BOB_OPTIMISED', default_value="True")
     
     enable_rosbridge_arg_value = EnvironmentVariable('BOB_ENABLE_ROSBRIDGE', default_value="False")
     enable_recording_arg_value = EnvironmentVariable('BOB_ENABLE_RECORDING', default_value="False")    
