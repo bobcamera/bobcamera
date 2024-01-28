@@ -166,35 +166,38 @@ def generate_launch_description():
 
 def get_onvif_config(rtsp_url):
 
-    credstr = rtsp_url[rtsp_url.index("//"):rtsp_url.index("@")]
-    if credstr.startswith("//"):
-        credstr = credstr.replace("//", "")
+    try:
+        credstr = rtsp_url[rtsp_url.index("//"):rtsp_url.index("@")]
+        if credstr.startswith("//"):
+            credstr = credstr.replace("//", "")
 
-    cred_array = credstr.split(":")
+        cred_array = credstr.split(":")
 
-    hoststr = rtsp_url[rtsp_url.index("@"):]
+        hoststr = rtsp_url[rtsp_url.index("@"):]
 
-    hoststr = hoststr[:hoststr.index("/"):]
-    if hoststr.startswith("@"):
-        hoststr = hoststr.replace("@", "")
+        hoststr = hoststr[:hoststr.index("/"):]
+        if hoststr.startswith("@"):
+            hoststr = hoststr.replace("@", "")
 
-    host_array = hoststr.split(":")
+        host_array = hoststr.split(":")
 
-    user = cred_array[0]
-    password = cred_array[1]
-    host = host_array[0]
-    port = int(host_array[1])
+        user = cred_array[0]
+        password = cred_array[1]
+        host = host_array[0]
+        port = int(host_array[1])
 
-    fall_back_ports = [80, 443, 554]
-    onvif_connection_test_result = test_onvif_connection(host, port, user, password)
-    if onvif_connection_test_result == False:
-        for fall_back_port in fall_back_ports:
-            onvif_connection_test_result = test_onvif_connection(host, fall_back_port, user, password)
-            if onvif_connection_test_result:
-                port = fall_back_port
-                break
+        fall_back_ports = [80, 443, 554]
+        onvif_connection_test_result = test_onvif_connection(host, port, user, password)
+        if onvif_connection_test_result == False:
+            for fall_back_port in fall_back_ports:
+                onvif_connection_test_result = test_onvif_connection(host, fall_back_port, user, password)
+                if onvif_connection_test_result:
+                    port = fall_back_port
+                    break
 
-    return (onvif_connection_test_result, user, password, host, port)
+        return (onvif_connection_test_result, user, password, host, port)
+    except Exception as e:
+        return (False, "", "", "", 0)          
 
 def test_onvif_connection(rtsp_host, rtsp_port, rtsp_user, rtsp_password):
     try:

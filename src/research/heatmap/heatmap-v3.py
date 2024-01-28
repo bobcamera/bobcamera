@@ -1,6 +1,6 @@
 import cv2
 import time
-
+import subprocess
 from datetime import datetime
 import os
 import getopt
@@ -14,7 +14,7 @@ HEATMAPS = "heatmaps"
 JSON = "json"
 HEATMAP_TIMELAPSE = "heatmap-timelapse.mp4"
 
-def process_dir(recordings_dir, resize_factor=1, create_timelapse=True):
+def process_dir(recordings_dir, resize_factor=1, create_timelapse=True, convert_to_mp4=True):
 
     date_time_for_path = datetime.now()
     enable_json_file_processing = False
@@ -85,8 +85,11 @@ def process_dir(recordings_dir, resize_factor=1, create_timelapse=True):
 
     print(f"Generating heatmap timelapse video took: {int((time.time() - timelapse_start_time))} seconds")
 
-    process_housekeeping(recordings_dir, allsky_processed_dir, json_processed_dir, heatmaps_processed_dir, 
+    allsky_mkv_dir = process_housekeeping(recordings_dir, allsky_processed_dir, json_processed_dir, heatmaps_processed_dir, 
                          heatmap_timelapse_filename, create_timelapse, enable_json_file_processing)
+    
+    if convert_to_mp4:
+        process_mkv_to_mp4_conversion(allsky_mkv_dir)
 
 def process_timelapse(input_folder, output_file, fps=30, resize_factor=1):
 
@@ -157,6 +160,29 @@ def process_housekeeping(recordings_dir, allsky_working_dir, json_working_dir, h
 
         heatmap_timelapse_filename = os.path.join(processed_dir, HEATMAP_TIMELAPSE)
         shutil.move(heatmap_timelapse_working_filename, heatmap_timelapse_filename)
+
+    return allsky_processed_dir
+
+def process_mkv_to_mp4_conversion(allsky_mkv_dir, delete_mkv_file=True):
+
+    mkv_files = os.listdir(allsky_mkv_dir)
+    for mkv_file in mkv_files:
+
+        mkv_path = os.path.join(allsky_mkv_dir, mkv_file)
+        base = os.path.basename(mkv_file)
+        root_name = os.path.splitext(base)[0]        
+        mp4_filename = root_name + ".mp4"
+        mp4_path = os.path.join(allsky_mkv_dir, mp4_filename)        
+
+        #ffmpeg -i mkv_file -codec copy mp4_path
+        response = subprocess.call(["ffmpeg", "-i", mkv_path, "-codec", "copy", mp4_path])
+
+        if response == 0:
+            print (f'Success: converted {mkv_path} to {mp4_path}, delete file = {delete_mkv_file}')
+            if delete_mkv_file:
+                os.remove(mkv_path)
+        else:
+            print (f'Error: converted {mkv_path} to {mp4_path}')
 
 def move_files(source_dir, destination_dir):
     files = os.listdir(source_dir)

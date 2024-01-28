@@ -16,7 +16,7 @@
     $heatMapDirectory = dirname(__FILE__) . '/videos/' . $date . '/heatmaps';
     $heatMapImagePath = $heatMapDirectory . '/' . $time . '.jpg';
     $heatMapPath = $heatMapDirectory . '/heatmap-timelapse-' . $date . '.mp4';
-    $videoPath = $videoDirectory . $time . '.mkv';
+    $videoPath = $videoDirectory . $time . '.mp4';
 
     $heatmapPath2 = '/videos/' . $date . '/heatmaps';
 
@@ -251,7 +251,7 @@
         // myLayout.registerComponent('Video Player', function(container, componentState) {
         //     container.getElement().html(`
         //     <video id="player" playsinline controls>
-        //         <source src="<?php echo 'videos/' . $date . '/allsky/' . $time . '.mkv'; ?>" />
+        //         <source src="<?php echo 'videos/' . $date . '/allsky/' . $time . '.mp4'; ?>" />
         //     </video>
         //     <input type="range" id="brightnessSlider" min="0" max="200" value="100" style="position: absolute; z-index: 10; width: 150px;">
         //     <div id="plyr-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none;">
@@ -270,7 +270,7 @@
         myLayout.registerComponent('Video Player', function(container, componentState) {
             container.getElement().html(`
             <video id="player" playsinline controls>
-                <source src="<?php echo 'videos/' . $date . '/allsky/' . $time . '.mkv'; ?>" />
+                <source src="<?php echo 'videos/' . $date . '/allsky/' . $time . '.mp4'; ?>" />
             </video>
             <input type="range" id="brightnessSlider" min="0" max="200" value="100" style="position: absolute; z-index: 10; width: 150px; top: 55px; left: 10px;">
             <input type="range" id="opacitySlider" min="0" max="100" value="30" style="position: absolute; z-index: 10; width: 150px; top: 20px; left: 10px;">
@@ -349,7 +349,7 @@
             if (videoInfoComponent) {
                 let content = `
                 <div class="controls">
-                    <p>Recording File Name: <?php echo $time; ?>.mkv</p>
+                    <p>Recording File Name: <?php echo $time; ?>.mp4</p>
                     <p>Recording File Location: <?php echo 'videos/' . $date . '/allsky/' . $date; ?></p>
                     <p>Duration: ${videoData.duration} seconds</p>
                     <p>Current Time: ${videoData.currentTime} seconds</p>
@@ -394,7 +394,7 @@
                 $latestTimestamp = 0;
                 if ($handle = opendir($directory)) {
                     while (false !== ($file = readdir($handle))) {
-                        if (pathinfo($file, PATHINFO_EXTENSION) == 'mkv') {
+                        if (pathinfo($file, PATHINFO_EXTENSION) == 'mp4') {
                             $timestamp = extractTimestampFromFilename($file);
                             $ffmpegOutput = shell_exec("ffmpeg -i " . escapeshellarg($directory . '/' . $file) . " 2>&1");
                             $duration = parseDuration($ffmpegOutput);
