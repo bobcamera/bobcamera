@@ -22,17 +22,13 @@
     </a>
 </h6>
 <ul class="nav flex-column">
-    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="iframe.php?file=html/3d-recorded-video.html"><i class="bi bi-camera-video"></i>Recorded Video in 3D</a></li>
-    <li class="nav-item">
-        <a class="nav-link d-flex align-items-center gap-2" aria-current="page" href="iframe.php?file=heatmaps.php&date=20240112#">
-        <i class="bi bi-camera-video"></i>
-            Heatmap Navigation
-        </a>
+    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="iframe.php?file=html/3d-recorded-video.html">
+        <i class="bi bi-camera-video"></i>Recorded Video in 3D</a>
     </li>
     <li class="nav-item">
-        <a class="nav-link d-flex align-items-center gap-2" href="iframe.php?file=display-files-in-grid.php&date=<?php echo $date; ?>">
-            <i class="bi bi-camera-video"></i>
-            Recording Grid
+        <a class="nav-link d-flex align-items-center gap-2" aria-current="page" href="iframe.php?file=recordings.php">
+        <i class="bi bi-camera-video"></i>
+            Recording Navigation
         </a>
     </li>
 </ul>
