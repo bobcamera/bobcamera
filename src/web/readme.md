@@ -62,4 +62,4 @@ This repository contains the code for the BobCamera Web GUI. It is designed to w
 
 ### Additional Resources
 
-- [BobCamera ROS2 Source Code](https://github.com/bobcamera/bobcamera/src/ros2)
+- [BobCamera ROS2 Source Code](https://github.com/bobcamera/bobcamera/tree/main/src/ros2)
