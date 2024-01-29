@@ -145,6 +145,10 @@
                 <a href="2d-Stream-With-Controls.html"><button id="2dViewBtn" title="View Stream in 2D"><i class="far fa-square"></i></button></a>
             </div>
             <div class="metric-header"> ------- Incoming ROS2 Messages ------- </div><br>
+            <div hidden class="metric-readings">
+                <label>BOB Version:</label>
+                <span id="applicationVersion">0</span>
+            </div>
             <div class="metric-readings">
                 <label for="recent_avg_message_rate">
                     <div class="tooltip-container">Incoming Frame Rate: <span class="tooltip-text">The average per second rate for the last 4 incoming ROS2 messages received</span>
@@ -197,8 +201,8 @@
             <div id="maskControlsContainer" class="hidden">
                 <button id="editMaskBtn" title="Edit Mask"><i class="fa-solid fa-pen-to-square"></i></button>
                 <button id="invertMaskBtn" title="Invert Mask" class=""><i class="fas fa-clone"></i></button>
-                <button id="saveMaskJPG" title="Download JPG"><i class="fas fa-download"></i></button>
-                <!-- <button id="saveMaskSVG" title="Download SVG"><i class="fas fa-download"></i></button> -->
+                <!-- <button id="saveMaskJPG" title="Download JPG"><i class="fas fa-download"></i></button>
+                <button id="saveMaskSVG" title="Download SVG"><i class="fas fa-download"></i></button> -->
                 <button id="sendMaskJPG" title="Send Mask As ROS2 Message" style="background-color: lightgreen;"><i class="fa-solid fa-paper-plane"></i></button>
                 <button id="clearMaskBtn" title="Clear Mask" style="background-color: rosybrown;"><i class="fas fa-trash"></i></button>
                 <button id="cancelMaskBtn" title="Cancel" class="hidden"><i class="fas fa-xmark"></i></i></button>
@@ -246,7 +250,7 @@
     const editMaskBtn = document.getElementById('editMaskBtn');
     const invertMaskBtn = document.getElementById('invertMaskBtn');
     const clearMaskBtn = document.getElementById('clearMaskBtn');
-    const saveMaskJPGBtn = document.getElementById('saveMaskJPG');
+    // const saveMaskJPGBtn = document.getElementById('saveMaskJPG');
     // const saveMaskSVGBtn = document.getElementById('saveMaskSVG');
     const sendMaskJPGButton = document.getElementById('sendMaskJPG');
     const cancelMaskBtn = document.getElementById('cancelMaskBtn');
@@ -278,20 +282,34 @@
     var currentRos2ImageTopic = ros2ImageTopic2; // Set the ROS2 Topic to Subscribe to
     var compressedImageMsgType = 'sensor_msgs/msg/CompressedImage'; // define the Msg Type of the ROS2 Subsc. Topic
 
-    var maskProviderTopic = new ROSLIB.Topic({
-        ros: ros,
-        name: currentRos2ImageTopic+"/mask",
-        messageType: compressedImageMsgType
-    });
-
     var topicStream = new ROSLIB.Topic({
         ros: ros,
         name: currentRos2ImageTopic,
         messageType: compressedImageMsgType
     });
+    
+    var versionService = new ROSLIB.Service({
+        ros : ros, 
+        name : '/bob/webapi/application/info', 
+        serviceType : 'bob_interfaces/srv/ApplicationInfo'
+    });    
+
+    var updateMaskService = new ROSLIB.Service({
+        ros : ros, 
+        name : '/bob/webapi/mask/update', 
+        serviceType : 'bob_interfaces/srv/MaskUpdate'
+    });
 
     function init() {
         window.addEventListener('DOMContentLoaded', function () {
+            var versionRequest = new ROSLIB.ServiceRequest({empty: ''});
+            versionService.callService(versionRequest, function(result) {
+                console.log("Bob-ROS2 Version:", result.version);
+                document.getElementById('applicationVersion').innerText = result.version;
+                console.log(`Bob-ROS2 Frame Size: w=${result.frame_width}  h=${result.frame_height}`);
+                console.log(`Bob-ROS2 FPS: ${result.video_fps}`);                
+            });
+
             topicStream.subscribe(function (message) {
                 updateMessageRate();
                 if (!firstImageReceived) {
@@ -334,7 +352,6 @@
     }
 
     function sendMaskJPG() {
-        console.log("sendMaskJPG");
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = maskCanvas.width;
         tempCanvas.height = maskCanvas.height;
@@ -342,13 +359,37 @@
         tempCtx.fillStyle = 'white';
         tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
         tempCtx.drawImage(maskCanvas, 0, 0);
-        const jpgDataUrl = tempCanvas.toDataURL('image/jpeg');
-        console.log("jpgDataUrl: "+jpgDataUrl);
-        var data = jpgDataUrl;
-        var imageMessage = new ROSLIB.Message({ format: "jpeg", data: data.replace("data:image/jpeg;base64,", "") });
-        console.log("ROSLIB.Message: "+imageMessage);
-        console.log("ROSLIB.Topic: "+maskProviderTopic);
-        maskProviderTopic.publish(imageMessage);
+
+        const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+        const rawPixelData = [];
+        for (let i = 0; i < imageData.data.length; i += 4) {
+            // Convert RGB to grayscale using the ITU-R BT.709 standard
+            const grayValue = Math.round(imageData.data[i] * 0.2126 + imageData.data[i + 1] * 0.7152 + imageData.data[i + 2] * 0.0722);
+            rawPixelData.push(grayValue);
+        }
+        var request = new ROSLIB.ServiceRequest({
+            invert: false,
+            file_name: 'mask.jpg', // or .pgm
+            mask: {
+                header: {
+                    // ...header data
+                },
+                height: tempCanvas.height,
+                width: tempCanvas.width,
+                encoding: "mono8",
+                is_bigendian: 0,
+                step: tempCanvas.width,  
+                data: rawPixelData  
+            }
+        });
+
+        updateMaskService.callService(request, function(result) {
+            if (result.success) {
+                console.log("Mask sent successfully!");
+            } else {
+                console.error("Failed to send mask:", result.message);
+            }
+        });
     }
 
     function displayImage() {
@@ -461,28 +502,28 @@
         return maskCanvasCtx;
     }
 
-function updateDimensions() {
-    console.log("updateDimensions");
-    let newHeight = videoStream.offsetHeight;
-    let newWidth = videoStream.offsetWidth;
-    streamContainer.style.height = `${newHeight}px`;
-    streamContainer.style.width = `${newWidth}px`;
-    streamContainer.height = newHeight * devicePixelRatio;
-    streamContainer.width = newWidth * devicePixelRatio;
-    maskCanvas.style.height = `${newHeight}px`;
-    maskCanvas.style.width = `${newWidth}px`;
-    maskCanvas.width = maskCanvas.clientWidth * devicePixelRatio;
-    maskCanvas.height = maskCanvas.clientHeight * devicePixelRatio;
-    bufferingOverlay.style.height = `${newHeight}px`;
-    bufferingOverlay.style.width = `${newWidth}px`;
-    bufferingOverlay.width = newWidth * devicePixelRatio;
-    bufferingOverlay.height = newHeight * devicePixelRatio;
-    maskCanvasCtx.scale(devicePixelRatio, devicePixelRatio);
-    console.log(maskCanvas.clientWidth);
-    console.log(maskCanvas.clientHeight);
-    console.log(maskCanvas.offsetWidth);
-    console.log(maskCanvas.offsetHeight);
-}
+    function updateDimensions() {
+        console.log("updateDimensions");
+        let newHeight = videoStream.offsetHeight;
+        let newWidth = videoStream.offsetWidth;
+        streamContainer.style.height = `${newHeight}px`;
+        streamContainer.style.width = `${newWidth}px`;
+        streamContainer.height = newHeight * devicePixelRatio;
+        streamContainer.width = newWidth * devicePixelRatio;
+        maskCanvas.style.height = `${newHeight}px`;
+        maskCanvas.style.width = `${newWidth}px`;
+        maskCanvas.width = maskCanvas.clientWidth * devicePixelRatio;
+        maskCanvas.height = maskCanvas.clientHeight * devicePixelRatio;
+        bufferingOverlay.style.height = `${newHeight}px`;
+        bufferingOverlay.style.width = `${newWidth}px`;
+        bufferingOverlay.width = newWidth * devicePixelRatio;
+        bufferingOverlay.height = newHeight * devicePixelRatio;
+        maskCanvasCtx.scale(devicePixelRatio, devicePixelRatio);
+        console.log(maskCanvas.clientWidth);
+        console.log(maskCanvas.clientHeight);
+        console.log(maskCanvas.offsetWidth);
+        console.log(maskCanvas.offsetHeight);
+    }
 
     function saveMaskSVG() {
         let svgContent =
@@ -664,9 +705,9 @@ function updateDimensions() {
     });
 
     // Save Mask JPG Button Event Listner
-    saveMaskJPGBtn.addEventListener('click', () => {
-        saveMaskJPG();
-    });
+    // saveMaskJPGBtn.addEventListener('click', () => {
+    //     saveMaskJPG();
+    // });
 
     // Save Mask SVG Button Event Listner
     // saveMaskSVGBtn.addEventListener('click', () => {
@@ -709,9 +750,6 @@ function updateDimensions() {
 
     // Start the animation loop
     update();
-
-
-
 
 </script>
 

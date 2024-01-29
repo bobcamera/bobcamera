@@ -1,5 +1,5 @@
 <?php
-$file = $_GET['file'] ?? 'heatmaps.php';
+$file = $_GET['file'] ?? 'html/2d-Stream-With-Controls.html';
 $date = $_GET['date'] ?? '20240112';
 $time = $_GET['time'] ?? '1705000021';
 ?>
