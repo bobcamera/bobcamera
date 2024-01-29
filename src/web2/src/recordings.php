@@ -19,6 +19,6 @@
         }
     }
     echo "</ul>";
-    echo "<h4>Dan would you please so the styling to that it looks something like this:</h4>";
+    echo "<h4>Dan would you please look into the styling so that it looks something like this:</h4>";
     echo '<img src="assets/tj-allsky-navigation.png" title="tj-allsky">';
 ?>
