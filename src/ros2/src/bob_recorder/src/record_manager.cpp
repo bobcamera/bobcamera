@@ -182,7 +182,7 @@ private:
                     current_state_ = RecordingState::BetweenEvents;
                     base_filename_ = generate_filename(image_msg);
 
-                    std::string full_path = video_directory_ + "/" + prefix_str_ + base_filename_ + ".mkv";
+                    std::string full_path = video_directory_ + "/" + prefix_str_ + base_filename_ + ".mp4";
                     video_recorder_->open_new_video(full_path, codec_str_, video_fps_, img.size(), img.channels() == 3);
 
                     img_recorder_->update_frame_for_drawing(img);

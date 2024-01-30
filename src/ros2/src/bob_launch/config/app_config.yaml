@@ -119,7 +119,7 @@ allsky_recorder_node:
     tracking_topic: 'bob/tracker/tracking'
     camera_info_topic: bob/camera/all_sky/camera_info
     prefix: ''
-    codec: 'X264'
+    codec: 'mp4v'
     video_fps: 10.0
     seconds_save: 2
 
