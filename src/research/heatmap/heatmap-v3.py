@@ -14,7 +14,7 @@ HEATMAPS = "heatmaps"
 JSON = "json"
 HEATMAP_TIMELAPSE = "heatmap-timelapse.mp4"
 
-def process_dir(recordings_dir, resize_factor=1, create_timelapse=True, convert_to_mp4=True):
+def process_dir(recordings_dir, resize_factor=1, create_timelapse=True, convert_to_mp4=False):
 
     date_time_for_path = datetime.now()
     enable_json_file_processing = False
