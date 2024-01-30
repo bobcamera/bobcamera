@@ -50,6 +50,11 @@ class ONVIFServiceNode(Node):
             
             response.num_configurations = len(configurations)
             response.encoding = configurations[0]['Encoding'].lower()
+            
+            if response.encoding in ['h264', 'h265']:
+                response.frame_width = configurations[0]['Resolution']['Width']
+                response.frame_height = configurations[0]['Resolution']['Height']
+                response.fps = configurations[0]['RateControl']['FrameRateLimit']
 
             response.success = True
 

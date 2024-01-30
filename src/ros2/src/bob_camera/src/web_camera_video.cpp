@@ -345,6 +345,9 @@ private:
                 camera_info_msg_.firmware_version = response->firmware_version;
                 camera_info_msg_.num_configurations = response->num_configurations;
                 camera_info_msg_.encoding = response->encoding;
+                camera_info_msg_.frame_width = response->frame_width;
+                camera_info_msg_.frame_height = response->frame_height;
+                camera_info_msg_.fps = response->fps;
                 // ... other fields ... 
             };
             request_camera_settings(onvif_host_, onvif_port_, onvif_user_, onvif_password_, update_camera_info);

@@ -124,6 +124,9 @@ public:
         jsonCameraInfo["firmware_version"] = camera_info_msg->firmware_version;
         jsonCameraInfo["num_configurations"] = camera_info_msg->num_configurations;
         jsonCameraInfo["encoding"] = camera_info_msg->encoding;
+        jsonCameraInfo["frame_width"] = camera_info_msg->frame_width;
+        jsonCameraInfo["frame_height"] = camera_info_msg->frame_height;
+        jsonCameraInfo["fps"] = camera_info_msg->fps;
         jsonValue["camera_info"] = jsonCameraInfo;
 
         return jsonValue;
