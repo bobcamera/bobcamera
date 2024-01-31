@@ -33,7 +33,9 @@ setup(
     license='TODO: License declaration',
     entry_points={
         'console_scripts': [
-            'onvif_absolute_move = bob_ptz.onvif_absolute_move_ros:main',
+            # 'onvif_absolute_move = bob_ptz.onvif_absolute_move_ros:main',
+            'raster_ptz_client = bob_ptz.raster_ptz_client:main',
+            'raster_image_acquisition_service = bob_ptz.raster_image_acquisition_service:main',
         ],
     },
 )

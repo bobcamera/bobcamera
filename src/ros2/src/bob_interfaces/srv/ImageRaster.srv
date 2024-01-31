@@ -1,0 +1,7 @@
+int32 x
+int32 y
+float32 zoom
+string campaign
+
+---
+bool success
