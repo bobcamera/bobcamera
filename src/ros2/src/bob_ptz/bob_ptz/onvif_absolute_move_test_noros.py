@@ -36,8 +36,6 @@ if moverequest.Position is None:
 def OnvifAbsoluteMoveFromRosMsg():
         global moverequest, ptz
  
-        print(f"YMAX={0.5}")
-        print(f"YMIN={-1}")
         moverequest.Position.PanTilt.x = 0.5
         moverequest.Position.PanTilt.y = -1
         global active

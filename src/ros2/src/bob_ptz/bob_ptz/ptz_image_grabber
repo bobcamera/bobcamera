@@ -1,0 +1,8 @@
+import cv2
+import time
+stream_url = "rtsp://bob:Sky360Sky!@10.20.30.140:554/Streaming/Channels/101"
+cap = cv2.VideoCapture(stream_url) # it can be rtsp or http stream
+ret, frame = cap.read()
+while ret:
+    cv2.imwrite('images_ptz_and_fisheye/grabbed_images/1.jpg'.format(time.time()), frame)
+    ret, frame = cap.read()

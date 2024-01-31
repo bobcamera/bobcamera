@@ -81,26 +81,51 @@ class RasterPTZClient(Node):
                     moverequest.Position.PanTilt.y = min(max(currentStepY,YMIN),YMAX)
                     moverequest.Position.Zoom.x = min(max(0,ZoomMIN),ZoomMAX)
 
+
+                    '''
+                    if XMAX <= self.msg_positiontiltx:
+                        moverequest.Position.PanTilt.x = XMAX
+                    elif self.msg_positiontiltx <= XMIN:
+                        moverequest.Position.PanTilt.x = XMIN
+                    else:
+                        moverequest.Position.PanTilt.x = self.msg_position.pospantiltx
+                
+                    if YMAX <= self.msg_position.pospantilty:
+                        moverequest.Position.PanTilt.y = YMAX
+                    elif self.msg_position.pospantilty <= XMIN:
+                        moverequest.Position.PanTilt.y = YMIN
+                    else:
+                        moverequest.Position.PanTilt.y = self.msg_position.pospantilty
+
+                    if ZoomMAX <= self.msg_position.poszoomx:
+                        moverequest.Position.Zoom.x = ZoomMAX
+                    elif self.msg_position.poszoomx <= ZoomMIN:
+                        moverequest.Position.Zoom.x = ZoomMIN
+                    else:
+                        moverequest.Position.Zoom.x = self.msg_position.poszoomx
+                    '''
+                    #moverequest.Position.PanTilt.x = self.msg_position.pospantiltx
+                    #moverequest.Position.PanTilt.y = self.msg_position.pospantilty
+                    #moverequest.Position.Zoom.x = self.msg_position.poszoomx
+
+                    #global active
                     if active:
                         ptz.Stop({'ProfileToken': moverequest.ProfileToken})
                     active = True  
                     ptz.AbsoluteMove(moverequest)
         
-                           # Create a request object
-                    self.request = ImageRaster.Request()
 
-                    # Set the values of the request
-                    self.request.x =  moverequest.Position.PanTilt.x  # Replace with the actual values
-                    self.request.y = moverequest.Position.PanTilt.y 
-                    self.request.zoom = moverequest.Position.Zoom.x 
-                    self.request.campaign = 'first_campaign'
 
-                    # Call the service
-                    print(f"Ros2 MSG calibrate/v1, CurrentStepX: {currentStepX}, CurrentStepY: {currentStepY}")
-                    self.call_service()
 
+                    ####################################################################################
+                    
+                    
+                    #Polling ONVIF if target has been reached
+                    #while((ONVIFGetprofile.X != currentStepX) and (ONVIFGetprofile.Y != currentStepY)):
+                        #time.sleep(0.1)
                     time.sleep(4.0)
 
+                    print(f"Ros2 MSG calibrate/v1, CurrentStepX: {currentStepX}, CurrentStepY: {currentStepY}")
                 else:
                     completeMSG = True
                     print("ROS2 MSG bob/ptz/calibrate/v1/complete.msg ACK")
@@ -115,7 +140,17 @@ class RasterPTZClient(Node):
             Rasterstep += 1
             ######
 
- 
+        # Create a request object
+        self.request = ImageRaster.Request()
+
+        # Set the values of the request
+        self.request.x = 1  # Replace with the actual values
+        self.request.y = 2
+        self.request.zoom = 3.0
+        self.request.campaign = 'example_campaign'
+
+        # Call the service
+        self.call_service()
 
     def call_service(self):
         # Call the service with the request

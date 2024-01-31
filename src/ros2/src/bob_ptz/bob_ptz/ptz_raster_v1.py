@@ -1,47 +1,32 @@
-import asyncio, sys
+import math
+import time
+## until abosolutemove is taken from onvif
 from onvif2 import ONVIFCamera
-from rclpy.node import Node
-from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy, QoSHistoryPolicy
-import traceback as tb
-import rclpy
-from typing import List
-from bob_interfaces.msg import PTZAbsoluteMove
-from bob_shared.node_runner import NodeRunner
+##
 
-#execute in command line: 
-#colcon build --packages-select bob_interfaces
-#source install/setup.bash
-#ros2 topic info /bob/ptz/absolute/move
-#ros2 interface show bob_interfaces/msg/PTZAbsoluteMove
-#rqt
-#ros2 topic pub -1 /bob/ptz/absolute/move bob_interfaces/msg/PTZAbsoluteMove "{pospantiltx: -0.25, pospantilty: 1, poszoomx: 0, speedpantiltx: 1, speedpantilty: 1, speedzoomx: 1}"
-#cmd ptz GetStatus  {'ProfileToken': 'Profile_3'}
+#For testing Purposes
+Rasterstep = 0
+completeMSG = False 
+initiate_v1 = True
 
-class AbsoluteMoveNode(Node):
-
-    def __init__(self, subscriber_qos_profile: QoSProfile, publisher_qos_profile: QoSProfile):
-        super().__init__('bob_cloud_estimator')
-
-
-
-        self.pub_environment_data = self.create_publisher(PTZAbsoluteMove, 'bob/ptz/move/absolute', publisher_qos_profile)
-
-
-        self.declare_parameters(namespace='',
-                            parameters=[('observer_timer_interval', 30)])
-
-        # setup services, publishers and subscribers    
-        self.sub_PTZPosition = self.create_subscription(PTZAbsoluteMove, 'bob/ptz/move/absolute', self.OnvifAbsoluteMoveFromRosMsg, subscriber_qos_profile)
-        self.get_logger().info(f'{self.get_name()} node is up and running.')
-
-    def OnvifAbsoluteMoveFromRosMsg(self, msg_position):
-            """Reading from stdin and displaying menu"""
-                
+while(completeMSG == False):
+    if( (initiate_v1 == True)  or  (RasterImageACK_v1 == True)):
+        #initially magic numbers, later ros-msg-values:
+        startX = -1; endX = 1; startY = -1; endY = 1
+        stepwidthX = 0.4; stepwidthY = 0.4
+        XIncrementsPerY = math.ceil(abs(startX-endX)/stepwidthX)+1
+        YStepsTotal = math.ceil(abs(startY-endY)/stepwidthY)
+        if(Rasterstep <= XIncrementsPerY*YStepsTotal):
+            currentStepX = round(startX + (stepwidthX*(Rasterstep % XIncrementsPerY)),10)
+            currentStepY = round(startY + (stepwidthY*(math.floor(Rasterstep  / XIncrementsPerY))),10)
+            
+            ############### Remove later and use ros2-AbsoluteMove message instead #############
+                            
             IP="10.20.30.140"   # Camera IP address
             PORT=80           # Port
             USER="bob"         # Username
             PASS="Sky360Sky!"        # Password
-        # Get range of pan and tilt
+             # Get range of pan and tilt
             # NOTE: X and Y are Position vector
             global XMAX, XMIN, YMAX, YMIN, ZoomMAX, ZoomMIN
 
@@ -73,7 +58,6 @@ class AbsoluteMoveNode(Node):
 
 
             #global moverequest, ptz
-            self.msg_position = msg_position
 
             XMAX = 1
             XMIN = -1
@@ -82,9 +66,9 @@ class AbsoluteMoveNode(Node):
             ZoomMAX = 1
             ZoomMIN = 0
 
-            moverequest.Position.PanTilt.x = min(max(self.msg_position.pospantiltx,XMIN),XMAX)
-            moverequest.Position.PanTilt.y = min(max(self.msg_position.pospantilty,YMIN),YMAX)
-            moverequest.Position.Zoom.x = min(max(self.msg_position.poszoomx,ZoomMIN),ZoomMAX)
+            moverequest.Position.PanTilt.x = min(max(currentStepX,XMIN),XMAX)
+            moverequest.Position.PanTilt.y = min(max(currentStepY,YMIN),YMAX)
+            moverequest.Position.Zoom.x = min(max(0,ZoomMIN),ZoomMAX)
 
 
             '''
@@ -120,34 +104,26 @@ class AbsoluteMoveNode(Node):
             ptz.AbsoluteMove(moverequest)
   
 
-    # Spin to allow the message to be sent
-    #rclpy.spin_once(Node)
 
 
+            ####################################################################################
+            
+            
+            #Polling ONVIF if target has been reached
+            #while((ONVIFGetprofile.X != currentStepX) and (ONVIFGetprofile.Y != currentStepY)):
+                #time.sleep(0.1)
+            time.sleep(4.0)
 
-
-
-
-
-
-def main(args=None):
-
-  rclpy.init(args=args)
-
-  subscriber_qos_profile = QoSProfile(depth=10)
-  subscriber_qos_profile.reliability = QoSReliabilityPolicy.BEST_EFFORT
-  subscriber_qos_profile.durability = QoSDurabilityPolicy.VOLATILE
-  subscriber_qos_profile.history = QoSHistoryPolicy.KEEP_LAST
-
-  publisher_qos_profile = QoSProfile(depth=10)
-  publisher_qos_profile.reliability = QoSReliabilityPolicy.BEST_EFFORT
-  publisher_qos_profile.durability = QoSDurabilityPolicy.VOLATILE
-  publisher_qos_profile.history = QoSHistoryPolicy.KEEP_LAST
-
-  node = AbsoluteMoveNode(subscriber_qos_profile, publisher_qos_profile)
-
-  runner = NodeRunner(node)
-  runner.run()
-
-if __name__ == '__main__':
-  main()
+            print(f"Ros2 MSG calibrate/v1, CurrentStepX: {currentStepX}, CurrentStepY: {currentStepY}")
+        else:
+            completeMSG = True
+            print("ROS2 MSG bob/ptz/calibrate/v1/complete.msg ACK")
+    
+    #For testing purposes:
+    initiate_v1 = False
+    RasterImageACK_v1 = False
+    time.sleep(0.2)
+    RasterImageACK_v1 = True
+    if completeMSG == False:
+        print(f"MSG RasterImageACK_v1 = {RasterImageACK_v1}")
+    Rasterstep += 1

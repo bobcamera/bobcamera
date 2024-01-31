@@ -82,3 +82,4 @@ log/
 __pycache__/launch.cpython-310.pyc
 
 assets/*
+Dropbox/*
