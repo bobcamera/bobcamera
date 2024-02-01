@@ -196,3 +196,19 @@ def test_onvif_connection(rtsp_host, rtsp_port, rtsp_user, rtsp_password):
         return True
     except Exception as e:
         return False
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

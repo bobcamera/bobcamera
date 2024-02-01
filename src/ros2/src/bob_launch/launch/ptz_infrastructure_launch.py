@@ -11,19 +11,19 @@ def generate_launch_description():
     #config = os.path.join(get_package_share_directory('bob_launch'), 'config', 'app_config.yaml')
     config = 'assets/config/app_config.yaml'
 
-    # AbsoluteMoveNode = Node(
-    #     package='bob_ptz',
-    #     #namespace='bob',
-    #     executable='onvif_absolute_move_ros',
-    #     name='AbsoluteMoveNode',
-    #     parameters = [config],
-    #     condition=IfCondition(PythonExpression([
-    #                 LaunchConfiguration('source_arg'), 
-    #                 " == 'rtsp'",
-    #                 " or ", 
-    #                 LaunchConfiguration('source_arg'), 
-    #                 " == 'rtsp_overlay'"])),
-    # )
+    AbsoluteMoveNode = Node(
+        package='bob_ptz',
+        #namespace='bob',
+        executable='onvif_absolute_move_ros',
+        name='AbsoluteMoveNode',
+        parameters = [config],
+        condition=IfCondition(PythonExpression([
+                    LaunchConfiguration('source_arg'), 
+                    " == 'rtsp'",
+                    " or ", 
+                    LaunchConfiguration('source_arg'), 
+                    " == 'rtsp_overlay'"])),
+    )
 
     RasterImageAcquisitionNode = Node(
         package='bob_ptz',
@@ -54,7 +54,8 @@ def generate_launch_description():
 
     return LaunchDescription([
 
-        # AbsoluteMoveNode,
+        AbsoluteMoveNode,
         RasterImageAcquisitionNode,
         ImageAcquisitionClientNode,
     ])
+
