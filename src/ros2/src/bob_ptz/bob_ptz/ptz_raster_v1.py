@@ -71,32 +71,6 @@ while(completeMSG == False):
             moverequest.Position.Zoom.x = min(max(0,ZoomMIN),ZoomMAX)
 
 
-            '''
-            if XMAX <= self.msg_positiontiltx:
-                moverequest.Position.PanTilt.x = XMAX
-            elif self.msg_positiontiltx <= XMIN:
-                moverequest.Position.PanTilt.x = XMIN
-            else:
-                moverequest.Position.PanTilt.x = self.msg_position.pospantiltx
-        
-            if YMAX <= self.msg_position.pospantilty:
-                moverequest.Position.PanTilt.y = YMAX
-            elif self.msg_position.pospantilty <= XMIN:
-                moverequest.Position.PanTilt.y = YMIN
-            else:
-                moverequest.Position.PanTilt.y = self.msg_position.pospantilty
-
-            if ZoomMAX <= self.msg_position.poszoomx:
-                moverequest.Position.Zoom.x = ZoomMAX
-            elif self.msg_position.poszoomx <= ZoomMIN:
-                moverequest.Position.Zoom.x = ZoomMIN
-            else:
-                moverequest.Position.Zoom.x = self.msg_position.poszoomx
-            '''
-            #moverequest.Position.PanTilt.x = self.msg_position.pospantiltx
-            #moverequest.Position.PanTilt.y = self.msg_position.pospantilty
-            #moverequest.Position.Zoom.x = self.msg_position.poszoomx
-
             #global active
             if active:
                 ptz.Stop({'ProfileToken': moverequest.ProfileToken})

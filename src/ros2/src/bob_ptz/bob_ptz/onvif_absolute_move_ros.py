@@ -20,7 +20,7 @@ from bob_shared.node_runner import NodeRunner
 class AbsoluteMoveNode(Node):
 
     def __init__(self, subscriber_qos_profile: QoSProfile, publisher_qos_profile: QoSProfile):
-        super().__init__('bob_cloud_estimator')
+        super().__init__('onvif_absolute_move_ros')
 
 
 
@@ -31,10 +31,11 @@ class AbsoluteMoveNode(Node):
                             parameters=[('observer_timer_interval', 30)])
 
         # setup services, publishers and subscribers    
-        self.sub_PTZPosition = self.create_subscription(PTZAbsoluteMove, 'bob/ptz/move/absolute', self.OnvifAbsoluteMoveFromRosMsg, subscriber_qos_profile)
+        self.sub_PTZPosition = self.create_subscription(PTZAbsoluteMove, 'bob/ptz/move/absolute', self.AbsoluteMoveFromRosMsg, subscriber_qos_profile)
         self.get_logger().info(f'{self.get_name()} node is up and running.')
+        print("AbsoluteMoveNode initialized")
 
-    def OnvifAbsoluteMoveFromRosMsg(self, msg_position):
+    def AbsoluteMoveFromRosMsg(self, msg_position):
             """Reading from stdin and displaying menu"""
                 
             IP="10.20.30.140"   # Camera IP address

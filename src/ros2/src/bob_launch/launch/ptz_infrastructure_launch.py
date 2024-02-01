@@ -17,12 +17,12 @@ def generate_launch_description():
         executable='onvif_absolute_move_ros',
         name='AbsoluteMoveNode',
         parameters = [config],
-        condition=IfCondition(PythonExpression([
-                    LaunchConfiguration('source_arg'), 
-                    " == 'rtsp'",
-                    " or ", 
-                    LaunchConfiguration('source_arg'), 
-                    " == 'rtsp_overlay'"])),
+        #condition=IfCondition(PythonExpression([
+        #            LaunchConfiguration('source_arg'), 
+        #            " == 'rtsp'",
+        #            " or ", 
+        #            LaunchConfiguration('source_arg'), 
+        #            " == 'rtsp_overlay'"])),
     )
 
     RasterImageAcquisitionNode = Node(
@@ -30,30 +30,29 @@ def generate_launch_description():
         executable='raster_image_acquisition_service',  # Replace with your actual script name
         name='RasterImageAcquisitionService',
         parameters=[config],
-        condition=IfCondition(PythonExpression([
-            LaunchConfiguration('source_arg'),
-            " == 'rtsp'",
-            " or ",
-            LaunchConfiguration('source_arg'),
-            " == 'rtsp_overlay'"
-        ])),
+        #condition=IfCondition(PythonExpression([
+        #    LaunchConfiguration('source_arg'),
+        #    " == 'rtsp'",
+        #    " or ",
+        #    LaunchConfiguration('source_arg'),
+        #    " == 'rtsp_overlay'"
+        #])),
     )
 
     ImageAcquisitionClientNode = Node(
         package='bob_ptz',
         executable='raster_ptz_client',  # Replace with your actual script name
         name='RasterPTZClient',
-        condition=IfCondition(PythonExpression([
-            LaunchConfiguration('source_arg'),
-            " == 'rtsp'",
-            " or ",
-            LaunchConfiguration('source_arg'),
-            " == 'rtsp_overlay'"
-        ])),
+        #condition=IfCondition(PythonExpression([
+        #    LaunchConfiguration('source_arg'),
+        #    " == 'rtsp'",
+        #    " or ",
+        #    LaunchConfiguration('source_arg'),
+        #    " == 'rtsp_overlay'"
+        #])),
     )
 
     return LaunchDescription([
-
         AbsoluteMoveNode,
         RasterImageAcquisitionNode,
         ImageAcquisitionClientNode,

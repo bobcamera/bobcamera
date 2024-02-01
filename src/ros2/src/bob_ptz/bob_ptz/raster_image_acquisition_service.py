@@ -10,17 +10,13 @@ from bob_shared.node_runner import NodeRunner
 class RasterImageAcquisitionService(Node):
     def __init__(self, service_qos_profile: QoSProfile):
         super().__init__('raster_image_acquisition_service')
-
+        print("RasterImageAcqusitionService initialized")
         # Camera URIs
-        self.fisheye_camera_uri = 'rtsp://jdm:bobcamera!@192.168.1.20:554/cam/realmonitor?channel=1&subtype=0'
-        self.ptz_camera_uri = 'rtsp://jdm:bobcamera!@192.168.1.20:554/cam/realmonitor?channel=1&subtype=0'
+        self.ptz_camera_uri = 'rtsp://sky360:Sky360Sky!@10.20.30.75:554/cam/realmonitor?channel=1&subtype=0'
+        self.fisheye_camera_uri = 'rtsp://bob:Sky360Sky!@10.20.30.140:554/Streaming/Channels/101'
 
         # Directory for saving calibration images
-        self.base_image_dir = 'assets/calibration'
-
-        # Reading frames from cameras
-        self.fisheye_capture = cv2.VideoCapture(self.fisheye_camera_uri)
-        self.ptz_capture = cv2.VideoCapture(self.ptz_camera_uri)
+        self.base_image_dir = 'Dropbox/Calibration'
 
         # Create service for ImageAcquisition
         self.service = self.create_service(ImageRaster, '/image_acquisition', self.image_acquisition_callback)
@@ -33,6 +29,10 @@ class RasterImageAcquisitionService(Node):
 
         self.current_campaign = campaign
         self.get_logger().info(f"Received image acquisition request: x={x}, y={y}, zoom={zoom}, campaign={campaign}")
+
+        # Reading frames from cameras
+        self.fisheye_capture = cv2.VideoCapture(self.fisheye_camera_uri)
+        self.ptz_capture = cv2.VideoCapture(self.ptz_camera_uri)
 
         ret1, frame1 = self.fisheye_capture.read()
         # time.sleep(0.1)

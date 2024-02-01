@@ -1,4 +1,5 @@
 #!/bin/bash
+colcon build --packages-select bob_interfaces
 source install/setup.bash
 
 # Fast DDS

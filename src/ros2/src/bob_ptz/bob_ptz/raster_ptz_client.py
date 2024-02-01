@@ -1,9 +1,14 @@
 import rclpy
 from rclpy.node import Node
+from onvif2 import ONVIFCamera
 from bob_interfaces.srv import ImageRaster
 import math 
 import time 
+import rclpy
+from rclpy.node import Node
+from bob_interfaces.srv import ImageRaster
 
+##
 class RasterPTZClient(Node):
     def __init__(self):
         super().__init__('raster_ptz_client')
@@ -15,6 +20,9 @@ class RasterPTZClient(Node):
         while not self.client.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('ImageRaster service not available, waiting...')
         
+        # Create a request object
+        self.request = ImageRaster.Request()
+
         #For testing Purposes
         Rasterstep = 0
         completeMSG = False 
@@ -24,12 +32,12 @@ class RasterPTZClient(Node):
             if( (initiate_v1 == True)  or  (RasterImageACK_v1 == True)):
                 #initially magic numbers, later ros-msg-values:
                 startX = -1; endX = 1; startY = -1; endY = 1
-                stepwidthX = 0.4; stepwidthY = 0.4
+                stepwidthX = 0.1; stepwidthY = 0.1
                 XIncrementsPerY = math.ceil(abs(startX-endX)/stepwidthX)+1
                 YStepsTotal = math.ceil(abs(startY-endY)/stepwidthY)
                 if(Rasterstep <= XIncrementsPerY*YStepsTotal):
-                    currentStepX = round(startX + (stepwidthX*(Rasterstep % XIncrementsPerY)),10)
-                    currentStepY = round(startY + (stepwidthY*(math.floor(Rasterstep  / XIncrementsPerY))),10)
+                    currentStepX = round(startX + (stepwidthX*(Rasterstep % XIncrementsPerY)),5)
+                    currentStepY = round(startY + (stepwidthY*(math.floor(Rasterstep  / XIncrementsPerY))),5)
                     
                     ############### Remove later and use ros2-AbsoluteMove message instead #############
                                     
@@ -79,28 +87,40 @@ class RasterPTZClient(Node):
 
                     moverequest.Position.PanTilt.x = min(max(currentStepX,XMIN),XMAX)
                     moverequest.Position.PanTilt.y = min(max(currentStepY,YMIN),YMAX)
-                    moverequest.Position.Zoom.x = min(max(0,ZoomMIN),ZoomMAX)
+                    moverequest.Position.Zoom.x = min(max(0.0,ZoomMIN),ZoomMAX)
 
+
+                    #global active
                     if active:
                         ptz.Stop({'ProfileToken': moverequest.ProfileToken})
                     active = True  
                     ptz.AbsoluteMove(moverequest)
         
-                           # Create a request object
-                    self.request = ImageRaster.Request()
 
+
+
+                    ####################################################################################
+                    
+                    
+                    #Polling ONVIF if target has been reached
+                    #while((ONVIFGetprofile.X != currentStepX) and (ONVIFGetprofile.Y != currentStepY)):
+                        #time.sleep(0.1)
+                    if(Rasterstep == 0):
+                        time.sleep(5.0)
+                    else:
+                        time.sleep(2.0)
+
+ 
                     # Set the values of the request
-                    self.request.x =  moverequest.Position.PanTilt.x  # Replace with the actual values
-                    self.request.y = moverequest.Position.PanTilt.y 
-                    self.request.zoom = moverequest.Position.Zoom.x 
-                    self.request.campaign = 'first_campaign'
+                    self.request.x = moverequest.Position.PanTilt.x   # Replace with the actual values
+                    self.request.y = moverequest.Position.PanTilt.y
+                    self.request.zoom =  moverequest.Position.Zoom.x 
+                    self.request.campaign = 'example_campaign2'
 
                     # Call the service
-                    print(f"Ros2 MSG calibrate/v1, CurrentStepX: {currentStepX}, CurrentStepY: {currentStepY}")
                     self.call_service()
 
-                    time.sleep(4.0)
-
+                    print(f"Ros2 MSG calibrate/v1, CurrentStepX: {currentStepX}, CurrentStepY: {currentStepY}")
                 else:
                     completeMSG = True
                     print("ROS2 MSG bob/ptz/calibrate/v1/complete.msg ACK")
@@ -113,9 +133,16 @@ class RasterPTZClient(Node):
             if completeMSG == False:
                 print(f"MSG RasterImageACK_v1 = {RasterImageACK_v1}")
             Rasterstep += 1
-            ######
 
- 
+
+            # Set the values of the request
+#            self.request.x = 1  # Replace with the actual values
+ #           self.request.y = 2
+  #          self.request.zoom = 3.0
+   #         self.request.campaign = 'example_campaign'
+
+            # Call the service
+            #self.call_service()
 
     def call_service(self):
         # Call the service with the request
