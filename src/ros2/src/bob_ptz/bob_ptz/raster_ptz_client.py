@@ -76,15 +76,6 @@ class RasterPTZClient(Node):
                     
 
 
-                    #global moverequest, ptz
-
-                    XMAX = 1
-                    XMIN = -1
-                    YMAX = 1
-                    YMIN = -1
-                    ZoomMAX = 1
-                    ZoomMIN = 0
-
                     moverequest.Position.PanTilt.x = min(max(currentStepX,XMIN),XMAX)
                     moverequest.Position.PanTilt.y = min(max(currentStepY,YMIN),YMAX)
                     moverequest.Position.Zoom.x = min(max(0.0,ZoomMIN),ZoomMAX)
@@ -108,14 +99,14 @@ class RasterPTZClient(Node):
                     if(Rasterstep == 0):
                         time.sleep(5.0)
                     else:
-                        time.sleep(2.0)
+                        time.sleep(3.0)
 
  
                     # Set the values of the request
                     self.request.x = moverequest.Position.PanTilt.x   # Replace with the actual values
                     self.request.y = moverequest.Position.PanTilt.y
                     self.request.zoom =  moverequest.Position.Zoom.x 
-                    self.request.campaign = 'example_campaign2'
+                    self.request.campaign = 'example_campaign5'
 
                     # Call the service
                     self.call_service()

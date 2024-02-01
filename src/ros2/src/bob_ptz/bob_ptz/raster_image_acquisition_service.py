@@ -12,7 +12,7 @@ class RasterImageAcquisitionService(Node):
         super().__init__('raster_image_acquisition_service')
         print("RasterImageAcqusitionService initialized")
         # Camera URIs
-        self.ptz_camera_uri = 'rtsp://sky360:Sky360Sky!@10.20.30.75:554/cam/realmonitor?channel=1&subtype=0'
+        self.ptz_camera_uri = 'rtsp://bob:Sky360Sky!@10.20.30.58:554/Streaming/Channels/101'
         self.fisheye_camera_uri = 'rtsp://bob:Sky360Sky!@10.20.30.140:554/Streaming/Channels/101'
 
         # Directory for saving calibration images
