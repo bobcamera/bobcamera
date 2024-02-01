@@ -7,14 +7,22 @@ import time
 import rclpy
 from rclpy.node import Node
 from bob_interfaces.srv import ImageRaster
-
+import os
+import json
+import datetime
+import re
 ##
 class RasterPTZClient(Node):
     def __init__(self):
         super().__init__('raster_ptz_client')
-
+        os.chdir("/workspaces/bobcamera/src/ros2/Dropbox/Calibration")
         # Create a client for the ImageRaster service
         self.client = self.create_client(ImageRaster, '/image_acquisition')
+        os.chdir("/workspaces/bobcamera/src/ros2/Dropbox/Calibration")
+        json_files = [pos_json for pos_json in os.listdir(os.getcwd()) if (pos_json.endswith('.json') and not(pos_json.endswith('_done.json')))]
+        with open(json_files[0]) as f:
+            RasterConfig = json.load(f)
+            print(RasterConfig)
 
         # Wait for the service to be available
         while not self.client.wait_for_service(timeout_sec=1.0):
@@ -28,11 +36,40 @@ class RasterPTZClient(Node):
         completeMSG = False 
         initiate_v1 = True
 
+        startX = RasterConfig['startX']
+        endX = RasterConfig['endX']
+        stepwidthX = RasterConfig['stepwidthX']
+        startY = RasterConfig['startY']
+        endY = RasterConfig['endY']
+        stepwidthY = RasterConfig['stepwidthY']
+        campaign = RasterConfig['campaign']
+        zoom = RasterConfig['zoom']
+
+        CampaignUnderlined = re.sub(r'[^a-zA-Z0-9_]', '_', campaign)
+        TimeStartNotString = datetime.datetime.now()
+        TimeStartFile= TimeStartNotString.strftime("%Y_%b_%d_%H_%M_%S")
+        TimeStart= TimeStartNotString.strftime("%I:%M%p on %B %d, %Y")
+        FileNameStart = f"{CampaignUnderlined}_{TimeStartFile}_in_progress.txt"
+        RasteringProtocol = open(FileNameStart, "a")
+        print("Rastering Specification:", file=RasteringProtocol)
+        print(f"Campaign: {campaign}", file=RasteringProtocol)
+        print(f"\tStart X: {startX}", file=RasteringProtocol)
+        print(f"\tStart Y: {startY}", file=RasteringProtocol)
+        print(f"\tEnd X: {endX}", file=RasteringProtocol)
+        print(f"\tEnd Y: {endY}", file=RasteringProtocol)
+        print(f"\tstepwidthX: {stepwidthX}", file=RasteringProtocol)
+        print(f"\tstepwidthY: {stepwidthY}", file=RasteringProtocol)
+        print(f"\tzoom: {zoom}", file=RasteringProtocol)
+        print(f"\tRastering Starts: {TimeStart}", file=RasteringProtocol)
+
+        print(f"Protocol:", file=RasteringProtocol)
+        #actual operation goes here:
+        print("###################################", file=RasteringProtocol)
+        print("Operation Protocol:", file=RasteringProtocol)
+                
         while(completeMSG == False):
             if( (initiate_v1 == True)  or  (RasterImageACK_v1 == True)):
                 #initially magic numbers, later ros-msg-values:
-                startX = -1; endX = 1; startY = -1; endY = 1
-                stepwidthX = 0.1; stepwidthY = 0.1
                 XIncrementsPerY = math.ceil(abs(startX-endX)/stepwidthX)+1
                 YStepsTotal = math.ceil(abs(startY-endY)/stepwidthY)
                 if(Rasterstep <= XIncrementsPerY*YStepsTotal):
@@ -53,11 +90,12 @@ class RasterPTZClient(Node):
                     XMIN = -1
                     YMAX = 1
                     YMIN = -1
-                    ZoomMAX = 1
+                    ZoomMAX = 10
                     ZoomMIN = 0
                     moverequest = None
                     ptz = None
                     active = False
+
 
                     mycam = ONVIFCamera(IP, PORT, USER, PASS, '/workspaces/bobcamera/src/ros2/src/bob_monitor/resource/wsdl')
                     # Create media service object
@@ -106,16 +144,31 @@ class RasterPTZClient(Node):
                     self.request.x = moverequest.Position.PanTilt.x   # Replace with the actual values
                     self.request.y = moverequest.Position.PanTilt.y
                     self.request.zoom =  moverequest.Position.Zoom.x 
-                    self.request.campaign = 'example_campaign5'
+                    self.request.campaign = CampaignUnderlined
 
+                    print(f"Ros2 MSG calibrate/v1, CurrentStepX: {currentStepX}, CurrentStepY: {currentStepY}",  file=RasteringProtocol)
                     # Call the service
                     self.call_service()
 
-                    print(f"Ros2 MSG calibrate/v1, CurrentStepX: {currentStepX}, CurrentStepY: {currentStepY}")
                 else:
                     completeMSG = True
+                    #####################
+                    # ToDo: !!!!!!!!  ###
                     print("ROS2 MSG bob/ptz/calibrate/v1/complete.msg ACK")
-            
+                    #####################
+                    print("###################################", file=RasteringProtocol)
+                    #prints of current status go into file=f)
+                    time.sleep(1)
+                    #end operation goes here:
+                    TimeNowNotString = datetime.datetime.now()
+                    TimeNow = TimeNowNotString.strftime("%I:%M%p on %B %d, %Y")
+                    print(f"Rastering completed: {TimeNow}", file=RasteringProtocol)
+                    Duration = (TimeNowNotString-TimeStartNotString)
+                    print(f"Rastering duration: {str(Duration)}", file=RasteringProtocol)
+                    RasteringProtocol.close()
+                    os.rename(json_files[0], f"{json_files[0][:-5]}_done.json")
+                    os.rename(RasteringProtocol.name, f"{CampaignUnderlined}_{TimeStartFile}_complete.txt")
+
             #For testing purposes:
             initiate_v1 = False
             RasterImageACK_v1 = False
