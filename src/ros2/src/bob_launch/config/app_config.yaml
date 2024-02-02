@@ -111,9 +111,7 @@ track_provider_node:
 
 allsky_recorder_node:
   ros__parameters:
-    video_directory: 'assets/recordings/allsky'
-    heatmap_directory: 'assets/recordings/heatmaps'
-    json_directory: 'assets/recordings/json'
+    recordings_directory: 'assets/recordings'
     img_topic: 'bob/camera/all_sky/bayer'
     fg_img_topic: 'bob/frames/all_sky/foreground_mask'
     tracking_topic: 'bob/tracker/tracking'

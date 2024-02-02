@@ -1,6 +1,7 @@
 #include <filesystem>
 #include <mutex>
 #include <chrono>
+#include <ctime>
 #include <rclcpp/rclcpp.hpp>
 #include <cv_bridge/cv_bridge.hpp>
 #include <message_filters/subscriber.h>
@@ -67,6 +68,18 @@ private:
         video_recorder_ = std::make_unique<VideoRecorder>(total_pre_frames_);
     };
 
+    std::string get_current_date() 
+    {
+        auto now = std::chrono::system_clock::now();
+        auto time_t = std::chrono::system_clock::to_time_t(now);
+        std::tm local_tm = *std::localtime(&time_t);
+
+        std::ostringstream oss;
+        oss << std::put_time(&local_tm, "%Y%m%d");
+
+        return oss.str();
+    }
+
     static bool create_dir(const std::string& path) 
     {
         std::filesystem::path dirPath = path;
@@ -78,38 +91,65 @@ private:
         return true;
     }
 
+    void create_subdirectory(const std::filesystem::path& parent, const std::string& subdirectory) 
+    {
+        std::filesystem::path subDirPath = parent / subdirectory;
+        if (std::filesystem::create_directory(subDirPath)) 
+        {
+            RCLCPP_INFO(get_logger(), "Subdirectory created: %s", subDirPath.c_str());
+        } 
+        else 
+        {
+            RCLCPP_ERROR(get_logger(), "Failed to create subdirectory: %s", subDirPath.c_str());
+        }
+    }
+    
+    bool create_dated_dir(const std::string& path) 
+    {
+        std::filesystem::path dirPath = path;
+
+        if (std::filesystem::exists(dirPath)) 
+        {
+            dated_directory_ = dirPath / get_current_date();
+
+            if (std::filesystem::create_directory(dated_directory_)) 
+            {
+                RCLCPP_INFO(get_logger(), "Dated directory created: %s", dated_directory_.c_str());
+                create_subdirectory(dated_directory_, "allsky");
+                create_subdirectory(dated_directory_, "heatmaps");
+                create_subdirectory(dated_directory_, "json");
+
+                return true;
+            } 
+            else 
+            {
+                // RCLCPP_ERROR(get_logger(), "Failed to create dated directory: %s", dated_directory_.c_str());
+                return false;
+            }
+        } 
+        else 
+        {
+            RCLCPP_INFO(get_logger(), "Parent recordings directory doesn't exist: %s", dirPath.c_str());
+            return false;
+        }
+    }
+
     static std::string generate_filename(const sensor_msgs::msg::Image::SharedPtr& image_msg)
     {  
         auto stamp = rclcpp::Time(image_msg->header.stamp);
         std::ostringstream oss;
         oss << unsigned(stamp.seconds());
         return oss.str();
-    } // starttime-endtime.mkv
+    } 
 
     void declare_node_parameters() {
         std::vector<ParameterNode::ActionParam> params = {
             ParameterNode::ActionParam(
-                rclcpp::Parameter("video_directory", "."), 
+                rclcpp::Parameter("recordings_directory", "."), 
                 [this](const rclcpp::Parameter& param) 
                 {
-                    video_directory_ = param.as_string();
-                    create_dir(video_directory_);
-                }
-            ),
-            ParameterNode::ActionParam(
-                rclcpp::Parameter("heatmap_directory", "."), 
-                [this](const rclcpp::Parameter& param) 
-                {
-                    heatmap_directory_ = param.as_string();
-                    create_dir(heatmap_directory_);
-                }
-            ),
-            ParameterNode::ActionParam(
-                rclcpp::Parameter("json_directory", "."), 
-                [this](const rclcpp::Parameter& param) 
-                {
-                    json_directory_ = param.as_string();
-                    create_dir(json_directory_);
+                    recordings_directory_ = param.as_string();
+                    create_dir(recordings_directory_);
                 }
             ),
             ParameterNode::ActionParam(
@@ -133,7 +173,7 @@ private:
                 [this](const rclcpp::Parameter& param) {prefix_str_ = param.as_string();}
             ),            
             ParameterNode::ActionParam(
-                rclcpp::Parameter("codec", "X264"), 
+                rclcpp::Parameter("codec", "avc1"), 
                 [this](const rclcpp::Parameter& param) {codec_str_ = param.as_string();}
             ),
             ParameterNode::ActionParam(
@@ -182,7 +222,14 @@ private:
                     current_state_ = RecordingState::BetweenEvents;
                     base_filename_ = generate_filename(image_msg);
 
-                    std::string full_path = video_directory_ + "/" + prefix_str_ + base_filename_ + ".mp4";
+                    std::string current_date = get_current_date();
+                    if(current_date != date_)
+                    {
+                        create_dated_dir(recordings_directory_);
+                        date_ = current_date;
+                    }
+
+                    std::string full_path = dated_directory_ + "/allsky/" + prefix_str_ + base_filename_ + ".mp4";
                     video_recorder_->open_new_video(full_path, codec_str_, video_fps_, img.size(), img.channels() == 3);
 
                     img_recorder_->update_frame_for_drawing(img);
@@ -214,13 +261,13 @@ private:
                 if (current_end_frame_ == 0) 
                 {
                     RCLCPP_INFO(get_logger(), "Ending track recording...");
-                    std::string full_path = heatmap_directory_ + "/" + base_filename_ + ".jpg";
+                    std::string full_path = dated_directory_ + "/heatmaps/" + base_filename_ + ".jpg";
                     img_recorder_->write_image(full_path);
 
                     Json::Value json_camera_info = JsonRecorder::build_json_camera_info(camera_info_msg);
                     json_recorder_->add_to_buffer(json_camera_info, true);
                     
-                    std::string json_full_path = json_directory_ + "/" + base_filename_ + ".json";
+                    std::string json_full_path = dated_directory_ + "/json/" + base_filename_ + ".json";
                     json_recorder_->write_buffer_to_file(json_full_path);
 
                     img_recorder_->reset();
@@ -260,9 +307,9 @@ private:
     RecordingState current_state_;
     rclcpp::TimerBase::SharedPtr one_shot_timer_;
     std::mutex buffer_mutex_;
-    std::string video_directory_;
-    std::string heatmap_directory_;
-    std::string json_directory_;
+    std::string recordings_directory_;
+    std::string dated_directory_;
+    std::string date_;
     std::string base_filename_;
     std::string img_topic_;
     std::string tracking_topic_;
