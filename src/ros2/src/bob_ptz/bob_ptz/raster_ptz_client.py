@@ -178,16 +178,6 @@ class RasterPTZClient(Node):
                     if completeMSG == False:
                         print(f"MSG RasterImageACK_v1 = {RasterImageACK_v1}")
                     Rasterstep += 1
-
-
-                    # Set the values of the request
-        #            self.request.x = 1  # Replace with the actual values
-        #           self.request.y = 2
-        #          self.request.zoom = 3.0
-        #         self.request.campaign = 'example_campaign'
-
-                    # Call the service
-                    #self.call_service()
             else:
                 time.sleep(10.0)
 

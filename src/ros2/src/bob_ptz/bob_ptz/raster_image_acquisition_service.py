@@ -55,7 +55,7 @@ class RasterImageAcquisitionService(Node):
         return response
 
     def save_image(self, frame, folder, prefix, x, y, zoom, time_now):
-        filename = f"{prefix}_{x}_{y}_{zoom}_{time_now}.png"
+        filename = f"f{time_now}_{prefix}_{x}_{y}_{zoom}.png"
         filepath = os.path.join(folder, filename)
         cv2.imwrite(filepath, frame)
 
