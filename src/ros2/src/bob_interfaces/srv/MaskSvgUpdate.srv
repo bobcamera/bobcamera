@@ -1,0 +1,6 @@
+string file_name
+string mask
+bool invert
+---
+bool success
+string message # information, e.g. error message

@@ -48,7 +48,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   #"srv/ConfigEntryArray.srv"
   "srv/ApplicationInfo.srv"
   "srv/Mask.srv"
-  "srv/MaskUpdate.srv"
+  "srv/MaskJpgUpdate.srv"
+  "srv/MaskSvgUpdate.srv"
   "srv/CameraSettings.srv"
   DEPENDENCIES std_msgs sensor_msgs vision_msgs geometry_msgs
 )

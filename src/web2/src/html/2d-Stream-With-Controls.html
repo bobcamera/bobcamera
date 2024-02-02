@@ -200,10 +200,11 @@
             <button id="maskControlsToggleBtn">View Mask Controls</button>
             <div id="maskControlsContainer" class="hidden">
                 <button id="editMaskBtn" title="Edit Mask"><i class="fa-solid fa-pen-to-square"></i></button>
-                <button id="invertMaskBtn" title="Invert Mask" class=""><i class="fas fa-clone"></i></button>
-                <!-- <button id="saveMaskJPG" title="Download JPG"><i class="fas fa-download"></i></button>
-                <button id="saveMaskSVG" title="Download SVG"><i class="fas fa-download"></i></button> -->
-                <button id="sendMaskJPG" title="Send Mask As ROS2 Message" style="background-color: lightgreen;"><i class="fa-solid fa-paper-plane"></i></button>
+                <!-- <button id="invertMaskBtn" title="Invert Mask" class=""><i class="fas fa-clone"></i></button>
+                <button id="saveMaskJPG" title="Download JPG"><i class="fas fa-download"></i></button>
+                <button id="saveMaskSVG" title="Download SVG"><i class="fas fa-download"></i></button>
+                <button id="sendMaskJPG" title="Send Mask As ROS2 Message" style="background-color: lightgreen;"><i class="fa-solid fa-paper-plane"></i></button> -->
+                <button id="sendMaskSVG" title="Send Mask As ROS2 Message" style="background-color: lightgreen;"><i class="fa-solid fa-paper-plane"></i></button>
                 <button id="clearMaskBtn" title="Clear Mask" style="background-color: rosybrown;"><i class="fas fa-trash"></i></button>
                 <button id="cancelMaskBtn" title="Cancel" class="hidden"><i class="fas fa-xmark"></i></i></button>
             </div>
@@ -248,11 +249,12 @@
     // maskCanvas.height = maskCanvas.clientHeight * devicePixelRatio;
     // maskCanvasCtx.scale(devicePixelRatio, devicePixelRatio);
     const editMaskBtn = document.getElementById('editMaskBtn');
-    const invertMaskBtn = document.getElementById('invertMaskBtn');
+    //const invertMaskBtn = document.getElementById('invertMaskBtn');
     const clearMaskBtn = document.getElementById('clearMaskBtn');
     // const saveMaskJPGBtn = document.getElementById('saveMaskJPG');
     // const saveMaskSVGBtn = document.getElementById('saveMaskSVG');
-    const sendMaskJPGButton = document.getElementById('sendMaskJPG');
+    //const sendMaskJPGButton = document.getElementById('sendMaskJPG');
+    const sendMaskSVGButton = document.getElementById('sendMaskSVG');
     const cancelMaskBtn = document.getElementById('cancelMaskBtn');
     const maskControlsToggleBtn = document.getElementById('maskControlsToggleBtn');
 
@@ -294,11 +296,17 @@
         serviceType : 'bob_interfaces/srv/ApplicationInfo'
     });    
 
-    var updateMaskService = new ROSLIB.Service({
+    var updateJpgMaskService = new ROSLIB.Service({
         ros : ros, 
-        name : '/bob/webapi/mask/update', 
-        serviceType : 'bob_interfaces/srv/MaskUpdate'
+        name : '/bob/webapi/mask/update/jpg', 
+        serviceType : 'bob_interfaces/srv/MaskJpgUpdate'
     });
+
+    var updateSvgMaskService = new ROSLIB.Service({
+        ros : ros, 
+        name : '/bob/webapi/mask/update/svg', 
+        serviceType : 'bob_interfaces/srv/MaskSvgUpdate'
+    });    
 
     function init() {
         window.addEventListener('DOMContentLoaded', function () {
@@ -336,16 +344,11 @@
             });
             // Call displayImage for the first time
             displayImage();
-            document.getElementById('buffer_size').value
-            = bufferSize;
-            document.getElementById('frame_rate').value
-            = frameRate;
-            document.getElementById('CurrentTopic').innerText
-            = currentRos2ImageTopic;
-            document.getElementById('playBtn')
-            .addEventListener('click', function () { isPlaying = true; });
-            document.getElementById('pauseBtn')
-            .addEventListener('click', function () { isPlaying = false; });
+            document.getElementById('buffer_size').value = bufferSize;
+            document.getElementById('frame_rate').value = frameRate;
+            document.getElementById('CurrentTopic').innerText = currentRos2ImageTopic;
+            document.getElementById('playBtn').addEventListener('click', function () { isPlaying = true; });
+            document.getElementById('pauseBtn').addEventListener('click', function () { isPlaying = false; });
              // Run updateDimensions initially
             updateDimensions();
         });
@@ -383,7 +386,52 @@
             }
         });
 
-        updateMaskService.callService(request, function(result) {
+        updateJpgMaskService.callService(request, function(result) {
+            if (result.success) {
+                console.log("Mask sent successfully!");
+            } else {
+                console.error("Failed to send mask:", result.message);
+            }
+        });
+    }
+
+    function sendMaskSVG() {
+
+        /*let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${maskCanvas.width}" height="${maskCanvas.height}">`;
+        polygons.forEach(polygon => {
+            if (polygon.length > 2) {
+                const pathData = polygon.map((point, index) => {
+                    const command = index === 0 ? 'M' : 'L';
+                    return `${command}${point.x},${point.y}`;
+                }).join(' ') + 'Z';
+                //svgContent += `<path d="${pathData}" fill="black" />`;
+                svgContent += `<path d="${pathData}" fill="none" stroke="black" />`;
+            }
+        });
+        svgContent += '</svg>';*/
+
+        let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${maskCanvas.width}" height="${maskCanvas.height}">`;
+        // Add a black background rectangle
+        svgContent += `<rect width="100%" height="100%" fill="black" />`;
+        polygons.forEach(polygon => {
+            if (polygon.length > 2) {
+                const pathData = polygon.map((point, index) => {
+                    const command = index === 0 ? 'M' : 'L';
+                    return `${command}${point.x},${point.y}`;
+                }).join(' ') + 'Z';
+                // Set fill to "none" for transparency, and add a stroke with your desired color
+                svgContent += `<path d="${pathData}" fill="white" stroke="white" />`;
+            }
+        });
+        svgContent += '</svg>';        
+        
+        var request = new ROSLIB.ServiceRequest({
+            invert: false,
+            file_name: 'mask.svg', // or .pgm
+            mask: svgContent
+        });
+
+        updateSvgMaskService.callService(request, function(result) {
             if (result.success) {
                 console.log("Mask sent successfully!");
             } else {
@@ -576,10 +624,12 @@
         editMaskBtn.classList.remove('stop-edit');
         // Remove the click Event listener to the editMaskBtn then call sendMaskJPG()
         editMaskBtn.removeEventListener('click', () => {
-            sendMaskJPG();
+            // sendMaskJPG();
+            sendMaskSVG();
         });
-        invertMaskBtn.classList.remove('hidden');
-        sendMaskJPGButton.classList.remove('hidden');
+        //invertMaskBtn.classList.remove('hidden');
+        //sendMaskJPGButton.classList.remove('hidden');
+        sendMaskSVGButton.classList.remove('hidden');
         cancelMaskBtn.classList.add('hidden');
         redrawCanvas();
         if (polygons[polygons.length - 1].length === 0) {
@@ -670,8 +720,9 @@
             editMaskBtn.title = 'Save Mask';
             editMaskBtn.classList.add('stop-edit');
             // remove the hidden class from the invertMaskBtn
-            invertMaskBtn.classList.add('hidden');
-            sendMaskJPGButton.classList.add('hidden');
+            //invertMaskBtn.classList.add('hidden');
+            //sendMaskJPGButton.classList.add('hidden');
+            sendMaskSVGButton.classList.add('hidden');
             cancelMaskBtn.classList.remove('hidden');
             // editMaskBtn.addEventListener('click', () => { sendMaskJPG(); });
             if (polygons.length === 0 || polygons[polygons.length - 1].length > 0) { polygons.push([]); }
@@ -680,8 +731,9 @@
             editMaskBtn.innerHTML = '<i class="fa-solid fa-pen-to-square"></i>';
             editMaskBtn.title = 'Edit Mask';
             editMaskBtn.classList.remove('stop-edit');
-            invertMaskBtn.classList.remove('hidden');
-            sendMaskJPGButton.classList.remove('hidden');
+            //invertMaskBtn.classList.remove('hidden');
+            //sendMaskJPGButton.classList.remove('hidden');
+            sendMaskSVGButton.classList.remove('hidden');
             cancelMaskBtn.classList.add('hidden');
             // editMaskBtn.removeEventListener('click', () => { sendMaskJPG(); });
             redrawCanvas();
@@ -700,8 +752,12 @@
         }
     });
 
-    sendMaskJPGButton.addEventListener('click', () => {
-        sendMaskJPG();
+    /*sendMaskJPGButton.addEventListener('click', () => {
+        //sendMaskJPG();
+    });*/
+
+    sendMaskSVGButton.addEventListener('click', () => {
+        sendMaskSVG();
     });
 
     // Save Mask JPG Button Event Listner
@@ -720,12 +776,12 @@
     });
 
     // Invert Mask Button
-    invertMaskBtn.addEventListener('click', () => {
+    /*invertMaskBtn.addEventListener('click', () => {
         let newCtx = invertMaskColors();
         maskCanvasCtx = newCtx;
         // maskCanvasCtx =  invertMaskColors();
         update();
-    });
+    });*/
 
     // Mask Controls Toggle Button
     maskControlsToggleBtn.addEventListener('click', function () {
