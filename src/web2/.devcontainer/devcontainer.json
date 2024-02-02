@@ -12,7 +12,8 @@
 	},
 
     "runArgs": [
-        "--network=host"
+        "--pid=host",
+		"--network=host"		
     ],	
 
 	// Configure tool-specific properties.

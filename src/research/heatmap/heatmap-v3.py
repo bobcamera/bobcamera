@@ -110,7 +110,7 @@ def process_timelapse(input_folder, output_file, fps=30, resize_factor=1):
     size = (int(w * resize_factor), int(h * resize_factor))
     
     # Define the codec using VideoWriter_fourcc and create a VideoWriter object
-    out = cv2.VideoWriter(output_file, cv2.VideoWriter_fourcc(*'X264'), fps, size)
+    out = cv2.VideoWriter(output_file, cv2.VideoWriter_fourcc(*'avc1'), fps, size)
 
     for i in range(len(files)):
 
