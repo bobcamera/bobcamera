@@ -22,9 +22,9 @@ class RasterImageAcquisitionService(Node):
         self.service = self.create_service(ImageRaster, '/image_acquisition', self.image_acquisition_callback)
 
     def image_acquisition_callback(self, request, response):
-        x = request.x
-        y = request.y
-        zoom = request.zoom
+        x = round(request.x,5)
+        y = round(request.y,5)
+        zoom = round(request.zoom,5)
         campaign = request.campaign
 
         self.current_campaign = campaign
