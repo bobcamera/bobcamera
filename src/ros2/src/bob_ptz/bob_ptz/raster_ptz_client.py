@@ -76,12 +76,15 @@ class RasterPTZClient(Node):
                 while(completeMSG == False):
                     if( (initiate_v1 == True)  or  (RasterImageACK_v1 == True)):
                         #initially magic numbers, later ros-msg-values:
-                        XIncrementsPerY = math.ceil(abs(startX-endX)/stepwidthX)+1
+                        ZoomIncrementsPerX = math.ceil(abs(startZoom-endZoom)/stepwidthZoom)+1
+                        XIncrementsPerYmultiplesOfZoom = math.ceil(ZoomIncrementsPerX*(abs(startX-endX)/stepwidthX+1))
                         YStepsTotal = math.ceil(abs(startY-endY)/stepwidthY)+1
-                        if(Rasterstep < XIncrementsPerY*YStepsTotal):
-                            currentStepX = round(startX + (stepwidthX*(Rasterstep % XIncrementsPerY)),10)
-                            currentStepY = round(startY + (stepwidthY*(math.floor(Rasterstep  / XIncrementsPerY))),10)
-                            
+                        if(Rasterstep < XIncrementsPerYmultiplesOfZoom*YStepsTotal):
+                            currentStepZoom = round(startZoom+(stepwidthZoom*(Rasterstep % ZoomIncrementsPerX )),10)
+                            currentStepX = round(startX + (stepwidthX*math.floor((Rasterstep % XIncrementsPerYmultiplesOfZoom)/ ZoomIncrementsPerX )) ,10)
+                            currentStepY = round(startY + (stepwidthY*(math.floor(Rasterstep  / XIncrementsPerYmultiplesOfZoom ))),10)
+
+                
                             ############### Remove later and use ros2-AbsoluteMove message instead #############
                                             
                             IP="10.20.30.140"   # Camera IP address
@@ -122,7 +125,7 @@ class RasterPTZClient(Node):
 
                             moverequest.Position.PanTilt.x = min(max(currentStepX,XMIN),XMAX)
                             moverequest.Position.PanTilt.y = min(max(currentStepY,YMIN),YMAX)
-                            moverequest.Position.Zoom.x = min(max(startZoom,ZoomMIN),ZoomMAX)
+                            moverequest.Position.Zoom.x = min(max(currentStepZoom,ZoomMIN),ZoomMAX)
 
                             #global active
                             if active:
@@ -142,7 +145,7 @@ class RasterPTZClient(Node):
                             if(Rasterstep == 0):
                                 time.sleep(5.0)
                             else:
-                                time.sleep(3.0)
+                                time.sleep(8.0)
 
         
                             # Set the values of the request
@@ -151,7 +154,7 @@ class RasterPTZClient(Node):
                             self.request.zoom =  moverequest.Position.Zoom.x
                             self.request.campaign = CampaignUnderlined
 
-                            print(f"Ros2 MSG calibrate/v1, CurrentStepX: {currentStepX}, CurrentStepY: {currentStepY}",  file=RasteringProtocol)
+                            print(f"Ros2 MSG calibrate/v1, CurrentStepX: {currentStepX}, CurrentStepY: {currentStepY}, CurrentStepZoom: {currentStepZoom}",  file=RasteringProtocol)
                             # Call the service
                             self.call_service()
 
