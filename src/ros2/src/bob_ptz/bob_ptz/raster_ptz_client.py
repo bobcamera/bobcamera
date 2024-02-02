@@ -16,8 +16,8 @@ class RasterPTZClient(Node):
     def __init__(self):
         os.chdir("/workspaces/bobcamera/src/ros2/Dropbox/Calibration")
         # Create a client for the ImageRaster service
+        super().__init__('raster_ptz_client')
         while(True):
-            super().__init__('raster_ptz_client')
             json_files = [pos_json for pos_json in os.listdir(os.getcwd()) if (pos_json.endswith('.json') and not(pos_json.endswith('_done.json')))]
             if(len(json_files) > 0):
                 self.client = self.create_client(ImageRaster, '/image_acquisition')
@@ -143,9 +143,9 @@ class RasterPTZClient(Node):
                             #while((ONVIFGetprofile.X != currentStepX) and (ONVIFGetprofile.Y != currentStepY)):
                                 #time.sleep(0.1)
                             if(Rasterstep == 0):
-                                time.sleep(5.0)
-                            else:
                                 time.sleep(8.0)
+                            else:
+                                time.sleep(5.0)
 
         
                             # Set the values of the request
