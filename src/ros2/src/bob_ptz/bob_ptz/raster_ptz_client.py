@@ -43,8 +43,11 @@ class RasterPTZClient(Node):
                 startY = RasterConfig['startY']
                 endY = RasterConfig['endY']
                 stepwidthY = RasterConfig['stepwidthY']
+                startZoom = RasterConfig['startZoom']
+                endZoom = RasterConfig['endZoom']
+                stepwidthZoom = RasterConfig['stepwidthZoom']
                 campaign = RasterConfig['campaign']
-                zoom = RasterConfig['zoom']
+
 
                 CampaignUnderlined = re.sub(r'[^a-zA-Z0-9_]', '_', campaign)
                 TimeStartNotString = datetime.datetime.now()
@@ -56,11 +59,13 @@ class RasterPTZClient(Node):
                 print(f"Campaign: {campaign}", file=RasteringProtocol)
                 print(f"\tStart X: {startX}", file=RasteringProtocol)
                 print(f"\tStart Y: {startY}", file=RasteringProtocol)
+                print(f"\tStart Zoom: {startZoom}", file=RasteringProtocol)
                 print(f"\tEnd X: {endX}", file=RasteringProtocol)
                 print(f"\tEnd Y: {endY}", file=RasteringProtocol)
+                print(f"\tEnd Zoom: {endZoom}", file=RasteringProtocol)
                 print(f"\tstepwidthX: {stepwidthX}", file=RasteringProtocol)
                 print(f"\tstepwidthY: {stepwidthY}", file=RasteringProtocol)
-                print(f"\tzoom: {zoom}", file=RasteringProtocol)
+                print(f"\tstepwidthZoom: {stepwidthZoom}", file=RasteringProtocol)
                 print(f"\tRastering Starts: {TimeStart}", file=RasteringProtocol)
 
                 print(f"Protocol:", file=RasteringProtocol)
@@ -72,8 +77,8 @@ class RasterPTZClient(Node):
                     if( (initiate_v1 == True)  or  (RasterImageACK_v1 == True)):
                         #initially magic numbers, later ros-msg-values:
                         XIncrementsPerY = math.ceil(abs(startX-endX)/stepwidthX)+1
-                        YStepsTotal = math.ceil(abs(startY-endY)/stepwidthY)
-                        if(Rasterstep <= XIncrementsPerY*YStepsTotal):
+                        YStepsTotal = math.ceil(abs(startY-endY)/stepwidthY)+1
+                        if(Rasterstep < XIncrementsPerY*YStepsTotal):
                             currentStepX = round(startX + (stepwidthX*(Rasterstep % XIncrementsPerY)),10)
                             currentStepY = round(startY + (stepwidthY*(math.floor(Rasterstep  / XIncrementsPerY))),10)
                             
@@ -91,7 +96,7 @@ class RasterPTZClient(Node):
                             XMIN = -1
                             YMAX = 1
                             YMIN = -1
-                            ZoomMAX = 10
+                            ZoomMAX = 1
                             ZoomMIN = 0
                             moverequest = None
                             ptz = None
@@ -117,8 +122,7 @@ class RasterPTZClient(Node):
 
                             moverequest.Position.PanTilt.x = min(max(currentStepX,XMIN),XMAX)
                             moverequest.Position.PanTilt.y = min(max(currentStepY,YMIN),YMAX)
-                            moverequest.Position.Zoom.x = min(max(0.0,ZoomMIN),ZoomMAX)
-
+                            moverequest.Position.Zoom.x = min(max(startZoom,ZoomMIN),ZoomMAX)
 
                             #global active
                             if active:

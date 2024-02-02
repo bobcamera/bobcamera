@@ -7,14 +7,25 @@ Rasterstep = 0
 completeMSG = False 
 initiate_v1 = True
 
+'''
+	Start X: -1
+	Start Y: -1
+	Start Zoom: 0.0
+	End X: -0.6
+	End Y: -0.4
+	End Zoom: 2.0
+	stepwidthX: 0.2
+	stepwidthY: 0.2
+	stepwidthZoom: 1
+'''
 while(completeMSG == False):
     if( (initiate_v1 == True)  or  (RasterImageACK_v1 == True)):
         #initially magic numbers, later ros-msg-values:
-        startX = -1; endX = 1; startY = -1; endY = 1
+        startX = -1; endX = -0.6; startY = -1; endY = -0.4
         stepwidthX = 0.2; stepwidthY = 0.2
         XIncrementsPerY = math.ceil(abs(startX-endX)/stepwidthX)+1
-        YStepsTotal = math.ceil(abs(startY-endY)/stepwidthY)
-        if(Rasterstep <= XIncrementsPerY*YStepsTotal):
+        YStepsTotal = math.ceil(abs(startY-endY)/stepwidthY)+1
+        if(Rasterstep < XIncrementsPerY*YStepsTotal):
             currentStepX = round(startX + (stepwidthX*(Rasterstep % XIncrementsPerY)),10)
             currentStepY = round(startY + (stepwidthY*(math.floor(Rasterstep  / XIncrementsPerY))),10)
             #Polling ONVIF if target has been reached
@@ -28,7 +39,7 @@ while(completeMSG == False):
     #For testing purposes:
     initiate_v1 = False
     RasterImageACK_v1 = False
-    time.sleep(1.0)
+    #time.sleep(1.0)
     RasterImageACK_v1 = True
     if completeMSG == False:
         print(f"MSG RasterImageACK_v1 = {RasterImageACK_v1}")
