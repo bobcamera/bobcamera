@@ -76,13 +76,14 @@ class RasterPTZClient(Node):
                 while(completeMSG == False):
                     if( (initiate_v1 == True)  or  (RasterImageACK_v1 == True)):
                         #initially magic numbers, later ros-msg-values:
-                        ZoomIncrementsPerX = math.ceil(abs(startZoom-endZoom)/stepwidthZoom)+1
-                        XIncrementsPerYmultiplesOfZoom = math.ceil(ZoomIncrementsPerX*(abs(startX-endX)/stepwidthX+1))
-                        YStepsTotal = math.ceil(abs(startY-endY)/stepwidthY)+1
-                        if(Rasterstep < XIncrementsPerYmultiplesOfZoom*YStepsTotal):
-                            currentStepZoom = round(startZoom+(stepwidthZoom*(Rasterstep % ZoomIncrementsPerX )),10)
-                            currentStepX = round(startX + (stepwidthX*math.floor((Rasterstep % XIncrementsPerYmultiplesOfZoom)/ ZoomIncrementsPerX )) ,10)
-                            currentStepY = round(startY + (stepwidthY*(math.floor(Rasterstep  / XIncrementsPerYmultiplesOfZoom ))),10)
+                        YIncrementsPerX = math.ceil(abs(startY-endY)/stepwidthY)+1
+                        XIncrementsPerZoommultiplesOfY = math.ceil(YIncrementsPerX*(abs(startX-endX)/stepwidthX+1))
+                        ZoomStepsTotal = math.ceil(abs(startZoom-endZoom)/stepwidthZoom)+1
+                                
+                        if(Rasterstep < XIncrementsPerZoommultiplesOfY*ZoomStepsTotal):
+                            currentStepY = round(startY+(stepwidthY*(Rasterstep % YIncrementsPerX )),10)
+                            currentStepX = round(startX + (stepwidthX*math.floor((Rasterstep % XIncrementsPerZoommultiplesOfY)/ YIncrementsPerX )) ,10)
+                            currentStepZoom = round(startZoom + (stepwidthZoom*(math.floor(Rasterstep  / XIncrementsPerZoommultiplesOfY ))),10)
 
                 
                             ############### Remove later and use ros2-AbsoluteMove message instead #############
