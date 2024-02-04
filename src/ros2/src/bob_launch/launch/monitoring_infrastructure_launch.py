@@ -68,6 +68,14 @@ def generate_launch_description():
         parameters = [config],
     )
 
+    config_manager_node = Node(
+        package='bob_monitor',
+        #namespace='bob',
+        executable='config_manager',
+        name='config_manager_node',
+        parameters = [config],
+    )    
+
     return LaunchDescription([
         # day_night_classifier_node,
         # cloud_estimator_node,
@@ -75,4 +83,5 @@ def generate_launch_description():
         # prometheus_node,
         onvif_node,
         # ptz_manager_node
+        config_manager_node,
     ])

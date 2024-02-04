@@ -175,6 +175,10 @@ tracking_monitor_node:
     observer_tracking_profile_busy_switch_threshold: 5
     observer_tracker_sample_set: 5
 
+config_manager_node:
+  ros__parameters:
+    pass: True
+
 prometheus_metrics_node:
   ros__parameters:
     port: 8082

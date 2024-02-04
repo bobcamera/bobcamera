@@ -17,8 +17,8 @@ def generate_launch_description():
     source_arg_value = EnvironmentVariable('BOB_SOURCE', default_value="'video'")
     
     rtsp_url_arg_value = EnvironmentVariable('BOB_RTSP_URL', default_value="")
-    rtsp_width_arg_value = EnvironmentVariable('BOB_RTSP_WIDTH', default_value="")
-    rtsp_height_arg_value = EnvironmentVariable('BOB_RTSP_HEIGHT', default_value="")
+    rtsp_width_arg_value = EnvironmentVariable('BOB_RTSP_WIDTH', default_value="0")
+    rtsp_height_arg_value = EnvironmentVariable('BOB_RTSP_HEIGHT', default_value="0")
     
     camera_id_arg_value = EnvironmentVariable('BOB_CAMERA_ID', default_value="0")    
     fps_arg_value = EnvironmentVariable('BOB_FPS', default_value="15")
@@ -29,8 +29,8 @@ def generate_launch_description():
     enable_rosbridge_arg_value = EnvironmentVariable('BOB_ENABLE_ROSBRIDGE', default_value="False")
     enable_recording_arg_value = EnvironmentVariable('BOB_ENABLE_RECORDING', default_value="False")    
     
-    simulation_width_arg_value = EnvironmentVariable('BOB_SIMULATION_WIDTH', default_value="1920")
-    simulation_height_arg_value = EnvironmentVariable('BOB_SIMULATION_HEIGHT', default_value="1080")
+    simulation_width_arg_value = EnvironmentVariable('BOB_SIMULATION_WIDTH', default_value="0")
+    simulation_height_arg_value = EnvironmentVariable('BOB_SIMULATION_HEIGHT', default_value="0")
     simulation_num_objects_arg_value = EnvironmentVariable('BOB_SIMULATION_NUM_OBJECTS', default_value="5")    
     
     bgs_algorithm_value = EnvironmentVariable('BOB_BGS_ALGORITHM', default_value="vibe")    

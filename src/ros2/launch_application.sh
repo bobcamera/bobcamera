@@ -7,10 +7,7 @@ export BOB_SOURCE=${BOB_SOURCE:-"'video_overlay'"}
 #Amcrest example
 #export BOB_RTSP_URL=${BOB_RTSP_URL:-"rtsp://user:password@0.0.0.0:554/cam/realmonitor?channel=1&subtype=0"}
 export BOB_RTSP_URL=${BOB_RTSP_URL:-""}
-export BOB_RTSP_WIDTH=${BOB_RTSP_WIDTH:-"1920"}
-export BOB_RTSP_HEIGHT=${BOB_RTSP_HEIGHT:-"1080"}
 export BOB_CAMERA_ID=${BOB_CAMERA_ID:-"0"}
-export BOB_FPS=${BOB_FPS:-"15.0"}
 export BOB_ENABLE_VISUALISER=${BOB_ENABLE_VISUALISER:-"True"}
 export BOB_ENABLE_RECORDING=${BOB_ENABLE_RECORDING:-"False"}
 # export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
@@ -31,8 +28,6 @@ export BOB_TRACKING_MASK_FILE=${BOB_TRACKING_MASK_FILE:-"assets/masks/mask.jpg"}
 export BOB_VIDEOS=${BOB_VIDEOS:-"/workspaces/bobcamera/test/fisheye_videos/mike_drone.mp4;/workspaces/bobcamera/test/fisheye_videos/Dahua-20220901-184734.mp4;/workspaces/bobcamera/test/fisheye_videos/brad_drone_1.mp4"}
 
 # simulation
-export BOB_SIMULATION_WIDTH=${BOB_SIMULATION_WIDTH:- "1920"}
-export BOB_SIMULATION_HEIGHT=${BOB_SIMULATION_HEIGHT:- "1080"}
 export BOB_SIMULATION_NUM_OBJECTS=${BOB_SIMULATION_NUM_OBJECTS:- "5"}
 
 ./launcher.sh application_launch.py

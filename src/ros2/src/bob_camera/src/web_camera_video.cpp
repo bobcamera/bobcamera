@@ -1,4 +1,5 @@
 #include <chrono>
+#include <string>
 
 #include <opencv2/opencv.hpp>
 
@@ -11,6 +12,7 @@
 #include "bob_camera/msg/camera_info.hpp"
 #include "parameter_node.hpp"
 #include "bob_interfaces/srv/camera_settings.hpp"
+#include "bob_interfaces/srv/config_entry_update.hpp"
 #include <boblib/api/utils/profiler.hpp>
 #include <visibility_control.h>
 
@@ -52,6 +54,7 @@ public:
 
 private:
     rclcpp::Client<bob_interfaces::srv::CameraSettings>::SharedPtr camera_settings_client_;
+    rclcpp::Client<bob_interfaces::srv::ConfigEntryUpdate>::SharedPtr fps_update_client_;
     rclcpp::QoS qos_profile_{10}; 
     cv::VideoCapture video_capture_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
@@ -80,7 +83,8 @@ private:
 
     void init()
     {
-        camera_settings_client_ = this->create_client<bob_interfaces::srv::CameraSettings>("camera_settings");
+        camera_settings_client_ = this->create_client<bob_interfaces::srv::CameraSettings>("bob/camera/settings");
+        fps_update_client_ = this->create_client<bob_interfaces::srv::ConfigEntryUpdate>("bob/config/update/fps");
         declare_node_parameters();    
         open_camera();
         create_camera_info_msg();
@@ -235,6 +239,23 @@ private:
         auto result = camera_settings_client_->async_send_request(request, response_received_callback);
     }
 
+    void request_update_fps(const float fps, std::function<void(const bob_interfaces::srv::ConfigEntryUpdate::Response::SharedPtr&)> user_callback)
+    {
+        auto request = std::make_shared<bob_interfaces::srv::ConfigEntryUpdate::Request>();
+        request->key = "fps";
+        request->type = "double";
+        request->value = std::to_string(fps);
+
+        auto response_received_callback = [this, user_callback](rclcpp::Client<bob_interfaces::srv::ConfigEntryUpdate>::SharedFuture future) {
+            auto response = future.get();
+            if(response->success)
+                user_callback(response);  
+        };
+
+        // Send the request
+        auto result = fps_update_client_->async_send_request(request, response_received_callback);
+    }
+
     inline void open_camera()
     {
         switch (source_type_)
@@ -268,6 +289,16 @@ private:
         {
             fps_ = video_capture_.get(cv::CAP_PROP_FPS);
             RCLCPP_INFO(get_logger(), "fps: %f", fps_);
+
+            /*auto update_fps = [this](const bob_interfaces::srv::ConfigEntryUpdate::Response::SharedPtr& response) 
+            {
+                if (response->success)
+                {
+                    RCLCPP_INFO(get_logger(), "FPS Updated Successfully");
+                }
+            };
+
+            request_update_fps(fps_, update_fps);*/
         }
     }
 

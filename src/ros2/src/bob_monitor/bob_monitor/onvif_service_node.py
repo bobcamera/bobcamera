@@ -30,7 +30,7 @@ class ONVIFServiceNode(Node):
 
         self.declare_parameters(namespace='', parameters=[('onvif_wsdl_path', 'src/bob_monitor/resource/wsdl')])
         self.wsdl_path = self.get_parameter('onvif_wsdl_path').value
-        self.srv = self.create_service(CameraSettings, 'camera_settings', self.camera_settings_callback)
+        self.srv = self.create_service(CameraSettings, 'bob/camera/settings', self.camera_settings_callback)
         self.log_info("ONVIF Service Initialized")
 
     def camera_settings_callback(self, request, response):

@@ -1,5 +1,7 @@
 import os
 import yaml
+import cv2
+from onvif2 import ONVIFCamera
 from launch.actions import LogInfo
 from launch import LaunchDescription
 from launch.actions import OpaqueFunction
@@ -7,7 +9,171 @@ from launch.conditions import IfCondition
 from launch.substitutions import PythonExpression, LaunchConfiguration 
 from ament_index_python.packages import get_package_share_directory
 
-from onvif2 import ONVIFCamera
+class ConfigDiscoverer():
+
+    def __init__(self, source, rtsp_url, camera_id, videos):
+
+        self.source = source
+        self.rtsp_url = rtsp_url
+        self.camera_id = camera_id
+        self.videos = videos
+
+        self.rtsp_user = ""
+        self.rtsp_password = ""
+        self.rtsp_host = ""
+        self.rtsp_port = 0
+
+        self.height = 0
+        self.width = 0
+        self.fps = 0
+        self.bitrate = 0
+
+        self.onvif_success = False
+
+        self.onvif_profile_for_settings_determination = 'main'
+        self.wsdl_location = 'src/bob_monitor/resource/wsdl'
+        self.resolutions = {3840:2160, 2560:1440, 1920:1080, 1600:900, 1280:720, 1024:768, 800:600, 640:480, 320:240}
+
+    def discover(self):
+
+        success = False
+        video_capture = None
+
+        try:
+            if self.source in ('\'rtsp\'', '\'rtsp_overlay\''):
+                (onvif_success_, rtsp_user_, rtsp_password_, rtsp_host_, rtsp_port_) = self._get_onvif_config(self.rtsp_url)
+                if onvif_success_:
+                    self.onvif_success = onvif_success_
+                    self.rtsp_user = rtsp_user_
+                    self.rtsp_password = rtsp_password_
+                    self.rtsp_host = rtsp_host_
+                    self.rtsp_port = rtsp_port_
+
+                    (retrieval_success, width_, height_, fps_, bitrate_) = self._get_image_stream_details_using_onvif(rtsp_user_, rtsp_password_, rtsp_host_, rtsp_port_)
+                    if retrieval_success:
+                        self.width = width_
+                        self.height = height_
+                        self.fps = fps_
+                        self.bitrate = bitrate_
+                        success = True
+                    else:
+                        video_capture = cv2.VideoCapture(self.rtsp_url)
+                else:
+                    video_capture = cv2.VideoCapture(self.rtsp_url)
+
+            if self.source in ('\'usb\''):
+
+                video_capture = cv2.VideoCapture(self.camera_id)
+
+                for key in self.resolutions:
+                    w = key
+                    h = self.resolutions[key]
+                    video_capture.set(cv2.CAP_PROP_FRAME_WIDTH, w)
+                    video_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, h)
+                    if (video_capture.get(cv2.CAP_PROP_FRAME_WIDTH) == w and video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT) == h):
+                        break
+
+            if self.source in ('\'video\'', '\'video_overlay\''):
+                videos_ = self.videos.split(";")
+                video_capture = cv2.VideoCapture(videos_[0])
+
+            if video_capture is not None:
+                self.fps = video_capture.get(cv2.CAP_PROP_FPS)
+
+                counter = 0
+                while True:
+                    success, frame = video_capture.read()
+                    counter = counter + 1
+                    if success:
+                        self.height, self.width, channels = frame.shape
+                        success = True
+                        break
+                    
+                    if counter > 10:
+                        break
+
+        except Exception as e:
+            print(f"Error discovering Video settings: {e}")
+
+        if success:
+            print(f"Video settings discovery has been SUCCESSFUL...")
+        else:
+            print(f"Video settings discovery has FAILED...")
+
+
+        return success
+
+    def _get_image_stream_details_using_onvif(self, rtsp_user, rtsp_password, rtsp_host, rtsp_port):
+
+        #print(f"Using ONVIF to search the Main RTSP profile for image details...")
+
+        try:
+            mycam = ONVIFCamera(rtsp_host, rtsp_port, rtsp_user, rtsp_password, self.wsdl_location)
+            media2_service = mycam.create_media2_service()
+    
+            configurations = media2_service.GetVideoEncoderConfigurations()
+            for configuration in configurations:
+                encoding = configuration['Encoding'].lower()
+                if encoding in ['h264', 'h265']:
+
+                    width = configuration['Resolution']['Width']
+                    height = configuration['Resolution']['Height']
+                    fps = configuration['RateControl']['FrameRateLimit']
+                    bitrate = configuration['RateControl']['BitrateLimit']
+                    profile = configuration['Profile']
+
+                    if profile.lower() in [self.onvif_profile_for_settings_determination]:
+
+                        print(f"Found {self.onvif_profile_for_settings_determination} profile. Details :- width:{width}, height: {height} @ FPS: {fps}, @ Bitrate: {bitrate}")
+                        return (True, width, height, fps, bitrate)
+
+        except Exception as e:
+            print(f"Error retrieving camera settings using ONVIF: {e}")
+        
+        return (False, 0, 0, 0, 0)
+
+    def _get_onvif_config(self, rtsp_url):
+
+        try:
+            credstr = rtsp_url[rtsp_url.index("//"):rtsp_url.index("@")]
+            if credstr.startswith("//"):
+                credstr = credstr.replace("//", "")
+
+            cred_array = credstr.split(":")
+
+            hoststr = rtsp_url[rtsp_url.index("@"):]
+
+            hoststr = hoststr[:hoststr.index("/"):]
+            if hoststr.startswith("@"):
+                hoststr = hoststr.replace("@", "")
+
+            host_array = hoststr.split(":")
+
+            user = cred_array[0]
+            password = cred_array[1]
+            host = host_array[0]
+            port = int(host_array[1])
+
+            fall_back_ports = [80, 443, 554]
+            onvif_connection_test_result = self._test_onvif_connection(host, port, user, password)
+            if onvif_connection_test_result == False:
+                for fall_back_port in fall_back_ports:
+                    onvif_connection_test_result = self._test_onvif_connection(host, fall_back_port, user, password)
+                    if onvif_connection_test_result:
+                        port = fall_back_port
+                        break
+
+            return (onvif_connection_test_result, user, password, host, port)
+        except Exception as e:
+            return (False, "", "", "", 0)    
+
+    def _test_onvif_connection(self, rtsp_host, rtsp_port, rtsp_user, rtsp_password):
+        try:
+            # Connect to the camera
+            mycam = ONVIFCamera(rtsp_host, rtsp_port, rtsp_user, rtsp_password, self.wsdl_location)
+            return True
+        except Exception as e:
+            return False
 
 def create_storage_folders(context):
     # TODO: Parameterise these a bit better, or drive them from the UI or something but for now
@@ -25,9 +191,11 @@ def application_config(context):
     # get the values provided as part of the launch arguments
     source = str(LaunchConfiguration('source_arg').perform(context))
     rtsp_url = str(LaunchConfiguration('rtsp_url_arg').perform(context))
+    camera_id = int(LaunchConfiguration('camera_id_arg').perform(context))
+    videos = str(LaunchConfiguration('video_arg').perform(context))
+
     image_width = int(LaunchConfiguration('rtsp_width_arg').perform(context))
     image_height = int(LaunchConfiguration('rtsp_height_arg').perform(context))
-    camera_id = int(LaunchConfiguration('camera_id_arg').perform(context))
     fps = float(LaunchConfiguration('fps_arg').perform(context))
 
     simulation_height = int(LaunchConfiguration('simulation_height_arg').perform(context))
@@ -40,9 +208,15 @@ def application_config(context):
     tracking_use_mask = LaunchConfiguration('tracking_usemask_arg').perform(context) in ('True', 'true')
     tracking_mask_dir = os.path.dirname(tracking_mask_file)
 
-    videos = str(LaunchConfiguration('video_arg').perform(context))
-
     update_config = LaunchConfiguration('update_config_from_env_vars_arg').perform(context) in ('True', 'true')
+
+    discoverer = ConfigDiscoverer(source, rtsp_url, camera_id, videos)
+    if discoverer.discover():
+        image_width = discoverer.width
+        image_height = discoverer.height
+        simulation_width = discoverer.width
+        simulation_height = discoverer.height        
+        fps = discoverer.fps
 
     if update_config:
         
@@ -112,18 +286,17 @@ def application_config(context):
             # allsky_recorder_node
             yaml_output['allsky_recorder_node']['ros__parameters']['video_fps'] = fps
 
-            if source in ('\'rtsp\'', '\'rtsp_overlay\''):
-                (onvif_success, rtsp_user, rtsp_password, rtsp_host, rtsp_port) = get_onvif_config(rtsp_url)
-                if onvif_success:
-                    yaml_output['rtsp_camera_node']['ros__parameters']['onvif_user'] = rtsp_user
-                    yaml_output['rtsp_camera_node']['ros__parameters']['onvif_password'] = rtsp_password
-                    yaml_output['rtsp_camera_node']['ros__parameters']['onvif_host'] = rtsp_host
-                    yaml_output['rtsp_camera_node']['ros__parameters']['onvif_port'] = rtsp_port
+            # onvif details
+            if discoverer.onvif_success:
+                yaml_output['rtsp_camera_node']['ros__parameters']['onvif_user'] = discoverer.rtsp_user
+                yaml_output['rtsp_camera_node']['ros__parameters']['onvif_password'] = discoverer.rtsp_password
+                yaml_output['rtsp_camera_node']['ros__parameters']['onvif_host'] = discoverer.rtsp_host
+                yaml_output['rtsp_camera_node']['ros__parameters']['onvif_port'] = discoverer.rtsp_port
 
-                    yaml_output['rtsp_overlay_camera_node']['ros__parameters']['onvif_user'] = rtsp_user
-                    yaml_output['rtsp_overlay_camera_node']['ros__parameters']['onvif_password'] = rtsp_password
-                    yaml_output['rtsp_overlay_camera_node']['ros__parameters']['onvif_host'] = rtsp_host
-                    yaml_output['rtsp_overlay_camera_node']['ros__parameters']['onvif_port'] = rtsp_port                    
+                yaml_output['rtsp_overlay_camera_node']['ros__parameters']['onvif_user'] = discoverer.rtsp_user
+                yaml_output['rtsp_overlay_camera_node']['ros__parameters']['onvif_password'] = discoverer.rtsp_password
+                yaml_output['rtsp_overlay_camera_node']['ros__parameters']['onvif_host'] = discoverer.rtsp_host
+                yaml_output['rtsp_overlay_camera_node']['ros__parameters']['onvif_port'] = discoverer.rtsp_port
 
         # Update the camera_info file with the provided launch arguments
         with open(app_config_file, 'w') as write:
@@ -151,55 +324,12 @@ def camera_config(context):
 def generate_launch_description():
     create_storage_folders_func = OpaqueFunction(function = create_storage_folders)
     application_config_func = OpaqueFunction(function = application_config)
-    camera_info_config_func = OpaqueFunction(function = camera_config)
+    #camera_info_config_func = OpaqueFunction(function = camera_config)
 
     return LaunchDescription([
         LogInfo(msg=['Updating config files, this might take a minute, please wait...']),
         create_storage_folders_func,
         application_config_func,
-        camera_info_config_func,
+        #camera_info_config_func,
         LogInfo(msg=['Config files update complete.']),
     ])
-
-def get_onvif_config(rtsp_url):
-
-    try:
-        credstr = rtsp_url[rtsp_url.index("//"):rtsp_url.index("@")]
-        if credstr.startswith("//"):
-            credstr = credstr.replace("//", "")
-
-        cred_array = credstr.split(":")
-
-        hoststr = rtsp_url[rtsp_url.index("@"):]
-
-        hoststr = hoststr[:hoststr.index("/"):]
-        if hoststr.startswith("@"):
-            hoststr = hoststr.replace("@", "")
-
-        host_array = hoststr.split(":")
-
-        user = cred_array[0]
-        password = cred_array[1]
-        host = host_array[0]
-        port = int(host_array[1])
-
-        fall_back_ports = [80, 443, 554]
-        onvif_connection_test_result = test_onvif_connection(host, port, user, password)
-        if onvif_connection_test_result == False:
-            for fall_back_port in fall_back_ports:
-                onvif_connection_test_result = test_onvif_connection(host, fall_back_port, user, password)
-                if onvif_connection_test_result:
-                    port = fall_back_port
-                    break
-
-        return (onvif_connection_test_result, user, password, host, port)
-    except Exception as e:
-        return (False, "", "", "", 0)          
-
-def test_onvif_connection(rtsp_host, rtsp_port, rtsp_user, rtsp_password):
-    try:
-        # Connect to the camera
-        mycam = ONVIFCamera(rtsp_host, rtsp_port, rtsp_user, rtsp_password, 'src/bob_monitor/resource/wsdl')
-        return True
-    except Exception as e:
-        return False
