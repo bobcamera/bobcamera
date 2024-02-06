@@ -40,8 +40,8 @@
 </h6>
 <ul class="nav flex-column">
     <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="iframe.php?file=html/dome-editor-video.html"><i class="bi bi-globe"></i>Dome Editor</a></li>
-    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="iframe.php?file=html/Save_Full_Sized_Mask_JPG.html"><i class="bi bi-mask"></i>Mask Editor</a></li>
-     <!-- <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="iframe.php?file=html/3d-dome-editor.html"><svg class="bi"> <use xlink:href="#camera2" /> </svg>Dome Editor Still Image</a></li> -->
+    <!--<li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="iframe.php?file=html/Save_Full_Sized_Mask_JPG.html"><i class="bi bi-mask"></i>Mask Editor</a></li>
+    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="iframe.php?file=html/3d-dome-editor.html"><svg class="bi"> <use xlink:href="#camera2" /> </svg>Dome Editor Still Image</a></li> -->
 
 
     </ul>
