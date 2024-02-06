@@ -5,7 +5,7 @@ from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy, QoS
 import traceback as tb
 import rclpy
 from typing import List
-#ro2 topic pub -1 /bob/ptz/absolute/move bob_interfaces/msg/PTZAbsoluteMove "{pospantiltx: -0.25, pospantilty: 1, poszoomx: 0, speedpantiltx: 1, speedpantilty: 1, speedzoomx: 1}"
+#ro2 topic pub -1 /bob/ptz/move/absolute bob_interfaces/msg/PTZAbsoluteMove "{pospantiltx: -0.25, pospantilty: 1, poszoomx: 0, speedpantiltx: 1, speedpantilty: 1, speedzoomx: 1}"
 IP="10.20.30.140"   # Camera IP address
 PORT=80           # Port
 USER="bob"         # Username

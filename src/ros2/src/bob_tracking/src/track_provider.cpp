@@ -178,35 +178,38 @@ private:
             }
         }
 
-        if(numofframes % 1 == 0){
+        if(numofframes % 6 == 0){
 
 
-            const auto& active_trackers = video_tracker_.get_active_trackers();
-            if (!active_trackers.empty()){
-                const auto& first_tracker = *active_trackers.begin();
-                RCLCPP_INFO(get_logger(),"video_tracker_.get_active_trackers() not empty");// 
+            const auto& live_trackers = video_tracker_.get_live_trackers();
+            if (!live_trackers.empty()){
+                const auto& first_tracker = *live_trackers.begin();
+                //RCLCPP_INFO(get_logger(),"video_tracker_.get_live_trackers() not empty");// 
                 if (!first_tracker.get_predictor_center_points().empty()) {
-                    RCLCPP_INFO(get_logger(),"get_predictor_center_points() not empty");// 
+                    //RCLCPP_INFO(get_logger(),"get_predictor_center_points() not empty");// 
+                    RCLCPP_INFO(get_logger(),"tracker id: %d", first_tracker.get_id());
                     const std::vector<cv::Point>& PredCentPoints = first_tracker.get_predictor_center_points();
                     const cv::Point& lastPoint = PredCentPoints.back();
                     RCLCPP_INFO(get_logger(),"X predicted point: %d", lastPoint.x);// 
                     RCLCPP_INFO(get_logger(),"Y predicted point: %d", lastPoint.y);// 
+
+                    PTZ_msg.pospantiltx =  PTZXAbsoluteMoveFromTrack[(lastPoint.x+BOB_RTSP_WIDTH/2)%(BOB_RTSP_WIDTH-1)][(lastPoint.y+BOB_RTSP_HEIGHT/2)%(BOB_RTSP_HEIGHT-1)];
+                    PTZ_msg.pospantilty =  PTZYAbsoluteMoveFromTrack[(lastPoint.x+BOB_RTSP_WIDTH/2)%(BOB_RTSP_WIDTH-1)][(lastPoint.y+BOB_RTSP_HEIGHT/2)%(BOB_RTSP_HEIGHT-1)];
+                    PTZ_msg.poszoomx = (float)0.0;
+                    PTZ_msg.speedpantiltx = (float)1.0;
+                    PTZ_msg.speedpantilty = (float)1.0;
+                    PTZ_msg.speedzoomx = float(1.0);
+
+                    //RCLCPP_INFO_STREAM(this->get_logger(),"In publisher loop" << numofframes);
+                    RCLCPP_INFO_STREAM(this->get_logger(),"Current Position Target: x" << PTZ_msg.pospantiltx <<  " : y" << PTZ_msg.pospantilty);
+                    pub_tracker_PTZabsolutemove_->publish(PTZ_msg);
                 }
             }
 
-            PTZ_msg.pospantiltx =  PTZXAbsoluteMoveFromTrack[(numofframes)%(BOB_RTSP_WIDTH-1)][(numofframes)%(BOB_RTSP_HEIGHT-1)];
-            PTZ_msg.pospantilty =  PTZYAbsoluteMoveFromTrack[(numofframes)%(BOB_RTSP_WIDTH-1)][(numofframes)%(BOB_RTSP_HEIGHT-1)];
-            PTZ_msg.poszoomx = (float)0.0;
-            PTZ_msg.speedpantiltx = (float)1.0;
-            PTZ_msg.speedpantilty = (float)1.0;
-            PTZ_msg.speedzoomx = float(1.0);
-
-            RCLCPP_INFO_STREAM(this->get_logger(),"In publisher loop" << numofframes);
-            RCLCPP_INFO_STREAM(this->get_logger(),"Current Position: x" << PTZ_msg.pospantiltx <<  "Current Position Target: y" << PTZ_msg.pospantilty);
-            pub_tracker_PTZabsolutemove_->publish(PTZ_msg);
             
         }
-        numofframes++;
+        numofframes = (numofframes + 1) % (2147483647); //+1..
+  
 
     }
 
