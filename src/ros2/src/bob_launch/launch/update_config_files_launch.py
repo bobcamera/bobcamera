@@ -86,6 +86,7 @@ class ConfigDiscoverer():
                     counter = counter + 1
                     if success:
                         self.height, self.width, channels = frame.shape
+                        print(f"Discovery - OpenCV Details :- width:{self.width}, height: {self.height} @ FPS: {self.fps}")
                         success = True
                         break
                     
@@ -96,10 +97,9 @@ class ConfigDiscoverer():
             print(f"Error discovering Video settings: {e}")
 
         if success:
-            print(f"Video settings discovery has been SUCCESSFUL...")
+            print(f"Video settings discovery: SUCCESS")
         else:
-            print(f"Video settings discovery has FAILED...")
-
+            print(f"Video settings discovery: FAIL")
 
         return success
 
@@ -124,7 +124,7 @@ class ConfigDiscoverer():
 
                     if profile.lower() in [self.onvif_profile_for_settings_determination]:
 
-                        print(f"Found {self.onvif_profile_for_settings_determination} profile. Details :- width:{width}, height: {height} @ FPS: {fps}, @ Bitrate: {bitrate}")
+                        print(f"Discovery - ONVIF ({self.onvif_profile_for_settings_determination}) Details :- width:{width}, height: {height} @ FPS: {fps}, @ Bitrate: {bitrate}")
                         return (True, width, height, fps, bitrate)
 
         except Exception as e:
