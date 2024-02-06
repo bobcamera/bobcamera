@@ -59,6 +59,9 @@ This repository contains the code for the BobCamera Web GUI. It is designed to w
 2. **Launch the ROS2 environment:**
     Use the `.devcontainer` configuration in this folder to launch the ROS2 environment. For detailed instructions, consult the ROS2 directory README.
 
+**Note**:
+If you find there is no live stream or broken functionality on pages in the web GUI, then it could be that port 9090 used by ROSBridge web server is not forwarded correctly within VS Code
+
 ### Additional Resources
 
 - [BobCamera ROS2 Source Code](https://github.com/bobcamera/bobcamera/tree/main/src/ros2)
