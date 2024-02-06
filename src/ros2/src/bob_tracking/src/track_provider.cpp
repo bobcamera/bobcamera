@@ -11,6 +11,8 @@
 #include <sensor_msgs/msg/image.hpp>
 #include <vision_msgs/msg/bounding_box2_d_array.hpp>
 #include "bob_interfaces/msg/tracking.hpp"
+#include "bob_interfaces/msg/ptz_absolute_move.hpp"
+
 
 #include "tracking/cv_trackers/video_tracker.hpp"
 #include "tracking/sort/include/sort_tracker.h"
@@ -19,6 +21,8 @@
 #include "image_utils.hpp"
 
 #include <visibility_control.h>
+
+static int numofframes = 0;
 
 class TrackProvider
     : public ParameterNode
@@ -40,6 +44,7 @@ private:
     std::shared_ptr<message_filters::Subscriber<vision_msgs::msg::BoundingBox2DArray>> detector_bounding_boxes_subscription_;
     std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, vision_msgs::msg::BoundingBox2DArray>> time_synchronizer_;
     rclcpp::Publisher<bob_interfaces::msg::Tracking>::SharedPtr pub_tracker_tracking_;
+    rclcpp::Publisher<bob_interfaces::msg::PTZAbsoluteMove>::SharedPtr pub_tracker_PTZabsolutemove_;
     // VideoTracker video_tracker_;
     SORT::Tracker video_tracker_;
     rclcpp::TimerBase::SharedPtr timer_;
@@ -68,7 +73,10 @@ private:
         time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, vision_msgs::msg::BoundingBox2DArray>>(*masked_frame_subscription_, *detector_bounding_boxes_subscription_, 10);
         time_synchronizer_->registerCallback(&TrackProvider::callback, this);
 
+        
+
         pub_tracker_tracking_ = create_publisher<bob_interfaces::msg::Tracking>("bob/tracker/tracking", pub_qos_profile);
+        pub_tracker_PTZabsolutemove_= create_publisher<bob_interfaces::msg::PTZAbsoluteMove>("bob/ptz/move/absolute", pub_qos_profile);
     }
 
     void callback(const sensor_msgs::msg::Image::SharedPtr &image_msg, const vision_msgs::msg::BoundingBox2DArray::SharedPtr &bounding_boxes_msg)
@@ -97,16 +105,17 @@ private:
             RCLCPP_ERROR(get_logger(), "Open CV exception: %s", cve.what());
         }        
     }
-
     void publish_tracking(std_msgs::msg::Header &header)
     {
+
         bob_interfaces::msg::Tracking tracking_msg;
+        bob_interfaces::msg::PTZAbsoluteMove PTZ_msg;
+
         tracking_msg.header = header;
         tracking_msg.state.trackable = video_tracker_.get_total_trackable_trackers();
         tracking_msg.state.alive = video_tracker_.get_total_live_trackers();
         tracking_msg.state.started = video_tracker_.get_total_trackers_started();
         tracking_msg.state.ended = video_tracker_.get_total_trackers_finished();
-
         for (const auto &tracker : video_tracker_.get_live_trackers())
         {
             add_track_detection(tracker, tracking_msg.detections);
@@ -114,6 +123,50 @@ private:
             add_prediction(tracker, tracking_msg.predictions);
         }
         pub_tracker_tracking_->publish(tracking_msg);
+ 
+
+
+        //export BOB_RTSP_WIDTH=${BOB_RTSP_WIDTH:-"1920"}
+        //export BOB_RTSP_HEIGHT=${BOB_RTSP_HEIGHT:-"1080"}    
+        //const int BOB_RTSP_WIDTH = 1080; 
+        //const int BOB_RTSP_HEIGHT = 1920;
+    
+        /*    
+        float PTZ_pospantilt_X[BOB_RTSP_WIDTH][BOB_RTSP_HEIGHT];
+        float PTZ_pospantilt_Y[BOB_RTSP_WIDTH][BOB_RTSP_HEIGHT];
+
+
+        int FisheyeX = video_tracker_.get_active_trackers().begin()->get_predictor_center_points().begin()->x;
+        int FisheyeY = video_tracker_.get_active_trackers().begin()->get_predictor_center_points().begin()->y;
+
+        PTZ_msg.pospantiltx = PTZ_pospantilt_X[FisheyeX][FisheyeY];
+        PTZ_msg.pospantiltx = PTZ_pospantilt_Y[FisheyeX][FisheyeY];
+        */
+
+        PTZ_msg.pospantiltx = (float)0.5;
+        PTZ_msg.pospantilty = (float)1.5;
+        PTZ_msg.poszoomx = (float)0.0;
+        PTZ_msg.speedpantiltx = (float)1.0;
+        PTZ_msg.speedpantilty = (float)1.0;
+        PTZ_msg.speedzoomx = float(1.0);
+        if(numofframes % 30 == 0){
+            const auto& active_trackers = video_tracker_.get_active_trackers();
+            if (!active_trackers.empty()){
+                const auto& first_tracker = *active_trackers.begin();
+                RCLCPP_INFO(get_logger(),"video_tracker_.get_active_trackers() not empty");// 
+                if (!first_tracker.get_predictor_center_points().empty()) {
+                    RCLCPP_INFO(get_logger(),"get_predictor_center_points() not empty");// 
+                    const std::vector<cv::Point>& PredCentPoint = first_tracker.get_predictor_center_points();
+                    RCLCPP_INFO(get_logger(),"X predicted point: %d", PredCentPoint.begin()->x);// 
+                    RCLCPP_INFO(get_logger(),"Y predicted point: %d", PredCentPoint.begin()->y);// 
+                }
+            }
+            RCLCPP_INFO_STREAM(this->get_logger(),"In publisher loop" << numofframes);
+            pub_tracker_PTZabsolutemove_->publish(PTZ_msg);
+            
+        }
+        numofframes++;
+
     }
 
     void add_track_detection(const auto &tracker, std::vector<bob_interfaces::msg::TrackDetection> &detection_array)
@@ -135,6 +188,7 @@ private:
 
     void add_trajectory_detection(const auto &tracker, std::vector<bob_interfaces::msg::TrackTrajectory> &trajectory_array)
     {
+
         bob_interfaces::msg::TrackTrajectory track_msg;
         track_msg.id = std::to_string(tracker.get_id()) + std::string("-") + std::to_string(tracker.get_tracking_state());
 

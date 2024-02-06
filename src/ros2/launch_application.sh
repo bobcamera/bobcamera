@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # source options are "'rtsp'", "'usb'", "'video'", "'simulate'", "'rtsp_overlay'", "'video_overlay'"
-export BOB_SOURCE=${BOB_SOURCE:-"'video_overlay'"}
+export BOB_SOURCE=${BOB_SOURCE:-"'simulate'"}
 #Hikvision example
 #export BOB_RTSP_URL=${BOB_RTSP_URL:-"rtsp://user:password@0.0.0.0:554/Streaming/Channels/101"}
 #Amcrest example
@@ -24,7 +24,7 @@ export BOB_BGS_ALGORITHM=${BOB_BGS_ALGORITHM:-"vibe"} # or wmv
 export BOB_TRACKING_SENSITIVITY=${BOB_TRACKING_SENSITIVITY:-"'medium'"}
 
 # masking
-export BOB_TRACKING_USEMASK=${BOB_TRACKING_USEMASK:-"False"}
+export BOB_TRACKING_USEMASK=${BOB_TRACKING_USEMASK:-"True"}
 export BOB_TRACKING_MASK_FILE=${BOB_TRACKING_MASK_FILE:-"assets/masks/mask.jpg"}
 
 # videos - a list of ; seperated video files

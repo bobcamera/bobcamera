@@ -5,16 +5,17 @@ from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy, QoS
 import traceback as tb
 import rclpy
 from typing import List
+
 from bob_interfaces.msg import PTZAbsoluteMove
 from bob_shared.node_runner import NodeRunner
 
 #execute in command line: 
 #colcon build --packages-select bob_interfaces
 #source install/setup.bash
-#ros2 topic info /bob/ptz/absolute/move
+#ros2 topic info /bob/ptz/move/absolute
 #ros2 interface show bob_interfaces/msg/PTZAbsoluteMove
 #rqt
-#ros2 topic pub -1 /bob/ptz/absolute/move bob_interfaces/msg/PTZAbsoluteMove "{pospantiltx: -0.25, pospantilty: 1, poszoomx: 0, speedpantiltx: 1, speedpantilty: 1, speedzoomx: 1}"
+#ros2 topic pub -1 /bob/ptz/move/absolute bob_interfaces/msg/PTZAbsoluteMove "{pospantiltx: -0.25, pospantilty: 1, poszoomx: 0, speedpantiltx: 1, speedpantilty: 1, speedzoomx: 1}"
 #cmd ptz GetStatus  {'ProfileToken': 'Profile_3'}
 
 class AbsoluteMoveNode(Node):
@@ -33,18 +34,16 @@ class AbsoluteMoveNode(Node):
         # setup services, publishers and subscribers    
         self.sub_PTZPosition = self.create_subscription(PTZAbsoluteMove, 'bob/ptz/move/absolute', self.AbsoluteMoveFromRosMsg, subscriber_qos_profile)
         self.get_logger().info(f'{self.get_name()} node is up and running.')
-        print("AbsoluteMoveNode initialized")
 
     def AbsoluteMoveFromRosMsg(self, msg_position):
             """Reading from stdin and displaying menu"""
-                
+            self.get_logger().info("Received PTZAbsoluteMove message.")
+
             IP="10.20.30.140"   # Camera IP address
             PORT=80           # Port
             USER="bob"         # Username
             PASS="Sky360Sky!"        # Password
         # Get range of pan and tilt
-            # NOTE: X and Y are Position vector
-            global XMAX, XMIN, YMAX, YMIN, ZoomMAX, ZoomMIN
 
             XMAX = 1
             XMIN = -1
@@ -52,8 +51,6 @@ class AbsoluteMoveNode(Node):
             YMIN = -1
             ZoomMAX = 1
             ZoomMIN = 0
-            moverequest = None
-            ptz = None
             active = False
 
             mycam = ONVIFCamera(IP, PORT, USER, PASS, '/workspaces/bobcamera/src/ros2/src/bob_monitor/resource/wsdl')
@@ -86,33 +83,6 @@ class AbsoluteMoveNode(Node):
             moverequest.Position.PanTilt.x = min(max(self.msg_position.pospantiltx,XMIN),XMAX)
             moverequest.Position.PanTilt.y = min(max(self.msg_position.pospantilty,YMIN),YMAX)
             moverequest.Position.Zoom.x = min(max(self.msg_position.poszoomx,ZoomMIN),ZoomMAX)
-
-
-            '''
-            if XMAX <= self.msg_positiontiltx:
-                moverequest.Position.PanTilt.x = XMAX
-            elif self.msg_positiontiltx <= XMIN:
-                moverequest.Position.PanTilt.x = XMIN
-            else:
-                moverequest.Position.PanTilt.x = self.msg_position.pospantiltx
-        
-            if YMAX <= self.msg_position.pospantilty:
-                moverequest.Position.PanTilt.y = YMAX
-            elif self.msg_position.pospantilty <= XMIN:
-                moverequest.Position.PanTilt.y = YMIN
-            else:
-                moverequest.Position.PanTilt.y = self.msg_position.pospantilty
-
-            if ZoomMAX <= self.msg_position.poszoomx:
-                moverequest.Position.Zoom.x = ZoomMAX
-            elif self.msg_position.poszoomx <= ZoomMIN:
-                moverequest.Position.Zoom.x = ZoomMIN
-            else:
-                moverequest.Position.Zoom.x = self.msg_position.poszoomx
-            '''
-            #moverequest.Position.PanTilt.x = self.msg_position.pospantiltx
-            #moverequest.Position.PanTilt.y = self.msg_position.pospantilty
-            #moverequest.Position.Zoom.x = self.msg_position.poszoomx
 
             #global active
             if active:

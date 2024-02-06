@@ -240,7 +240,6 @@ size_t SORT::Tracker::get_total_trackable_trackers() const
     return std::count_if(tracks_.begin(), tracks_.end(), [](const std::pair<int, Track> &pair)
                   { return pair.second.is_tracking(); });
 }
-
 size_t SORT::Tracker::get_total_live_trackers() const
 {
     return get_active_trackers().size();
