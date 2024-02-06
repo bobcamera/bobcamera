@@ -24,6 +24,13 @@
 
 static int numofframes = 0;
 
+const int BOB_RTSP_WIDTH = 1080; 
+const int BOB_RTSP_HEIGHT = 1920;
+std::vector<std::vector<float>> PTZXAbsoluteMoveFromTrack(BOB_RTSP_WIDTH, std::vector<float>(BOB_RTSP_HEIGHT, 0.0));
+std::vector<std::vector<float>> PTZYAbsoluteMoveFromTrack(BOB_RTSP_WIDTH, std::vector<float>(BOB_RTSP_HEIGHT, 0.0));
+
+
+
 class TrackProvider
     : public ParameterNode
 {
@@ -124,13 +131,11 @@ private:
         }
         pub_tracker_tracking_->publish(tracking_msg);
  
-
+    
 
         //export BOB_RTSP_WIDTH=${BOB_RTSP_WIDTH:-"1920"}
         //export BOB_RTSP_HEIGHT=${BOB_RTSP_HEIGHT:-"1080"}    
-        //const int BOB_RTSP_WIDTH = 1080; 
-        //const int BOB_RTSP_HEIGHT = 1920;
-    
+
         /*    
         float PTZ_pospantilt_X[BOB_RTSP_WIDTH][BOB_RTSP_HEIGHT];
         float PTZ_pospantilt_Y[BOB_RTSP_WIDTH][BOB_RTSP_HEIGHT];
@@ -142,26 +147,62 @@ private:
         PTZ_msg.pospantiltx = PTZ_pospantilt_X[FisheyeX][FisheyeY];
         PTZ_msg.pospantiltx = PTZ_pospantilt_Y[FisheyeX][FisheyeY];
         */
+       // Define two 2D arrays of floats
 
+
+/*
         PTZ_msg.pospantiltx = (float)0.5;
         PTZ_msg.pospantilty = (float)1.5;
         PTZ_msg.poszoomx = (float)0.0;
         PTZ_msg.speedpantiltx = (float)1.0;
         PTZ_msg.speedpantilty = (float)1.0;
         PTZ_msg.speedzoomx = float(1.0);
-        if(numofframes % 30 == 0){
+*/
+
+
+        if(numofframes == 0){
+            // Populate PTZXAbsoluteMoveFromTrack from -1 to 1 from left to right
+            for (int x = 0; x < BOB_RTSP_WIDTH; ++x) {
+                float valueX = -1.0f + (2.0f * x) / (BOB_RTSP_WIDTH - 1); // Linear mapping from -1 to 1
+                for (int y = 0; y < BOB_RTSP_HEIGHT; ++y) {
+                    PTZXAbsoluteMoveFromTrack[x][y] = valueX;
+                }
+            }
+
+            // PTZYAbsoluteMoveFromTrack arrayY from -1 to 1 from top to bottom
+            for (int y = 0; y < BOB_RTSP_HEIGHT; ++y) {
+                float valueY = -1.0f + (2.0f * y) / (BOB_RTSP_HEIGHT - 1); // Linear mapping from -1 to 1
+                for (int x = 0; x < BOB_RTSP_WIDTH; ++x) {
+                    PTZYAbsoluteMoveFromTrack[x][y] = valueY;
+                }
+            }
+        }
+
+        if(numofframes % 1 == 0){
+
+
             const auto& active_trackers = video_tracker_.get_active_trackers();
             if (!active_trackers.empty()){
                 const auto& first_tracker = *active_trackers.begin();
                 RCLCPP_INFO(get_logger(),"video_tracker_.get_active_trackers() not empty");// 
                 if (!first_tracker.get_predictor_center_points().empty()) {
                     RCLCPP_INFO(get_logger(),"get_predictor_center_points() not empty");// 
-                    const std::vector<cv::Point>& PredCentPoint = first_tracker.get_predictor_center_points();
-                    RCLCPP_INFO(get_logger(),"X predicted point: %d", PredCentPoint.begin()->x);// 
-                    RCLCPP_INFO(get_logger(),"Y predicted point: %d", PredCentPoint.begin()->y);// 
+                    const std::vector<cv::Point>& PredCentPoints = first_tracker.get_predictor_center_points();
+                    const cv::Point& lastPoint = PredCentPoints.back();
+                    RCLCPP_INFO(get_logger(),"X predicted point: %d", lastPoint.x);// 
+                    RCLCPP_INFO(get_logger(),"Y predicted point: %d", lastPoint.y);// 
                 }
             }
+
+            PTZ_msg.pospantiltx =  PTZXAbsoluteMoveFromTrack[(numofframes)%(BOB_RTSP_WIDTH-1)][(numofframes)%(BOB_RTSP_HEIGHT-1)];
+            PTZ_msg.pospantilty =  PTZYAbsoluteMoveFromTrack[(numofframes)%(BOB_RTSP_WIDTH-1)][(numofframes)%(BOB_RTSP_HEIGHT-1)];
+            PTZ_msg.poszoomx = (float)0.0;
+            PTZ_msg.speedpantiltx = (float)1.0;
+            PTZ_msg.speedpantilty = (float)1.0;
+            PTZ_msg.speedzoomx = float(1.0);
+
             RCLCPP_INFO_STREAM(this->get_logger(),"In publisher loop" << numofframes);
+            RCLCPP_INFO_STREAM(this->get_logger(),"Current Position: x" << PTZ_msg.pospantiltx <<  "Current Position Target: y" << PTZ_msg.pospantilty);
             pub_tracker_PTZabsolutemove_->publish(PTZ_msg);
             
         }
