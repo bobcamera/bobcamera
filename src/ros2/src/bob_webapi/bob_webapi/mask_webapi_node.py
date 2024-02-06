@@ -116,8 +116,10 @@ class MaskWebApiNode(Node):
       # Convert SVG to PNG
       cairosvg.svg2png(url=input_svg_file, write_to=output_png_file, output_width=self.mask_width, output_height=self.mask_height)
 
-      # Convert SVG to JPG
-      cairosvg.svg2png(url=input_svg_file, write_to=output_jpg_file, output_width=self.mask_width, output_height=self.mask_height)
+      # Convert 4 channel PNG to Grey image for mask application
+      png_image = cv2.imread(output_png_file, cv2.IMREAD_UNCHANGED)
+      grey_image = cv2.cvtColor(png_image, cv2.COLOR_RGBA2GRAY)
+      cv2.imwrite(output_jpg_file, grey_image)
       
       response.success = True
     except Exception as e:
