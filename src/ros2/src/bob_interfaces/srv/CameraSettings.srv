@@ -11,3 +11,6 @@ string serial_number
 string hardware_id
 int32 num_configurations
 string encoding
+int32 frame_width
+int32 frame_height
+float32 fps

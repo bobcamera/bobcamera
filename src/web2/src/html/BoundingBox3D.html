@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>3D Stream Projection on Dome</title>
+        <style>
+            body {
+                margin: 0;
+            }
+            canvas {
+                display: block;
+            }
+            #image_sub {
+                display: none;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div id="three-container"></div>
+        <script src="../lib/three.min.js"></script>
+        <script src="../lib/OrbitControls.js"></script>
+        <script src="../lib/eventemitter2.js"></script>
+        <script src="../lib/roslib.min.js"></script>
+        <script src="../data/boundingBoxData2.js"></script>
+        <script type="text/javascript">
+
+        const verticalScalingFactor = 13.000;
+        const scaleBox = .07;
+
+    // Initialize Three.js scene, camera
+        const scene = new THREE.Scene();
+        let fov = 75;
+        let aspect = window.innerWidth / window.innerHeight;
+        let near = 0.01;
+        let far = 10000;
+        const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+        camera.position.z = 100;
+
+    // Initialize the renderer
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('three-container').appendChild(renderer.domElement);
+
+    // Add a light to the scene
+        const light = new THREE.PointLight(0xffffff, 1);
+        light.position.set(0, 0, 100);
+        scene.add(light);
+
+
+
+
+        // Function to plot a point in 3D space based on the bounding box size
+        function plotPoint(x, y, z, sizeX, sizeY) {
+            const area = sizeX * sizeY;
+            const radius = Math.sqrt(area) / 10;
+            const geometry = new THREE.SphereGeometry(radius, 32, 32);
+            const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            const sphere = new THREE.Mesh(geometry, material);
+            sphere.position.set(x, y, z);
+            scene.add(sphere);
+        }
+
+    // Function to update the Three.js scene
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+
+    // Add Axis Helper at the center
+        const axesHelper = new THREE.AxesHelper( 1500 );
+        scene.add( axesHelper );
+
+
+    // Add the image to the ground
+        const imageWidth = 1132;
+        const imageHeight = 638;
+        const scaleFactor = 1.7;
+        const imageName = '../assets/screenshot2.png';
+        const textureLoader = new THREE.TextureLoader();
+        const groundTexture = textureLoader.load(imageName);
+        const groundGeometry = new THREE.PlaneBufferGeometry(imageWidth*scaleFactor, imageHeight*scaleFactor);
+        const groundMaterial = new THREE.MeshBasicMaterial({ map: groundTexture });
+        const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
+        groundMesh.rotation.x = - Math.PI / 2;
+        groundMesh.position.x = (scaleFactor*imageWidth) / 2;
+        groundMesh.position.y = 0;
+        groundMesh.position.z = (scaleFactor*imageHeight) / 2;
+        scene.add(groundMesh);
+
+    // Get the coordinates of the first point
+        const firstPoint = boundingBoxData[0];
+        const startTime = firstPoint.timeStampSec; // get the start time based on the first point
+        const zFirstPoint = (firstPoint.timeStampSec - startTime) * verticalScalingFactor;
+
+
+        boundingBoxData.forEach(box => {
+            const accurateTimeInSeconds = box.timeStampSec + (box.timeStampNanoSec / 1e9);
+            const z = (accurateTimeInSeconds - startTime); // Adjusting 'startTime' accordingly
+            plotPoint(box.centerPositionX,
+            z * verticalScalingFactor, box.centerPositionY, box.sizeX*scaleBox, box.sizeY*scaleBox);
+            console.log(box.centerPositionX,
+            z * verticalScalingFactor, box.centerPositionY, box.sizeX*scaleBox, box.sizeY*scaleBox);
+        });
+
+    // Center the camera on the first point
+        camera.position.set(firstPoint.centerPositionX, firstPoint.centerPositionY, zFirstPoint + 100);
+
+    // Add OrbitControls
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+    // Start animation loop
+        animate();
+
+        </script>
+    </body>
+</html>
+
+
+<!--
+    // Add Translucent Cylinder centered on the vertical axis
+        // let radiusTop = 50;
+        // let radiusBottom = 50;
+        // let height = 1000;
+        // let radiusSegments = 32;
+        // let heightSegments = 32;
+        // let openEnded = true;
+        // let thetaStart = 0.5 * Math.PI;
+        // let thetaLength = 1.5 * Math.PI;
+        // const cylinderGeometry = new THREE.CylinderGeometry(radiusTop, radiusBottom, height, radiusSegments, heightSegments, openEnded, thetaStart, thetaLength);
+        // const cylinderMaterial = new THREE.MeshBasicMaterial( {color: 0x00ff00, transparent: true, opacity: 0.5} );
+        // const cylinder = new THREE.Mesh( cylinderGeometry, cylinderMaterial );
+        // cylinder.position.y = height / 2;
+        // scene.add( cylinder ); -->

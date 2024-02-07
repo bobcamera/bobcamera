@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>3D Stream Projection on Dome</title>
+        <style>
+            body {margin: 0;}
+            canvas {display: block;}
+            #image_sub {display: none;}
+        </style>
+    </head>
+    <body>
+        <img id="image_sub" />
+        <script src="../lib/three.min.js"></script>
+        <script src="../lib/OrbitControls.js"></script>
+        <script src="../lib/eventemitter2.js"></script>
+        <script src="../lib/roslib.min.js"></script>
+        <script type="text/javascript">
+
+            let domeRadius = 1;
+            let domeHeight = 1;
+            let domeSegments = 64;
+            let imageWidth = 1920;
+            let imageHeight = 1080;
+
+            let pointColor = 0xffff00;
+            let boundingBoxBuffer = [];
+            let imageBuffer = [];
+            let pointGeometries = [];
+            let pointMeshes = [];
+
+
+
+            let ros = new ROSLIB.Ros({ url: 'ws://localhost:9090', });
+            ros.on('connection', function () { console.log('Connected to websocket server.'); });
+            ros.on('error', function (error) { console.log('Error connecting to websocket server: ', error); });
+            ros.on('close', function () { console.log('Connection to websocket server closed.'); });
+
+            let annotatedCompressedImageTopic = new ROSLIB.Topic({
+                ros: ros,
+                name: '/bob/frames/annotated/resized/compressed',
+                messageType: 'sensor_msgs/msg/CompressedImage',
+            });
+
+            let boundingBoxTopic = new ROSLIB.Topic({
+                ros: ros,
+                name: '/bob/detector/all_sky/bounding_boxes',
+                messageType: 'vision_msgs/msg/BoundingBox2DArray',
+            });
+
+            annotatedCompressedImageTopic.subscribe(function (message) {
+                console.log("Received image");
+                console.log(message);
+                imageBuffer.push(message);
+                // syncBuffers();
+            });
+
+            boundingBoxTopic.subscribe((message) => {
+                if (message.boxes && message.boxes.length > 0) {
+                    console.log('Received bounding boxes');
+                    console.log(message);
+                    const boundingBoxes = message.boxes;
+                    boundingBoxBuffer.push(message);
+                    // syncBuffers();
+                }
+            });
+
+
+
+            // document.addEventListener(
+            //     'DOMContentLoaded',
+            //     () => {
+            //             let imageElement = document.getElementById('image_sub');
+            //             let imageTexture = new THREE.Texture(imageElement);
+            //             imageTexture.minFilter = THREE.LinearFilter;
+            //             imageTexture.magFilter = THREE.LinearFilter;
+            //             imageTexture.format = THREE.RGBFormat;
+            //             imageTexture.needsUpdate = true;
+            //             let scene = new THREE.Scene();
+            //             let camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            //             camera.position.z = .1;
+            //             let renderer = new THREE.WebGLRenderer();
+            //             renderer.setSize(window.innerWidth, window.innerHeight);
+            //             document.body.appendChild(renderer.domElement);
+            //             let domeGeometry = new THREE.ParametricGeometry(domeFunction, domeSegments, domeSegments);
+            //             let domeMaterial = new THREE.MeshBasicMaterial({ map: imageTexture, side: THREE.DoubleSide });
+            //             let dome = new THREE.Mesh(domeGeometry, domeMaterial);
+            //             scene.add(dome);
+            //             let controls = new THREE.OrbitControls(camera, renderer.domElement);
+            //             controls.enableDamping = true;
+            //             controls.dampingFactor = 0.02;
+            //             controls.screenSpacePanning = true;
+            //             controls.enablePan = true;
+            //             controls.panAxis = new THREE.Vector3(1, 1, 0); // Restrict panning to the x and y axes
+            //             controls.minDistance = 0.01;
+            //             controls.maxDistance = 15; // Set the maximum zoom out distance
+            //     }
+            // );
+
+
+            // imageElement.addEventListener('load', updateTexture);
+
+            // animate();
+
+            // function domeFunction(u, v, target) {
+            //     const x = u * domeRadius * 2 - domeRadius;
+            //     const z = v * domeRadius * 2 - domeRadius;
+            //     const y = -((x * x + z * z) / (4 * domeHeight)) + domeHeight;
+            //     target.set(x, y, z);
+            // }
+
+            // // Update the image projected to the dome
+            // function updateTexture() {
+            //     imageTexture.needsUpdate = true;
+            // }
+
+            // // Render the scene
+            // function animate() {
+            //     requestAnimationFrame(animate);
+            //     updateTexture();
+            //     controls.update();
+            //     renderer.render(scene, camera);
+            // }
+
+
+            // function createImagePlane() {
+            //     const planeWidth = 1920;  // Set these to the desired size
+            //     const planeHeight = 1080;
+            //     // Create Plane Geometry
+            //     const planeGeometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
+            //     // Create Material with the image texture
+            //     const planeMaterial = new THREE.MeshBasicMaterial({ map: imageTexture, side: THREE.DoubleSide });
+            //     // Create Mesh with geometry and material
+            //     const planeMesh = new THREE.Mesh(planeGeometry, planeMaterial);
+            //     // Position the plane in the scene (adjust as needed)
+            //     planeMesh.position.set(0, 0, -500); // Example position
+            //     // Add the plane to the scene
+            //     scene.add(planeMesh);
+            // }
+
+
+            // function syncBuffers() {
+            //     // [Your existing syncBuffers logic]
+            //     for (let i = 0; i < imageBuffer.length; i++) {
+            //         for (let j = 0; j < boundingBoxBuffer.length; j++) {
+            //             if (imageBuffer[i].header.frame_id === boundingBoxBuffer[j].header.frame_id) {
+            //                 // Update the texture
+            //                 document.getElementById('image_sub').src = 'data:image/jpeg;base64,' + imageBuffer[i].data;
+            //                 // Process bounding boxes
+            //                 const boundingBoxes = boundingBoxBuffer[j].boxes;
+            //                 for (let mesh of pointMeshes) { scene.remove(mesh); }
+            //                 pointGeometries = [];
+            //                 pointMeshes = [];
+            //                 if (boundingBoxBuffer[j].boxes && boundingBoxBuffer[j].boxes.length > 0) {
+            //                     const boundingBoxes = boundingBoxBuffer[j].boxes;
+            //                     boundingBoxes.forEach(box => {
+            //                         let centerX = box.center.position.x;
+            //                         let centerY = box.center.position.y;
+
+            //                         // Normalize the coordinates to the range [-1, 1]
+            //                         centerX = (centerX / imageWidth) * 2 - 1;
+            //                         centerY = (centerY / imageHeight) * 2 - 1;
+
+            //                         const theta = Math.PI * (centerX + 1) / 2.0;  // azimuthal angle
+            //                         const phi = Math.PI * (centerY + 1) / 2.0;  // polar angle
+
+            //                         // Log the Cartesian and Spherical coordinates
+            //                         console.log(`Sync Cartesian: (${centerX}, ${centerY}), Spherical: (θ=${theta}, φ=${phi})`);
+
+            //                         // Plot the point in 3d space
+            //                         const pointGeometry = new THREE.SphereGeometry(0.02, 32, 32);
+            //                         const pointMaterial = new THREE.MeshBasicMaterial({color: pointColor});
+            //                         var point = new THREE.Mesh(pointGeometry, pointMaterial);
+            //                         point.position.x = domeHeight;
+            //                         point.position.z = domeHeight;
+            //                         point.position.y = domeHeight;
+            //                         // point.position.x = domeRadius * Math.sin(theta) * Math.cos(phi);
+            //                         // point.position.z = domeRadius * Math.sin(theta) * Math.sin(phi);
+            //                         // point.position.y = domeRadius * Math.cos(theta);
+            //                         scene.add(point);
+
+            //                         pointGeometries.push(pointGeometry);
+            //                         pointMeshes.push(point);
+
+            //                         // Draw a line from the center of the dome to the point
+            //                         // Start the line at the center of the dome (x, y, z)
+            //                         const lineStart = new THREE.Vector3(0, 0, 0);
+            //                         // Detected object's position on the dome
+            //                         const lineEnd = new THREE.Vector3(point.position.x, point.position.y, point.position.z);
+            //                         const lineGeometry = new THREE.BufferGeometry().setFromPoints([lineStart, lineEnd]);
+            //                         const lineMaterial = new THREE.LineBasicMaterial({color: 0xff0000});  // Color of the line
+            //                         const line = new THREE.Line(lineGeometry, lineMaterial);
+            //                         scene.add(line);
+            //                         // Store the line for potential future removal or manipulation
+            //                         pointMeshes.push(line);
+            //                     });
+            //                 }
+
+            //                 // Remove synchronized entries
+            //                 imageBuffer.splice(i, 1);
+            //                 boundingBoxBuffer.splice(j, 1);
+            //                 return;
+            //             }
+            //         }
+            //     }
+            // }
+
+        </script>
+    </body>
+</html>

@@ -1,0 +1,1477 @@
+[
+{
+	"camera_info" : 
+	{
+		"encoding" : "h264",
+		"firmware_version" : "V5.7.3 build 211009",
+		"id" : "88",
+		"manufacturer" : "HIKVISION",
+		"model" : "DS-2DF8C442IXS-AELW",
+		"num_configurations" : 3,
+		"serial_num" : "DS-2DF8C442IXS-AELW20220514CCWRJ64027709"
+	}
+},
+{
+	"time_ns" : 1705570269264582651,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570269304242391,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570269344326969,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570269384369473,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570269424371971,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570269464425838,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570269504735480,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570269544791190,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570269584869947,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570269625007931,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570269664981665,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570269705101221,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570269745134738,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570269785215480,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570269825347497,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570269865252364,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570269905578596,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570269945622464,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570269985633175,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570270025906105,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570270065710556,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570270105991624,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570270146013937,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570270186202975,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570270226206842,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570270266380965,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570270306441913,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570270346537534,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570270386624689,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570270426792043,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570270466636238,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570270507058213,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570270546998846,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570270587074421,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570270627180982,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570270667026906,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570270707248375,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570270747451700,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570270787559344,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570270827656139,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570270867643539,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570270907844819,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570270947793217,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570270987917061,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570271027977682,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570271067899114,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570271108185286,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570271148273614,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570271188328524,
+	"trackable" : 0
+},
+{
+	"time_ns" : 1705570271228458292,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 15.0,
+				"width" : 17.0,
+				"x" : 1704.0,
+				"y" : 269.0
+			},
+			"id" : 15,
+			"state" : 2
+		}
+	],
+	"time_ns" : 1705570271389823861,
+	"trackable" : 1
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 17.0,
+				"width" : 15.0,
+				"x" : 1769.0,
+				"y" : 324.0
+			},
+			"id" : 15,
+			"state" : 2
+		}
+	],
+	"time_ns" : 1705570271429869138,
+	"trackable" : 1
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 15.0,
+				"width" : 16.0,
+				"x" : 1818.0,
+				"y" : 349.0
+			},
+			"id" : 15,
+			"state" : 2
+		}
+	],
+	"time_ns" : 1705570271470100046,
+	"trackable" : 1
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 9.0,
+				"width" : 15.0,
+				"x" : 1868.0,
+				"y" : 370.0
+			},
+			"id" : 15,
+			"state" : 2
+		}
+	],
+	"time_ns" : 1705570271509985129,
+	"trackable" : 1
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 11.0,
+				"width" : 11.0,
+				"x" : 1917.0,
+				"y" : 395.0
+			},
+			"id" : 15,
+			"state" : 2
+		}
+	],
+	"time_ns" : 1705570271550244534,
+	"trackable" : 1
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 10.0,
+				"width" : 13.0,
+				"x" : 1963.0,
+				"y" : 423.0
+			},
+			"id" : 15,
+			"state" : 2
+		}
+	],
+	"time_ns" : 1705570271591174625,
+	"trackable" : 1
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 10.0,
+				"width" : 13.0,
+				"x" : 2009.0,
+				"y" : 451.0
+			},
+			"id" : 15,
+			"state" : 2
+		}
+	],
+	"time_ns" : 1705570271629120249,
+	"trackable" : 1
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 9.0,
+				"width" : 13.0,
+				"x" : 2052.0,
+				"y" : 479.0
+			},
+			"id" : 15,
+			"state" : 2
+		}
+	],
+	"time_ns" : 1705570271669473918,
+	"trackable" : 1
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 10.0,
+				"width" : 12.0,
+				"x" : 2096.0,
+				"y" : 509.0
+			},
+			"id" : 15,
+			"state" : 2
+		}
+	],
+	"time_ns" : 1705570271711766007,
+	"trackable" : 1
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 9.0,
+				"width" : 11.0,
+				"x" : 2139.0,
+				"y" : 539.0
+			},
+			"id" : 15,
+			"state" : 2
+		}
+	],
+	"time_ns" : 1705570271751862666,
+	"trackable" : 1
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 10.0,
+				"width" : 14.0,
+				"x" : 2180.0,
+				"y" : 571.0
+			},
+			"id" : 15,
+			"state" : 2
+		}
+	],
+	"time_ns" : 1705570271797293152,
+	"trackable" : 1
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 11.0,
+				"width" : 13.0,
+				"x" : 2222.0,
+				"y" : 601.0
+			},
+			"id" : 15,
+			"state" : 2
+		}
+	],
+	"time_ns" : 1705570271831966984,
+	"trackable" : 1
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 21.0,
+				"width" : 29.0,
+				"x" : 2265.0,
+				"y" : 638.0
+			},
+			"id" : 15,
+			"state" : 2
+		}
+	],
+	"time_ns" : 1705570271872690619,
+	"trackable" : 1
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 22.0,
+				"width" : 31.0,
+				"x" : 2302.0,
+				"y" : 667.0
+			},
+			"id" : 15,
+			"state" : 2
+		}
+	],
+	"time_ns" : 1705570271912350850,
+	"trackable" : 1
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 21.0,
+				"width" : 26.0,
+				"x" : 2335.0,
+				"y" : 690.0
+			},
+			"id" : 15,
+			"state" : 2
+		}
+	],
+	"time_ns" : 1705570271954620041,
+	"trackable" : 1
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 22.0,
+				"width" : 25.0,
+				"x" : 2361.0,
+				"y" : 709.0
+			},
+			"id" : 15,
+			"state" : 2
+		}
+	],
+	"time_ns" : 1705570271991995274,
+	"trackable" : 1
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 7.0,
+				"width" : 10.0,
+				"x" : 2386.0,
+				"y" : 725.0
+			},
+			"id" : 15,
+			"state" : 2
+		}
+	],
+	"time_ns" : 1705570272033231696,
+	"trackable" : 1
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 7.0,
+				"width" : 9.0,
+				"x" : 2408.0,
+				"y" : 743.0
+			},
+			"id" : 15,
+			"state" : 2
+		}
+	],
+	"time_ns" : 1705570272073959670,
+	"trackable" : 1
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 8.0,
+				"width" : 8.0,
+				"x" : 2432.0,
+				"y" : 762.0
+			},
+			"id" : 15,
+			"state" : 2
+		}
+	],
+	"time_ns" : 1705570272114413220,
+	"trackable" : 1
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 7.0,
+				"width" : 9.0,
+				"x" : 2454.0,
+				"y" : 781.0
+			},
+			"id" : 15,
+			"state" : 2
+		}
+	],
+	"time_ns" : 1705570272152364306,
+	"trackable" : 1
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 8.0,
+				"width" : 8.0,
+				"x" : 2477.0,
+				"y" : 802.0
+			},
+			"id" : 15,
+			"state" : 2
+		}
+	],
+	"time_ns" : 1705570272194081926,
+	"trackable" : 1
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 9.0,
+				"width" : 9.0,
+				"x" : 2499.0,
+				"y" : 822.0
+			},
+			"id" : 15,
+			"state" : 2
+		}
+	],
+	"time_ns" : 1705570272232925054,
+	"trackable" : 1
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 9.0,
+				"width" : 9.0,
+				"x" : 2522.0,
+				"y" : 845.0
+			},
+			"id" : 15,
+			"state" : 2
+		}
+	],
+	"time_ns" : 1705570272273010500,
+	"trackable" : 1
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 9.0,
+				"width" : 8.0,
+				"x" : 2545.0,
+				"y" : 869.0
+			},
+			"id" : 15,
+			"state" : 2
+		}
+	],
+	"time_ns" : 1705570272313656243,
+	"trackable" : 1
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 2576.0,
+				"y" : 897.0
+			},
+			"id" : 15,
+			"state" : 2
+		}
+	],
+	"time_ns" : 1705570272353537281,
+	"trackable" : 1
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 2607.0,
+				"y" : 924.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570272394458951,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 2638.0,
+				"y" : 951.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570272434741594,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 2669.0,
+				"y" : 978.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570272473182178,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 2700.0,
+				"y" : 1005.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570272512942605,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 2731.0,
+				"y" : 1032.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570272552982799,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 2762.0,
+				"y" : 1059.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570272594889874,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 2793.0,
+				"y" : 1086.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570272637024756,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 2824.0,
+				"y" : 1113.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570272679913857,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 2855.0,
+				"y" : 1140.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570272717592548,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 2887.0,
+				"y" : 1167.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570272761439232,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 2918.0,
+				"y" : 1195.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570272801082653,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 2949.0,
+				"y" : 1222.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570272836321356,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 2980.0,
+				"y" : 1249.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570272884466287,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 3011.0,
+				"y" : 1276.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570272928702297,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 3042.0,
+				"y" : 1303.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570272969431160,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 3073.0,
+				"y" : 1330.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570273012455600,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 3104.0,
+				"y" : 1357.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570273049341373,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 3135.0,
+				"y" : 1384.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570273095490953,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 3166.0,
+				"y" : 1411.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570273139552368,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 3197.0,
+				"y" : 1438.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570273177848836,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 3228.0,
+				"y" : 1465.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570273214149603,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 3259.0,
+				"y" : 1493.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570273252470774,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 3290.0,
+				"y" : 1520.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570273294063162,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 3321.0,
+				"y" : 1547.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570273335242677,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 3352.0,
+				"y" : 1574.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570273374190213,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 3383.0,
+				"y" : 1601.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570273414343969,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 3414.0,
+				"y" : 1628.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570273454020079,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 3445.0,
+				"y" : 1655.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570273493211980,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 3476.0,
+				"y" : 1682.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570273533662154,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 3507.0,
+				"y" : 1709.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570273574820426,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 3539.0,
+				"y" : 1736.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570273614775402,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 3570.0,
+				"y" : 1763.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570273655057796,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 3601.0,
+				"y" : 1790.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570273694824775,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 3632.0,
+				"y" : 1818.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570273735355997,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 3694.0,
+				"y" : 1872.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570273815188390,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 3725.0,
+				"y" : 1899.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570273855552656,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 3756.0,
+				"y" : 1926.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570273895226209,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 3787.0,
+				"y" : 1953.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570274013757587,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 3818.0,
+				"y" : 1980.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570274054284093,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 3849.0,
+				"y" : 2007.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570274093929016,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 3880.0,
+				"y" : 2034.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570274136928167,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 3911.0,
+				"y" : 2061.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570274174345178,
+	"trackable" : 0
+},
+{
+	"detections" : 
+	[
+		{
+			"bbox" : 
+			{
+				"height" : 0.0,
+				"width" : 0.0,
+				"x" : 3942.0,
+				"y" : 2088.0
+			},
+			"id" : 15,
+			"state" : 3
+		}
+	],
+	"time_ns" : 1705570274215922762,
+	"trackable" : 0
+},
+{
+	"detections" : null,
+	"time_ns" : 1705570274259104463,
+	"trackable" : 0
+},
+{
+	"detections" : null,
+	"time_ns" : 1705570274336525012,
+	"trackable" : 0
+},
+{
+	"detections" : null,
+	"time_ns" : 1705570274374668122,
+	"trackable" : 0
+},
+{
+	"detections" : null,
+	"time_ns" : 1705570274414611906,
+	"trackable" : 0
+},
+{
+	"detections" : null,
+	"time_ns" : 1705570274459791800,
+	"trackable" : 0
+},
+{
+	"detections" : null,
+	"time_ns" : 1705570274499884458,
+	"trackable" : 0
+},
+{
+	"detections" : null,
+	"time_ns" : 1705570274537902664,
+	"trackable" : 0
+},
+{
+	"detections" : null,
+	"time_ns" : 1705570274575667430,
+	"trackable" : 0
+}]

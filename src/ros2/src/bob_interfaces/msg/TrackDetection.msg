@@ -1,3 +1,6 @@
 int32 id
 int32 state
 vision_msgs/BoundingBox2D bbox
+float64 covariance_ellipse_orientation
+float64 covariance_ellipse_semi_major_axis
+float64 covariance_ellipse_semi_minor_axis

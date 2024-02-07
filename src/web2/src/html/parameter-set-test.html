@@ -1,0 +1,21 @@
+<html>
+    <head></head>
+    <body>
+        <script src="../lib/eventemitter2.js"></script>
+        <script src="../lib/roslib.min.js"></script>
+        <script type="text/javascript" type="text/javascript">
+            const ros = new ROSLIB.Ros({
+            url: 'ws://localhost:9090' // Replace with the appropriate URL for your ROS 2 system
+            });
+
+            const param = new ROSLIB.Param({
+            ros: ros,
+            name: 'configuration_service:camera_video_file' // Replace with the correct node name and parameter name
+            });
+
+            param.set('../assets/birds_and_plane.mp4', (result) => {
+            console.log('Parameter set successfully:', result);
+            });
+        </script>
+    </body>
+</html>

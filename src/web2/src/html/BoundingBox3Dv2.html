@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>3D Stream Projection on Dome</title>
+        <style>
+            body {
+                margin: 0;
+            }
+            canvas {
+                display: block;
+            }
+            #image_sub {
+                display: none;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div id="three-container"></div>
+        <script src="../lib/three.min.js"></script>
+        <script src="../lib/OrbitControls.js"></script>
+        <script src="../lib/eventemitter2.js"></script>
+        <script src="../lib/roslib.min.js"></script>
+        <script type="text/javascript">
+
+        const verticalScalingFactor = 4.000;
+        var initialVerticalScalingFactor = 4.000;
+        const scaleBox = .07;
+        const scene = new THREE.Scene();
+        let fov = 75;
+        let aspect = window.innerWidth / window.innerHeight;
+        let near = 0.01;
+        let far = 10000;
+        let startTime;
+        const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+        camera.position.z = 100;
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('three-container').appendChild(renderer.domElement);
+        const light = new THREE.PointLight(0xffffff, 1);
+        light.position.set(0, 0, 100);
+        scene.add(light);
+        const axesHelper = new THREE.AxesHelper( 1500 );
+        scene.add( axesHelper );
+        const imageWidth = 1132;
+        const imageHeight = 638;
+        const scaleFactor = 1.7;
+        const imageName = '../assets/screenshot3.png';
+        const textureLoader = new THREE.TextureLoader();
+        const groundTexture = textureLoader.load(imageName);
+        const groundGeometry = new THREE.PlaneBufferGeometry(imageWidth*scaleFactor, imageHeight*scaleFactor);
+        const groundMaterial = new THREE.MeshBasicMaterial({ map: groundTexture });
+        const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
+        groundMesh.rotation.x = - Math.PI / 2;
+        groundMesh.position.x = (scaleFactor*imageWidth) / 2;
+        groundMesh.position.y = 0;
+        groundMesh.position.z = (scaleFactor*imageHeight) / 2;
+        scene.add(groundMesh);
+
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+    // Center the camera on the first point
+        // camera.position.set(firstPoint.centerPositionX, firstPoint.centerPositionY, zFirstPoint + 100);
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        animate();
+
+        var topic_name = '/bob/detector/all_sky/bounding_boxes';
+        var message_type = 'vision_msgs/msg/BoundingBox2DArray';
+        function init() {
+            window.addEventListener('DOMContentLoaded', function () {
+                var ros = new ROSLIB.Ros({
+                    url: 'ws://localhost:9090'
+                });
+                ros.on('connection', function () {
+                    console.log('Connected to websocket server.');
+                });
+                ros.on('error', function (error) {
+                    console.log('Error connecting to websocket server: ', error);
+                });
+                ros.on('close', function () {
+                    console.log('Connection to websocket server closed.');
+                });
+                var currentTopic = new ROSLIB.Topic({
+                    ros: ros,
+                    name: topic_name,
+                    messageType: message_type
+                });
+
+                currentTopic.subscribe(function (message) {
+                    if (!startTime) {
+                        startTime = message.header.stamp.sec + (message.header.stamp.nanosec / 1e9);
+                    }
+                    if (message.boxes.length > 0) {
+                        message.boxes.forEach(box => {
+                            // Extract box dimensions and position
+                            const x = box.center.position.x;
+                            const boxY = box.center.position.y;
+                            const sizeX = box.size_x;
+                            const sizeY = box.size_y;
+                            // Calculate elapsed time since startTime
+                            const headerTimeInSeconds = message.header.stamp.sec + (message.header.stamp.nanosec / 1e9);
+                            const timeElapsed = headerTimeInSeconds - startTime;
+                            // Dynamic scaling based on elapsed time
+                            const dynamicScalingFactor = calculateDynamicScalingFactor(timeElapsed, initialVerticalScalingFactor);
+                            // Use dynamically scaled time as the y-coordinate
+                            const y = timeElapsed * dynamicScalingFactor;
+                            // Plot the point with the y-coordinate representing time
+                            plotPoint(x, y, boxY, sizeX, sizeY);
+                        });
+                    }
+                });
+            });
+        }
+        window.onload = init();
+
+        // Function to plot a point in 3D space based on the bounding box size
+        function plotPoint(x, y, z, sizeX, sizeY) {
+            const area = sizeX * sizeY;
+            // const radius = Math.sqrt(area) / 10;
+            // const radius = Math.sqrt(area) / 7;
+            const radius = 4;
+            const geometry = new THREE.SphereGeometry(radius, 32, 32);
+            // const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+            const sphere = new THREE.Mesh(geometry, material);
+            sphere.position.set(x, y, z);
+            scene.add(sphere);
+        }
+
+    // Function to update the Three.js scene
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+
+        function calculateDynamicScalingFactor(timeElapsed, initialFactor) {
+            // Example: linear reduction of scaling factor over time
+            const reductionRate = 0.001; // Adjust this rate as needed
+            return Math.max(1, initialFactor - timeElapsed * reductionRate);
+        }
+
+        function onMouseClick(event) {
+            // Calculate mouse position in normalized device coordinates
+            // (-1 to +1) for both components
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+            // Update the picking ray with the camera and mouse position
+            raycaster.setFromCamera(mouse, camera);
+            // Calculate objects intersected by the raycaster
+            const intersects = raycaster.intersectObjects(scene.children, true);
+            if (intersects.length > 0) {
+                // Handle the intersection (e.g., calculate and display timestamp)
+                const intersectedObject = intersects[0].object;
+                displayTimestamp(intersectedObject);
+            }
+        }
+
+        function displayTimestamp(object) {
+            // Reverse the calculation used to set the Y position
+            const timeElapsed = object.position.y / verticalScalingFactor;
+            const timestamp = startTime + timeElapsed;
+
+            console.log("Clicked object's Y position:", object.position.y);
+            console.log("Calculated time elapsed:", timeElapsed);
+            console.log("Derived timestamp:", timestamp);
+            // Display this timestamp in the UI as needed
+        }
+
+
+        window.addEventListener('click', onMouseClick);
+        // Example message:
+        // {
+        //     "header": {
+        //         "stamp": {
+        //             "sec": 1701662094,
+        //             "nanosec": 695898454
+        //         },
+        //         "frame_id": "86a02b15-94f9-42b0-84b8-34b414df5b4d"
+        //     },
+        //     "boxes": [
+        //         {
+        //             "center": {
+        //                 "position": {
+        //                     "x": 1913.5,
+        //                     "y": 111
+        //                 },
+        //                 "theta": 0
+        //             },
+        //             "size_x": 13,
+        //             "size_y": 16
+        //         },
+        //         {
+        //             "center": {
+        //                 "position": {
+        //                     "x": 1174,
+        //                     "y": 246.5
+        //                 },
+        //                 "theta": 0
+        //             },
+        //             "size_x": 4,
+        //             "size_y": 13
+        //         }
+        //     ]
+        // }
+    </script>
+    </body>
+</html>
+
+<!--
+// Get the coordinates of the first point
+// const firstPoint = boundingBoxData[0];
+// const startTime = firstPoint.timeStampSec; // get the start time based on the first point
+// const zFirstPoint = (firstPoint.timeStampSec - startTime) * verticalScalingFactor;
+
+// boundingBoxData.forEach(box => {
+//     const accurateTimeInSeconds = box.timeStampSec + (box.timeStampNanoSec / 1e9);
+//     const z = (accurateTimeInSeconds - startTime); // Adjusting 'startTime' accordingly
+//     plotPoint(box.centerPositionX,
+//     z * verticalScalingFactor, box.centerPositionY, box.sizeX*scaleBox, box.sizeY*scaleBox);
+//     console.log(box.centerPositionX,
+//     z * verticalScalingFactor, box.centerPositionY, box.sizeX*scaleBox, box.sizeY*scaleBox);
+// }); -->

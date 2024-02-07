@@ -12,9 +12,7 @@
 #include <vision_msgs/msg/bounding_box2_d_array.hpp>
 #include "bob_interfaces/msg/tracking.hpp"
 
-#include "tracking/cv_trackers/video_tracker.hpp"
-#include "tracking/sort/include/sort_tracker.h"
-
+#include "sort/include/sort_tracker.h"
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
 
@@ -27,9 +25,15 @@ public:
     COMPOSITION_PUBLIC
     explicit TrackProvider(const rclcpp::NodeOptions & options)
         : ParameterNode("frame_provider_node", options)
-        , video_tracker_({{"tracker_type", "MOSSE"}}, get_logger()) // CV only currently - CSRT, MOSSE, KCF
+        , video_tracker_(get_logger()) 
     {
-        timer_ = this->create_wall_timer(std::chrono::seconds(1), std::bind(&TrackProvider::init, this));
+        one_shot_timer_ = this->create_wall_timer(
+            std::chrono::seconds(1), 
+            [this]() {
+                this->init(); 
+                this->one_shot_timer_.reset();  
+            }
+        );
     }
 
 private:
@@ -40,16 +44,17 @@ private:
     std::shared_ptr<message_filters::Subscriber<vision_msgs::msg::BoundingBox2DArray>> detector_bounding_boxes_subscription_;
     std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, vision_msgs::msg::BoundingBox2DArray>> time_synchronizer_;
     rclcpp::Publisher<bob_interfaces::msg::Tracking>::SharedPtr pub_tracker_tracking_;
-    // VideoTracker video_tracker_;
+    rclcpp::TimerBase::SharedPtr one_shot_timer_;
     SORT::Tracker video_tracker_;
-    rclcpp::TimerBase::SharedPtr timer_;
+    double fps_;
 
     friend std::shared_ptr<TrackProvider> std::make_shared<TrackProvider>();
 
     void init()
     {
         RCLCPP_INFO(get_logger(), "Initializing TrackProvider");
-        timer_->cancel();
+
+        declare_node_parameters();
 
         rclcpp::QoS pub_qos_profile{10};
         pub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
@@ -71,13 +76,18 @@ private:
         pub_tracker_tracking_ = create_publisher<bob_interfaces::msg::Tracking>("bob/tracker/tracking", pub_qos_profile);
     }
 
+    void declare_node_parameters() {
+        std::vector<ParameterNode::ActionParam> params = {
+            ParameterNode::ActionParam(rclcpp::Parameter("video_fps", 30.0), [this](const rclcpp::Parameter& param) {fps_ = param.as_double();}),
+        };
+        add_action_parameters(params);
+    }
+
     void callback(const sensor_msgs::msg::Image::SharedPtr &image_msg, const vision_msgs::msg::BoundingBox2DArray::SharedPtr &bounding_boxes_msg)
     {
         try
         {
             cv::Mat img;
-            ImageUtils::convert_image_msg(image_msg, img, true);
-
             std::vector<cv::Rect> bboxes;
             for (const auto &bbox2D : bounding_boxes_msg->boxes)
             {
@@ -130,6 +140,14 @@ private:
         detect_msg.state = (int)tracker.get_tracking_state();
         detect_msg.bbox = bbox_msg;
 
+        auto result = tracker.get_ellipse(); 
+        double semi_major_axis = std::get<0>(result);
+        double semi_minor_axis = std::get<1>(result);
+        double orientation = std::get<2>(result);
+        detect_msg.covariance_ellipse_semi_major_axis = semi_major_axis;
+        detect_msg.covariance_ellipse_semi_minor_axis = semi_minor_axis;
+        detect_msg.covariance_ellipse_orientation = orientation;
+
         detection_array.push_back(detect_msg);
     }
 
@@ -160,7 +178,7 @@ private:
             bob_interfaces::msg::TrackPoint point;
             point.center.x = center_point.x;
             point.center.y = center_point.y;
-            track_msg.trajectory.push_back(point);
+            track_msg.trajectory.push_back(point); 
         }
 
         prediction_array.push_back(track_msg);

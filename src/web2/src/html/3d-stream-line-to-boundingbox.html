@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>3D Stream Projection on Dome - Compressed Annotated Frames</title>
+        <style>
+            body {
+                margin: 0;
+            }
+            canvas {
+                display: block;
+            }
+            #image_sub {
+                display: none;
+            }
+        </style>
+    </head>
+    <body>
+        <img id="image_sub" />
+        <button id="button_sub" onclick="boundingBoxes.unsubscribe()">Stop</button>
+        <script src="../lib/three.min.js"></script>
+        <script src="../lib/OrbitControls.js"></script>
+        <script src="../lib/eventemitter2.js"></script>
+        <script src="../lib/roslib.min.js"></script>
+        <script type="text/javascript">
+            var ros = new ROSLIB.Ros({
+                url: 'ws://localhost:9090',
+            });
+            ros.on('connection', function () {
+                console.log('Connected to websocket server.');
+            });
+            ros.on('error', function (error) {
+                console.log('Error connecting to websocket server: ', error);
+            });
+            ros.on('close', function () {
+                console.log('Connection to websocket server closed.');
+            });
+            var ros2ImageTopic1 = '/bob/camera/all_sky/bayer/resized/compressed'; // Define the ROS2 Subscription Topic 1
+            var ros2ImageTopic2 = '/bob/frames/annotated/resized/compressed'; // Define the ROS2 Subscription Topic 2
+
+            // var listener = new ROSLIB.Topic({
+            //     ros: ros,
+            //     name: ros2ImageTopic2,
+            //     messageType: 'sensor_msgs/msg/CompressedImage',
+            // });
+            // listener.subscribe(function (message) {
+            //     console.log(message.data);
+            //     // document.getElementById('image_sub').src = 'data:image/jpeg;base64,' + message.data;
+            // });
+
+            var boundingBoxes = new ROSLIB.Topic({
+                ros: ros,
+                name: '/bob/detector/all_sky/bounding_boxes',
+                messageType: 'vision_msgs/msg/BoundingBox2DArray',
+            });
+            // boundingBoxes.subscribe(function (message) {
+            //     // document.getElementById('image_sub').src = 'data:image/jpeg;base64,' + message.data;
+            //     if (typeof message.boxes !== 'undefined' && message.boxes !== []) {
+            //         // Access the length of the boxes array and retrieve its center position
+            //         if (typeof message.boxes[0] !== 'undefined' && message.boxes[0] !== []) {
+            //             message.boxes.forEach(box => {
+            //                 // console.log(box.center.position);
+            //                 addDetectionToDome(box.center.position, scene, imageWidth, imageHeight, 1000);
+            //             });
+            //         }
+            //     }
+            // });
+
+            // Example: Efficient Data Processing
+            boundingBoxes.subscribe(function (message) {
+                if (message.boxes && message.boxes.length) {
+                    message.boxes.forEach(function(box) {
+                        console.log(box.center.position);
+                        // addDetectionToDome(box.center.position, scene, imageWidth, imageHeight, 1000);
+                    });
+                }
+            });
+
+
+
+            // Set up the scene, camera, and renderer
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 2;
+
+            const renderer = new THREE.WebGLRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // Create the dome geometry
+            const domeRadius = 5;
+            const domeHeight = 2;
+            const domeSegments = 32;
+
+            function domeFunction(u, v, target) {
+                const x = u * domeRadius * 2 - domeRadius;
+                const z = v * domeRadius * 2 - domeRadius;
+                const y = -((x * x + z * z) / (4 * domeHeight)) + domeHeight;
+                target.set(x, y, z);
+            }
+
+            const domeGeometry = new THREE.ParametricGeometry(domeFunction, domeSegments, domeSegments);
+            const imageElement = document.getElementById('image_sub');
+            const imageTexture = new THREE.Texture(imageElement);
+            let imageWidth = 0;
+            let imageHeight = 0;
+
+            imageElement.onload = function () {
+                imageWidth = imageElement.naturalWidth;
+                imageHeight = imageElement.naturalHeight;
+            };
+            imageTexture.minFilter = THREE.LinearFilter;
+            imageTexture.magFilter = THREE.LinearFilter;
+            imageTexture.format = THREE.RGBFormat;
+            imageTexture.needsUpdate = true;
+
+            const domeMaterial = new THREE.MeshBasicMaterial({ map: imageTexture, side: THREE.FrontSide });
+            const domeMesh = new THREE.Mesh(domeGeometry, domeMaterial);
+
+            scene.add(domeMesh);
+
+            // Add OrbitControls
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.02;
+            controls.screenSpacePanning = false;
+            controls.minDistance = 0.1;
+            controls.maxDistance = 6; // Set the maximum zoom out distance
+
+            function updateTexture() {
+                imageTexture.needsUpdate = true;
+            }
+
+            imageElement.addEventListener('load', updateTexture);
+
+            // Render the scene
+            function animate() {
+                requestAnimationFrame(animate);
+                updateTexture();
+                controls.update();
+                renderer.render(scene, camera);
+            }
+
+            function map2Dto3D(x2d, y2d, domeRadius, domeHeight, imageWidth, imageHeight) {
+                const u = x2d / imageWidth;
+                const v = y2d / imageHeight;
+                const theta = u * Math.PI * 2;
+                const phi = v * Math.PI;
+                const x = domeRadius * Math.sin(phi) * Math.cos(theta);
+                const y = domeRadius * Math.cos(phi);
+                const z = domeRadius * Math.sin(phi) * Math.sin(theta);
+                const target = new THREE.Vector3(x, y, z);
+                if (
+                    isNaN(target.x) || isNaN(target.y) || isNaN(target.z) ||
+                    target.x === Infinity || target.y === Infinity || target.z === Infinity ||
+                    target.x === -Infinity || target.y === -Infinity || target.z === -Infinity
+                ) {
+                    // console.warn('Invalid values detected in target position:', target);
+                    return null;
+                }
+                return target;
+            }
+
+            // Function to draw a line from the center of the dome to the given point and return the line
+            function drawLineToDomePoint(point, scene) {
+                // console.log('drawLineToDomePoint');
+                // console.log(point);
+                const material = new THREE.LineBasicMaterial({ color: 0xff0000 });
+                const geometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), point]);
+                const line = new THREE.Line(geometry, material);
+                scene.add(line);
+                return line;
+            }
+
+            function addDetectionToDome(data, scene, imageWidth, imageHeight, duration = 1000) {
+                // console.log('addDetectionToDome');
+                // console.log(data.x);
+                // console.log(data.y);
+                // console.log(imageWidth);
+                // console.log(imageHeight);
+                if (data.position === null) {
+                    // console.warn('Skipping detection due to NaN values in 3D coordinates 1');
+                    return;
+                }
+                const pointOnDome = map2Dto3D(data.x, -data.y, domeRadius, domeHeight, imageWidth, imageHeight);
+                // console.log('pointOnDome');
+                // console.log(pointOnDome);
+                if (pointOnDome === null) {
+                    // console.warn('Skipping detection due to NaN values in 3D coordinates 2');
+                    return;
+                }
+                const line = drawLineToDomePoint(pointOnDome, scene);
+                // Remove the line after the specified duration (in milliseconds)
+                // setTimeout(() => {
+                //     scene.remove(line);
+                //     line.geometry.dispose();
+                //     line.material.dispose();
+                // }, duration);
+            }
+
+            // Buffers for the messages
+            const boundingBoxBuffer = [];
+            const imageBuffer = [];
+
+            // Subscribe to the bounding boxes topic
+            const boundingBoxTopic = new ROSLIB.Topic({
+                ros: ros,
+                name: '/bob/detector/all_sky/bounding_boxes',
+                messageType: 'vision_msgs/msg/BoundingBox2DArray',
+            });
+
+            boundingBoxTopic.subscribe((message) => {
+                boundingBoxBuffer.push(message);
+            });
+
+            // Subscribe to the image topic
+            const imageTopic = new ROSLIB.Topic({
+                ros: ros,
+                name: ros2ImageTopic2,
+                messageType: 'sensor_msgs/msg/CompressedImage',
+            });
+
+            imageTopic.subscribe((message) => {
+                imageBuffer.push(message);
+            });
+
+
+
+            // Check and display synchronized messages
+            function displaySynchronizedMessages() {
+                const syncThreshold = 0.05; // 50 ms threshold for synchronization
+                for (let i = 0; i < boundingBoxBuffer.length; i++) {
+                    const boundingBoxMsg = boundingBoxBuffer[i];
+                    // console.log(boundingBoxBuffer[i]);
+                    for (let j = 0; j < imageBuffer.length; j++) {
+                        // console.log(imageBuffer[j]);
+                        // console.log(imageBuffer[j].data);
+                        const imageMsg = imageBuffer[j];
+                        const timeDiff = Math.abs(
+                            boundingBoxMsg.header.stamp.secs + boundingBoxMsg.header.stamp.nsecs * 1e-9 -
+                            imageMsg.header.stamp.secs - imageMsg.header.stamp.nsecs * 1e-9
+                        );
+                        document.getElementById('image_sub').src = 'data:image/jpeg;base64,' + imageMsg.data;
+
+                        if (timeDiff < syncThreshold) {
+
+                            if (typeof boundingBoxMsg.boxes !== 'undefined' && boundingBoxMsg.boxes !== []) {
+
+                                if (typeof boundingBoxMsg.boxes[0] !== 'undefined' && boundingBoxMsg.boxes[0] !== []) {
+
+                                    boundingBoxMsg.boxes.forEach(box => {
+
+                                        // console.log(box.center.position);
+                                        addDetectionToDome(box.center.position, scene, imageWidth, imageHeight, 1000);
+                                    });
+                                }
+                            }
+                            // console.log(boundingBoxMsg);
+                            console.log(imageMsg.data);
+                            // document.getElementById('image_sub').src = 'data:image/jpeg;base64,' + imageMsg.data;
+                            imageBuffer.splice(j, 1);
+                            boundingBoxBuffer.splice(i, 1); // Remove displayed messages from the buffers
+
+                            return;
+                        }
+                    }
+                }
+            }
+
+
+// Example: Debouncing Resize Events
+function debouncedResize() {
+    clearTimeout(window.resizeId);
+    window.resizeId = setTimeout(doneResizing, 500);
+}
+
+function doneResizing(){
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    renderer.setSize(width, height);
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+}
+
+window.addEventListener('resize', debouncedResize);
+
+            // function displaySynchronizedMessages() {
+            //     const syncThreshold = 0.05; // 50 ms threshold for synchronization
+
+            //     for (let i = 0; i < boundingBoxBuffer.length; i++) {
+            //         const boundingBoxMsg = boundingBoxBuffer[i];
+
+            //         for (let j = 0; j < imageBuffer.length; j++) {
+            //             const imageMsg = imageBuffer[j];
+            //             const timeDiff = Math.abs(
+            //                 boundingBoxMsg.header.stamp.secs + boundingBoxMsg.header.stamp.nsecs * 1e-9 -
+            //                 imageMsg.header.stamp.secs - imageMsg.header.stamp.nsecs * 1e-9
+            //             );
+
+            //             if (timeDiff < syncThreshold) {
+            //                 updateImage(imageMsg);
+            //                 updateBoundingBoxes(boundingBoxMsg, scene, imageWidth, imageHeight, 1000);
+
+            //                 // Remove displayed messages from the buffers
+            //                 imageBuffer.splice(j, 1);
+            //                 boundingBoxBuffer.splice(i, 1);
+
+            //                 return;
+            //             }
+            //         }
+            //     }
+            // }
+
+            // function updateImage(imageMsg) {
+            //     document.getElementById('image_sub').src = 'data:image/jpeg;base64,' + imageMsg.data;
+            // }
+
+            // function updateBoundingBoxes(boundingBoxMsg, scene, imageWidth, imageHeight, radius) {
+            //     if (boundingBoxMsg.boxes && boundingBoxMsg.boxes.length) {
+            //         boundingBoxMsg.boxes.forEach(box => {
+            //             if (box && box.center && box.center.position) {
+            //                 addDetectionToDome(box.center.position, scene, imageWidth, imageHeight, radius);
+            //             }
+            //         });
+            //     }
+            // }
+
+
+            // Call displaySynchronizedMessages periodically (e.g., every 100 ms)
+            setInterval(displaySynchronizedMessages, 1000);
+
+            animate();
+            // Resize the renderer when the window is resized
+            window.addEventListener('resize', function () {
+                const width = window.innerWidth;
+                const height = window.innerHeight;
+                renderer.setSize(width, height);
+                camera.aspect = width / height;
+                camera.updateProjectionMatrix();
+            });
+        </script>
+    </body>
+</html>

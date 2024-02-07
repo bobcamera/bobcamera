@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Image Projected on 3D Dome</title>
+        <style>
+            body {
+                margin: 0;
+            }
+            canvas {
+                display: block;
+            }
+            #video {
+                display: none;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- <video id="video" playsinline autoplay muted loop>
+            <source src="birds_and_plane.mp4" type="video/mp4" />
+        </video> -->
+        <img id="image_sub" hidden/ >
+        <script src="three.min.js"></script>
+        <script src="OrbitControls.js"></script>
+        <script src="eventemitter2.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/roslibjs/1.1.0/roslib.min.js"></script>
+        <script type="text/javascript" type="text/javascript">
+            // Connecting to ROS
+            var ros = new ROSLIB.Ros({
+                url: 'ws://localhost:9090'
+            });
+            ros.on('connection', function () {
+                console.log('Connected to websocket server.');
+            });
+            ros.on('error', function (error) {
+                console.log('Error connecting to websocket server: ', error);
+            });
+            ros.on('close', function () {
+                console.log('Connection to websocket server closed.');
+            });
+            var listener = new ROSLIB.Topic({
+                ros: ros,
+                name: '/bob/frames/annotated/resized/compressed',
+                // name: '/bob/camera/all_sky/bayer/resized/compressed',
+                messageType: 'sensor_msgs/msg/CompressedImage',
+            });
+
+            listener.subscribe(function (message) {
+                console.log('Topic: ' + listener.name);
+
+                // Convert the received image to a texture
+                var image = new Image();
+                image.onload = function () {
+                    var texture = new THREE.Texture(image);
+                    texture.needsUpdate = true;
+
+                    // Update the dome material with the new texture
+                    domeMaterial.map = texture;
+                };
+                image.src = "data:image/jpeg;base64," + message.data;
+            });
+
+
+            // Set up the scene, camera, and renderer
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 2;
+            const renderer = new THREE.WebGLRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // Create the dome geometry
+            const domeRadius = 5;
+            const domeHeight = 2;
+            const domeSegments = 64;
+
+            function domeFunction(u, v, target) {
+                const x = u * domeRadius * 2 - domeRadius;
+                const z = v * domeRadius * 2 - domeRadius;
+                const y = -((x * x + z * z) / (4 * domeHeight)) + domeHeight;
+                target.set(x, y, z);
+            }
+
+            const domeGeometry = new THREE.ParametricGeometry(domeFunction, domeSegments, domeSegments);
+            // const video = document.getElementById('video');
+            // const videoTexture = new THREE.VideoTexture(video);
+
+            const textureLoader = new THREE.TextureLoader();
+            const domeTexture = textureLoader.load('sunny2.png');
+
+            const domeMaterial = new THREE.MeshBasicMaterial({ map: domeTexture, side: THREE.DoubleSide });
+            const domeMesh = new THREE.Mesh(domeGeometry, domeMaterial);
+            scene.add(domeMesh);
+
+            // Add OrbitControls
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.02;
+            controls.screenSpacePanning = false;
+            controls.minDistance = 0.1;
+            controls.maxDistance = 6; // Set the maximum zoom out distance
+
+            // Render the scene
+            function animate() {
+                console.log();
+                requestAnimationFrame(animate);
+                // if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                //     videoTexture.needsUpdate = true;
+                // }
+                controls.update();
+                renderer.render(scene, camera);
+            }
+
+            animate();
+
+            // Resize the renderer when the window is resized
+            window.addEventListener('resize', function () {
+                const width = window.innerWidth;
+                const height = window.innerHeight;
+                renderer.setSize(width, height);
+                camera.aspect = width / height;
+                camera.updateProjectionMatrix();
+            });
+        </script>
+    </body>
+
+</html>

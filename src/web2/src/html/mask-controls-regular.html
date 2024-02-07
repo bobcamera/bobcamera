@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Mask Editor - Context Menu Controls</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #maskCanvas {
+            border: 1px solid black;
+            position:absolute;
+            top:0;
+            left:0;
+            z-index:10;
+        }
+
+        #contextMenu {
+            display: none;
+            position: absolute;
+            background-color: white;
+            border: 1px solid #c9c9c9;
+            padding: 5px;
+            z-index: 1000;
+        }
+
+        #contextMenu button {
+            display: block;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+   <!-- <video width="750" id="videoPlayer" controls>
+        <source src="../assets/birds_and_plane.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video> -->
+
+    <img width="750" id="image_sub" />
+
+    <canvas id="maskCanvas"></canvas>
+
+    <div id="contextMenu">
+        <button id="editMaskBtn">Edit Image Mask</button>
+        <button id="invertMaskBtn">Invert Image Mask</button>
+        <button id="clearMaskBtn">Clear Image Mask</button>
+        <button id="saveMaskJPG">Save Mask as JPG</button>
+        <button id="sendMaskJPG">Send Mask as JPG</button>
+        <button id="saveMaskSVG">Save Mask as SVG</button>
+    </div>
+
+    <script src="../lib/eventemitter2.js"></script>
+    <script src="../lib/roslib.min.js"></script>
+
+    <script type="text/javascript" type="text/javascript"></script>
+
+    <script>
+        // Connecting to ROS
+        // -----------------
+        var ros = new ROSLIB.Ros({
+            url: 'ws://localhost:9090'
+        });
+        ros.on('connection', function () {
+            console.log('Connected to websocket server.');
+        });
+        ros.on('error', function (error) {
+            console.log('Error connecting to websocket server: ', error);
+        });
+        ros.on('close', function () {
+            console.log('Connection to websocket server closed.');
+        });
+        // ----------------------
+        var listener = new ROSLIB.Topic({
+            ros: ros,
+            name: '/bob/frames/annotated/resized/compressed',
+            messageType: 'sensor_msgs/msg/CompressedImage'
+        });
+
+        listener.subscribe(function (message) {
+            //console.log('Received message data on ' + listener.name);
+            //console.log(message.data);
+            //console.log('Received message on ' + listener.name);
+            //console.log(message);
+            document.getElementById('image_sub').src = "data:image/jpeg;base64," + message.data;
+        });
+
+        // Instanciate maskprovider so we can publish the image mask when the sendMaskJPG button is clicked via "maskprovider.publish(imageMessage);"
+        var maskprovider = new ROSLIB.Topic({
+            ros: ros,
+            name: '/sky360/config/mask',
+            messageType: 'sensor_msgs/msg/CompressedImage'
+        });
+
+        // const videoPlayer = document.getElementById('videoPlayer');
+        // const videoPlayer = document.getElementById('image_sub');
+        const maskCanvas = document.getElementById('maskCanvas');
+        const ctx = maskCanvas.getContext('2d');
+        const contextMenu = document.getElementById('contextMenu');
+        const editMaskBtn = document.getElementById('editMaskBtn');
+        const invertMaskBtn = document.getElementById('invertMaskBtn');
+        const clearMaskBtn = document.getElementById('clearMaskBtn');
+        const saveMaskJPG = document.getElementById('saveMaskJPG');
+        const saveMaskSVG = document.getElementById('saveMaskSVG');
+
+        let drawing = false;
+        let editMode = false;
+        let polygons = [];
+        let offset = 0;
+
+        function drawPolygon(polygon, fillStyle, drawBorder) {
+            ctx.beginPath();
+            ctx.moveTo(polygon[0].x, polygon[0].y);
+            for (let i = 1; i < polygon.length; i++) {
+                ctx.lineTo(polygon[i].x, polygon[i].y);
+            }
+            ctx.closePath();
+            ctx.fillStyle = fillStyle;
+            ctx.fill();
+
+            if (drawBorder) {
+                ctx.setLineDash([5, 5]);
+                ctx.lineDashOffset = -offset;
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.lineDashOffset = 0;
+            }
+        }
+
+        function redrawCanvas() {
+            ctx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+            polygons.forEach((polygon, index) => {
+                const isCurrentPolygon = index === polygons.length - 1;
+                drawPolygon(polygon, editMode && isCurrentPolygon ? 'rgba(0, 0, 0, 0.1)' : 'rgba(0, 0, 0, 1)', editMode && isCurrentPolygon);
+            });
+        }
+
+        function invertMaskColors() {
+            let imageData = ctx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+            let data = imageData.data;
+            for (let i = 0; i < data.length; i += 4) {
+                if (data[i] === 0 && data[i + 1] === 0 && data[i + 2] === 0 && data[i + 3] === 255) {
+                    // If the pixel is black (masked), set it to transparent
+                    data[i + 3] = 0;
+                } else if (data[i + 3] === 0) {
+                    // If the pixel is transparent, set it to black (masked)
+                    data[i] = 0;
+                    data[i + 1] = 0;
+                    data[i + 2] = 0;
+                    data[i + 3] = 255;
+                }
+            }
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        invertMaskBtn.addEventListener('click', () => {
+            invertMaskColors();
+        });
+
+        function clearMask() {
+            ctx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+            polygons = [];
+        }
+
+        //videoPlayer.addEventListener('loadedmetadata', () => {
+            maskCanvas.width = 750 //videoPlayer.offsetWidth;
+            maskCanvas.height = 750 //videoPlayer.offsetHeight;
+        //});
+
+        maskCanvas.addEventListener('mousedown', (e) => {
+            if (!editMode || e.button === 2) return;
+            if (e.detail > 1) { // Detect double-click event
+                const currentPolygon = polygons[polygons.length - 1];
+                if (currentPolygon.length > 2) {
+                    drawing = false;
+                    polygons.push([]);
+                }
+                return;
+            }
+
+            drawing = true;
+            const rect = maskCanvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const currentPolygon = polygons[polygons.length - 1];
+
+            if (currentPolygon.length > 0) {
+                const firstNode = currentPolygon[0];
+                const distance = Math.sqrt(Math.pow(x - firstNode.x, 2) + Math.pow(y - firstNode.y, 2));
+
+                if (distance < 10) { // Close the polygon if the click is near the starting node.
+                    drawing = false;
+                    polygons.push([]);
+                } else {
+                    currentPolygon.push({x, y});
+                }
+            } else {
+                currentPolygon.push({x, y});
+            }
+            redrawCanvas();
+            });
+
+            maskCanvas.addEventListener('mousemove', (e) => {
+            if (!drawing || !editMode) return;
+
+            const rect = maskCanvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            const currentPolygon = polygons[polygons.length - 1];
+
+            currentPolygon.push({x, y});
+            redrawCanvas();
+            if (editMode) {
+                drawPolygon(currentPolygon, 'rgba(0, 0, 0, 0.1)', true);
+            }
+            currentPolygon.pop();
+            });
+
+            editMaskBtn.addEventListener('click', () => {
+            editMode = !editMode;
+
+            if (editMode) {
+                maskCanvas.style.cursor = 'crosshair';
+                editMaskBtn.textContent = 'Stop Editing Mask';
+                if (polygons.length === 0 || polygons[polygons.length - 1].length > 0) {
+                    polygons.push([]);
+                }
+            } else {
+                maskCanvas.style.cursor = 'default';
+                editMaskBtn.textContent = 'Edit Image Mask';
+                redrawCanvas();
+                if (polygons[polygons.length - 1].length === 0) {
+                    polygons.pop();
+                }
+            }
+            });
+
+            clearMaskBtn.addEventListener('click', () => {
+            clearMask();
+            if (editMode) {
+                polygons.push([]);
+            }
+            });
+
+            saveMaskJPG.addEventListener('click', () => {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = maskCanvas.width;
+            tempCanvas.height = maskCanvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.fillStyle = 'white';
+            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            tempCtx.drawImage(maskCanvas, 0, 0);
+
+            const jpgDataUrl = tempCanvas.toDataURL('image/jpeg');
+            const link = document.createElement('a');
+            link.href = jpgDataUrl;
+            link.download = 'mask.jpg';
+            link.click();
+            });
+
+            sendMaskJPG.addEventListener('click', () => {
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = maskCanvas.width;
+                tempCanvas.height = maskCanvas.height;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.fillStyle = 'white';
+                tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                tempCtx.drawImage(maskCanvas, 0, 0);
+                const jpgDataUrl = tempCanvas.toDataURL('image/jpeg');
+                console.log("jpgDataUrl:")
+                console.log(jpgDataUrl)
+                var data = jpgDataUrl
+                var imageMessage = new ROSLIB.Message({
+                format : "jpeg",
+                data : data.replace("data:image/jpeg;base64,", "")
+                });
+                maskprovider.publish(imageMessage);
+            });
+
+            saveMaskSVG.addEventListener('click', () => {
+            let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${maskCanvas.width}" height="${maskCanvas.height}">`;
+
+            polygons.forEach(polygon => {
+                if (polygon.length > 2) {
+                    const pathData = polygon.map((point, index) => {
+                        const command = index === 0 ? 'M' : 'L';
+                        return `${command}${point.x},${point.y}`;
+                    }).join(' ') + 'Z';
+
+                    svgContent += `<path d="${pathData}" fill="black" />`;
+                }
+            });
+
+            svgContent += '</svg>';
+
+            const svgBlob = new Blob([svgContent], {type: 'image/svg+xml;charset=utf-8'});
+            const svgUrl = URL.createObjectURL(svgBlob);
+            const link = document.createElement('a');
+            link.href = svgUrl;
+            link.download = 'mask.svg';
+            link.click();
+            });
+
+            // Initialize an empty polygon at the beginning
+
+            polygons.push([]);
+
+            function update() {
+        if (editMode) {
+            offset = (offset + 1) % 10; // Update the dashed border offset
+            redrawCanvas();
+        }
+        requestAnimationFrame(update);
+    }
+    // Add context menu event listeners
+    maskCanvas.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        contextMenu.style.left = `${e.pageX}px`;
+        contextMenu.style.top = `${e.pageY}px`;
+        contextMenu.style.display = 'block';
+    });
+
+    document.addEventListener('click', (e) => {
+        if (e.target.closest('#contextMenu') === null) {
+            contextMenu.style.display = 'none';
+        }
+    });
+    // Start the animation loop
+    update();
+</script>
+</body>
+</html>

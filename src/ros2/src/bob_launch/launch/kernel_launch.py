@@ -137,16 +137,8 @@ def generate_launch_description():
             ),
             ComposableNode(
                 package='bob_recorder',
-                plugin='VideoRecorder',
+                plugin='RecordManager',
                 name='allsky_recorder_node',
-                parameters = [config],
-                extra_arguments=[{'use_intra_process_comms': True}],
-                condition=IfCondition(PythonExpression([LaunchConfiguration('enable_recording_arg'), " == True"])),  
-            ),
-            ComposableNode(
-                package='bob_recorder',
-                plugin='JsonRecorder',
-                name='json_recorder_node',
                 parameters = [config],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('enable_recording_arg'), " == True"])),  

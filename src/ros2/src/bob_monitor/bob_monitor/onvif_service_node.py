@@ -30,7 +30,7 @@ class ONVIFServiceNode(Node):
 
         self.declare_parameters(namespace='', parameters=[('onvif_wsdl_path', 'src/bob_monitor/resource/wsdl')])
         self.wsdl_path = self.get_parameter('onvif_wsdl_path').value
-        self.srv = self.create_service(CameraSettings, 'camera_settings', self.camera_settings_callback)
+        self.srv = self.create_service(CameraSettings, 'bob/camera/settings', self.camera_settings_callback)
         self.log_info("ONVIF Service Initialized")
 
     def camera_settings_callback(self, request, response):
@@ -50,6 +50,11 @@ class ONVIFServiceNode(Node):
             
             response.num_configurations = len(configurations)
             response.encoding = configurations[0]['Encoding'].lower()
+            
+            if response.encoding in ['h264', 'h265']:
+                response.frame_width = configurations[0]['Resolution']['Width']
+                response.frame_height = configurations[0]['Resolution']['Height']
+                response.fps = configurations[0]['RateControl']['FrameRateLimit']
 
             response.success = True
 
