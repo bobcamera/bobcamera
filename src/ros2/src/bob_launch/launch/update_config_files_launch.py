@@ -43,8 +43,8 @@ class ConfigDiscoverer():
 
             if self.source in ('\'simulate\''):
                 print(f"The simulate option has been selected, its using hard coded values")
-                self.width = 1920
-                self.height = 1080
+                self.width = 3840
+                self.height = 2160
                 self.fps = 30.0
                 success = True
 
