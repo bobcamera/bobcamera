@@ -43,9 +43,9 @@ class ConfigDiscoverer():
 
             if self.source in ('\'simulate\''):
                 print(f"The simulate option has been selected, its using hard coded values")
-                self.width = 3840
-                self.height = 2160
-                self.fps = 30.0
+                self.width = 2880
+                self.height = 1620
+                self.fps = 25.0
                 success = True
 
             if self.source in ('\'rtsp\'', '\'rtsp_overlay\''):

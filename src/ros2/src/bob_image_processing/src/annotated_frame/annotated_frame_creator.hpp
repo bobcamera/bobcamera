@@ -114,6 +114,7 @@ public:
                             int cropped_image_y_position = total_height - cropped_size - 10; 
 
                             resized_cropped_image.copyTo(annotated_frame(cv::Rect(cropped_image_x_position, cropped_image_y_position, cropped_size, cropped_size)));
+                            cv::rectangle(annotated_frame, cv::Rect(cropped_image_x_position, cropped_image_y_position, cropped_size, cropped_size), color, 1);
 
                             int textHeight = cv::getTextSize(std::to_string(id), cv::FONT_HERSHEY_SIMPLEX, fontScale, 2, nullptr).height;
                             cv::putText(annotated_frame, std::to_string(id),

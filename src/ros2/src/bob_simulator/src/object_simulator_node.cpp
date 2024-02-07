@@ -26,7 +26,7 @@ public:
 
         declare_node_parameters();
 
-        generator_ = std::make_unique<CircleFrameGenerator>(std::map<std::string, int>{{"height", frame_height_}, {"width", frame_width_}}, num_objects_, std::pair<int, int>{40, 150}, std::pair<int, int>{5, 30}, cv::Scalar(255,255,255));
+        generator_ = std::make_unique<CircleFrameGenerator>(std::map<std::string, int>{{"height", frame_height_}, {"width", frame_width_}}, num_objects_, std::pair<int, int>{3, 10}, std::pair<int, int>{5, 30}, cv::Scalar(255,255,255));
         timer_ = this->create_wall_timer(std::chrono::milliseconds(static_cast<int>(1000.0 / fps_)), std::bind(&MovingObjectsSimulation::timer_callback, this));
     }
 
