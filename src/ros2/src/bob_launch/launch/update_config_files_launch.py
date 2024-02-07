@@ -40,6 +40,14 @@ class ConfigDiscoverer():
         video_capture = None
 
         try:
+
+            if self.source in ('\'simulate\''):
+                print(f"The simulate option has been selected, its using hard coded values")
+                self.width = 1920
+                self.height = 1080
+                self.fps = 30.0
+                success = True
+
             if self.source in ('\'rtsp\'', '\'rtsp_overlay\''):
                 (onvif_success_, rtsp_user_, rtsp_password_, rtsp_host_, rtsp_port_) = self._get_onvif_config(self.rtsp_url)
                 if onvif_success_:
