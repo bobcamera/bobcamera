@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title class="currentTopicName"></title>
+        <script type="text/javascript" src="../lib/eventemitter2.js"></script>
+        <script type="text/javascript" src="../lib/roslib.min.js"></script>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+            rel="stylesheet" />
+        <style>
+            #messages {
+              width: 100%;
+              height: 300px;
+            }
+            button.MuiButton-containedPrimary {
+                background-color: green;
+            }
+            button.MuiButton-containedSecondary {
+                background-color: red;
+            }
+          </style>
+    </head>
+    <body>
+        <h1 class="currentTopicName"></h1>
+        <form>
+            <label for="topic-select">Topic:</label>
+            <select id="topic-select" onchange="chooseNewTopic()">
+                <option value="">Select a Topic</option>
+                <option value="/bob/frames/annotated/resized/compressed" selected>/bob/frames/annotated/resized/compressed</option>option>
+                <option value="/bob/camera/all_sky/bayer/resized">/bob/camera/all_sky/bayer/resized</option>option>
+                <option value="/bob/camera/all_sky/camera_info">/bob/camera/all_sky/camera_info</option>option>
+                <option value="/bob/camera/all_sky/image_info">/bob/camera/all_sky/image_info</option>option>
+                <option value="/bob/detector/all_sky/bounding_boxes">/bob/detector/all_sky/bounding_boxes</option>option>
+                <option value="/bob/frames/all_sky/foreground_mask">/bob/frames/all_sky/foreground_mask</option>option>
+                <option value="/bob/frames/all_sky/foreground_mask/resized">/bob/frames/all_sky/foreground_mask/resized</option>option>
+                <option value="/bob/frames/annotated">/bob/frames/annotated</option>option>
+                <option value="/bob/frames/annotated/resized">/bob/frames/annotated/resized</option>option>
+                <option value="/bob/tracker/detections">/bob/tracker/detections</option>option>
+                <option value="/bob/tracker/prediction">/bob/tracker/prediction</option>option>
+                <option value="/bob/tracker/tracking_state">/bob/tracker/tracking_state</option>option>
+                <option value="/bob/tracker/trajectory">/bob/tracker/trajectory</option>option>
+                <option value="/client_count">/client_count</option>option>
+                <option value="/connected_clients">/connected_clients</option>option>
+                <option value="/parameter_events">/parameter_events</option>option>
+                <option value="/rosout">/rosout</option>option>
+            </select>
+        </form>
+        <br><br>
+        <button id="start-button">Start</button>
+        <button id="pause-button">Pause</button>
+        <br><br>
+        Subscription Messages:<br>
+        <div id="messages"></div>
+        <br>
+        <script type="text/javascript">
+            const urlParams = new URLSearchParams(window.location.search);
+            const topicNameFromUrl = urlParams.get('topic');
+            var defaultTopicName = 'bob_frames_annotated_resized';
+            var currentTopicName = defaultTopicName;
+            if (topicNameFromUrl) {
+                var currentTopicName = topicNameFromUrl;
+                document.querySelectorAll('.currentTopicName').forEach(element => {
+                    element.innerHTML = currentTopicName;
+                });
+                var topicSelect = document.getElementById("topic-select");
+                var option = topicSelect.querySelector('option[value="'+ topicNameFromUrl +'"]');
+                if (option) { option.selected = true; }
+            } else {
+                document.querySelectorAll('.currentTopicName').forEach(element => {
+                    element.innerHTML = currentTopicName;
+                });
+            }
+            var ros = new ROSLIB.Ros({ url: 'ws://localhost:9090' });
+            var currentTopic = new ROSLIB.Topic({
+                ros: ros,
+                name: '/bob/frames/annotated/resized/compressed',
+                messageType: 'sensor_msgs/msg/CompressedImage',
+            });
+            function messageCallback(message) {
+                console.log('messageCallback');
+                var messageCopy = JSON.parse(JSON.stringify(message));
+                console.log('Received message:', messageCopy);
+                console.log(message);
+                var messageJSONString = JSON.stringify(message, null, 2);
+                var messageHeaderJSONString = JSON.stringify(message.header, null, 2);
+                var messageDataJSONString = JSON.stringify(message.data, null, 2);
+                var messageFormatJSONString = JSON.stringify(message.format, null, 2);
+                var contents = " Seconds: " + message.header.stamp.sec + " Nanoseconds: "
+                + message.header.stamp.nanosec +'<br>' ;
+                console.log(message.header.stamp.sec);
+                console.log(message.header.stamp.nanosec);
+                document.getElementById('messages').innerHTML
+                = document.getElementById('messages').innerHTML + contents;
+            }
+            function startSubscription() {
+                currentTopic.subscribe(messageCallback);
+                console.log('Subscription started');
+            }
+            function pauseSubscription() {
+                currentTopic.unsubscribe();
+                console.log('Subscription paused');
+            }
+            var startButton = document.getElementById('start-button');
+            var pauseButton = document.getElementById('pause-button');
+            startButton.addEventListener('click', startSubscription);
+            pauseButton.addEventListener('click', pauseSubscription);
+            function chooseNewTopic() {
+                var topic = document.getElementById('topic-select').value;
+                window.location.href = window.location.pathname + '?topic=' + encodeURIComponent(topic);
+            }
+
+        </script>
+    </body>
+</html>

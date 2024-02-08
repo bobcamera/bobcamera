@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Image Projected on 3D Dome</title>
+        <style>
+            body {margin: 0;}
+            canvas {display: block;}
+            #video {display: none;}
+        </style>
+    </head>
+    <body>
+        <script src="../lib/three.min.js"></script>
+        <script src="../lib/OrbitControls.js"></script>
+        <script src="../lib/eventemitter2.js"></script>
+        <script src="../lib/roslib.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.7/dat.gui.min.js"></script>
+
+        <script type="text/javascript" type="text/javascript">
+
+            let domeMesh;
+            let aspectRatio;
+            let domeTexture;
+            const domeRadius = 5;
+            const domeHeight = 2;
+            const domeSegments = 64;
+
+            const gui = new dat.GUI();
+            const params = {
+                a: .1,
+                offsetX: 0,
+                offsetY: 0,
+                rotation: 0,
+                domeRadius: 5,
+                domeHeight: 2
+            };
+
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 2;
+            const renderer = new THREE.WebGLRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+            const textureLoader = new THREE.TextureLoader();
+
+            gui.add(params, 'offsetX', -1, 1).step(0.01).name('Offset X').onChange(() => {
+                updateUVs(domeGeometry, params.offsetX, params.offsetY, params.rotation);
+            });
+            gui.add(params, 'offsetY', -1, 1).step(0.01).name('Offset Y').onChange(() => {
+                updateUVs(domeGeometry, params.offsetX, params.offsetY, params.rotation);
+            });
+            gui.add(params, 'rotation', 0, Math.PI * 2).step(0.01).name('Rotation').onChange(() => {
+                updateUVs(domeGeometry, params.offsetX, params.offsetY, params.rotation);
+            });
+            gui.add(params, 'a', 0, 5).step(0.01).name('Paraboloid Control').onChange(() => {
+    updateGeometry();
+});
+
+
+            let domeGeometry = new THREE.ParametricGeometry(domeFunction, 50, 50);
+
+            textureLoader.load('../assets/pano-ozzy.png', function(texture) {
+                const image = texture.image;
+                aspectRatio = image.width / image.height;
+                domeTexture = texture;
+
+                // Adjust UVs based on aspect ratio
+                domeGeometry.faceVertexUvs[0].forEach(triangleUV => {
+                    triangleUV.forEach(uv => {
+                        uv.x *= aspectRatio;
+                        uv.x = uv.x * 0.5 + 0.25;
+                        uv.y = uv.y * 0.5 + 0.25;
+                    });
+                });
+                domeGeometry.uvsNeedUpdate = true;
+
+                const domeMaterial = new THREE.MeshBasicMaterial({map: domeTexture, side: THREE.DoubleSide});
+                domeMesh = new THREE.Mesh(domeGeometry, domeMaterial);
+                scene.add(domeMesh);
+            });
+
+
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.02;
+            controls.screenSpacePanning = false;
+            controls.minDistance = 0.1;
+            controls.maxDistance = 100;
+
+            function animate() {
+                requestAnimationFrame(animate);
+                controls.update();
+                renderer.render(scene, camera);
+            }
+
+            function updateGeometry() {
+                domeMesh.geometry.dispose();
+                domeMesh.geometry = new THREE.ParametricGeometry(domeFunction, 50, 50);
+                updateUVs(domeMesh.geometry, params.offsetX, params.offsetY, params.rotation);
+            }
+
+            animate();
+
+            window.addEventListener('resize', function () {
+                const width = window.innerWidth;
+                const height = window.innerHeight;
+                renderer.setSize(width, height);
+                camera.aspect = width / height;
+                camera.updateProjectionMatrix();
+            });
+
+            function updateUVs(geometry, offsetX, offsetY, rotation) {
+                if (!geometry || !geometry.faceVertexUvs || !geometry.faceVertexUvs[0]) return;
+
+                if (!geometry.faceVertexUvs[0]) return;
+                const uvs = geometry.faceVertexUvs[0];
+                for (let i = 0; i < uvs.length; i++) {
+                    for (let j = 0; j < uvs[i].length; j++) {
+                        uvs[i][j].x *= aspectRatio;
+                        uvs[i][j].x += offsetX;
+                        uvs[i][j].y += offsetY;
+                        const tempU = uvs[i][j].x - 0.5;
+                        const tempV = uvs[i][j].y - 0.5;
+                        uvs[i][j].x = tempU * Math.cos(rotation) - tempV * Math.sin(rotation) + 0.5;
+                        uvs[i][j].y = tempU * Math.sin(rotation) + tempV * Math.cos(rotation) + 0.5;
+                    }
+                }
+                geometry.uvsNeedUpdate = true;
+            }
+
+            function domeFunction(u, v, target) {
+    const phi = u * 2 * Math.PI;
+    const r = v * params.domeRadius;
+    const y = (1 - params.a * r * r); // Use params.a
+
+    const x = r * Math.cos(phi);
+    const z = r * Math.sin(phi);
+    target.set(x, y, z);
+}
+
+
+
+        </script>
+    </body>
+</html>

@@ -1,1 +1,0 @@
-python ./bob_gui.py

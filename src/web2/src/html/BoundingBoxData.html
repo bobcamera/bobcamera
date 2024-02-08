@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Bounding Box Data</title>
+        <meta charset="utf-8" />
+        <script src="../lib/eventemitter2.js"></script>
+        <script src="../lib/roslib.min.js"></script>
+        <script src="../lib/xterm.min.js"></script>
+        <link href="../lib/xterm.min.css" rel="stylesheet">
+    </head>
+    <body>
+        <button id="pause-button">Pause</button>
+        <button id="start-button">Start</button><br><br>
+        <div id="terminal"></div>
+
+        <script type="text/javascript">
+
+        // Initialize an empty array to store bounding box data
+        let boundingBoxData = [];
+        var topic_name = '/bob/detector/all_sky/bounding_boxes';
+        var message_type = 'vision_msgs/msg/BoundingBox2DArray';
+
+            const terminal = new Terminal({
+                cursorBlink: true, // Enable blinking cursor
+                cols: 180, // Set the terminal's width (columns).
+                rows: 45, // Set the terminal's height (rows).
+                theme: {
+                    background: '#272822'
+                }
+            });
+            terminal.open(document.getElementById('terminal'));
+
+            function init() {
+                window.addEventListener('DOMContentLoaded', function () {
+                    // Connecting to ROS
+                    var ros = new ROSLIB.Ros({
+                        url: 'ws://localhost:9090'
+                    });
+                    ros.on('connection', function () {
+                        console.log('Connected to websocket server.');
+                    });
+                    ros.on('error', function (error) {
+                        console.log('Error connecting to websocket server: ', error);
+                    });
+                    ros.on('close', function () {
+                        console.log('Connection to websocket server closed.');
+                    });
+                    var currentTopic = new ROSLIB.Topic({
+                        ros: ros,
+                        name: topic_name,
+                        messageType: message_type
+                    });
+
+                currentTopic.subscribe(function (message) {
+                    console.log(message);
+                    terminal.write('Topic: '
+                        + topic_name + '\n\r');
+                    terminal.write('Msg Type: '
+                        + message_type + ' \n\r');
+                    terminal.write('Frame Id: '
+                        + JSON.stringify(message.header.frame_id) +'\n\r');
+                    terminal.write('TimeStamp Sec: '
+                        + JSON.stringify(message.header.stamp.sec) +'\n\r');
+                    terminal.write('TimeStamp Nanosec: '
+                        + JSON.stringify(message.header.stamp.nanosec) +'\n\r');
+                    terminal.write('Boxes: '
+                        + JSON.stringify(message.boxes) + '\n\r');
+                    const timestamp_sec = message.header.stamp.sec;
+                    const timestamp_nsec = message.header.stamp.nanosec;
+                    const date = new Date(timestamp_sec * 1000);
+                    const nsec_to_msec = timestamp_nsec / 1000000;
+                    date.setMilliseconds(date.getMilliseconds() + nsec_to_msec);
+                    terminal.write('date: ' + date + '\n\r');
+                    // if (message.boxes.length > 0) {
+                    //     message.boxes.forEach((box, index) => {
+                    //         console.log(`Box ${index + 1}`+ '\n\r');
+                    //         terminal.write(`Center position x: ${box.center.position.x}`+ '\n\r');
+                    //         terminal.write(`Center position y: ${box.center.position.y}`+ '\n\r');
+                    //         terminal.write(`Size x: ${box.size_x}`+ '\n\r');
+                    //         terminal.write(`Size y: ${box.size_y}`+ '\n\r');
+                    //     });
+                    // }
+                    // terminal.write('\n\r');
+                    // const boundingBoxObject = {
+                    //     frameId: message.header.frame_id,
+                    //     timeStampSec: timestamp_sec,
+                    //     timeStampNanoSec: timestamp_nsec,
+                    //     centerPositionX: box.center.position.x,
+                    //     centerPositionY: box.center.position.y,
+                    //     sizeX: box.size_x,
+                    //     sizeY: box.size_y,
+                    //     date: new Date(timestamp_sec * 1000 + timestamp_nsec / 1000000) // Convert ROS time to JavaScript Date object
+                    // };
+                    // boundingBoxData.push(boundingBoxObject);
+                    if (message.boxes.length > 0) {
+                        message.boxes.forEach((box, index) => {
+                            console.log(`Box ${index + 1}`+ '\n\r');
+                            terminal.write(`Center position x: ${box.center.position.x}`+ '\n\r');
+                            terminal.write(`Center position y: ${box.center.position.y}`+ '\n\r');
+                            terminal.write(`Size x: ${box.size_x}`+ '\n\r');
+                            terminal.write(`Size y: ${box.size_y}`+ '\n\r');
+
+                            // Moved this section inside the forEach loop
+                            const boundingBoxObject = {
+                                frameId: message.header.frame_id,
+                                timeStampSec: timestamp_sec,
+                                timeStampNanoSec: timestamp_nsec,
+                                centerPositionX: box.center.position.x,
+                                centerPositionY: box.center.position.y,
+                                sizeX: box.size_x,
+                                sizeY: box.size_y,
+                                date: new Date(timestamp_sec * 1000 + timestamp_nsec / 1000000) // Convert ROS time to JavaScript Date object
+                            };
+                            boundingBoxData.push(boundingBoxObject);
+                        });
+                    }
+                });
+
+                function startSubscription() {
+                    currentTopic.subscribe();
+                    console.log('Subscription started. Data Truncated to 100 characters.');
+                    terminal.write('Subscribed to Topic: ' + topic_name + '\n\r');
+                    terminal.write('Message Type: ' + message_type + ' \n\r');
+                    terminal.write('Data Truncated to 100 characters. '+ '\n\r');
+                }
+
+                // Define function to stop the subscription
+                function pauseSubscription() {
+                    currentTopic.unsubscribe();
+                    console.log('Subscription paused');
+                    terminal.write('Unsubscribed to ' + topic_name + '\n\r');
+                    console.log('boundingBoxData: ');
+                    console.log(boundingBoxData);
+                }
+
+                // Add event listeners to the start and stop buttons
+                var startButton = document.getElementById('start-button');
+                var pauseButton = document.getElementById('pause-button');
+                // var messageDetailsButton = document.getElementById('message-details-button');
+
+                startButton.addEventListener('click', startSubscription);
+                pauseButton.addEventListener('click', pauseSubscription);
+                // messageDetailsButton.addEventListener('click', getTopicMessageDetails);
+
+                // document.getElementById('topic_name').innerHTML = 'Topic: '+topic_name;
+                // document.getElementById('message-type').innerHTML = 'Message Type: '+message_type;
+            });
+        }
+        window.onload = init();
+        </script>
+    </body>

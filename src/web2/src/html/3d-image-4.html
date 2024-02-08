@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Image Projected on 3D Dome</title>
+        <style>
+            body {margin: 0;}
+            canvas {display: block;}
+            #video {display: none;}
+            .dg.main.a {width: 350px !important;}
+            .close-button {width: 350px !important;}
+        </style>
+    </head>
+    <body>
+        <script src="../lib/three.min.js"></script>
+        <script src="../lib/OrbitControls.js"></script>
+        <script src="../lib/eventemitter2.js"></script>
+        <script src="../lib/roslib.min.js"></script>
+        <script src="../lib/dat.gui.min.js"></script>
+
+        <video id="video" playsinline autoplay muted loop><source src="../assets/ozzy-roof.mov" type="video/mp4" /></video>
+
+        <script type="text/javascript" type="text/javascript">
+
+            // Image Settings
+            let paramsImage = {
+                domeImageRadius: 4.593,
+                domeImageHeight: 1.98,
+                domeRotationY: 0.183,
+                canvasImageScale: 1,
+                canvasImageRotation: -2.3,
+                canvasImageOffsetX: 0,
+                canvasImageOffsetY: .447,
+                offsetX: 0,
+                offsetY: 0,
+                rotation: 0,
+                domeRotationX: 0,
+                domeRotationZ: 0,
+            };
+            let image;
+            let x,y,z;
+            let domeImageGeometry;
+            let domeImageMesh;
+            let domeImageTexture;
+            let imageAspectRatio;
+
+             // Video Settings
+             let paramsVideo = {
+                offsetX: 0,
+                offsetY: 0,
+                rotation: 0,
+                domeVideoRadius: 5,
+                domeVideoHeight: 2,
+                domeRotationX: 0,
+                domeRotationY: 0,
+                domeRotationZ: 0
+            };
+            let domeVideoGeometry;
+            let domeVideoMesh;
+            let videoWidth = 960;
+            let videoHeight = 960;
+            let videoAspectRatio = videoWidth / videoHeight;
+            const video = document.getElementById('video');
+            const videoTexture = new THREE.VideoTexture(video);
+
+            // Set up Scene
+            const scene = new THREE.Scene();
+
+            // Set up Camera
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 0.001;
+
+            // Set up Renderer
+            const renderer = new THREE.WebGLRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // Set up  OrbitControls
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.02;
+            controls.screenSpacePanning = false;
+            controls.minDistance = 0.1;
+            controls.maxDistance = 100;
+
+            let canvas;
+            let ctx;
+
+            const imageTexture = new THREE.TextureLoader();
+            imageTexture.load('../assets/pano-ozzy.png', function(texture) {
+                image = texture.image;
+                imageAspectRatio = 1;
+                canvas = document.createElement('canvas');
+                canvas.width = image.width;
+                canvas.height = image.width;
+                ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.globalAlpha = 0.0;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.globalAlpha = 1.0;
+                ctx.scale(paramsImage.canvasImageScale, paramsImage.canvasImageScale);
+                const xOffset = 0;
+                const yOffset = 0;
+                ctx.drawImage(image, xOffset, yOffset, image.width, image.height);
+                const canvasTexture = new THREE.CanvasTexture(canvas);
+                domeImageTexture = canvasTexture;
+                updateCanvasImage()
+            });
+
+            function updateCanvasImage() {
+                console.log("updateCanvasImage");
+                canvas = document.createElement('canvas');
+                ctx = canvas.getContext('2d');
+                canvas.width = image.width;
+                canvas.height = image.width;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.globalAlpha = 0.0;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.globalAlpha = 1.0;
+                ctx.scale(paramsImage.canvasImageScale, paramsImage.canvasImageScale);
+                ctx.save();
+                console.log(ctx);
+                console.log(image);
+                console.log("canvas.width: "+canvas.width);
+                console.log("canvas.height: "+canvas.height);
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.rotate(paramsImage.canvasImageRotation);
+                ctx.translate(-canvas.width / 2, -canvas.height / 2);
+                console.log("ctx: ");
+                console.log(ctx);
+                let offsetX = paramsImage.canvasImageOffsetX * canvas.width;
+                console.log("offsetX: "+offsetX);
+                let offsetY = paramsImage.canvasImageOffsetY * canvas.height;
+                console.log("offsetY: "+offsetY);
+                ctx.drawImage(image, offsetX, offsetY, image.width, image.height);
+                ctx.restore();
+                const canvasTexture = new THREE.CanvasTexture(canvas);
+                canvasTexture.needsUpdate = true;
+                domeImageTexture = canvasTexture;
+                if (domeImageMesh) {
+                    domeImageMesh.material.map = domeImageTexture;
+                    domeImageMesh.material.map.needsUpdate = true;
+                }
+                updateImageDome();
+            }
+
+            function updateImageDome() {
+                console.log("updateImageDome");
+                if (domeImageMesh) { scene.remove(domeImageMesh);}
+                domeImageGeometry = new THREE.ParametricGeometry(
+                    (u, v, target) =>
+                    domeImageFunction(u, v, target, paramsImage.domeImageRadius, paramsImage.domeImageHeight), 64, 64
+                );
+                let domeImageMaterial = new THREE.MeshBasicMaterial({
+                    map: domeImageTexture,
+                    side: THREE.DoubleSide,
+                    transparent: true
+                });
+                domeImageMesh = new THREE.Mesh(domeImageGeometry, domeImageMaterial );
+                domeImageMesh.rotation.x = paramsImage.domeRotationX;
+                domeImageMesh.rotation.y = paramsImage.domeRotationY;
+                domeImageMesh.rotation.z = paramsImage.domeRotationZ;
+                domeImageMesh.material.map.needsUpdate = true;
+                scene.add(domeImageMesh);
+            }
+
+            function domeImageFunction(u, v, target, radius, height) {
+                const x = u * radius * imageAspectRatio * 2 - (radius * imageAspectRatio);
+                const z = v * radius * 2 - radius;
+                const y = -((x * x + z * z) / (4 * height)) + height;
+                target.set(x, y, z);
+            }
+
+            window.addEventListener('load', function () {
+                if (image) {
+                    updateVideoDome();
+                    updateCanvasImage();
+                }
+            })
+
+
+            // DAT.GUI
+            const gui = new dat.GUI();
+
+            // wait until dat gui is loaded with event listener
+            gui.domElement.addEventListener("load", function() {
+                console.log("dat.gui loaded");
+            });
+
+            // Image Controls
+
+            gui.add(paramsImage, 'domeImageRadius', .001, 7).step(0.001)
+            .name('Image Dome Radius').onChange(() => {
+                updateImageDome();
+            });
+            gui.add(paramsImage, 'domeImageHeight', .001, 10).step(0.001)
+            .name('Image Dome Height').onChange(() => {
+                updateImageDome();
+            });
+            gui.add(paramsImage, 'domeRotationY', -Math.PI, Math.PI).step(0.001)
+            .name('Rotate Dome Y').onChange(() => {
+                updateImageDome();
+            });
+            gui.add(paramsImage, 'canvasImageScale', 0.01, 3).step(0.001)
+            .name('Scale Image').onChange(() => {
+                updateCanvasImage();
+            });
+            gui.add(paramsImage, 'canvasImageRotation', -Math.PI, Math.PI).step(0.001)
+            .name('Rotate Image').onChange(() => {
+                updateCanvasImage();
+            });
+            gui.add(paramsImage, 'canvasImageOffsetX', -.5, .5).step(0.001)
+            .name('Shift Image X').onChange(() => {
+                console.log("canvasImageOffsetX: "+paramsImage.canvasImageOffsetX);
+                updateCanvasImage();
+            });
+            gui.add(paramsImage, 'canvasImageOffsetY', 0, 1).step(0.001)
+            .name('Shift Image Y').onChange(() => {
+                console.log("canvasImageOffsetY: "+paramsImage.canvasImageOffsetY);
+                updateCanvasImage();
+            });
+            gui.add(paramsImage, 'domeRotationX', -Math.PI, Math.PI).step(0.001)
+            .name('Rotate Dome X').onChange(() => {
+                updateImageDome();
+            });
+            gui.add(paramsImage, 'domeRotationZ', -Math.PI, Math.PI).step(0.001)
+            .name('Rotate Dome Z').onChange(() => {
+                updateImageDome();
+            });
+            gui.add(paramsImage, 'offsetX', -1, 1).step(0.001)
+            .name('Shift Image Dome X').onChange(() => {
+                updateUVs(domeImageGeometry, paramsImage.offsetX, paramsImage.offsetY, paramsImage.rotation);
+            });
+            gui.add(paramsImage, 'offsetY', -1, 1).step(0.001)
+            .name('Shift Image Dome Y').onChange(() => {
+                updateUVs(domeImageGeometry, paramsImage.offsetX, paramsImage.offsetY, paramsImage.rotation);
+            });
+            gui.add(paramsImage, 'rotation', - Math.PI, Math.PI).step(0.001)
+            .name('Rotate Image Dome').onChange(() => {
+                updateUVs(domeImageGeometry, paramsImage.offsetX, paramsImage.offsetY, paramsImage.rotation);
+            });
+            gui.add(paramsVideo, 'offsetX', -1, 1).step(0.001)
+            .name('Video Offset X').onChange(() => {
+                updateUVs(domeVideoGeometry, paramsVideo.offsetX, paramsVideo.offsetY, paramsVideo.rotation);
+            });
+            gui.add(paramsVideo, 'offsetY', -1, 1).step(0.001)
+            .name('Video Offset Y').onChange(() => {
+                updateUVs(domeVideoGeometry, paramsVideo.offsetX, paramsVideo.offsetY, paramsVideo.rotation);
+            });
+            gui.add(paramsVideo, 'rotation', - Math.PI, Math.PI).step(0.001)
+            .name('Video Rotation').onChange(() => {
+                updateUVs(domeVideoGeometry, paramsVideo.offsetX, paramsVideo.offsetY, paramsVideo.rotation);
+            });
+            gui.add(paramsVideo, 'domeVideoRadius', .001, 7).step(0.001)
+            .name('Video Dome Radius').onChange(() => {
+                updateVideoDome();
+            });
+            gui.add(paramsVideo, 'domeVideoHeight', .001, 10).step(0.001)
+            .name('Video Dome Height').onChange(() => {
+                updateVideoDome();
+            });
+            gui.add(paramsVideo, 'domeRotationX', -Math.PI, Math.PI).step(0.001)
+            .name('Video Rotation X').onChange(() => {
+                updateVideoDome();
+            });
+            gui.add(paramsVideo, 'domeRotationY', -Math.PI, Math.PI).step(0.001)
+            .name('Video Rotation Y').onChange(() => {
+                updateVideoDome();
+            });
+            gui.add(paramsVideo, 'domeRotationZ', -Math.PI, Math.PI).step(0.001)
+            .name('Video Rotation Z').onChange(() => {
+                updateVideoDome();
+            });
+
+            // Animates the scene
+            animate();
+
+            // Resize the renderer when the window is resized
+            window.addEventListener('resize', function () {
+                const width = window.innerWidth;
+                const height = window.innerHeight;
+                renderer.setSize(width, height);
+                camera.aspect = width / height;
+                camera.updateProjectionMatrix();
+            });
+
+            function updateVideoDome() {
+                if (domeVideoMesh) { scene.remove(domeVideoMesh); }
+                domeVideoGeometry = new THREE.ParametricGeometry(
+                    (u, v, target) =>
+                    domeVideoFunction(u, v, target, paramsVideo.domeVideoRadius, paramsVideo.domeVideoHeight), 64, 64
+                );
+                const domeVideoMaterial = new THREE.MeshBasicMaterial({ map: videoTexture, side: THREE.DoubleSide });
+                domeVideoMesh = new THREE.Mesh(domeVideoGeometry, domeVideoMaterial );
+                domeVideoMesh.rotation.x = paramsVideo.domeRotationX;
+                domeVideoMesh.rotation.y = paramsVideo.domeRotationY;
+                domeVideoMesh.rotation.z = paramsVideo.domeRotationZ;
+                scene.add(domeVideoMesh);
+            }
+
+            function domeVideoFunction(u, v, target, radius, height) {
+                const x = u * radius * videoAspectRatio * 2 - (radius * videoAspectRatio);
+                const z = v * radius * 2 - radius;
+                const y = -((x * x + z * z) / (4 * height)) + height;
+                target.set(x, y, z);
+            }
+
+            function updateUVs(geometry, offsetX, offsetY, rotationAngle) {
+                const uvs = geometry.attributes.uv.array;
+                const originalUVs = geometry.attributes.uv.originalArray ? geometry.attributes.uv.originalArray : uvs.slice();
+                for (let i = 0; i < uvs.length; i += 2) {
+                    const u = originalUVs[i];
+                    const v = originalUVs[i + 1];
+                    const angle = Math.atan2(v - 0.5, u - 0.5) + rotationAngle;
+                    const length = Math.sqrt((u - 0.5) ** 2 + (v - 0.5) ** 2);
+                    uvs[i] = Math.cos(angle) * length + 0.5;
+                    uvs[i + 1] = Math.sin(angle) * length + 0.5;
+                    uvs[i] += offsetX;
+                    uvs[i + 1] += offsetY;
+                }
+                geometry.attributes.uv.originalArray = originalUVs;
+                geometry.attributes.uv.needsUpdate = true;
+            }
+
+
+            // Render the scene
+            function animate() {
+                requestAnimationFrame(animate);
+                controls.update();
+                renderer.render(scene, camera);
+            }
+
+        </script>
+    </body>
+</html>
+
+
+<!--
+ // imageTexture.load('../assets/pano-ozzy.png', function(texture) {
+            //     const image = texture.image;
+            //     imageAspectRatio = image.width / image.height;
+            //     domeImageTexture = texture;
+            //     updateImageDome();
+            // });
+
+function updateImageDome() {
+    if (domeImageMesh) { scene.remove(domeImageMesh); }
+    domeImageGeometry = new THREE.ParametricGeometry(
+        (u, v, target) => domeImageFunction(u, v, target, paramsImage.domeImageRadius, paramsImage.domeImageHeight), 64, 64
+    );
+    const domeImageMaterial = new THREE.MeshBasicMaterial({
+        map: domeImageTexture,
+        side: THREE.DoubleSide,
+        transparent: true, // make material transparent
+        opacity: 0.5 // set the level of transparency
+    });
+    domeImageMesh = new THREE.Mesh(domeImageGeometry, domeImageMaterial );
+    domeImageMesh.rotation.x = paramsImage.domeRotationX;
+    domeImageMesh.rotation.y = paramsImage.domeRotationY;
+    domeImageMesh.rotation.z = paramsImage.domeRotationZ;
+    scene.add(domeImageMesh);
+}
+ -->
+
+<!--
+
+const ctx = canvas.getContext('2d');
+canvas.width = 512;
+canvas.height = 512;
+
+// Load the image
+const image = new Image();
+image.src = '../assets/pano-ozzy.png';
+image.onload = function() {
+    const aspectRatio = image.width / image.height;
+    let newWidth = canvas.width;
+    let newHeight = canvas.height;
+    if (aspectRatio > 1) { newHeight = canvas.width / aspectRatio;
+    } else {  newWidth = canvas.height * aspectRatio; }
+    ctx.drawImage(image, (canvas.width - newWidth) / 2, (canvas.height - newHeight) / 2, newWidth, newHeight);
+    const texture = new THREE.Texture(canvas);
+    texture.needsUpdate = true;
+
+    // Step 4: Apply the texture to your geometry
+    const geometry = new THREE.BoxGeometry();
+    const material = new THREE.MeshBasicMaterial({ map: texture });
+    const cube = new THREE.Mesh(geometry, material);
+
+    scene.add(cube);
+    // ... (rest of your Three.js initialization and animation code)
+};
+
+
+
+
+
+ -->
+
+<!--
+// Connecting to ROS
+// var ros = new ROSLIB.Ros({
+//     url: 'ws://localhost:9090'
+// });
+// ros.on('connection', function () {
+//     console.log('Connected to websocket server.');
+// });
+// ros.on('error', function (error) {
+//     console.log('Error connecting to websocket server: ', error);
+// });
+// ros.on('close', function () {
+//     console.log('Connection to websocket server closed.');
+// });
+// var listener = new ROSLIB.Topic({
+//     ros: ros,
+//     name: '/bob/frames/annotated/resized/compressed',
+//     messageType: 'sensor_msgs/msg/CompressedImage'
+// });
+// listener.subscribe(function (message) {
+//     //console.log('Received message data on ' + listener
+.name);
+//     //console.log(message.data);
+//     //console.log('Received message on ' + listener
+.name);
+//     //console.log(message);
+//     document.getElementById('image_sub').src = "data:image/jpeg;base64," + message.data;
+// });
+
+function animate() {
+    requestAnimationFrame(animate);
+    // if (video.readyState === video.HAVE_ENOUGH_DATA) {
+    //     videoTexture.needsUpdate = true;
+    // }
+    controls.update();
+    renderer.render(scene, camera);
+}
+
+-->

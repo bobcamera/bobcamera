@@ -23,10 +23,7 @@ def generate_launch_description():
             ComposableNode(
                package='bob_camera',
                plugin='WebCameraVideo',
-               name='rstp_camera_node',
-               remappings=[
-                   ('/rstp_camera_node/image_raw', 'bob/camera/all_sky/bayer'),
-                   ('/rstp_camera_node/camera_info', 'bob/camera/all_sky/camera_info')],
+               name='rtsp_camera_node',
                parameters = [config],
                extra_arguments=[{'use_intra_process_comms': True}],
                condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'rtsp'" ]))
@@ -34,10 +31,7 @@ def generate_launch_description():
             ComposableNode(
                 package='bob_camera',
                 plugin='WebCameraVideo',
-                name='rstp_overlay_camera_node',
-                remappings=[
-                    ('/rstp_overlay_camera_node/image_raw', 'bob/simulation/input_frame'),
-                    ('/rstp_overlay_camera_node/camera_info', 'bob/camera/all_sky/camera_info')],
+                name='rtsp_overlay_camera_node',
                 parameters = [config],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'rtsp_overlay'" ]))
@@ -143,16 +137,8 @@ def generate_launch_description():
             ),
             ComposableNode(
                 package='bob_recorder',
-                plugin='VideoRecorder',
+                plugin='RecordManager',
                 name='allsky_recorder_node',
-                parameters = [config],
-                extra_arguments=[{'use_intra_process_comms': True}],
-                condition=IfCondition(PythonExpression([LaunchConfiguration('enable_recording_arg'), " == True"])),  
-            ),
-            ComposableNode(
-                package='bob_recorder',
-                plugin='JsonRecorder',
-                name='json_recorder_node',
                 parameters = [config],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('enable_recording_arg'), " == True"])),  

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ROS 2 Web Interaction</title>
+  <script src="../lib/eventemitter2.js"></script>
+  <script src="../lib/roslib.min.js"></script>
+  <!-- <script src="https://static.robotwebtools.org/roslibjs/current/roslib.min.js"></script> -->
+</head>
+<body>
+
+<h1>ROS 2 Web Interaction</h1>
+
+<button onclick="callService()">Call Service</button>
+<button onclick="advertiseService()">Advertise Service</button>
+<button onclick="unadvertiseService()">Unadvertise Service</button>
+<button onclick="checkServiceExists()">Check Service Existence</button>
+
+<script>
+  // Initialize ROS connection
+  const ros = new ROSLIB.Ros({
+    url: 'ws://localhost:9090'
+  });
+
+  // Service Call Example
+  const myService = new ROSLIB.Service({
+    ros: ros,
+    name: '/my_service',
+    serviceType: 'my_service_pkg/MyService'
+  });
+
+  const request = new ROSLIB.ServiceRequest({
+    my_argument: 'some_value'
+  });
+
+  function callService() {
+    myService.callService(request, (result) => {
+      console.log('Service call returned:', result.my_result);
+    });
+  }
+
+  // Advertise Service Example
+  const myAdvertisedService = new ROSLIB.Service({
+    ros: ros,
+    name: '/my_advertised_service',
+    serviceType: 'my_service_pkg/MyService'
+  });
+
+  myAdvertisedService.advertise((request, response) => {
+    console.log('Service request received:', request);
+    response.my_result = 'result_from_js';
+    return true;
+  });
+
+  function advertiseService() {
+    myAdvertisedService.advertise();
+    console.log('Service advertised');
+  }
+
+  function unadvertiseService() {
+    myAdvertisedService.unadvertise();
+    console.log('Service unadvertised');
+  }
+
+  // Check for Service Existence
+  function checkServiceExists() {
+    myService.exists((exists) => {
+      if (exists) {
+        console.log('Service exists');
+      } else {
+        console.log('Service does not exist');
+      }
+    });
+  }
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,87 @@
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <title>ROS 2 Web Interaction</title>
+    <!-- <script src="../lib/eventemitter2.js"></script> -->
+    <!-- <script src="../lib/roslib.min.js"></script> -->
+    <script src="https://cdn.jsdelivr.net/npm/eventemitter2@6.4.9/lib/eventemitter2.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/roslibjs/1.1.0/roslib.min.js" ></script>
+
+    </head>
+    <body>
+
+    <h1>ROS 2 Topic Pub Sub Examples</h1>
+
+    <br>
+    <br>
+
+    <label for="topicName">Topic Name:</label>
+    <input type="text" id="topicName" value="new_topic">
+    <br>
+    <br>
+
+    <label for="messageData">Message:</label>
+    <input type="text" id="messageData" value="Hello, ROS 2">
+    <br>
+    <br>
+
+    <label for="messageType">Message Type:</label>
+    <input type="text" id="messageType" value="std_msgs/String">
+    <br>
+    <br>
+
+    <button id="publishTopicButton">Publish Topic</button>
+    <br>
+    <div id="publishOutput"></div>
+    <br>
+
+    <button id="subscribeButton">Subscribe Topic</button>
+    <br>
+    <div id="subscribeOutput"></div>
+    <br>
+
+    <script>
+
+    // Initialize ROS connection
+    const ros = new ROSLIB.Ros({
+        url: 'ws://localhost:9090'
+    });
+
+    let topic;
+    let message;
+
+    function publishTopic() {
+        topic.publish(message);
+        console.log('Message published');
+    }
+
+    function subscribeTopic() {
+        topic.subscribe((message) => {
+        console.log('Received message:', message.data);
+        });
+        console.log('Subscribed to topic');
+    }
+
+    document.addEventListener("DOMContentLoaded", function(event) {
+        document.getElementById("publishTopicButton").onclick = function() {
+            // Initialize ROS topic
+            topic = new ROSLIB.Topic({
+                ros: ros,
+                name: '/' + document.getElementById("topicName").value,
+                messageType: document.getElementById("messageType").value
+            });
+            // Initialize ROS message
+            message = new ROSLIB.Message({
+                data: document.getElementById("messageData").value
+            });
+            publishTopic();
+        };
+        document.getElementById("subscribeButton").onclick = function() {
+            subscribeTopic();
+        };
+
+    });
+
+    </script>
+    </body>
+    </html>

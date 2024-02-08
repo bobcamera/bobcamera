@@ -53,8 +53,9 @@ public:
         x_ = new_x;
         y_ = new_y;
         
-        double shrink_factor = 0.2;
-        size_ = static_cast<int>(4 * (1 - shrink_factor * (distance / radiusOfMask_))) + 1;
+        double size_factor = 1.0 - (distance / radiusOfMask_);
+        size_ = static_cast<int>(size_range_.first + size_factor * (size_range_.second - size_range_.first));
+
 
         if (rand() % 122 == 0) {
             angle_ = angle_dist;

@@ -23,3 +23,6 @@ ParamLimits red_wb_limits
 ParamLimits green_wb_limits
 ParamLimits blue_wb_limits
 ParamLimits temperature_limits
+int32 frame_width
+int32 frame_height
+float32 fps

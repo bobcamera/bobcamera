@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Image Projected on 3D Dome</title>
+        <style>
+            body {margin: 0;}
+            canvas {display: block;}
+            #video {display: none;}
+        </style>
+    </head>
+    <body>
+        <script src="../lib/three.min.js"></script>
+        <script src="../lib/OrbitControls.js"></script>
+        <script src="../lib/eventemitter2.js"></script>
+        <script src="../lib/roslib.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.7/dat.gui.min.js"></script>
+
+        <script type="text/javascript" type="text/javascript">
+
+            let domeMesh;
+            let aspectRatio;
+            let domeTexture;
+            let domeGeometry;
+
+            // Create the dome geometry
+            const domeRadius = 5;
+            const domeHeight = 2;
+            const domeSegments = 64;
+
+            const gui = new dat.GUI();
+            const params = {
+                offsetX: 0,
+                offsetY: 0,
+                rotation: 0,
+                domeRadius: 5,
+                domeHeight: 2
+            };
+
+            // Set up the scene, camera, and renderer
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 2;
+            const renderer = new THREE.WebGLRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            const textureLoader = new THREE.TextureLoader();
+            textureLoader.load('../assets/pano-ozzy.png', function(texture) {
+                const image = texture.image;
+                aspectRatio = image.width / image.height;
+                domeTexture = texture;
+                updateDome(); // Move the updateDome function here
+            });
+
+            gui.add(params, 'offsetX', -1, 1).step(0.01).name('Offset X').onChange(() => {
+                updateUVs(domeGeometry, params.offsetX, params.offsetY, params.rotation);
+            });
+            gui.add(params, 'offsetY', -1, 1).step(0.01).name('Offset Y').onChange(() => {
+                updateUVs(domeGeometry, params.offsetX, params.offsetY, params.rotation);
+            });
+            gui.add(params, 'rotation', 0, Math.PI * 2).step(0.01).name('Rotation').onChange(() => {
+                updateUVs(domeGeometry, params.offsetX, params.offsetY, params.rotation);
+            });
+            gui.add(params, 'domeRadius', 1, 15).step(0.1).name('Dome Radius').onChange(() => {
+                updateDome();
+            });
+            gui.add(params, 'domeHeight', 1, 15).step(0.1).name('Dome Height').onChange(() => {
+                updateDome();
+            });
+
+            function updateUVs(geometry, offsetX, offsetY, rotationAngle) {
+                const uvs = geometry.attributes.uv.array;
+                const originalUVs = geometry.attributes.uv.originalArray ? geometry.attributes.uv.originalArray : uvs.slice();
+                for (let i = 0; i < uvs.length; i += 2) {
+                    const u = originalUVs[i];
+                    const v = originalUVs[i + 1];
+                    // Perform rotation
+                    const angle = Math.atan2(v - 0.5, u - 0.5) + rotationAngle;
+                    const length = Math.sqrt((u - 0.5) ** 2 + (v - 0.5) ** 2);
+                    uvs[i] = Math.cos(angle) * length + 0.5;
+                    uvs[i + 1] = Math.sin(angle) * length + 0.5;
+                    // Perform translation
+                    uvs[i] += offsetX;
+                    uvs[i + 1] += offsetY;
+                }
+                geometry.attributes.uv.originalArray = originalUVs; // Keep a copy of the original UVs
+                geometry.attributes.uv.needsUpdate = true;
+            }
+
+            function updateDome() {
+                if (domeMesh) {
+                    scene.remove(domeMesh);
+                }
+                domeGeometry = new THREE.ParametricGeometry(
+                    (u, v, target) => domeFunction(u, v, target, params.domeRadius, params.domeHeight),
+                    64,
+                    64
+                );
+                domeMesh = new THREE.Mesh(domeGeometry, new THREE.MeshBasicMaterial({ map: domeTexture, side: THREE.DoubleSide }));
+                scene.add(domeMesh);
+            }
+
+            function domeFunction(u, v, target, radius, height) {
+                const x = u * radius * aspectRatio * 2 - (radius * aspectRatio);
+                const z = v * radius * 2 - radius;
+                const y = -((x * x + z * z) / (4 * height)) + height;
+                target.set(x, y, z);
+            }
+            // Add OrbitControls
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.02;
+            controls.screenSpacePanning = false;
+            controls.minDistance = 0.1;
+            controls.maxDistance = 100; // maximum zoom out distance
+            // Render the scene
+            function animate() {
+                requestAnimationFrame(animate);
+                controls.update();
+                renderer.render(scene, camera);
+            }
+            animate();
+            // Resize the renderer when the window is resized
+            window.addEventListener('resize', function () {
+                const width = window.innerWidth;
+                const height = window.innerHeight;
+                renderer.setSize(width, height);
+                camera.aspect = width / height;
+                camera.updateProjectionMatrix();
+            });
+        </script>
+    </body>
+</html>
+
+<!-- <video id="video" playsinline autoplay muted loop>
+            <source src="../assets/birds_and_plane.mp4" type="video/mp4" />
+        </video> -->
+        <!-- <img id="image_sub" /> -->
+<!--
+// Connecting to ROS
+// var ros = new ROSLIB.Ros({
+//     url: 'ws://localhost:9090'
+// });
+// ros.on('connection', function () {
+//     console.log('Connected to websocket server.');
+// });
+// ros.on('error', function (error) {
+//     console.log('Error connecting to websocket server: ', error);
+// });
+// ros.on('close', function () {
+//     console.log('Connection to websocket server closed.');
+// });
+// var listener = new ROSLIB.Topic({
+//     ros: ros,
+//     name: '/bob/frames/annotated/resized/compressed',
+//     messageType: 'sensor_msgs/msg/CompressedImage'
+// });
+// listener.subscribe(function (message) {
+//     //console.log('Received message data on ' + listener.name);
+//     //console.log(message.data);
+//     //console.log('Received message on ' + listener.name);
+//     //console.log(message);
+//     document.getElementById('image_sub').src = "data:image/jpeg;base64," + message.data;
+// });
+
+function animate() {
+    requestAnimationFrame(animate);
+    // if (video.readyState === video.HAVE_ENOUGH_DATA) {
+    //     videoTexture.needsUpdate = true;
+    // }
+    controls.update();
+    renderer.render(scene, camera);
+}
+
+
+
+-->

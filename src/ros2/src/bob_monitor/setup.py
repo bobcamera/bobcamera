@@ -38,6 +38,7 @@ setup(
             'onvif_service = bob_monitor.onvif_service_node:main',
             'tracking_monitor = bob_monitor.tracker_monitoring_node:main',
             'ptz_manager = bob_monitor.ptz_manager_node:main',
+            'config_manager = bob_monitor.config_manager_node:main',
         ],
     },
 )

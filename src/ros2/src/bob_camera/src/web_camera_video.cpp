@@ -1,4 +1,5 @@
 #include <chrono>
+#include <string>
 
 #include <opencv2/opencv.hpp>
 
@@ -11,6 +12,7 @@
 #include "bob_camera/msg/camera_info.hpp"
 #include "parameter_node.hpp"
 #include "bob_interfaces/srv/camera_settings.hpp"
+#include "bob_interfaces/srv/config_entry_update.hpp"
 #include <boblib/api/utils/profiler.hpp>
 #include <visibility_control.h>
 
@@ -20,8 +22,6 @@ enum class SourceType {
     RTSP_STREAM
 };
 
-using Clock = std::chrono::high_resolution_clock;
-using Duration = std::chrono::duration<double, std::milli>;
 
 class WebCameraVideo
     : public ParameterNode
@@ -41,7 +41,7 @@ public:
         one_shot_timer_ = this->create_wall_timer(
             std::chrono::seconds(2), 
             [this]() {
-                this->timer_callback(); 
+                this->init(); 
                 this->one_shot_timer_.reset();  
             }
         );
@@ -54,6 +54,7 @@ public:
 
 private:
     rclcpp::Client<bob_interfaces::srv::CameraSettings>::SharedPtr camera_settings_client_;
+    rclcpp::Client<bob_interfaces::srv::ConfigEntryUpdate>::SharedPtr fps_update_client_;
     rclcpp::QoS qos_profile_{10}; 
     cv::VideoCapture video_capture_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
@@ -80,28 +81,23 @@ private:
     bool run_;
     double fps_;
 
-    void timer_callback()
+    void init()
     {
-        camera_settings_client_ = this->create_client<bob_interfaces::srv::CameraSettings>("camera_settings");
-
+        camera_settings_client_ = this->create_client<bob_interfaces::srv::CameraSettings>("bob/camera/settings");
+        fps_update_client_ = this->create_client<bob_interfaces::srv::ConfigEntryUpdate>("bob/config/update/fps");
         declare_node_parameters();    
-
         open_camera();
-
         create_camera_info_msg();
-        
         start_capture();
     }
 
     void captureLoop()
     {
-        const auto frame_interval = std::chrono::milliseconds(static_cast<int>(1000.0 / fps_));
+        rclcpp::WallRate loop_rate(fps_);
         cv::Mat image;
-        
+
         while (run_)
         {
-            const auto frame_start_time = Clock::now();
-            
             if (!video_capture_.read(image))
             {
                 current_video_idx_ = current_video_idx_ >= (videos_.size() - 1) ? 0 : current_video_idx_ + 1;
@@ -113,7 +109,7 @@ private:
             {
                 const double aspect_ratio = (double)image.size().width / (double)image.size().height;
                 const int frame_height = resize_height_;
-                const int frame_width = (int)(aspect_ratio * (double)frame_height);
+                const int frame_width = static_cast<int>(aspect_ratio * (double)frame_height);
                 cv::resize(image, image, cv::Size(frame_width, frame_height));
             }
 
@@ -129,24 +125,8 @@ private:
 
             camera_info_msg_.header = header;
             camera_info_publisher_->publish(camera_info_msg_);
-            const auto frame_end_time = Clock::now();
-            const auto processing_duration = frame_end_time - frame_start_time;
-            auto time_to_next_frame = frame_interval - processing_duration;
 
-            if (time_to_next_frame > std::chrono::milliseconds(0))
-            {
-                std::this_thread::sleep_for(time_to_next_frame);
-            }
-            else
-            {
-                // Processing took longer than the frame interval.
-                RCLCPP_WARN(this->get_logger(), 
-                            "Frame processing time (%ld ms) exceeded the frame interval (%ld ms).", 
-                            std::chrono::duration_cast<std::chrono::milliseconds>(processing_duration).count(),
-                            std::chrono::duration_cast<std::chrono::milliseconds>(frame_interval).count());
-
-                std::this_thread::yield(); // Optional, to yield execution.
-            }
+            loop_rate.sleep();  
         }
     }
 
@@ -259,6 +239,23 @@ private:
         auto result = camera_settings_client_->async_send_request(request, response_received_callback);
     }
 
+    void request_update_fps(const float fps, std::function<void(const bob_interfaces::srv::ConfigEntryUpdate::Response::SharedPtr&)> user_callback)
+    {
+        auto request = std::make_shared<bob_interfaces::srv::ConfigEntryUpdate::Request>();
+        request->key = "fps";
+        request->type = "double";
+        request->value = std::to_string(fps);
+
+        auto response_received_callback = [this, user_callback](rclcpp::Client<bob_interfaces::srv::ConfigEntryUpdate>::SharedFuture future) {
+            auto response = future.get();
+            if(response->success)
+                user_callback(response);  
+        };
+
+        // Send the request
+        auto result = fps_update_client_->async_send_request(request, response_received_callback);
+    }
+
     inline void open_camera()
     {
         switch (source_type_)
@@ -292,6 +289,16 @@ private:
         {
             fps_ = video_capture_.get(cv::CAP_PROP_FPS);
             RCLCPP_INFO(get_logger(), "fps: %f", fps_);
+
+            /*auto update_fps = [this](const bob_interfaces::srv::ConfigEntryUpdate::Response::SharedPtr& response) 
+            {
+                if (response->success)
+                {
+                    RCLCPP_INFO(get_logger(), "FPS Updated Successfully");
+                }
+            };
+
+            request_update_fps(fps_, update_fps);*/
         }
     }
 
@@ -369,6 +376,9 @@ private:
                 camera_info_msg_.firmware_version = response->firmware_version;
                 camera_info_msg_.num_configurations = response->num_configurations;
                 camera_info_msg_.encoding = response->encoding;
+                camera_info_msg_.frame_width = response->frame_width;
+                camera_info_msg_.frame_height = response->frame_height;
+                camera_info_msg_.fps = response->fps;
                 // ... other fields ... 
             };
             request_camera_settings(onvif_host_, onvif_port_, onvif_user_, onvif_password_, update_camera_info);

@@ -1,20 +1,26 @@
 # Kernel
-rstp_camera_node:
+rtsp_camera_node:
   ros__parameters:
     rtsp_uri: ''
     onvif_host: ''
     onvif_port: 0
     onvif_user: ''
     onvif_password: ''        
-    image_topic: 'image_raw'
+    image_publish_topic: 'bob/camera/all_sky/bayer'
+    image_info_publish_topic: 'bob/camera/all_sky/image_info'
+    camera_info_publish_topic: 'bob/camera/all_sky/camera_info'
     source_type: 'RTSP_STREAM'
     image_width: 0
     image_height: 0
     camera_calibration_file: 'file:///workspaces/bobcamera/src/ros2/assets/config/camera_info.yaml'
 
-rstp_overlay_camera_node:
+rtsp_overlay_camera_node:
   ros__parameters:
     rtsp_uri: ''
+    onvif_host: ''
+    onvif_port: 0
+    onvif_user: ''
+    onvif_password: ''
     image_publish_topic: 'bob/simulation/input_frame'
     image_info_publish_topic: 'bob/camera/all_sky/image_info'
     camera_info_publish_topic: 'bob/camera/all_sky/camera_info'
@@ -30,9 +36,6 @@ web_camera_video_node:
     camera_info_publish_topic: 'bob/camera/all_sky/camera_info'
     source_type: 'VIDEO_FILE'
     videos:
-    - /workspaces/bobcamera/test/fisheye_videos/mike_drone.mp4
-    - /workspaces/bobcamera/test/fisheye_videos/Dahua-20220901-184734.mp4
-    - /workspaces/bobcamera/test/fisheye_videos/brad_drone_1.mp4
     resize_height: 0
 
 usb_camera_node:
@@ -57,9 +60,6 @@ web_camera_video_overlay_node:
     camera_info_publish_topic: 'bob/camera/all_sky/camera_info'
     source_type: 'VIDEO_FILE'
     videos:
-    - /workspaces/bobcamera/test/fisheye_videos/mike_drone.mp4
-    - /workspaces/bobcamera/test/fisheye_videos/Dahua-20220901-184734.mp4
-    - /workspaces/bobcamera/test/fisheye_videos/brad_drone_1.mp4
     resize_height: 0
 
 simulation_overlay_provider_node:
@@ -67,6 +67,7 @@ simulation_overlay_provider_node:
     height: 0
     width: 0
     num_objects: 0
+    video_fps: 10.0
 
 mask_application_node:
   ros__parameters:
@@ -110,32 +111,14 @@ track_provider_node:
 
 allsky_recorder_node:
   ros__parameters:
-    video_directory: 'assets/recordings/allsky'
-    heatmap_directory: 'assets/recordings/heatmaps'
+    recordings_directory: 'assets/recordings'
     img_topic: 'bob/camera/all_sky/bayer'
     fg_img_topic: 'bob/frames/all_sky/foreground_mask'
     tracking_topic: 'bob/tracker/tracking'
+    camera_info_topic: bob/camera/all_sky/camera_info
     prefix: ''
-    codec: 'X264'
-    video_fps: 15.0
-    seconds_save: 2
-
-json_recorder_node:
-  ros__parameters:
-    json_directory: 'assets/recordings/json'
-    img_topic: 'bob/camera/all_sky/bayer'
-    tracking_topic: 'bob/tracker/tracking'
-    video_fps: 15.0
-    seconds_save: 2
-
-foreground_mask_recorder_node:
-  ros__parameters:
-    video_directory: 'assets/recordings/foreground_mask'
-    img_topic: 'bob/frames/all_sky/foreground_mask'
-    tracking_topic: 'bob/tracker/tracking'
-    prefix: ''
-    codec: 'X264'
-    video_fps: 15.0
+    codec: 'avc1'
+    video_fps: 10.0
     seconds_save: 2
 
 annotated_frame_provider_node:
@@ -191,6 +174,10 @@ tracking_monitor_node:
     observer_tracker_monitor_idle_interval: 60
     observer_tracking_profile_busy_switch_threshold: 5
     observer_tracker_sample_set: 5
+
+config_manager_node:
+  ros__parameters:
+    pass: True
 
 prometheus_metrics_node:
   ros__parameters:
