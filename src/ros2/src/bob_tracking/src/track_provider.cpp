@@ -13,8 +13,7 @@
 #include "bob_interfaces/msg/tracking.hpp"
 #include "bob_interfaces/msg/ptz_absolute_move.hpp"
 
-#include "tracking/cv_trackers/video_tracker.hpp"
-#include "tracking/sort/include/sort_tracker.h"
+#include "sort/include/sort_tracker.h"
 
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
@@ -84,12 +83,17 @@ private:
         detector_bounding_boxes_subscription_ = std::make_shared<message_filters::Subscriber<vision_msgs::msg::BoundingBox2DArray>>(shared_from_this(), "bob/detector/all_sky/bounding_boxes", rmw_qos_profile);
 
         time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, vision_msgs::msg::BoundingBox2DArray>>(*masked_frame_subscription_, *detector_bounding_boxes_subscription_, 10);
-        time_synchronizer_->registerCallback(&TrackProvider::callback, this);
-
-        
+        time_synchronizer_->registerCallback(&TrackProvider::callback, this);        
 
         pub_tracker_tracking_ = create_publisher<bob_interfaces::msg::Tracking>("bob/tracker/tracking", pub_qos_profile);
         pub_tracker_PTZabsolutemove_= create_publisher<bob_interfaces::msg::PTZAbsoluteMove>("bob/ptz/move/absolute", pub_qos_profile);
+    }
+
+    void declare_node_parameters() {
+        std::vector<ParameterNode::ActionParam> params = {
+            ParameterNode::ActionParam(rclcpp::Parameter("video_fps", 30.0), [this](const rclcpp::Parameter& param) {fps_ = param.as_double();}),
+        };
+        add_action_parameters(params);
     }
 
     void callback(const sensor_msgs::msg::Image::SharedPtr &image_msg, const vision_msgs::msg::BoundingBox2DArray::SharedPtr &bounding_boxes_msg)

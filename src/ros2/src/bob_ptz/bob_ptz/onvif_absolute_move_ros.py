@@ -80,8 +80,12 @@ class AbsoluteMoveNode(Node):
             ZoomMAX = 1
             ZoomMIN = 0
 
-            moverequest.Position.PanTilt.x = min(max(self.msg_position.pospantiltx,XMIN),XMAX)
-            moverequest.Position.PanTilt.y = min(max(self.msg_position.pospantilty,YMIN),YMAX)
+            #moverequest.Position.PanTilt.x = min(max(self.msg_position.pospantiltx,XMIN),XMAX)
+            #moverequest.Position.PanTilt.y = min(max(self.msg_position.pospantilty,YMIN),YMAX)
+            #moverequest.Position.Zoom.x = min(max(self.msg_position.poszoomx,ZoomMIN),ZoomMAX)
+
+            moverequest.Position.PanTilt.x = 0.0
+            moverequest.Position.PanTilt.y = 0.0
             moverequest.Position.Zoom.x = min(max(self.msg_position.poszoomx,ZoomMIN),ZoomMAX)
 
             #global active
