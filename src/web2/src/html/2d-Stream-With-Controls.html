@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html>
+
+    <head>
+        <style>
+
+            body {
+                font-family: sans-serif;
+                font-size: 16px;
+                color: #aaa;
+                text-shadow: none;
+            }
+
+            #stream {
+                position: relative;
+                width: 75vw;
+                height: auto;
+                float: left
+            }
+
+            #maskCanvas, #image-subscription, #bufferingOverlay {
+                position: absolute; /* Absolutely position all children */
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: auto;
+            }
+
+            #maskCanvas {
+                border: 0px solid black;
+                z-index: 16;
+            }
+
+            #bufferingOverlay {
+                background-color: rgba(0, 0, 0, 0.7);
+                color: #fff;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 24px;
+                z-index: 15;
+            }
+
+            #image-subscription {
+                z-index: 1;
+            }
+
+            .hidden {
+                display: none;
+            }
+
+            /* #maskControlsContainer {
+                display: none;
+            } */
+
+            .tooltip-container {
+                position: relative;
+                display: inline-block;
+                cursor: pointer;
+            }
+
+            .tooltip-text {
+                visibility: hidden;
+                width: 250px;
+                background-color: #555;
+                color: #fff;
+                text-align: left;
+                padding: 5px;
+                border-radius: 4px;
+                position: absolute;
+                z-index: 1;
+                bottom: -375%;
+                left: 50%;
+                margin-left: -60px;
+                opacity: 0;
+                transition: opacity 0.3s;
+            }
+
+            .tooltip-container:hover .tooltip-text {
+                visibility: visible;
+                opacity: 1;
+            }
+
+            .metric-panel {
+                position: relative;
+                display: flex;
+                flex-direction: column;
+                width: 23%;
+                float: right
+            }
+            .metric-header {
+                display: flex;
+                justify-content: center;
+                padding-bottom: 5px;
+            }
+            .metric-readings {
+                display: flex;
+                justify-content: space-between;
+                padding-bottom: 5px;
+            }
+
+            button {
+                background-color: #fff;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                padding: 10px 10px 10px 10px;
+                margin-right: 10px;
+                margin-top: 10px;
+                cursor: pointer;
+                transition: background-color 0.3s;
+            }
+
+            button:hover {
+                background-color: #ccc;
+            }
+
+            button i {
+                font-size: 20px;
+            }
+
+            button.stop-edit {
+                background-color: rgb(3, 211, 27);
+                color: #fff;
+            }
+
+            button.stop-edit:hover {
+                background-color: rgb(82, 241, 117);
+            }
+
+        </style>
+        <title>Compressed Annotated Frame Stream</title>
+        <meta charset="utf-8" />
+        <script src="https://cdn.jsdelivr.net/npm/eventemitter2@6.4.9/lib/eventemitter2.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/roslibjs/1.1.0/roslib.min.js"></script>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+        <link href="https://cdn.jsdelivr.net/npm/@mdi/font/css/materialdesignicons.min.css" rel="stylesheet">
+    </head>
+    <body>
+        <div class="metric-panel">
+            <div class="metric-header"> --------------- Controls --------------- </div>
+            <div style="padding: 0px 10px 20px 0px;">
+                <button id="pauseBtn" title="Pause"><i class="fas fa-pause"></i></button>
+                <button id="playBtn" title="Play"><i class="fas fa-play"></i></button>
+                <a href="3d-stream.html"><button id="3dViewBtn" title="View Stream in 3D"><i class="fas fa-cube"></i></button></a>
+                <a href="2d-Stream-With-Controls.html"><button id="2dViewBtn" title="View Stream in 2D"><i class="far fa-square"></i></button></a>
+            </div>
+            <div class="metric-header"> ------- Incoming ROS2 Messages ------- </div><br>
+            <div hidden class="metric-readings">
+                <label>BOB Version:</label>
+                <span id="applicationVersion">0</span>
+            </div>
+            <div class="metric-readings">
+                <label for="recent_avg_message_rate">
+                    <div class="tooltip-container">Incoming Frame Rate: <span class="tooltip-text">The average per second rate for the last 4 incoming ROS2 messages received</span>
+                    </div>
+                </label>
+                <span id="recent_avg_message_rate">0</span>
+            </div>
+            <div class="metric-readings">Topic: <span id="CurrentTopic"></span>
+            </div><br>
+            <div class="metric-readings">
+                <label hidden for="total_avg_message_rate">Messages Per Second (Total Avg):</label>
+                <span hidden id="total_avg_message_rate">0</span>
+            </div>
+            <div class="metric-readings">
+                <label hidden for="message_rate">Messages Per Second (Last Messages):</label>
+                <span hidden id="message_rate">0</span>
+            </div><br>
+            <div class="metric-header"> --------- Buffer Settings --------- </div><br>
+            <div class="metric-readings">
+                <label for="buffer_balance">Buffer Balance:</label>
+                <span id="buffer_balance">0</span>
+            </div>
+            <div class="metric-readings">
+                <label for="buffer_enabled">Enable Buffer:</label>
+                <input type="checkbox" id="buffer_enabled" name="buffer_enabled" checked>
+            </div>
+            <div class="metric-readings">
+                <label for="buffer_size">Buffer Size (Frames):</label>
+                <input type="number" id="buffer_size" name="buffer_size" value="60" style="width: 50px;">
+            </div><br>
+            <div class="metric-header"> ----------- Display Frame Rate ----------- </div><br>
+            <div class="metric-readings">
+                <label for="frame_rate">Target Display Frame Rate:</label>
+                <input type="number" id="frame_rate" name="frame_rate" value="6" style="width: 50px;">
+            </div>
+            <div class="metric-readings">
+                <label for="recent_avg_frame_rate">Current Display Frame Rate:</label>
+                <span id="recent_avg_frame_rate">0</span>
+            </div>
+            <div class="metric-readings">
+                <label hidden for="actual_frame_rate">FPS (Last Frames):</label>
+                <span hidden id="actual_frame_rate">0</span>
+            </div>
+            <div hidden class="metric-readings">
+                <label hidden for="total_avg_frame_rate">FPS (Total Avg):</label>
+                <span hidden id="total_avg_frame_rate">0</span>
+            </div>
+            <br>
+            <button id="maskControlsToggleBtn">View Mask Controls</button>
+            <div id="maskControlsContainer" class="hidden">
+                <button id="editMaskBtn" title="Edit Mask"><i class="fa-solid fa-pen-to-square"></i></button>
+                <!-- <button id="invertMaskBtn" title="Invert Mask" class=""><i class="fas fa-clone"></i></button>
+                <button id="saveMaskJPG" title="Download JPG"><i class="fas fa-download"></i></button>
+                <button id="saveMaskSVG" title="Download SVG"><i class="fas fa-download"></i></button> -->
+                <button id="sendMaskSVG" title="Send Mask As ROS2 Message" style="background-color: lightgreen;"><i class="fa-solid fa-paper-plane"></i></button>
+                <button id="clearMaskBtn" title="Clear Mask" style="background-color: rosybrown;"><i class="fas fa-trash"></i></button>
+                <button id="cancelMaskBtn" title="Cancel" class="hidden"><i class="fas fa-xmark"></i></i></button>
+            </div>
+
+        </div>
+        <div id="stream" width="" height="">
+            <img id="image-subscription" width="" height="" />
+            <canvas id="maskCanvas" width="" height=""></canvas>
+            <div id="bufferingOverlay" width="" height="">Buffering... <span id="frames_left"></span></div>
+        </div>
+<script type="text/javascript" type="text/javascript">
+
+    // Initialize Variables
+    var imageBuffer = [];
+    var bufferSize = 20;
+    var frameRate = 6;
+    var lastMessageTime = null;
+    var messageRate = 0;
+    var lastFrameTime = null;
+    var actualFrameRate = 0;
+    var bufferReady = false;
+    var frameCount = 0;
+    var totalFrameRate = 0;
+    var recentFrameRates = [];
+    var messageCount = 0;
+    var totalMessageRate = 0;
+    var recentMessageRates = [];
+    let drawing = false;
+    let editMode = false;
+    let polygons = [];
+    polygons.push([]);
+    let offset = 0;
+
+    var invertMask = true;
+
+    let videoStream = document.getElementById('image-subscription');
+    let maskCanvas = document.getElementById('maskCanvas');
+    let streamContainer = document.getElementById('stream');
+    let bufferingOverlay = document.getElementById('bufferingOverlay');
+    let maskCanvasCtx = maskCanvas.getContext('2d');
+    let devicePixelRatio = window.devicePixelRatio || 1;
+    // streamContainer.style.height = `${videoStream.offsetHeight}px`;
+    // maskCanvas.width = maskCanvas.clientWidth * devicePixelRatio;
+    // maskCanvas.height = maskCanvas.clientHeight * devicePixelRatio;
+    // maskCanvasCtx.scale(devicePixelRatio, devicePixelRatio);
+    const editMaskBtn = document.getElementById('editMaskBtn');
+    //const invertMaskBtn = document.getElementById('invertMaskBtn');
+    const clearMaskBtn = document.getElementById('clearMaskBtn');
+    // const saveMaskJPGBtn = document.getElementById('saveMaskJPG');
+    // const saveMaskSVGBtn = document.getElementById('saveMaskSVG');
+    const sendMaskSVGButton = document.getElementById('sendMaskSVG');
+    const cancelMaskBtn = document.getElementById('cancelMaskBtn');
+    const maskControlsToggleBtn = document.getElementById('maskControlsToggleBtn');
+
+    let startingBufferSize = 20;
+    let isPlaying = true;
+    let firstImageReceived = false;
+
+    // Set up the ROS2 Environment Connection
+    // Define the WebSockets address of the ROS2 Environment (using roslib.js library)
+    // window.location.hostname is used to get the hostname of the local machine
+    var websocketsURL = 'ws://' + window.location.hostname + ':9090';
+
+    // Create a ROSLIB.Ros object which will connect to the ROS2 environment using WebSockets
+    var ros = new ROSLIB.Ros({ url: websocketsURL });
+
+    // Event Listeners for when the connection to the ROS2 environment is opened
+    ros.on('connection', function () { console.log('Connected to websocket server.'); });
+
+    // Event Listeners for when the connection to the ROS2 environment encounters an error
+    ros.on('error', function (error) { console.log('Error connecting to websocket server: ', error); });
+
+    // Event Listeners for when the connection to the ROS2 environment is closed
+    ros.on('close', function () { console.log('Connection to websocket server closed.'); });
+
+    var ros2ImageTopic1 = '/bob/camera/all_sky/bayer/resized/compressed'; // define the ROS2 Subscription Topic 1
+    var ros2ImageTopic2 = '/bob/frames/annotated/resized/compressed'; // define the ROS2 Subscription Topic 2
+    var currentRos2ImageTopic = ros2ImageTopic2; // Set the ROS2 Topic to Subscribe to
+    var compressedImageMsgType = 'sensor_msgs/msg/CompressedImage'; // define the Msg Type of the ROS2 Subsc. Topic
+
+    var topicStream = new ROSLIB.Topic({
+        ros: ros,
+        name: currentRos2ImageTopic,
+        messageType: compressedImageMsgType
+    });
+    
+    var versionService = new ROSLIB.Service({
+        ros : ros, 
+        name : '/bob/webapi/application/info', 
+        serviceType : 'bob_interfaces/srv/ApplicationInfo'
+    });    
+
+    var updateSvgMaskService = new ROSLIB.Service({
+        ros : ros, 
+        name : '/bob/webapi/mask/update/svg', 
+        serviceType : 'bob_interfaces/srv/MaskSvgUpdate'
+    });    
+
+    function init() {
+        window.addEventListener('DOMContentLoaded', function () {
+            var versionRequest = new ROSLIB.ServiceRequest({empty: ''});
+            versionService.callService(versionRequest, function(result) {
+                console.log("Bob-ROS2 Version:", result.version);
+                document.getElementById('applicationVersion').innerText = result.version;
+                console.log(`Bob-ROS2 Frame Size: w=${result.frame_width}  h=${result.frame_height}`);
+                console.log(`Bob-ROS2 FPS: ${result.video_fps}`);                
+            });
+
+            topicStream.subscribe(function (message) {
+                updateMessageRate();
+                if (!firstImageReceived) {
+                    videoStream.src =
+                    "data:image/jpeg;base64," + message.data;
+                    document.getElementById('bufferingOverlay').
+                    style.display =
+                    bufferReady ? 'none' : 'flex';
+                    firstImageReceived = true;
+                }
+                if (document.getElementById('buffer_enabled').checked)
+                {
+                    if (imageBuffer.length < bufferSize) {
+                        imageBuffer.push(message);
+                    }
+                    if (imageBuffer.length === bufferSize) {
+                        bufferReady = true;
+                        document.getElementById('bufferingOverlay').
+                        style.display = 'none';
+                    }
+                } else {
+                    videoStream.src = "data:image/jpeg;base64," + message.data;
+                }
+            });
+            // Call displayImage for the first time
+            displayImage();
+            document.getElementById('buffer_size').value = bufferSize;
+            document.getElementById('frame_rate').value = frameRate;
+            document.getElementById('CurrentTopic').innerText = currentRos2ImageTopic;
+            document.getElementById('playBtn').addEventListener('click', function () { isPlaying = true; });
+            document.getElementById('pauseBtn').addEventListener('click', function () { isPlaying = false; });
+             // Run updateDimensions initially
+            updateDimensions();
+        });
+    }
+
+    function sendMaskSVG() {
+
+        let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${maskCanvas.width}" height="${maskCanvas.height}">`;
+
+        if (invertMask) {
+            // Add a black background rectangle
+            svgContent += `<rect width="100%" height="100%" fill="black" />`;
+            polygons.forEach(polygon => {
+                if (polygon.length > 2) {
+                    const pathData = polygon.map((point, index) => {
+                        const command = index === 0 ? 'M' : 'L';
+                        return `${command}${point.x},${point.y}`;
+                    }).join(' ') + 'Z';
+                    // Set fill to "none" for transparency, and add a stroke with your desired color
+                    svgContent += `<path d="${pathData}" fill="white" stroke="white" />`;
+                }
+            });
+        } else {
+            polygons.forEach(polygon => {
+                if (polygon.length > 2) {
+                    const pathData = polygon.map((point, index) => {
+                        const command = index === 0 ? 'M' : 'L';
+                        return `${command}${point.x},${point.y}`;
+                    }).join(' ') + 'Z';
+                    svgContent += `<path d="${pathData}" fill="black" />`;
+                }
+            });
+        }
+        svgContent += '</svg>';
+        
+        var request = new ROSLIB.ServiceRequest({
+            file_name: 'mask.svg', // or .pgm
+            mask: svgContent
+        });
+
+        updateSvgMaskService.callService(request, function(result) {
+            if (result.success) {
+                console.log("Mask sent successfully!");
+            } else {
+                console.error("Failed to send mask:", result.message);
+            }
+        });
+    }
+
+    function displayImage() {
+        frameRate = parseInt(document.getElementById('frame_rate').value);
+        if (isPlaying) {
+            if (imageBuffer.length > 0 && document.getElementById('buffer_enabled').checked && bufferReady) {
+                var message = imageBuffer.shift();
+                videoStream.src = "data:image/jpeg;base64," + message.data;
+                updateActualFrameRate();
+            }
+        }
+        document.getElementById('buffer_balance').innerText = imageBuffer.length + "/" + bufferSize + " Frames";
+        document.getElementById('frames_left').innerText = startingBufferSize - imageBuffer.length;
+        setTimeout(displayImage, 1000 / frameRate);
+    }
+
+    function updateActualFrameRate() {
+        var currentTime = new Date().getTime();
+        if (lastFrameTime !== null) {
+            var timeDifference = currentTime - lastFrameTime;
+            actualFrameRate = 1000 / timeDifference;
+            document.getElementById('actual_frame_rate').innerText = actualFrameRate.toFixed(2) + " FPS";
+            frameCount++;
+            totalFrameRate += actualFrameRate; // Update total average frame rate
+            document.getElementById('total_avg_frame_rate').innerText = (totalFrameRate / frameCount).toFixed(2) + " FPS";
+            recentFrameRates.push(actualFrameRate); // Update recent average frame rate (last 4 frames)
+            if (recentFrameRates.length > 4) { recentFrameRates.shift(); }
+            var recentAvgFrameRate = recentFrameRates.reduce((a, b) => a + b, 0) / recentFrameRates.length;
+            document.getElementById('recent_avg_frame_rate').innerText = recentAvgFrameRate.toFixed(2) + " FPS";
+        }
+        lastFrameTime = currentTime;
+    }
+
+    function updateMessageRate() {
+        var currentTime = new Date().getTime();
+        if (lastMessageTime !== null) {
+            var timeDifference = currentTime - lastMessageTime;
+            messageRate = 1000 / timeDifference;
+            document.getElementById('message_rate').innerText = messageRate.toFixed(2) + " FPS";
+            messageCount++;
+            totalMessageRate += messageRate; // Update total average message rate
+            document.getElementById('total_avg_message_rate').innerText = (totalMessageRate / messageCount).toFixed(2) + " FPS";
+            recentMessageRates.push(messageRate); // Update recent average message rate (last 4 messages)
+            if (recentMessageRates.length > 4) { recentMessageRates.shift(); }
+            var recentAvgMessageRate = recentMessageRates.reduce((a, b) => a + b, 0) / recentMessageRates.length;
+            document.getElementById('recent_avg_message_rate').innerText = recentAvgMessageRate.toFixed(2) + " FPS";
+        }
+        lastMessageTime = currentTime;
+    }
+
+    function drawPolygon(polygon, fillStyle, drawBorder) {
+        console.log("drawPolygon");
+        maskCanvasCtx.beginPath();
+        maskCanvasCtx.moveTo(polygon[0].x, polygon[0].y);
+        for (let i = 1; i < polygon.length; i++) {maskCanvasCtx.lineTo(polygon[i].x, polygon[i].y);}
+        maskCanvasCtx.closePath();
+        maskCanvasCtx.fillStyle = fillStyle;
+        maskCanvasCtx.fill();
+        if (drawBorder) {
+            maskCanvasCtx.setLineDash([5, 5]);
+            maskCanvasCtx.lineDashOffset = -offset;
+            maskCanvasCtx.strokeStyle = 'white';
+            maskCanvasCtx.lineWidth = 1;
+            maskCanvasCtx.stroke();
+            maskCanvasCtx.setLineDash([]);
+            maskCanvasCtx.lineDashOffset = 0;
+        }
+        console.log(polygon);
+    }
+
+    function redrawCanvas() {
+        maskCanvasCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+        polygons.forEach((polygon, index) => {
+            const isCurrentPolygon = index === polygons.length - 1;
+            drawPolygon(polygon, editMode && isCurrentPolygon ? 'rgba(0, 0, 0, 0.1)' : 'rgba(0, 0, 0, 1)', editMode && isCurrentPolygon);
+        });
+        console.log(polygons);
+    }
+
+    function clearMask() {
+        maskCanvasCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+        polygons = [];
+    }
+
+    function update() {
+        if (editMode) {
+            offset = (offset + 1) % 10;
+            redrawCanvas();
+        }
+        requestAnimationFrame(update);
+    }
+
+    function invertMaskColors() {
+        let imageData = maskCanvasCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+        let data = imageData.data;
+        for (let i = 0; i < data.length; i += 4) {
+            if (data[i] === 0 && data[i + 1] === 0 && data[i + 2] === 0 && data[i + 3] === 255) {
+                // If the pixel is black (masked), set it to transparent
+                data[i + 3] = 0;
+            } else if (data[i + 3] === 0) {
+                // If the pixel is transparent, set it to black (masked)
+                data[i] = 0;
+                data[i + 1] = 0;
+                data[i + 2] = 0;
+                data[i + 3] = 255;
+            }
+        }
+        maskCanvasCtx.putImageData(imageData, 0, 0);
+        const jpgDataUrl = maskCanvas.toDataURL('image/jpeg');
+        return maskCanvasCtx;
+    }
+
+    function updateDimensions() {
+        console.log("updateDimensions");
+        let newHeight = videoStream.offsetHeight;
+        let newWidth = videoStream.offsetWidth;
+        streamContainer.style.height = `${newHeight}px`;
+        streamContainer.style.width = `${newWidth}px`;
+        streamContainer.height = newHeight * devicePixelRatio;
+        streamContainer.width = newWidth * devicePixelRatio;
+        maskCanvas.style.height = `${newHeight}px`;
+        maskCanvas.style.width = `${newWidth}px`;
+        maskCanvas.width = maskCanvas.clientWidth * devicePixelRatio;
+        maskCanvas.height = maskCanvas.clientHeight * devicePixelRatio;
+        bufferingOverlay.style.height = `${newHeight}px`;
+        bufferingOverlay.style.width = `${newWidth}px`;
+        bufferingOverlay.width = newWidth * devicePixelRatio;
+        bufferingOverlay.height = newHeight * devicePixelRatio;
+        maskCanvasCtx.scale(devicePixelRatio, devicePixelRatio);
+        console.log(maskCanvas.clientWidth);
+        console.log(maskCanvas.clientHeight);
+        console.log(maskCanvas.offsetWidth);
+        console.log(maskCanvas.offsetHeight);
+    }
+
+    function saveMaskSVG() {
+        let svgContent =
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${maskCanvas.width}" height="${maskCanvas.height}">`;
+        polygons.forEach(polygon => {
+            if (polygon.length > 2) {
+                const pathData = polygon.map((point, index) => {
+                    const command = index === 0 ? 'M' : 'L';
+                    return `${command}${point.x},${point.y}`;
+                }).join(' ') + 'Z';
+                svgContent += `<path d="${pathData}" fill="black" />`;
+            }
+        });
+        svgContent += '</svg>';
+        const svgBlob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
+        const svgUrl = URL.createObjectURL(svgBlob);
+        const link = document.createElement('a');
+        link.href = svgUrl;
+        var maskSVGName = currentRos2ImageTopic+"/mask";
+        var cleanedMaskSVGName = maskSVGName.replace(/\//g, "-")+'.svg';
+        link.download = cleanedMaskSVGName;
+        link.click();
+    }
+
+    function saveMaskJPG() {
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = maskCanvas.width;
+        tempCanvas.height = maskCanvas.height;
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCtx.fillStyle = 'white';
+        tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+        tempCtx.drawImage(maskCanvas, 0, 0);
+        const jpgDataUrl = tempCanvas.toDataURL('image/jpeg');
+        const link = document.createElement('a');
+        link.href = jpgDataUrl;
+        var maskJPGName = currentRos2ImageTopic+"/mask";
+        var cleanedMaskJPGName = maskJPGName.replace(/\//g, "-")+'.jpg';
+        link.download = cleanedMaskJPGName;
+        link.click();
+    }
+
+    function cancelButton() {
+        // if (polygons[polygons.length - 1].length === 0) { polygons.pop(); }
+        maskCanvas.style.cursor = 'default';
+
+        editMaskBtn.innerHTML = '<i class="fa-solid fa-pen-to-square"></i>';
+        // add a title to the button
+        editMaskBtn.title = 'Edit Mask';
+        // editMaskBtn.textContent = 'Edit Mask';
+        editMaskBtn.classList.remove('stop-edit');
+        // Remove the click Event listener to the editMaskBtn then call sendMaskSVG()
+        editMaskBtn.removeEventListener('click', () => {
+            sendMaskSVG();
+        });
+        //invertMaskBtn.classList.remove('hidden');
+        sendMaskSVGButton.classList.remove('hidden');
+        cancelMaskBtn.classList.add('hidden');
+        redrawCanvas();
+        if (polygons[polygons.length - 1].length === 0) {
+            console.log(polygons);
+            polygons.pop();
+        }
+    }
+
+    // EVENT LISTENERS
+    videoStream.addEventListener('loadedmetadata', () => {
+        maskCanvas.width = videoStream.offsetWidth;
+        maskCanvas.height = videoStream.offsetHeight;
+    });
+
+    maskCanvas.addEventListener('mousedown', (e) => {
+        console.log("maskCanvas.addEventListener");
+        console.log("editMode: "+editMode);
+        console.log(document.getElementById('stream'));
+        console.log(videoStream);
+        console.log(maskCanvas);
+        console.log(document.getElementById('bufferingOverlay'));
+        console.log(videoStream.offsetWidth);
+        console.log(videoStream.offsetHeight);
+        console.log(e);
+        if (!editMode || e.button === 2) return;
+        if (e.detail > 1) {
+            const currentPolygon = polygons[polygons.length - 1];
+            if (currentPolygon.length > 2) {
+                drawing = false;
+                polygons.push([]);
+            } return;
+        }
+        drawing = true;
+        const rect = maskCanvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        console.log("rect: "+rect);
+        console.log("rect.left: "+rect.left);
+        console.log("rect.top: "+rect.top);
+        console.log("e.clientX: "+e.clientX);
+        console.log("e.clientY: "+e.clientY);
+        console.log("x: "+x);
+        console.log("y: "+y);
+        const currentPolygon = polygons[polygons.length - 1];
+        if (currentPolygon.length > 0) {
+            const firstNode = currentPolygon[0];
+            const distance = Math.sqrt(Math.pow(x - firstNode.x, 2) + Math.pow(y - firstNode.y, 2));
+            if (distance < 10) {
+                drawing = false;
+                polygons.push([]);
+            } else {
+                currentPolygon.push({ x, y });
+            }
+        } else {
+            currentPolygon.push({ x, y });
+        }
+        redrawCanvas();
+    });
+
+    maskCanvas.addEventListener('mousemove', (e) => {
+        if (!drawing || !editMode) return;
+        const rect = maskCanvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const currentPolygon = polygons[polygons.length - 1];
+        currentPolygon.push({ x, y });
+        redrawCanvas();
+        if (editMode) { drawPolygon(currentPolygon, 'rgba(0, 0, 0, 0.1)', true); }
+        currentPolygon.pop();
+    });
+
+    // Edit Mask Button
+    editMaskBtn.addEventListener('click', () => {
+        console.log("editMaskBtn");
+        // console.log("editMode: "+editMode);
+        // console.log("polygons: "+polygons);
+        // console.log("polygons.length: "+polygons.length);
+        // console.log(videoStream);
+        // console.log(videoStream.width);
+        // console.log(videoStream.height);
+        // console.log(maskCanvas);
+        // console.log(maskCanvas.width);
+        // console.log(maskCanvas.height);
+        editMode = !editMode;
+        if (editMode) {
+            maskCanvas.style.cursor = 'crosshair';
+            editMaskBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i>';
+            editMaskBtn.title = 'Save Mask';
+            editMaskBtn.classList.add('stop-edit');
+            // remove the hidden class from the invertMaskBtn
+            //invertMaskBtn.classList.add('hidden');
+            sendMaskSVGButton.classList.add('hidden');
+            cancelMaskBtn.classList.remove('hidden');
+            if (polygons.length === 0 || polygons[polygons.length - 1].length > 0) { polygons.push([]); }
+        } else {
+            maskCanvas.style.cursor = 'default';
+            editMaskBtn.innerHTML = '<i class="fa-solid fa-pen-to-square"></i>';
+            editMaskBtn.title = 'Edit Mask';
+            editMaskBtn.classList.remove('stop-edit');
+            //invertMaskBtn.classList.remove('hidden');
+            sendMaskSVGButton.classList.remove('hidden');
+            cancelMaskBtn.classList.add('hidden');
+            redrawCanvas();
+            if (polygons[polygons.length - 1].length === 0) {
+                console.log(polygons);
+                polygons.pop();
+            }
+        }
+    });
+
+    // Clear Mask Button Event Listner
+    clearMaskBtn.addEventListener('click', () => {
+        clearMask();
+        if (editMode) {
+            polygons.push([]);
+        }
+    });
+
+    sendMaskSVGButton.addEventListener('click', () => {
+        sendMaskSVG();
+    });
+
+    // Save Mask JPG Button Event Listner
+    // saveMaskJPGBtn.addEventListener('click', () => {
+    //     saveMaskJPG();
+    // });
+
+    // Save Mask SVG Button Event Listner
+    // saveMaskSVGBtn.addEventListener('click', () => {
+    //     saveMaskSVG();
+    // });
+
+    // cancel Button Event Listner
+    cancelMaskBtn.addEventListener('click', () => {
+        cancelButton();
+    });
+
+    // Invert Mask Button
+    /*invertMaskBtn.addEventListener('click', () => {
+        let newCtx = invertMaskColors();
+        maskCanvasCtx = newCtx;
+        // maskCanvasCtx =  invertMaskColors();
+        update();
+    });*/
+
+    // Mask Controls Toggle Button
+    maskControlsToggleBtn.addEventListener('click', function () {
+        const maskControlsContainer = document.getElementById('maskControlsContainer');
+        if(maskControlsContainer.classList.contains('hidden')) {
+            maskControlsContainer.classList.remove('hidden');
+            maskControlsToggleBtn.textContent = 'Hide Mask Controls';
+        } else {
+            maskControlsContainer.classList.add('hidden');
+            maskControlsToggleBtn.textContent = 'View Mask Controls';
+        }
+    });
+
+    // Listen for changes to the image's height
+    const resizeObserver = new ResizeObserver(() => {
+        updateDimensions();
+    });
+
+    resizeObserver.observe(videoStream);
+
+    window.onload = init();
+
+    // Start the animation loop
+    update();
+
+</script>
+
+</body>
+</html>

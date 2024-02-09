@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3D Dome Editor</title>
+    <style>
+      body {
+        margin: 0;
+        display: flex;
+      }
+      canvas {
+        display: block;
+      }
+      #video {
+        display: none;
+      }
+      #controls {
+        width: 300px;
+        padding: 20px;
+        background-color: rgba(255, 255, 255, 0.8);
+      }
+      .control-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+    </style>
+  </head>
+  <body>
+        <!-- <video id="video" playsinline autoplay muted loop>
+        <source src="../assets/birds_and_plane.mp4" type="video/mp4" />
+        </video> -->
+        <div id="controls">
+        <div class="control-row">
+            <label for="toggleAxes">Toggle Axes:</label>
+            <input type="checkbox" id="toggleAxes" />
+        </div>
+        <!-- <div class="control-row">
+            <label for="domeHeightSlider">Dome Height:</label>
+            <input type="range" id="domeHeightSlider" min="1" max="30" step="1" value="16" />
+            <span id="domeHeightValue"></span>
+        </div> -->
+        <br>
+        <div class="control-row">
+            <label for="rotateDegrees">Dome Height:</label>
+            <input type="number" id="domeHeightSlider" value="13" />
+        </div>
+        <br>
+        <div class="control-row">
+            <label for="rotateDegrees">Z Rot:</label>
+            <input type="number" id="rotateDegrees" value="0" />
+        </div>
+        <br>
+        <div class="control-row">
+            <label for="longArcminutes">X Rot:</label>
+            <input type="number" id="longArcminutes" value="0" />
+        </div>
+        <br>
+        <div class="control-row">
+            <label for="latArcminutes">Y Rot:</label>
+            <input type="number" id="latArcminutes" value="0" />
+        </div>
+        <br>
+        </div>
+        <script src="../lib/three.min.js"></script>
+        <script src="../lib/OrbitControls.js"></script>
+        <script src="../lib/eventemitter2.js"></script>
+        <script src="../lib/roslib.min.js"></script>
+        <script type="text/javascript">
+            // Set up the scene, camera, and renderer
+            const scene = new THREE.Scene();
+            // const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 10000);
+            camera.position.z = 2;
+            const renderer = new THREE.WebGLRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+            const dome = createParabolicDome(scene);
+
+            // Add axes
+            const axesHelper = new THREE.AxesHelper(5);
+            scene.add(axesHelper);
+            axesHelper.visible = false;
+
+            // Set up the user interface
+            const toggleAxesCheckbox = document.getElementById('toggleAxes');
+            toggleAxesCheckbox.addEventListener('change', function () {
+                axesHelper.visible = this.checked;
+            });
+
+            const rotateDegreesInput = document.getElementById('rotateDegrees');
+            rotateDegreesInput.addEventListener('input', function () {
+                const rotationDegrees = parseFloat(this.value);
+                dome.rotation.y = THREE.MathUtils.degToRad(rotationDegrees);
+            });
+
+            const longArcminutesInput = document.getElementById('longArcminutes');
+            longArcminutesInput.addEventListener('input', function () {
+                const rotationDegrees = parseFloat(this.value);
+                dome.rotation.x = THREE.MathUtils.degToRad(rotationDegrees);
+            });
+
+            const latArcminutesInput = document.getElementById('latArcminutes');
+            latArcminutesInput.addEventListener('input', function () {
+                const rotationDegrees = parseFloat(this.value);
+                dome.rotation.z = THREE.MathUtils.degToRad(rotationDegrees);
+            });
+
+            // Set up event listener for the dome height slider
+            const domeHeightValue = document.getElementById('domeHeightValue');
+            domeHeightSlider.addEventListener('input', function () {
+                const domeHeight = parseFloat(this.value);
+                console.log(domeHeight);
+                dome.scale.y = domeHeight/10;
+                updateDomeHeight(dome, domeHeight);
+                domeHeightValue.textContent = domeHeight;
+            });
+
+            // Update the dome height
+            function updateDomeHeight(dome, height) {
+                const scale = height / domeHeight; // Calculate the scale factor
+                dome.scale.y = scale; // Apply the scale factor to the dome's y-axis
+            }
+
+            function createParabolicDome(scene) {
+                const domeRadius = 5;
+                const domeHeight = 2;
+                const domeSegments = 64;
+                function domeFunction(u, v, target) {
+                    const x = u * domeRadius * 2 - domeRadius;
+                    const z = v * domeRadius * 2 - domeRadius;
+                    const y = -((x * x + z * z) / (4 * domeHeight)) + domeHeight;
+                    target.set(x, y, z);
+                }
+                const domeGeometry = new THREE.ParametricGeometry(domeFunction, domeSegments, domeSegments);
+                // const video = document.getElementById('video');
+                // const videoTexture = new THREE.VideoTexture(video);
+                const textureLoader = new THREE.TextureLoader();
+                const domeTexture = textureLoader.load('../assets/sunny2.png');
+                const domeMaterial = new THREE.MeshBasicMaterial({ map: domeTexture, side: THREE.FrontSide });
+                // const domeMaterial = new THREE.MeshBasicMaterial({ map: videoTexture, side: THREE.FrontSide });
+                const dome = new THREE.Mesh(domeGeometry, domeMaterial);
+                scene.add(dome);
+                return dome;
+            }
+
+            // Add OrbitControls
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.02;
+            controls.screenSpacePanning = true;
+            controls.enablePan = true;
+            controls.panAxis = new THREE.Vector3(1, 1, 0); // Restrict panning to the x and y axes
+            controls.minDistance = 0.01;
+            controls.maxDistance = 15; // Set the maximum zoom out distance
+
+            // Render the scene
+            function animate() {
+                requestAnimationFrame(animate);
+                // if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                //     videoTexture.needsUpdate = true;
+                // }
+                controls.update();
+                renderer.render(scene, camera);
+            }
+            animate();
+            // Resize the renderer when the window is resized
+            window.addEventListener('resize', function () {
+                const width = window.innerWidth;
+                const height = window.innerHeight;
+                renderer.setSize(width, height);
+                camera.aspect = width / height;
+                camera.updateProjectionMatrix();
+            });
+    </script>
+
+  </body>
+</html>

@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3D Parabolic Dome Editor</title>
+    <style>
+      body {
+        margin: 0;
+        display: flex;
+      }
+      canvas {
+        display: block;
+      }
+      #video {
+        display: none;
+      }
+      #controls {
+        padding: 20px;
+        background-color: rgba(255, 255, 255, 0.8);
+      }
+      #container {
+        min-width: 300px;
+    }
+      .control-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+    </style>
+  </head>
+  <body>
+    <video id="video" playsinline autoplay muted loop>
+      <source src="../assets/video.mp4" type="video/mp4" />
+    </video>
+    <div id="container">
+        <div id="controls">
+            <div class="control-row">
+                <input type="text" id="videoUrlInput" value="video.mp4" placeholder="Enter video name" />
+                <!-- <select id="videoUrlInput">
+                    <option value="video1.mp4">video1.mp4</option>
+                    <option value="video2.mp4">video2.mp4</option>
+                    <option value="video3.mp4">video3.mp4</option>
+                </select> -->
+
+                <button id="changeVideoButton">Change Video</button>
+            </div>
+            <div class="control-row">
+                <label for="toggleAxes">Display Axes:</label>
+                <input type="checkbox" id="toggleAxes" />
+            </div>
+            <div class="control-row">
+                <label for="toggleCircle">Display Ground Circle:</label>
+                <input type="checkbox" id="toggleCircle" />
+            </div>
+            <div class="control-row">
+                <label for="toggleDome">Display Dome:</label>
+                <input checked type="checkbox" id="toggleDomeDisplay" />
+            </div>
+            <div class="control-row">
+                <label for="domeHeightSlider">Dome Height:</label>
+                <input type="range" id="domeHeightSlider" min="10" max="20" step=".1" value="16" />
+                <span id="domeHeightValue"></span>
+            </div>
+            <div class="control-row">
+                <label for="domeHeightOffset">Dome Height Offset:</label>
+                <input type="number" id="domeHeightOffset" value="0" style="width: 50px"/>
+            </div>
+            <div class="control-row">
+                <label for="domeRotateDegrees">Dome Rotation (Degrees):</label>
+                <input type="number" id="domeRotateDegrees" value="0" style="width: 50px" />
+            </div>
+            <div class="control-row">
+                <label for="domeTiltXSlider">Dome Tilt X:</label>
+                <input type="range" id="domeTiltXSlider" min="-13" max="13" step=".01" value="0" />
+                <span id="domeTiltXValue"></span>
+            </div>
+            <div class="control-row">
+                <label for="domeTiltYSlider">Dome Tilt Y:</label>
+                <input type="range" id="domeTiltYSlider" min="-13" max="13" step=".01" value="0" />
+                <span id="domeTiltYValue"></span>
+            </div>
+            <div class="control-row">
+                <label for="projLongitudeOffset">Projection Longitude Offset:</label>
+                <input type="number" id="projLongitudeOffset" value="0" style="width: 50px" />
+            </div>
+            <div class="control-row">
+                <label for="projLatitudeOffset">Projection Latitude Offset:</label>
+                <input type="number" id="projLatitudeOffset" value="0"  style="width: 50px"/>
+            </div>
+            <div class="control-row">
+                <label for="projRotation">Projection Rotation (Degrees):</label>
+                <input type="number" id="projRotation" value="0"  style="width: 50px"/>
+            </div>
+            <div class="control-row">
+                <button id="saveSettingsButton">Save Settings</button>
+            </div>
+            <br>
+        </div>
+    </div>
+    <script src="../lib/three.min.js"></script>
+    <script src="../lib/OrbitControls.js"></script>
+    <script src="../lib/eventemitter2.js"></script>
+    <script src="../lib/roslib.min.js"></script>
+    <script>
+
+        // Set up the scene, camera, and renderer
+        var scene = new THREE.Scene();
+        var camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 10000);
+        var cameraPosition = new THREE.Vector3(-.5, -.5, 1.8);
+        var lookatPosition = new THREE.Vector3(41, 35, -82);
+        // Set the camera position
+        camera.position.copy(cameraPosition);
+        // Make the camera look at the lookatPosition
+        camera.lookAt(lookatPosition);
+
+        var renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Set up the dome
+        var domeRadius = 10;
+        var domeWidthSegments = 15;
+        var domeHeightSegments = 15;
+        var domeHeight = 5;
+        var dome = createParabolicDome(scene);
+        var videoUrlInput = document.getElementById('videoUrlInput');
+        var changeVideoButton = document.getElementById('changeVideoButton');
+        var videoElement = document.getElementById('video');
+        var domeHeightSlider = document.getElementById('domeHeightSlider');
+        var domeHeightValue = document.getElementById('domeHeightValue');
+        var saveSettingsButton = document.getElementById('saveSettingsButton');
+        var formElement = document.getElementById('controls');
+        updateDomeHeight(dome, 16);
+        // Set up the ground
+        var circle = createGroundWithRotationalIndex(scene);
+        circle.visible = false;
+        // Set up event listener for the dome height slider
+        domeHeightSlider.addEventListener('input', function () {
+            const domeHeight = parseFloat(this.value);
+            updateDomeHeight(dome, domeHeight);
+            domeHeightValue.textContent = domeHeight;
+        });
+        // Update the dome height
+        function updateDomeHeight(dome, height) {
+            const scale = height / domeHeight;
+            dome.scale.y = scale;
+        }
+		// Add axes
+		var axesHelper = new THREE.AxesHelper(5);
+		scene.add(axesHelper);
+		axesHelper.visible = false;
+
+		// Set up the user interface
+		var toggleAxesCheckbox = document.getElementById('toggleAxes');
+		toggleAxesCheckbox.addEventListener('change', function () {
+		    axesHelper.visible = this.checked;
+		});
+        // Set up the dome height
+		var domeHeightOffsetInput = document.getElementById('domeHeightOffset');
+		domeHeightOffsetInput.addEventListener('input', function () {
+		    updateDomeHeightOffset(dome, parseFloat(this.value));
+		});
+        // Set up the dome rotation
+		var domeRotateDegreesInput = document.getElementById('domeRotateDegrees');
+		domeRotateDegreesInput.addEventListener('input', function () {
+            var rotationDegrees = parseFloat(this.value);
+            dome.rotation.y = THREE.MathUtils.degToRad(rotationDegrees);
+		});
+        var domeTiltXSlider = document.getElementById('domeTiltXSlider');
+        var domeTiltXValue= document.getElementById('domeTiltXValue');
+        // Set up the dome tilt X
+        domeTiltXSlider.addEventListener('input', function () {
+            var rotationDegrees = parseFloat(this.value);
+            dome.rotation.x = THREE.MathUtils.degToRad(rotationDegrees);
+            domeTiltXValue.textContent = rotationDegrees;
+		});
+        var domeTiltYSlider = document.getElementById('domeTiltYSlider');
+        var domeTiltYValue= document.getElementById('domeTiltYValue');
+        // Set up the dome tilt Y
+        domeTiltYSlider.addEventListener('input', function () {
+            var rotationDegrees = parseFloat(this.value);
+            dome.rotation.z = THREE.MathUtils.degToRad(rotationDegrees);
+            domeTiltYValue.textContent = rotationDegrees;
+		});
+        // Set up the circle
+		var toggleCircleCheckbox = document.getElementById('toggleCircle');
+		toggleCircleCheckbox.addEventListener('change', function () {
+		circle.visible = this.checked;
+		});
+        // Set up the circle
+		var toggleDomeDisplay = document.getElementById('toggleDomeDisplay');
+		toggleDomeDisplay.addEventListener('change', function () {
+		dome.visible = this.checked;
+		});
+		var projLongitudeOffsetInput = document.getElementById('projLongitudeOffset');
+		projLongitudeOffsetInput.addEventListener('input', function () {
+		updateProjectionOffsets(dome, parseFloat(this.value), parseFloat(projLatitudeOffsetInput.value));
+		});
+		var projLatitudeOffsetInput = document.getElementById('projLatitudeOffset');
+		projLatitudeOffsetInput.addEventListener('input', function () {
+		updateProjectionOffsets(dome, parseFloat(projLongitudeOffsetInput.value), parseFloat(this.value));
+		});
+		var projRotationInput = document.getElementById('projRotation');
+		projRotationInput.addEventListener('input', function () {
+		updateProjectionRotation(dome, parseFloat(this.value));
+		});
+		// Add OrbitControls
+		const controls = new THREE.OrbitControls(camera, renderer.domElement);
+		controls.enablePan = true;
+        controls.enableDamping = true;
+		controls.screenSpacePanning = true;
+        controls.panAxis = new THREE.Vector3(1, 1, 0);
+        controls.minDistance = 0.01;
+        controls.maxDistance = 15;
+		// Render the scene
+		function animate() {
+			requestAnimationFrame(animate);
+			controls.update();
+			renderer.render(scene, camera);
+		}
+		animate();
+		// Resize the renderer when the window is resized
+		window.addEventListener('resize', function () {
+			const width = window.innerWidth;
+			const height = window.innerHeight;
+			renderer.setSize(width, height);
+			camera.aspect = width / height;
+			camera.updateProjectionMatrix();
+		});
+        // Update the dome height offset
+        function updateDomeHeightOffset(dome, offset) {
+            dome.position.y = offset;
+        }
+		// Helper Functions
+		function createTickMarks(circleRadius, ticksCount, height) {
+			const tickMarks = new THREE.Group();
+			for (let i = 0; i < ticksCount; i++) {
+			const angle = (i * 360) / ticksCount;
+			const tickGeometry = new THREE.CylinderGeometry(0.05, 0.05, height, 8);
+			const tickMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+			const tick = new THREE.Mesh(tickGeometry, tickMaterial);
+			const radians = THREE.MathUtils.degToRad(angle);
+			tick.position.set(circleRadius * Math.cos(radians), circleRadius * Math.sin(radians), 0);
+			tick.lookAt(new THREE.Vector3(0, 0, 0));
+			tickMarks.add(tick);
+			}
+            console.log(tickMarks);
+			return tickMarks;
+		}
+		function updateProjectionOffsets(dome, longitudeOffset, latitudeOffset) {
+			const texture = dome.material.map;
+			const offset = {
+			x: THREE.MathUtils.degToRad(longitudeOffset) / (2 * Math.PI),
+			y: THREE.MathUtils.degToRad(latitudeOffset) / (2 * Math.PI),
+			};
+			texture.offset.set(offset.x, offset.y);
+		}
+		function updateProjectionRotation(dome, rotation) {
+			const texture = dome.material.map;
+			texture.rotation = THREE.MathUtils.degToRad(rotation);
+        }
+        // Create Dome Center Point
+		function createPoint(scene, position) {
+			const geometry = new THREE.SphereGeometry(0.1, 1, 1);
+			const material = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+			const point = new THREE.Mesh(geometry, material);
+			point.position.copy(position);
+			scene.add(point);
+			return point;
+		}
+		function createGroundWithRotationalIndex(scene) {
+			const radius = 5;
+			const segments = 72;
+			const circleGeometry = new THREE.CircleGeometry(radius, segments);
+			const tickGeometry = new THREE.BoxGeometry(0.05, 0.1, 0.05);
+            const material = new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                side: THREE.DoubleSide,
+                opacity: 0.3,
+                transparent: true
+            });
+			const circle = new THREE.Mesh(circleGeometry, material);
+			circle.rotation.x = -Math.PI / 2;
+			for (let i = 0; i < segments; i++) {
+			const tick = new THREE.Mesh(tickGeometry, material);
+			const angle = (2 * Math.PI * i) / segments;
+			tick.position.set(radius * Math.cos(angle), radius * Math.sin(angle), 0);
+			tick.rotation.x = Math.PI / 2;
+			circle.add(tick);
+			}
+			scene.add(circle);
+			return circle;
+		}
+        function createParabolicDome(scene) {
+            const domeRadius = 5;
+            const domeHeight = 5;
+            function domeFunction(u, v, target) {
+                const x = u * domeRadius * 2 - domeRadius;
+                const z = v * domeRadius * 2 - domeRadius;
+                const y = -((x * x + z * z) / (4 * domeHeight));
+                target.set(x, y+1.3, z);
+            }
+            var domeVideoTexture = new THREE.VideoTexture(video);
+            const domeWidthSegments = 50;
+            const domeHeightSegments = 50;
+            const geometry = new THREE.ParametricGeometry(domeFunction, domeWidthSegments, domeHeightSegments);
+            const domeMaterial = new THREE.MeshBasicMaterial({ map: domeVideoTexture, side: THREE.FrontSide });
+            const dome = new THREE.Mesh(geometry, domeMaterial);
+            dome.domeCenter = new THREE.Vector3(0, domeRadius + domeHeight, 0);
+            scene.add(dome);
+            return dome;
+        }
+
+        function rotateDome(x, y, z) {
+            dome.rotation.x += x;
+            dome.rotation.y += y;
+            dome.rotation.z += z;
+        }
+
+        function moveDome(x, y, z) {
+            dome.position.x += x;
+            dome.position.y += y;
+            dome.position.z += z;
+        }
+        moveDome(0,-.3,0);
+
+        function getDomeSettings(videoUrl) {
+            console.log('Getting settings...');
+            console.log("  videoUrl: " + videoUrl);
+            const settings = localStorage.getItem(videoUrl);
+            console.log("  settings: " + settings);
+            return settings ? JSON.parse(settings) : null;
+        }
+
+        function saveDomeSettings(videoUrl, settings) {
+            console.log('Saving settings...');
+            console.log("  videoUrl: " + videoUrl);
+            console.log("  settings: " + settings);
+            localStorage.setItem(videoUrl, JSON.stringify(settings));
+        }
+
+        function captureCurrentSettings() {
+            console.log('Capturing settings...');
+            const lookAtPoint = getCameraLookAt(camera);
+            console.log("Camera is looking at:", lookAtPoint.x, lookAtPoint.y, lookAtPoint.z);
+            const settings = {
+                toggleAxes: document.getElementById("toggleAxes").checked,
+                toggleCircle: document.getElementById("toggleCircle").checked,
+                toggleDomeDisplay: document.getElementById("toggleDomeDisplay").checked,
+                domeHeightSlider: document.getElementById("domeHeightSlider").value,
+                domeHeightOffset: document.getElementById("domeHeightOffset").value,
+                domeRotateDegrees: document.getElementById("domeRotateDegrees").value,
+                domeTiltXSlider: document.getElementById("domeTiltXSlider").value,
+                domeTiltYSlider: document.getElementById("domeTiltYSlider").value,
+                projLongitudeOffset: document.getElementById("projLongitudeOffset").value,
+                projLatitudeOffset: document.getElementById("projLatitudeOffset").value,
+                projRotation: document.getElementById("projRotation").value,
+                cameraPosition: camera.position,
+                cameraLookatPositionx: lookAtPoint.x,
+                cameraLookatPositiony: lookAtPoint.y,
+                cameraLookatPositionz: lookAtPoint.z
+            };
+            console.log("settings: " + settings);
+            return settings;
+        }
+
+        function applyDomeSettings(videoUrl) {
+            var settings = getDomeSettings(videoUrl);
+            console.log('Applying settings...');
+            console.log("settings: ", settings);
+            if (settings) {
+                // Toggle Axes
+                document.getElementById("toggleAxes").checked = settings.toggleAxes;
+                axesHelper.visible = settings.toggleAxes; // Directly set visibility
+                // Toggle Circle
+                document.getElementById("toggleCircle").checked = settings.toggleCircle;
+                circle.visible = settings.toggleCircle; // Directly set visibility
+                // Toggle Dome Display
+                document.getElementById("toggleDomeDisplay").checked = settings.toggleDomeDisplay;
+                dome.visible = settings.toggleDomeDisplay; // Directly set visibility
+                // Dome Height
+                var domeHeightSlider = document.getElementById("domeHeightSlider");
+                domeHeightSlider.value = settings.domeHeightSlider;
+                updateDomeHeight(dome, parseFloat(domeHeightSlider.value)); // Directly call the function
+                // Dome Height Offset
+                var domeHeightOffset = document.getElementById("domeHeightOffset");
+                domeHeightOffset.value = settings.domeHeightOffset;
+                updateDomeHeightOffset(dome, parseFloat(domeHeightOffset.value)); // Directly call the function
+                // Handle Dome Rotation Degrees
+                var domeRotateDegreesInput = document.getElementById('domeRotateDegrees');
+                domeRotateDegreesInput.value = settings.domeRotateDegrees;
+                dome.rotation.y = THREE.MathUtils.degToRad(parseFloat(domeRotateDegreesInput.value));
+                // domeTiltXSlider
+                var domeTiltXSlider = document.getElementById('domeTiltXSlider');
+                console.log("settings.domeTiltX: "+settings.domeTiltXSlider);
+                var rotationDegrees = parseFloat(settings.domeTiltXSlider);
+                dome.rotation.x = THREE.MathUtils.degToRad(rotationDegrees);
+                domeTiltXValue.textContent = rotationDegrees;
+                // domeTiltYSlider
+                var domeTiltYSlider = document.getElementById('domeTiltYSlider');
+                domeTiltYSlider.value = settings.domeTiltYSlider;
+                dome.rotation.z = THREE.MathUtils.degToRad(parseFloat(domeTiltYSlider.value));
+                // projLongitudeOffset
+                var projLongitudeOffsetInput = document.getElementById('projLongitudeOffset');
+                projLongitudeOffsetInput.value = settings.projLongitudeOffset;
+                updateProjectionOffsets(dome, parseFloat(projLongitudeOffsetInput.value), parseFloat(settings.projLatitudeOffset));
+                // Handle Projection Latitude Offset
+                var projLatitudeOffsetInput = document.getElementById('projLatitudeOffset');
+                projLatitudeOffsetInput.value = settings.projLatitudeOffset;
+                updateProjectionOffsets(dome, parseFloat(settings.projLongitudeOffset), parseFloat(projLatitudeOffsetInput.value));
+                // Handle Projection Rotation
+                var projRotationInput = document.getElementById('projRotation');
+                projRotationInput.value = settings.projRotation;
+                updateProjectionRotation(dome, parseFloat(projRotationInput.value));
+                camera.position.copy(settings.cameraPosition);
+                console.log("settings.cameraLookatPositionx: " + settings.cameraLookatPositionx);
+                camera.lookAt(settings.cameraLookatPositionx, settings.cameraLookatPositiony, settings.cameraLookatPositionz);
+            }
+        }
+
+        function getCameraLookAt(camera, distance = 100) {
+            const vector = new THREE.Vector3(0, 0, -1);  // Initialize a vector pointing along the Z axis in camera space.
+            vector.applyQuaternion(camera.quaternion);  // Rotate the vector to world space.
+            vector.multiplyScalar(distance);  // Scale the vector by a "distance" amount (this could be any distance you want).
+            vector.add(camera.position);  // Translate to the camera's world-space position.
+            return vector;  // This is the world-space position that the camera is looking at.
+        }
+
+        // Event listener for the "Save Settings" button click
+        saveSettingsButton.addEventListener('click', function() {
+            var source = document.getElementById("video").querySelector("source").getAttribute("src");
+            console.log("Source: " + source);
+            console.log(document.getElementById('video'));
+            console.log(captureCurrentSettings());
+            saveDomeSettings(source, captureCurrentSettings());
+        });
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', (event) => {
+            applyDomeSettings(videoUrlInput.value);
+            changeVideoButton.addEventListener('click', () => {
+                console.log("changeVideoButton clicked");
+                const newVideoUrl = videoUrlInput.value;
+                if (newVideoUrl) {
+                    while (videoElement.firstChild) { videoElement.removeChild(videoElement.firstChild); }
+                    const newSource = document.createElement('source');
+                    newSource.src = newVideoUrl;
+                    newSource.type = 'video/mp4';
+                    videoElement.appendChild(newSource);
+                    videoElement.load();
+                    videoElement.play();
+                    console.log("event: " + event);
+                    console.log("videoUrlInput.value: " + videoUrlInput.value);
+                    applyDomeSettings(videoUrlInput.value);
+                } else {
+                    alert('Please enter a video URL.');
+                }
+
+            });
+        });
+
+    </script>
+</body>
+</html>

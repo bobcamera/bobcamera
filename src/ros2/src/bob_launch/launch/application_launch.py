@@ -15,23 +15,31 @@ def generate_launch_description():
     update_config_from_env_vars_arg_value = EnvironmentVariable('BOB_UPDATE_CONFIG_FROM_ENV_VARS', default_value="True")
 
     source_arg_value = EnvironmentVariable('BOB_SOURCE', default_value="'video'")
-    rtsp_url_arg_value = EnvironmentVariable('BOB_RTSP_URL', default_value="")
-    rtsp_width_arg_value = EnvironmentVariable('BOB_RTSP_WIDTH', default_value="")
-    rtsp_height_arg_value = EnvironmentVariable('BOB_RTSP_HEIGHT', default_value="")
-    camera_id_arg_value = EnvironmentVariable('BOB_CAMERA_ID', default_value="0")
-    enable_visualiser_arg_value = EnvironmentVariable('BOB_ENABLE_VISUALISER', default_value="True")
-    optimised_arg_value = EnvironmentVariable('BOB_OPTIMISED', default_value="False")
-    enable_rosbridge_arg_value = EnvironmentVariable('BOB_ENABLE_ROSBRIDGE', default_value="False")
-    enable_recording_arg_value = EnvironmentVariable('BOB_ENABLE_RECORDING', default_value="False")
     
-    simulation_width_arg_value = EnvironmentVariable('BOB_SIMULATION_WIDTH', default_value="1920")
-    simulation_height_arg_value = EnvironmentVariable('BOB_SIMULATION_HEIGHT', default_value="1080")
-    simulation_num_objects_arg_value = EnvironmentVariable('BOB_SIMULATION_NUM_OBJECTS', default_value="5")
+    rtsp_url_arg_value = EnvironmentVariable('BOB_RTSP_URL', default_value="")
+    rtsp_width_arg_value = EnvironmentVariable('BOB_RTSP_WIDTH', default_value="0")
+    rtsp_height_arg_value = EnvironmentVariable('BOB_RTSP_HEIGHT', default_value="0")
+    
+    camera_id_arg_value = EnvironmentVariable('BOB_CAMERA_ID', default_value="0")    
+    fps_arg_value = EnvironmentVariable('BOB_FPS', default_value="15")
+    
+    enable_visualiser_arg_value = EnvironmentVariable('BOB_ENABLE_VISUALISER', default_value="True")
+    optimised_arg_value = EnvironmentVariable('BOB_OPTIMISED', default_value="True")
+    
+    enable_rosbridge_arg_value = EnvironmentVariable('BOB_ENABLE_ROSBRIDGE', default_value="False")
+    enable_recording_arg_value = EnvironmentVariable('BOB_ENABLE_RECORDING', default_value="False")    
+    
+    simulation_width_arg_value = EnvironmentVariable('BOB_SIMULATION_WIDTH', default_value="0")
+    simulation_height_arg_value = EnvironmentVariable('BOB_SIMULATION_HEIGHT', default_value="0")
+    simulation_num_objects_arg_value = EnvironmentVariable('BOB_SIMULATION_NUM_OBJECTS', default_value="5")    
     
     bgs_algorithm_value = EnvironmentVariable('BOB_BGS_ALGORITHM', default_value="vibe")    
+    
     tracking_sensitivity_arg_value  = EnvironmentVariable('BOB_TRACKING_SENSITIVITY', default_value="'high'")
     tracking_usemask_arg_value  = EnvironmentVariable('BOB_TRACKING_USEMASK', default_value="False")
     tracking_maskfile_arg_value  = EnvironmentVariable('BOB_TRACKING_MASK_FILE', default_value="'mask.pgm'")
+
+    video_arg_value  = EnvironmentVariable('BOB_VIDEOS', default_value="")
 
     #print(f'Generating launch description....')
 
@@ -69,6 +77,12 @@ def generate_launch_description():
         'camera_id_arg',
         default_value=camera_id_arg_value,
         description="USB Camera Id."
+        )
+
+    fps_arg = DeclareLaunchArgument(
+        'fps_arg',
+        default_value=fps_arg_value,
+        description="FPS of the frames being processed."
         )
 
     enable_visualiser_arg = DeclareLaunchArgument(
@@ -135,7 +149,13 @@ def generate_launch_description():
         'tracking_maskfile_arg',
         default_value=tracking_maskfile_arg_value,
         description="Use mask set."
-        )    
+        )   
+
+    video_arg = DeclareLaunchArgument(
+        'video_arg',
+        default_value=video_arg_value,
+        description="Videos to use as playback."
+        )  
 
     return LaunchDescription([
 
@@ -152,6 +172,8 @@ def generate_launch_description():
         simulation_num_objects_arg,
 
         camera_id_arg,
+        fps_arg,
+
         enable_visualiser_arg,
         optimised_arg,
         enable_rosbridge_arg,
@@ -161,6 +183,8 @@ def generate_launch_description():
         tracking_sensitivity_arg,
         tracking_usemask_arg,
         tracking_maskfile_arg,
+
+        video_arg,
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([

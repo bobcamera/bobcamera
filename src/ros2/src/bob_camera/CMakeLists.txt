@@ -18,9 +18,7 @@ endif ()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
-find_package(rclcpp_lifecycle REQUIRED)
 find_package(sensor_msgs REQUIRED)
-find_package(vision_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
@@ -28,6 +26,7 @@ find_package(rcl_interfaces REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(boblib REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
+find_package(bob_interfaces REQUIRED)
 
 
 include_directories(${OpenCV_INCLUDE_DIRS})
@@ -83,7 +82,8 @@ ament_target_dependencies(web_camera_video_node PUBLIC
     rcl_interfaces 
     rclcpp_components
     OpenCV
-    Boost)
+    Boost
+    bob_interfaces)
 rclcpp_components_register_nodes(web_camera_video_node "WebCameraVideo")
 install(TARGETS web_camera_video_node DESTINATION lib)
 

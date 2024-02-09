@@ -194,6 +194,8 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     && pip install Pillow \
     && pip install pymongo \
     && pip install tornado \
+    # Install ONVIF library so we can get camera details using the ONVIF protocol
+    && pip install onvif2_zeep \
     # Install QHY SDK
     && cd /opt/sdk_qhy && bash install.sh \
     # Install the libs locally

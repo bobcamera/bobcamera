@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <!-- <title id="topic_name"></title> -->
+        <meta charset="utf-8" />
+        <script src="../lib/eventemitter2.js"></script>
+        <script src="../lib/roslib.min.js"></script>
+        <script src="../lib/xterm.min.js"></script>
+        <link href="../lib/xterm.min.css" rel="stylesheet">
+    </head>
+    <body>
+        <!-- <span id="topic"></span><br>
+        <span id="message-type"></span><br><br> -->
+        <button id="pause-button">Pause</button>
+        <button id="start-button">Start</button><br><br>
+        <div id="terminal"></div>
+
+        <script type="text/javascript">
+
+            var topic_name = '/bob/frames/annotated/resized/compressed/mask';
+            var message_type = 'sensor_msgs/msg/CompressedImage';
+
+            const terminal = new Terminal({
+                cursorBlink: true, // Enable blinking cursor
+                cols: 180, // Set the terminal's width (columns).
+                rows: 45, // Set the terminal's height (rows).
+                theme: {
+                    background: '#272822'
+                }
+            });
+            terminal.open(document.getElementById('terminal'));
+
+            function init() {
+                window.addEventListener('DOMContentLoaded', function () {
+                    // Connecting to ROS
+                    var ros = new ROSLIB.Ros({
+                        url: 'ws://localhost:9090'
+                    });
+                    ros.on('connection', function () {
+                        console.log('Connected to websocket server.');
+                    });
+                    ros.on('error', function (error) {
+                        console.log('Error connecting to websocket server: ', error);
+                    });
+                    ros.on('close', function () {
+                        console.log('Connection to websocket server closed.');
+                    });
+                    var currentTopic = new ROSLIB.Topic({
+                        ros: ros,
+                        name: topic_name,
+                        messageType: message_type
+                    });
+
+                    currentTopic.subscribe(function (message) {
+                        console.log(message);
+                        terminal.write('Topic: ' + topic_name + '\n\r');
+                        terminal.write('Msg Type: ' + message_type + ' \n\r');
+                        terminal.write('TimeStamp Sec: ' + JSON.stringify(message.header.stamp.sec) +'\n\r');
+                        terminal.write('TimeStamp Nanosec: ' + JSON.stringify(message.header.stamp.nanosec) +'\n\r');
+                        terminal.write('Format: ' + JSON.stringify(message.format) + '\n\r');
+                        terminal.write('Data: ' + JSON.stringify(message.data).substr(0, 100) + '\n\r');
+                        terminal.write('\n\r');
+                    });
+
+                    function startSubscription() {
+                        currentTopic.subscribe();
+                        console.log('Subscription started. Data Truncated to 100 characters.');
+                        terminal.write('Subscribed to Topic: ' + topic_name + '\n\r');
+                        terminal.write('Message Type: ' + message_type + ' \n\r');
+                        terminal.write('Data Truncated to 100 characters. '+ '\n\r');
+                    }
+
+                    // Define function to stop the subscription
+                    function pauseSubscription() {
+                        currentTopic.unsubscribe();
+                        console.log('Subscription paused');
+                        terminal.write('Unsubscribed to ' + topic_name + '\n\r');
+                    }
+
+                    // Add event listeners to the start and stop buttons
+                    var startButton = document.getElementById('start-button');
+                    var pauseButton = document.getElementById('pause-button');
+                    // var messageDetailsButton = document.getElementById('message-details-button');
+
+                    startButton.addEventListener('click', startSubscription);
+                    pauseButton.addEventListener('click', pauseSubscription);
+                    // messageDetailsButton.addEventListener('click', getTopicMessageDetails);
+
+                    // document.getElementById('topic_name').innerHTML = 'Topic: '+topic_name;
+                    // document.getElementById('message-type').innerHTML = 'Message Type: '+message_type;
+                });
+            }
+            window.onload = init();
+        </script>
+    </body>

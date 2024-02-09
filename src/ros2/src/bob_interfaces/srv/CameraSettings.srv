@@ -1,0 +1,16 @@
+string host
+int32 port
+string user
+string password
+---
+bool success
+string manufacturer
+string model
+string firmware_version
+string serial_number
+string hardware_id
+int32 num_configurations
+string encoding
+int32 frame_width
+int32 frame_height
+float32 fps

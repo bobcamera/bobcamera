@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        /* ... (your existing styles) */
+        button {
+            margin: 10px;
+        }
+    </style>
+    <title>Unified Pixel Mapper</title>
+</head>
+<body>
+
+<canvas id="combinedCanvas" width="600" height="200"></canvas>
+
+<button id="download-json">Download JSON</button>
+<button id="raster-step">Raster Step</button> <!-- Renamed button for raster stepping -->
+<button id="raster-step-back">Raster Step Back</button> <!-- New button for raster stepping back -->
+
+<div id="json-output"></div>
+
+<h1>Files in the Directory</h1>
+<ul id="fileList"></ul>
+
+<script>
+    const combinedCanvas = document.getElementById('combinedCanvas');
+    const jsonOutput = document.getElementById('json-output');
+    const downloadButton = document.getElementById('download-json');
+    const fileListElement = document.getElementById('fileList');
+    const rasterStepButton = document.getElementById('raster-step'); // Renamed button for raster stepping
+    const rasterStepBackButton = document.getElementById('raster-step-back'); // New button for raster stepping back
+    const ctx = combinedCanvas.getContext('2d');
+
+    let pixelMap = [];
+    let leftPoint = null;
+    let rightPoint = null;
+
+    let imageList = []; // Array to store image pairs dynamically
+    let currentIndex = 0; // Index to keep track of the current image pair
+    let totalPairs = 0; // New variable to store the total number of image pairs
+
+    async function fetchDirectoryListing() {
+        if (imageList.length > 0) {
+            downloadButton.disabled = !pixelMap.every(pair => pair.length >= 5);
+            rasterStepButton.disabled = !pixelMap.every(pair => pair.length >= 5); // Disable raster step initially
+            rasterStepBackButton.disabled = true; // Disable raster step back initially
+            updateCanvas(); // Initial canvas update
+        } else {
+            downloadButton.disabled = true; // No image pairs, keep the download button disabled
+            rasterStepButton.disabled = true; // No image pairs, keep the raster step button disabled
+        }
+
+        try {
+            const response = await fetch('/directory-listing');
+            const files = await response.json();
+
+            imageList = files.filter(file => file.includes('_fisheye_')).map(fisheyeFile => {
+                const timestamp = fisheyeFile.split('_')[0];
+                const ptzFile = files.find(file => file.includes(timestamp) && file.includes('_ptz_'));
+                return { fisheye: fisheyeFile, ptz: ptzFile };
+            });
+
+            totalPairs = imageList.length; // Update the totalPairs variable
+
+            // Update the UI with the list of files
+            imageList.forEach((image, index) => {
+                const listItem = document.createElement('li');
+                listItem.textContent = `Pair ${index + 1}: ${image.fisheye} | ${image.ptz}`;
+                fileListElement.appendChild(listItem);
+            });
+
+            updateCanvas(); // Initial canvas update
+        } catch (error) {
+            console.error('Error fetching directory listing:', error);
+        }
+    }
+
+    // Function to load an image
+    function loadImage(src) {
+        rasterStepBackButton.disabled = currentIndex === 0; // Disable raster step back when at the first image pair
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = src;
+        });
+    }
+
+    function updateCanvas() {
+        const currentImagePair = imageList[currentIndex];
+
+        Promise.all([
+            loadImage(currentImagePair.fisheye),
+            loadImage(currentImagePair.ptz)
+        ]).then(([image1, image2]) => {
+            // Draw images on the canvas
+            ctx.clearRect(0, 0, combinedCanvas.width, combinedCanvas.height);
+            ctx.drawImage(image1, 0, 0, 300, 200);
+            ctx.drawImage(image2, 300, 0, 300, 200);
+        });
+    }
+
+    async function RasterStep() {
+        try {
+            resetPointsCounter(); // Reset the counter for the next image pair
+
+            currentIndex++;
+            rasterStepButton.disabled = currentIndex === totalPairs - 1 || mappedPointsCounter < 5;
+            rasterStepBackButton.disabled = currentIndex === 0; // Disable raster step back when at the first image pair
+
+            await updateCanvasAsync();
+
+            // Check if the current image pair has at least 5 points mapped
+            const currentPairMapped = pixelMap.filter(point => point.left.file === imageList[currentIndex].fisheye && point.right.file === imageList[currentIndex].ptz).length >= 5;
+
+            // Enable or disable the "Download JSON" button based on the condition
+            downloadButton.disabled = !currentPairMapped;
+            console.log('----- Raster Step -----');
+            console.log('Current Index:', currentIndex);
+            console.log('Raster Step Button:', rasterStepButton.disabled);
+            console.log('Raster Step Back Button:', rasterStepBackButton.disabled);
+            console.log('Download JSON Button:', downloadButton.disabled);
+            console.log('Current Pair Mapped:', currentPairMapped);
+            console.log('Pixel Map:', pixelMap); // Add this line
+            console.log('-------------------------');
+        } catch (error) {
+            console.error('Error in RasterStep:', error);
+            // Add additional error handling as needed
+            // For example, you could display an error message to the user
+        }
+    }
+
+
+
+    async function updateCanvasAsync() {
+        try {
+            const currentImagePair = imageList[currentIndex];
+
+            const [image1, image2] = await Promise.all([
+                loadImage(currentImagePair.fisheye),
+                loadImage(currentImagePair.ptz)
+            ]);
+
+            // Draw images on the canvas
+            ctx.clearRect(0, 0, combinedCanvas.width, combinedCanvas.height);
+            ctx.drawImage(image1, 0, 0, 300, 200);
+            ctx.drawImage(image2, 300, 0, 300, 200);
+
+            // Display mappings on the canvas
+            pixelMap
+                .filter(point => point.left.file === currentImagePair.fisheye && point.right.file === currentImagePair.ptz)
+                .forEach(({ left, right, color }) => {
+                    drawLine(left.x, left.y, right.x, right.y, color);
+                });
+        } catch (error) {
+            console.error('Error in updateCanvasAsync:', error);
+            // Add additional error handling as needed
+            // For example, you could display an error message to the user
+        }
+    }
+
+    async function RasterStepBack() {
+        try {
+            resetPointsCounter(); // Reset the counter for the next image pair
+
+            currentIndex--;
+            rasterStepButton.disabled = currentIndex === totalPairs - 1 || mappedPointsCounter < 5;
+            rasterStepBackButton.disabled = currentIndex === 0; // Disable raster step back when at the first image pair
+
+            await updateCanvasAsync();
+
+            // Check if the current image pair has at least 5 points mapped
+            const currentPairMapped = pixelMap.filter(point => point.left.file === imageList[currentIndex].fisheye && point.right.file === imageList[currentIndex].ptz).length >= 5;
+
+            // Enable or disable the "Download JSON" button based on the condition
+            downloadButton.disabled = !currentPairMapped;
+            console.log('----- Raster Step Back -----');
+            console.log('Current Index:', currentIndex);
+            console.log('Raster Step Button:', rasterStepButton.disabled);
+            console.log('Raster Step Back Button:', rasterStepBackButton.disabled);
+            console.log('Download JSON Button:', downloadButton.disabled);
+            console.log('Current Pair Mapped:', currentPairMapped);
+            console.log('Pixel Map:', pixelMap); // Add this line
+            console.log('-------------------------');
+        } catch (error) {
+            console.error('Error in RasterStepBack:', error);
+            // Add additional error handling as needed
+            // For example, you could display an error message to the user
+        }
+    }
+
+    function getRandomColor() {
+        const letters = '0123456789ABCDEF';
+        let color = '#';
+        for (let i = 0; i < 6; i++) {
+            color += letters[Math.floor(Math.random() * 16)];
+        }
+        return color;
+    }
+
+    function drawLine(x1, y1, x2, y2, color) {
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.strokeStyle = color;
+        ctx.stroke();
+    }
+
+    function updateJsonOutput() {
+        jsonOutput.textContent = JSON.stringify(pixelMap, null, 2);
+    }
+
+    let mappedPointsCounter = 0; // Counter for mapped points for the current image pair
+
+    function resetPointsCounter() {
+        mappedPointsCounter = 0; // Reset counter for the next image pair
+    }
+
+    function handleCanvasClick(event) {
+        const rect = combinedCanvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        if (leftPoint === null) {
+            leftPoint = { x, y, file: imageList[currentIndex].fisheye };
+        } else {
+            rightPoint = { x, y, file: imageList[currentIndex].ptz };
+            const color = getRandomColor();
+            drawLine(leftPoint.x, leftPoint.y, rightPoint.x, rightPoint.y, color);
+
+            pixelMap.push({ left: leftPoint, right: rightPoint, color });
+            leftPoint = null;
+            rightPoint = null;
+
+            mappedPointsCounter++;
+
+            if (mappedPointsCounter >= 5) {
+                // Enable raster stepping to the next image pair once at least five points are mapped
+                rasterStepButton.disabled = false;
+            }
+        }
+
+        updateJsonOutput();
+        if (currentIndex === totalPairs - 1 && mappedPointsCounter >= 5) {
+            downloadButton.disabled = false;
+        }
+    }
+
+
+
+    function downloadJson() {
+        console.log('----- Download JSON Button Clicked -----');
+        console.log('Pixel Map:', pixelMap);
+
+        // Remove color information from the JSON before download
+        const simplifiedJson = pixelMap.map(({ left, right }) => ({ left, right }));
+        console.log('Simplified JSON:', simplifiedJson);
+
+        try {
+            const jsonContent = JSON.stringify(simplifiedJson, null, 2);
+            const blob = new Blob([jsonContent], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'pixel_mapping.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            console.log('Download successful!');
+            console.log('Download JSON Button: ', downloadButton.disabled); // Add this line
+        } catch (error) {
+            console.error('Error in downloadJson:', error);
+            // Add additional error handling as needed
+        }
+    }
+
+    // Event listeners
+    combinedCanvas.addEventListener('click', handleCanvasClick);
+    downloadButton.addEventListener('click', downloadJson);
+    rasterStepButton.addEventListener('click', RasterStep); // Updated event listener for raster stepping
+    rasterStepBackButton.addEventListener('click', RasterStepBack); // New event listener for raster stepping back
+
+    // Initialize the page
+    fetchDirectoryListing();
+
+</script>
+
+</body>
+</html>

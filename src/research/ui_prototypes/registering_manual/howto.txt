@@ -1,0 +1,13 @@
+This is a functional prototype for manual registering for research purposes for the PTZ centering feature
+
+start in commandline/powershell:
+	$ node server.js
+ 
+This works with the current standard format of rastering image file-names, and the rastering images in the same directory.
+
+For files which comply to the naming pattern:
+f[epoch]_fisheye_[x]_[y]_[zoom].png
+f[epoch]_ptz_[x]_[y]_[zoom].png,
+For example:
+f1706909442_fisheye_1.0_1.0_0.025.png
+f1706909442_ptz_1.0_1.0_0.025.png

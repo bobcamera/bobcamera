@@ -5,13 +5,12 @@
 ## Processing Stage 1 - Kernel:
 
 * Step 1: Video acquisition and feeding into processing pipeline
-* Step 2: Background subtraction is applied
+* Step 2: Background subtraction (default = ViBe) is applied
 * Step 3: Blobs are detected and bounding boxes extracted
-* Step 4: Trackers (CSRT) are initialised using bounding boxes which is then tracked across frames.
-* Step 5: We use a Kalman Filter to try and predict the trajectory of the target being tracked
-* Step 6: Recording using RosBag
-* Step 7: Annotated frame is constructed for display
-* Step 8: Frames are resized and transferred externally for Stage 2 processing
+* Step 4: Tracker (default = SORT) is initialised using bounding boxes which is then tracked across frames.
+* Step 5: Recording is done using whatever mechanism is specified
+* Step 6: Annotated frame is constructed for display
+* Step 7: Frames are resized and transferred externally for Stage 2 processing
 
 ## Processing Stage 2 - Application:
 
@@ -73,12 +72,3 @@ Run the following commands in the terminal in vscode i.e. inside the container: 
 
 * To keep an eye on the state of the tracker, use the following echo command: `ros2 topic echo /bob/tracker/tracking_state`
 * To keep an eye on the camera frame excl. array data use the following echo command: `ros2 topic echo  /bob/frames/annotated/resized --no-arr`
-
-## TODO:
-
-#### Replay a rosbag recording
-
-* TODO: The annotated frame is published as an rtsp stream for display via other applications e.g. VLC
-
-* `ros2 bag play 2023_09_06-16_48_14/` where 2023_09_06-16_48_14/ is a folder that contains a rosbag recording
-* `./launch_rosbag_replay.sh`

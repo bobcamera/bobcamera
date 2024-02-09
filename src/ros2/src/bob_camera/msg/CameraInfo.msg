@@ -1,7 +1,11 @@
 std_msgs/Header header
 string id
+string manufacturer
 string model
 string serial_num
+string firmware_version
+int32 num_configurations
+string encoding
 AreaLimits overscan
 AreaLimits effective
 ChipInfo chip
@@ -19,3 +23,6 @@ ParamLimits red_wb_limits
 ParamLimits green_wb_limits
 ParamLimits blue_wb_limits
 ParamLimits temperature_limits
+int32 frame_width
+int32 frame_height
+float32 fps

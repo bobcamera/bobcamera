@@ -6,6 +6,9 @@
   <description>Launching package for BobCamera</description>
   <maintainer email="fabio.c.barros@gmail.com">ros</maintainer>
   <license>GPLv3</license>
+  
+  <depend>python3-opencv</depend>
+  
   <export>
     <build_type>ament_python</build_type>
   </export>
