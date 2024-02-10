@@ -28,6 +28,30 @@ class AbsoluteMoveNode(Node):
         self.pub_environment_data = self.create_publisher(PTZAbsoluteMove, 'bob/ptz/move/absolute', publisher_qos_profile)
 
 
+        self.IP="10.20.30.140"   # Camera IP address
+        self.PORT=80           # Port
+        self.USER="bob"         # Username
+        self.PASS="Sky360Sky!"        # Password
+        # Get range of pan and tilt
+
+        self.XMAX = 1
+        self.XMIN = -1
+        self.YMAX = 1
+        self.YMIN = -1
+        self.ZoomMAX = 1
+        self.ZoomMIN = 0
+        self.active = False
+
+        self.mycam = ONVIFCamera(self.IP, self.PORT, self.USER, self.PASS, '/workspaces/bobcamera/src/ros2/src/bob_monitor/resource/wsdl')
+        # Create media service object
+        self.media = self.mycam.create_media_service()
+            
+        # Create ptz service object
+        self.ptz = self.mycam.create_ptz_service()
+
+        # Get target profile
+        self.media_profile = self.media.GetProfiles()[0]
+
         self.declare_parameters(namespace='',
                             parameters=[('observer_timer_interval', 30)])
 
@@ -39,60 +63,30 @@ class AbsoluteMoveNode(Node):
             """Reading from stdin and displaying menu"""
             self.get_logger().info("Received PTZAbsoluteMove message.")
 
-            IP="10.20.30.140"   # Camera IP address
-            PORT=80           # Port
-            USER="bob"         # Username
-            PASS="Sky360Sky!"        # Password
-        # Get range of pan and tilt
-
-            XMAX = 1
-            XMIN = -1
-            YMAX = 1
-            YMIN = -1
-            ZoomMAX = 1
-            ZoomMIN = 0
-            active = False
-
-            mycam = ONVIFCamera(IP, PORT, USER, PASS, '/workspaces/bobcamera/src/ros2/src/bob_monitor/resource/wsdl')
-            # Create media service object
-            media = mycam.create_media_service()
-            
-            # Create ptz service object
-            ptz = mycam.create_ptz_service()
-
-            # Get target profile
-            media_profile = media.GetProfiles()[0]
-
-            moverequest = ptz.create_type('AbsoluteMove')
-            moverequest.ProfileToken = media_profile.token
+            moverequest = self.ptz.create_type('AbsoluteMove')
+            moverequest.ProfileToken = self.media_profile.token
             if moverequest.Position is None:
-                moverequest.Position = ptz.GetStatus({'ProfileToken': media_profile.token}).Position
+                moverequest.Position = self.ptz.GetStatus({'ProfileToken': self.media_profile.token}).Position
             
 
 
             #global moverequest, ptz
             self.msg_position = msg_position
 
-            XMAX = 1
-            XMIN = -1
-            YMAX = 1
-            YMIN = -1
-            ZoomMAX = 1
-            ZoomMIN = 0
 
-            moverequest.Position.PanTilt.x = min(max(self.msg_position.pospantiltx,XMIN),XMAX)
-            moverequest.Position.PanTilt.y = min(max(self.msg_position.pospantilty,YMIN),YMAX)
-            moverequest.Position.Zoom.x = min(max(self.msg_position.poszoomx,ZoomMIN),ZoomMAX)
+            moverequest.Position.PanTilt.x = min(max(self.msg_position.pospantiltx,self.XMIN),self.XMAX)
+            moverequest.Position.PanTilt.y = min(max(self.msg_position.pospantilty,self.YMIN),self.YMAX)
+            moverequest.Position.Zoom.x = min(max(self.msg_position.poszoomx,self.ZoomMIN),self.ZoomMAX)
 
             #moverequest.Position.PanTilt.x = 0.0
             #moverequest.Position.PanTilt.y = 0.0
             #moverequest.Position.Zoom.x = min(max(self.msg_position.poszoomx,ZoomMIN),ZoomMAX)
 
             #global active
-            if active:
-                ptz.Stop({'ProfileToken': moverequest.ProfileToken})
-            active = True  
-            ptz.AbsoluteMove(moverequest)
+            if self.active:
+                self.ptz.Stop({'ProfileToken': moverequest.ProfileToken})
+            self.active = True  
+            self.ptz.AbsoluteMove(moverequest)
   
 
     # Spin to allow the message to be sent
