@@ -196,27 +196,25 @@ private:
                 const auto& first_tracker = *live_trackers.begin();
                 //RCLCPP_INFO(get_logger(),"video_tracker_.get_live_trackers() not empty");// 
                 if (!first_tracker.get_predictor_center_points().empty()) {
-                    //RCLCPP_INFO(get_logger(),"get_predictor_center_points() not empty");// 
-                    RCLCPP_INFO(get_logger(),"tracker id: %d", first_tracker.get_id());
                     const std::vector<cv::Point>& PredCentPoints = first_tracker.get_predictor_center_points();
                     const cv::Point& lastPoint = PredCentPoints.back();
                     RCLCPP_INFO(get_logger(),"X predicted point: %d", lastPoint.x);// 
                     RCLCPP_INFO(get_logger(),"Y predicted point: %d", lastPoint.y);// 
-
-
-                    RCLCPP_INFO(get_logger(),"X predicted pixel: %d", (lastPoint.x+BOB_RTSP_WIDTH/2)%(BOB_RTSP_WIDTH-1));//  
-                    RCLCPP_INFO(get_logger(),"Y predicted pixel: %d\n", (lastPoint.y+BOB_RTSP_HEIGHT/2)%(BOB_RTSP_HEIGHT-1));// 
-                    RCLCPP_INFO(get_logger(),"X predicted res: %f", PTZXAbsoluteMoveFromTrack[(lastPoint.x+BOB_RTSP_WIDTH/2)%(BOB_RTSP_WIDTH-1)][((lastPoint.y+BOB_RTSP_HEIGHT/2)%(BOB_RTSP_HEIGHT-1))]);// 
-                    RCLCPP_INFO(get_logger(),"Y predicted res: %f", PTZYAbsoluteMoveFromTrack[(lastPoint.x+BOB_RTSP_WIDTH/2)%(BOB_RTSP_WIDTH-1)][((lastPoint.y+BOB_RTSP_HEIGHT/2)%(BOB_RTSP_HEIGHT-1))]);// 
-
-                    PTZ_msg.pospantiltx =   (float)PTZXAbsoluteMoveFromTrack[(lastPoint.x+BOB_RTSP_WIDTH/2)%(BOB_RTSP_WIDTH-1)][(lastPoint.y+BOB_RTSP_HEIGHT/2)%(BOB_RTSP_HEIGHT-1)];
-                    PTZ_msg.pospantilty =   (float)PTZYAbsoluteMoveFromTrack[(lastPoint.x+BOB_RTSP_WIDTH/2)%(BOB_RTSP_WIDTH-1)][(lastPoint.y+BOB_RTSP_HEIGHT/2)%(BOB_RTSP_HEIGHT-1)];
-                    PTZ_msg.poszoomx = (float)0.0;
-                    PTZ_msg.speedpantiltx = (float)1.0;
-                    PTZ_msg.speedpantilty = (float)1.0;
-                    PTZ_msg.speedzoomx = float(1.0);
-                    RCLCPP_INFO_STREAM(this->get_logger(),"Current Position Target: x" << PTZ_msg.pospantiltx <<  " : y" << PTZ_msg.pospantilty);
-                    //pub_tracker_PTZabsolutemove_->publish(PTZ_msg);
+                    int FisheyeOldestTrackIdNewestPredictedMeanX = (lastPoint.x+BOB_RTSP_WIDTH/2)%(BOB_RTSP_WIDTH-1);
+                    int FisheyeOldestTrackIdNewestPredictedMeanY = (lastPoint.y+BOB_RTSP_HEIGHT/2)%(BOB_RTSP_HEIGHT-1);
+                    if((0 <= FisheyeOldestTrackIdNewestPredictedMeanX) && (FisheyeOldestTrackIdNewestPredictedMeanX <= BOB_RTSP_WIDTH) && (0 <= FisheyeOldestTrackIdNewestPredictedMeanY)  && (FisheyeOldestTrackIdNewestPredictedMeanY <= BOB_RTSP_HEIGHT)){
+                        PTZ_msg.pospantiltx =  PTZXAbsoluteMoveFromTrack[FisheyeOldestTrackIdNewestPredictedMeanX][FisheyeOldestTrackIdNewestPredictedMeanY];
+                        PTZ_msg.pospantilty =  PTZYAbsoluteMoveFromTrack[FisheyeOldestTrackIdNewestPredictedMeanX][FisheyeOldestTrackIdNewestPredictedMeanY];
+                        PTZ_msg.poszoomx = (float)0.0;
+                        PTZ_msg.speedpantiltx = (float)1.0;
+                        PTZ_msg.speedpantilty = (float)1.0;
+                        PTZ_msg.speedzoomx = float(1.0);
+                        //RCLCPP_INFO_STREAM(this->get_logger(),"In publisher loop" << numofframes);
+                        RCLCPP_INFO_STREAM(this->get_logger(),"Current Position Target: x" << PTZ_msg.pospantiltx <<  " : y" << PTZ_msg.pospantilty);
+                        pub_tracker_PTZabsolutemove_->publish(PTZ_msg);
+                    } else {
+                        RCLCPP_WARN_STREAM(this->get_logger(),"Requested Point out of Bounds> x" << FisheyeOldestTrackIdNewestPredictedMeanX <<  " : y" << FisheyeOldestTrackIdNewestPredictedMeanY);
+                    }
                 }
             }
 
@@ -226,6 +224,7 @@ private:
   
 
     }
+
 
     void add_track_detection(const auto &tracker, std::vector<bob_interfaces::msg::TrackDetection> &detection_array)
     {
