@@ -17,17 +17,19 @@
 
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
-
+#include "includes/PTZLookuptable.h"
 #include <visibility_control.h>
 
 static int numofframes = 0;
 
+/*
 const int BOB_RTSP_WIDTH = 1080; 
 const int BOB_RTSP_HEIGHT = 1920;
 std::vector<std::vector<float>> PTZXAbsoluteMoveFromTrack(BOB_RTSP_WIDTH, std::vector<float>(BOB_RTSP_HEIGHT, 0.0));
 std::vector<std::vector<float>> PTZYAbsoluteMoveFromTrack(BOB_RTSP_WIDTH, std::vector<float>(BOB_RTSP_HEIGHT, 0.0));
-
-
+*/
+const auto& PTZXAbsoluteMoveFromTrack = getPTZXAbsoluteMoveFromTrack();
+const auto& PTZYAbsoluteMoveFromTrack = getPTZYAbsoluteMoveFromTrack();
 
 class TrackProvider
     : public ParameterNode
@@ -165,7 +167,7 @@ private:
         PTZ_msg.speedpantiltx = (float)1.0;
         PTZ_msg.speedpantilty = (float)1.0;
         PTZ_msg.speedzoomx = float(1.0);
-*/
+
 
 
         if(numofframes == 0){
@@ -185,7 +187,7 @@ private:
                 }
             }
         }
-
+*/
         if(numofframes % 6 == 0){
 
 
@@ -201,16 +203,20 @@ private:
                     RCLCPP_INFO(get_logger(),"X predicted point: %d", lastPoint.x);// 
                     RCLCPP_INFO(get_logger(),"Y predicted point: %d", lastPoint.y);// 
 
-                    PTZ_msg.pospantiltx =  PTZXAbsoluteMoveFromTrack[(lastPoint.x+BOB_RTSP_WIDTH/2)%(BOB_RTSP_WIDTH-1)][(lastPoint.y+BOB_RTSP_HEIGHT/2)%(BOB_RTSP_HEIGHT-1)];
-                    PTZ_msg.pospantilty =  PTZYAbsoluteMoveFromTrack[(lastPoint.x+BOB_RTSP_WIDTH/2)%(BOB_RTSP_WIDTH-1)][(lastPoint.y+BOB_RTSP_HEIGHT/2)%(BOB_RTSP_HEIGHT-1)];
+
+                    RCLCPP_INFO(get_logger(),"X predicted pixel: %d", (lastPoint.x+BOB_RTSP_WIDTH/2)%(BOB_RTSP_WIDTH-1));//  
+                    RCLCPP_INFO(get_logger(),"Y predicted pixel: %d\n", (lastPoint.y+BOB_RTSP_HEIGHT/2)%(BOB_RTSP_HEIGHT-1));// 
+                    RCLCPP_INFO(get_logger(),"X predicted res: %f", PTZXAbsoluteMoveFromTrack[(lastPoint.x+BOB_RTSP_WIDTH/2)%(BOB_RTSP_WIDTH-1)][((lastPoint.y+BOB_RTSP_HEIGHT/2)%(BOB_RTSP_HEIGHT-1))]);// 
+                    RCLCPP_INFO(get_logger(),"Y predicted res: %f", PTZYAbsoluteMoveFromTrack[(lastPoint.x+BOB_RTSP_WIDTH/2)%(BOB_RTSP_WIDTH-1)][((lastPoint.y+BOB_RTSP_HEIGHT/2)%(BOB_RTSP_HEIGHT-1))]);// 
+
+                    PTZ_msg.pospantiltx =   (float)PTZXAbsoluteMoveFromTrack[(lastPoint.x+BOB_RTSP_WIDTH/2)%(BOB_RTSP_WIDTH-1)][(lastPoint.y+BOB_RTSP_HEIGHT/2)%(BOB_RTSP_HEIGHT-1)];
+                    PTZ_msg.pospantilty =   (float)PTZYAbsoluteMoveFromTrack[(lastPoint.x+BOB_RTSP_WIDTH/2)%(BOB_RTSP_WIDTH-1)][(lastPoint.y+BOB_RTSP_HEIGHT/2)%(BOB_RTSP_HEIGHT-1)];
                     PTZ_msg.poszoomx = (float)0.0;
                     PTZ_msg.speedpantiltx = (float)1.0;
                     PTZ_msg.speedpantilty = (float)1.0;
                     PTZ_msg.speedzoomx = float(1.0);
-
-                    //RCLCPP_INFO_STREAM(this->get_logger(),"In publisher loop" << numofframes);
                     RCLCPP_INFO_STREAM(this->get_logger(),"Current Position Target: x" << PTZ_msg.pospantiltx <<  " : y" << PTZ_msg.pospantilty);
-                    pub_tracker_PTZabsolutemove_->publish(PTZ_msg);
+                    //pub_tracker_PTZabsolutemove_->publish(PTZ_msg);
                 }
             }
 

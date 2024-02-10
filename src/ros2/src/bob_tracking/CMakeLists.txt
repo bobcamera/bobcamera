@@ -26,7 +26,7 @@ find_package(rclcpp_components REQUIRED)
 find_package(boblib REQUIRED)
 find_package(bob_interfaces REQUIRED)
 
-include_directories(${OpenCV_INCLUDE_DIRS})
+include_directories(${OpenCV_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(
     "../bob_shared/include"
 )
@@ -38,12 +38,19 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
     add_definitions(-Wno-missing-braces)
 ENDIF()
 
+# Add the shared library target for PTZLookuptable
+add_library(ptzlookup SHARED src/includes/PTZLookuptable.cpp)
+target_include_directories(ptzlookup PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
 # Tracking Node
 add_library(track_provider_node SHARED src/track_provider.cpp src/sort/kalman_filter.cpp src/sort/sort_tracker.cpp src/sort/track.cpp)
 target_compile_definitions(track_provider_node PRIVATE "COMPOSITION_BUILDING_DLL")
-target_link_libraries(track_provider_node PUBLIC boblib)
+target_link_libraries(track_provider_node PUBLIC boblib ptzlookup)  # Link against ptzlookup library
 ament_target_dependencies(track_provider_node PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV rclcpp_components bob_interfaces)
 rclcpp_components_register_nodes(track_provider_node "TrackProvider")
-install(TARGETS track_provider_node DESTINATION lib)
+install(TARGETS track_provider_node ptzlookup  # Install ptzlookup along with track_provider_node
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
+    RUNTIME DESTINATION bin)
 
 ament_package()
