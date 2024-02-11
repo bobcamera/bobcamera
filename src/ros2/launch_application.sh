@@ -15,10 +15,6 @@ export BOB_CAMERA_ID=${BOB_CAMERA_ID:-"0"}
 export BOB_ENABLE_VISUALISER=${BOB_ENABLE_VISUALISER:-"True"}
 export BOB_ENABLE_RECORDING=${BOB_ENABLE_RECORDING:-"False"}
 
-# RMW settings
-export RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION:-"rmw_fastrtps_cpp"}
-export FASTRTPS_DEFAULT_PROFILES_FILE=${FASTRTPS_DEFAULT_PROFILES_FILE:-"/workspaces/bobcamera/src/ros2/config/fastdds.xml"}
-
 # Background subtraction algorithm: vibe or wmv
 export BOB_BGS_ALGORITHM=${BOB_BGS_ALGORITHM:-"vibe"}
 
