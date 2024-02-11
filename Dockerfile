@@ -10,8 +10,6 @@
 # docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY bobcamera/boblib-app:latest bash
 # docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY bobcamera/boblib-opencv:latest bash
 
-# docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY -v /home/fabio/src/bobcamera/bobcamera/test:/workspaces/bobcamera/test bobcamera/bob-ros2-iron-prod2:1.1.0 bash
-
 
 # MWG 2024.02.10 Verisoned all containers to 2.1.0 as I need to test this stuff and don't want to interfere with existing containers
 # --progress=plain this build switch will show entire build output
@@ -187,7 +185,7 @@ WORKDIR /root
 
 
 
-
+# docker build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-iron-dev2:2.1.0 -t bobcamera/bob-ros2-iron-dev2:latest --target bob-ros2-iron-dev
 # docker buildx build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-iron-dev2:2.1.0 -t bobcamera/bob-ros2-iron-dev2:latest --target bob-ros2-iron-dev
 # docker buildx build --progress=plain --push --platform linux/amd64,linux/arm64 -f Dockerfile . -t bobcamera/bob-ros2-iron-dev2:2.1.0 -t bobcamera/bob-ros2-iron-dev2:latest --target bob-ros2-iron-dev
 ###################################################################
@@ -225,6 +223,8 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
         locales tzdata sudo bash-completion \
         libboost-python-dev libboost-system-dev libtbb-dev \
         ros-${ROS_DISTRO}-vision-msgs ros-${ROS_DISTRO}-image-transport \
+        # Install RQT NB: DEV Only
+        ~nros-iron-rqt* \
     && pip install Pillow \
     && pip install pymongo \
     && pip install tornado \
@@ -262,14 +262,18 @@ RUN mkdir -p /opt/ros2_ws/src \
 
 
 
-
-###################################################################################
-# MWG: This docker stage is used to build the ros2 tracker part of the application
-###################################################################################
+# docker build --progress=plain --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-iron-build2:2.1.0 -t bobcamera/bob-ros2-iron-build2:latest --target bob-ros2-iron-build
+# docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY bobcamera/bob-ros2-iron-build2:2.1.0 bash
+###############################################################
+# MWG: This docker stage is used to build the ros2 application
+###############################################################
 FROM bob-ros2-iron-dev AS bob-ros2-iron-build
 COPY src/ros2 /workspaces/bobcamera/src/ros2
 WORKDIR /workspaces/bobcamera/src/ros2
-RUN bash /opt/ros/$ROS_DISTRO/setup.bash \
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
+    # Nano for debug purposes
+    # nano \
+    && bash /opt/ros/$ROS_DISTRO/setup.bash \
     && bash /opt/ros2_ws/install/setup.bash \
     && colcon build --parallel-workers $(nproc) --cmake-args -DCMAKE_BUILD_TYPE=Release
 
@@ -277,13 +281,16 @@ RUN bash /opt/ros/$ROS_DISTRO/setup.bash \
 
 
 
-# docker buildx build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-iron-prod:2.1.0 -t bobcamera/bob-ros2-iron-prod:latest --target bob-ros2-iron-prod
-# docker buildx build --progress=plain --push --platform linux/amd64,linux/arm64 -f Dockerfile . -t bobcamera/bob-ros2-iron-prod:2.1.0 -t bobcamera/bob-ros2-iron-prod:latest --target bob-ros2-iron-prod
+# docker build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-iron-prod2:2.1.0 -t bobcamera/bob-ros2-iron-prod2:latest --target bob-ros2-iron-prod
+# docker buildx build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-iron-prod2:2.1.0 -t bobcamera/bob-ros2-iron-prod2:latest --target bob-ros2-iron-prod
+# docker buildx build --progress=plain --push --platform linux/amd64,linux/arm64 -f Dockerfile . -t bobcamera/bob-ros2-iron-prod2:2.1.0 -t bobcamera/bob-ros2-iron-prod2:latest --target bob-ros2-iron-prod
+# docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY -v ~/Source/bobcamera/bobcamera/assets:/workspaces/bobcamera/src/ros2/assets/ bobcamera/bob-ros2-iron-prod2:2.1.0 bash
 ###################################################################################
 # MWG: This docker stage is used to construct the image with the build artifacts 
 # outputted from the build stage above
 ###################################################################################
 FROM ros:iron-ros-core AS bob-ros2-iron-prod
+#FROM ros:iron AS bob-ros2-iron-prod
 ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.10/:/usr/local/lib/python3/dist-packages/:/opt/ros/${ROS_DISTRO}/lib/python3.10/site-packages
 ENV PATH=/opt/ros/${ROS_DISTRO}/bin:$PATH
 ENV DEBIAN_FRONTEND=noninteractive
@@ -311,13 +318,13 @@ COPY --from=bob-ros2-iron-build /workspaces/bobcamera/src/ros2/launch* /workspac
 COPY --from=bob-ros2-iron-build /opt/ros2_ws/install/ /opt/ros2_ws/install/
 # install dependencies
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
-        libtbb12 libqt5opengl5 libqt5test5 libdc1394-25 libjsoncpp-dev pip \
-        gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-vaapi \
-        ros-${ROS_DISTRO}-vision-msgs ros-${ROS_DISTRO}-image-transport \
-        # libavcodec58 libavformat58 libswscale5 \
-        # liblapack3 libatlas-base-dev openexr libhdf5-dev \
-        libboost-python-dev libboost-system-dev libtbb-dev \
-        locales tzdata sudo bash-completion \
+    # Nano for debug purposes
+    #nano \
+    libtbb12 libqt5opengl5 libqt5test5 libdc1394-25 libjsoncpp-dev pip \
+    gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-vaapi \
+    locales tzdata sudo bash-completion \
+    libboost-python-dev libboost-system-dev libtbb-dev \        
+    ros-${ROS_DISTRO}-vision-msgs ros-${ROS_DISTRO}-image-transport \
     && pip install Pillow \
     && pip install pymongo \
     && pip install tornado \

@@ -1,52 +1,49 @@
 version: '3'
 services:
-  web:
-    image: ghcr.io/bobcamera/bobcamera/web
-    build: src/web
-    ports:
-      - "8080:8080"
-    environment:
-      - DEBUG=1
+  #web:
+  #  image: ghcr.io/bobcamera/bobcamera/web
+  #  build: src/web
+  #  ports:
+  #    - "8080:8080"
+  #  environment:
+  #    - DEBUG=1
   bob:
-    #image: ghcr.io/bobcamera/bobcamera/dev-install
-    image: bobcamera/bob-ros2-iron-prod
+    image: bobcamera/bob-ros2-iron-prod2:2.1.0
     extra_hosts:
       - "host.docker.internal:host-gateway"
     build:
       context: .
-      target: bob-ros2-dev-install
+      target: bob-ros2-iron-prod
     #user: "${UID}:${GID}"
     ports:
       - "9090:9090"
     environment:  # add in .env
       - BOB_SOURCE=${BOB_SOURCE}
       - BOB_RTSP_URL=${BOB_RTSP_URL}
-      - BOB_RTSP_WIDTH=${BOB_RTSP_WIDTH}
-      - BOB_RTSP_HEIGHT=${BOB_RTSP_HEIGHT}
       - BOB_CAMERA_ID=${BOB_CAMERA_ID}
       - BOB_ENABLE_VISUALISER=${BOB_ENABLE_VISUALISER}
-      - BOB_OPTIMISED=${BOB_OPTIMISED}
       - BOB_ENABLE_RECORDING=${BOB_ENABLE_RECORDING}
       - BOB_BGS_ALGORITHM=${BOB_BGS_ALGORITHM}
       - BOB_TRACKING_SENSITIVITY=${BOB_TRACKING_SENSITIVITY}
       - BOB_TRACKING_USEMASK=${BOB_TRACKING_USEMASK}
       - BOB_TRACKING_MASK_FILE=${BOB_TRACKING_MASK_FILE}
-      - BOB_SIMULATION_WIDTH=${BOB_SIMULATION_WIDTH}
-      - BOB_SIMULATION_HEIGHT=${BOB_SIMULATION_HEIGHT}
+      - BOB_VIDEOS=${BOB_VIDEOS}
       - BOB_SIMULATION_NUM_OBJECTS=${BOB_SIMULATION_NUM_OBJECTS}
+      - RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION}
+      - FASTRTPS_DEFAULT_PROFILES_FILE=${FASTRTPS_DEFAULT_PROFILES_FILE}
     volumes: 
       - ${PWD}/assets/:/workspaces/bobcamera/src/ros2/assets/
-  cron:
-    image: ghcr.io/bobcamera/bob-crontab
-    #privileged: true
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    build:
-      context: .
-      target: bob-crontab
-    #user: "${UID}:${GID}"
-    volumes: 
-      - ${PWD}/assets/:/bob-research/assets/
+  # cron:
+  #   image: ghcr.io/bobcamera/bob-crontab
+  #   #privileged: true
+  #   extra_hosts:
+  #     - "host.docker.internal:host-gateway"
+  #   build:
+  #     context: .
+  #     target: bob-crontab
+  #   #user: "${UID}:${GID}"
+  #   volumes: 
+  #     - ${PWD}/assets/:/bob-research/assets/
 
 volumes:
   assets:

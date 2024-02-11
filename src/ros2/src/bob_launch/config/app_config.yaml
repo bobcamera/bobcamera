@@ -187,7 +187,7 @@ prometheus_metrics_node:
 
 onvif_service_node:
   ros__parameters:
-    onvif_wsdl_path: 'src/bob_monitor/resource/wsdl'
+    onvif_wsdl_path: 'assets/wsdl'
 
 # Web infrastructure
 info_webapi_node:
