@@ -15,6 +15,7 @@
 # --progress=plain this build switch will show entire build output
 # --no-cache this build switch will rebuild and not use any cached output
 
+# docker build --progress=plain --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-opencv:2.1.0 -t bobcamera/bob-opencv:latest --target opencv
 # docker buildx build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-opencv:2.1.0 -t bobcamera/bob-opencv:latest --target opencv
 ###################################################################
 # MWG: This docker stage is used to build OpenCV
@@ -135,15 +136,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends wget tar \
 
 
 
+# docker build --progress=plain --platform linux/amd64 -f Dockerfile . -t bobcamera/boblib:2.1.0 -t bobcamera/boblib:latest --target boblib
 # docker buildx build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/boblib:2.1.0 -t bobcamera/boblib:latest --target boblib
 ###################################################################
 # MWG: This docker stage is used to build BobLib Library
 ###################################################################
 FROM opencv as boblib
+COPY . /opt/bobcamera
 COPY --from=qhy /opt/sdk_qhy /opt/sdk_qhy/
 RUN cd /opt/sdk_qhy && bash install.sh \
     && cd /opt \
-    && GIT_SSL_NO_VERIFY=true git clone --recursive https://github.com/bobcamera/bobcamera.git \
+    #&& GIT_SSL_NO_VERIFY=true git clone --recursive https://github.com/bobcamera/bobcamera.git \
     && mkdir -p /opt/bobcamera/src/boblib/build \
     && cd /opt/bobcamera/src/boblib/build \
     && cmake -DCMAKE_INSTALL_PREFIX=/usr/local .. \
@@ -154,7 +157,7 @@ ENV PYTHONPATH=$PYTHONPATH:/usr/local/lib/python3/dist-packages/
 
 
 
-
+# docker build --progress=plain --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-boblibapp:2.1.0 -t bobcamera/bob-boblibapp:latest --target boblib-app
 # docker buildx build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-boblibapp:2.1.0 -t bobcamera/bob-boblibapp:latest --target boblib-app
 # docker buildx build --progress=plain --push --platform linux/amd64,linux/arm64 -f Dockerfile . -t bobcamera/bob-boblibapp:2.1.0 -t bobcamera/bob-boblibapp:latest --target boblib-app
 # docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY bobcamera/bob-boblibapp:latest bash
@@ -223,8 +226,6 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
         locales tzdata sudo bash-completion \
         libboost-python-dev libboost-system-dev libtbb-dev \
         ros-${ROS_DISTRO}-vision-msgs ros-${ROS_DISTRO}-image-transport \
-        # Install RQT NB: DEV Only
-        ~nros-iron-rqt* \
     && pip install Pillow \
     && pip install pymongo \
     && pip install tornado \
