@@ -1,1 +1,1 @@
-FROM bobcamera/bob-ros2-iron-dev2:latest
+FROM bobcamera/bob-ros2-iron-dev2:2.1.0
