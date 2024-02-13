@@ -1,6 +1,6 @@
 # Docker instructions etc
 
-NOTE: DO NOT INSTALL RQT and be careful with ROS libraries that are dependent on an older version of OpenCVand 
+NOTE: DO NOT INSTALL RQT and be careful with ROS libraries that are dependent on an older version of OpenCV
 
 BOB uses a multistage dockerfile to builds its containers.
 

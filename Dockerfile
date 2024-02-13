@@ -312,6 +312,7 @@ COPY --from=boblib /usr/local/lib/libboblib.a /usr/local/lib
 COPY --from=boblib /usr/local/lib/python3/dist-packages/ /usr/local/lib/python3/dist-packages/
 COPY --from=boblib /usr/lib/python3 /usr/lib/python3
 COPY --from=qhy /opt/sdk_qhy /opt/sdk_qhy/
+COPY media/fisheye_videos /workspaces/bobcamera/media/fisheye_videos
 COPY --from=bob-ros2-iron-build /workspaces/bobcamera/src/ros2/assets /workspaces/bobcamera/src/ros2/assets
 COPY --from=bob-ros2-iron-build /workspaces/bobcamera/src/ros2/install /workspaces/bobcamera/src/ros2/install
 COPY --from=bob-ros2-iron-build /workspaces/bobcamera/src/ros2/config /workspaces/bobcamera/src/ros2/config
@@ -357,9 +358,12 @@ ENTRYPOINT ["/entrypoint.sh"]
 CMD ["ros2", "launch", "bob_launch", "application_launch.py"]
 
 
-
-
-
+# Navigate to http://localhost:8080 or http://127.0.0.1:8080 to view web output
+# docker run -it -p 8080:80 bobcamera/bob-web-prod:1.2.0
+# docker build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-web-prod:1.2.0 -t bobcamera/bob-web-prod:latest --target bob-web-prod
+FROM php:7.4-apache AS bob-web-prod
+RUN apt-get update && apt-get install -y ffmpeg && apt-get clean
+COPY src/web2/src /var/www/html/
 
 
 

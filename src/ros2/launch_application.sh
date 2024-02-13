@@ -26,7 +26,7 @@ export BOB_TRACKING_USEMASK=${BOB_TRACKING_USEMASK:-"False"}
 export BOB_TRACKING_MASK_FILE=${BOB_TRACKING_MASK_FILE:-"assets/masks/mask.jpg"}
 
 # Video files list separated by ';'
-export BOB_VIDEOS=${BOB_VIDEOS:-"/workspaces/bobcamera/media/fisheye_videos/mike_drone.mp4;/workspaces/bobcamera/media/fisheye_videos/mikeg-30min.mp4"}
+export BOB_VIDEOS=${BOB_VIDEOS:-"/workspaces/bobcamera/media/fisheye_videos/mike-drone.mp4;/workspaces/bobcamera/media/fisheye_videos/mikeg-30min.mp4"}
 
 # Simulation settings
 export BOB_SIMULATION_NUM_OBJECTS=${BOB_SIMULATION_NUM_OBJECTS:-"5"}
