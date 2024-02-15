@@ -189,7 +189,7 @@ WORKDIR /root
 
 
 
-# docker build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-iron-dev2:2.1.0 -t bobcamera/bob-ros2-iron-dev2:latest --target bob-ros2-iron-dev
+# docker build --progress=plain --push --platform linux/amd64 -f Dockerfile.works . -t bobcamera/bob-ros2-iron-dev2:2.1.2 -t bobcamera/bob-ros2-iron-dev2:latest --target bob-ros2-iron-dev
 # docker buildx build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-iron-dev2:2.1.0 -t bobcamera/bob-ros2-iron-dev2:latest --target bob-ros2-iron-dev
 # docker buildx build --progress=plain --push --platform linux/amd64,linux/arm64 -f Dockerfile . -t bobcamera/bob-ros2-iron-dev2:2.1.0 -t bobcamera/bob-ros2-iron-dev2:latest --target bob-ros2-iron-dev
 ###################################################################
@@ -278,7 +278,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
 
 
 
-# docker build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-iron-prod2:2.1.0 -t bobcamera/bob-ros2-iron-prod2:latest --target bob-ros2-iron-prod
+# docker build --progress=plain --push --platform linux/amd64 -f Dockerfile.works . -t bobcamera/bob-ros2-iron-prod2:2.1.2 -t bobcamera/bob-ros2-iron-prod2:latest --target bob-ros2-iron-prod
 # docker buildx build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-iron-prod2:2.1.0 -t bobcamera/bob-ros2-iron-prod2:latest --target bob-ros2-iron-prod
 # docker buildx build --progress=plain --push --platform linux/amd64,linux/arm64 -f Dockerfile . -t bobcamera/bob-ros2-iron-prod2:2.1.0 -t bobcamera/bob-ros2-iron-prod2:latest --target bob-ros2-iron-prod
 # docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY -v ~/Source/bobcamera/bobcamera/assets:/workspaces/bobcamera/src/ros2/assets/ bobcamera/bob-ros2-iron-prod2:2.1.0 bash
@@ -321,6 +321,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     libtbb12 libqt5opengl5 libqt5test5 libdc1394-25 libjsoncpp-dev pip \
     gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-vaapi \
     locales tzdata sudo bash-completion \
+    libhdf5-dev libatlas-base-dev \
     libboost-python-dev libboost-system-dev libtbb-dev \        
     ros-${ROS_DISTRO}-vision-msgs ros-${ROS_DISTRO}-image-transport \
     && pip install Pillow \
