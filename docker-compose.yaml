@@ -36,7 +36,6 @@ services:
     volumes: 
       - ${PWD}/assets/:/workspaces/bobcamera/src/ros2/assets/
       - /dev/bus/usb:/dev/bus/usb 
-      - /tmp/.X11-unix:/tmp/.X11-unix
   # cron:
   #   image: ghcr.io/bobcamera/bob-crontab
   #   #privileged: true
