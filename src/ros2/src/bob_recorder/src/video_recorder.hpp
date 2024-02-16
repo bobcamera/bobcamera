@@ -23,7 +23,20 @@ public:
         pre_buffer_ptr_->push_back(std::make_unique<cv::Mat>(img.clone()));
     }
 
-    bool open_new_video(const std::string& out_pipeline, const std::string& codec_str, double video_fps, const cv::Size& frame_size, bool is_color)
+    bool open_new_video(const std::string& full_path, const std::string& codec_str, double video_fps, const cv::Size& frame_size, bool is_color)
+    {
+        const int codec = cv::VideoWriter::fourcc(codec_str[0], codec_str[1], codec_str[2], codec_str[3]);
+
+        if (!video_writer_ptr_->open(full_path, codec, video_fps, frame_size, is_color)) 
+        {
+            return false;
+        }
+
+        write_pre_buffer_to_video();
+        return true;
+    }
+
+    /*bool open_new_video(const std::string& out_pipeline, const std::string& codec_str, double video_fps, const cv::Size& frame_size, bool is_color)
     {
         const int codec = cv::VideoWriter::fourcc(codec_str[0], codec_str[1], codec_str[2], codec_str[3]);
 
@@ -34,7 +47,7 @@ public:
 
         write_pre_buffer_to_video();
         return true;
-    }
+    }*/
 
     void write_pre_buffer_to_video() 
     {

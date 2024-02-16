@@ -27,22 +27,7 @@ def generate_launch_description():
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([
                     LaunchConfiguration('enable_visualiser_arg'), 
-                    " == True", 
-                    " and ", 
-                    LaunchConfiguration('optimised_arg'), 
-                    " == False"]))),
-            ComposableNode(
-                package='bob_visualizers',
-                plugin='FrameViewer',
-                name='single_frame_viewer_node',
-                parameters = [config],
-                extra_arguments=[{'use_intra_process_comms': True}],
-                condition=IfCondition(PythonExpression([
-                    LaunchConfiguration('enable_visualiser_arg'), 
-                    " == True",
-                    " and ", 
-                    LaunchConfiguration('optimised_arg'), 
-                    " == True"]))),
+                    " == True"])))
             ],
             output='screen',
     )
@@ -80,10 +65,6 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-
-        LogInfo(
-            condition=IfCondition(PythonExpression([LaunchConfiguration('optimised_arg'), " == True" ])),
-            msg=['Optimisation enabled.']),
 
         LogInfo(
             condition=IfCondition(PythonExpression([LaunchConfiguration('enable_visualiser_arg'), " == False" ])),
