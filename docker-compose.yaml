@@ -9,6 +9,8 @@ services:
       - "8080:80"
     environment:
       - DEBUG=1
+    volumes: 
+      - ${PWD}/assets/recordings:/var/www/html/videos
   bob:
     image: bobcamera/bob-ros2-iron-prod2:2.1.3
     extra_hosts:
