@@ -10,7 +10,7 @@ services:
     environment:
       - DEBUG=1
   bob:
-    image: bobcamera/bob-ros2-iron-prod2:2.1.2
+    image: bobcamera/bob-ros2-iron-prod2:2.1.3
     extra_hosts:
       - "host.docker.internal:host-gateway"
     build:

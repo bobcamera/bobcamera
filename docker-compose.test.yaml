@@ -1,0 +1,41 @@
+version: '3'
+services:
+  web:
+    image: bobcamera/bob-web-prod:1.2.0
+    build: 
+      context: .
+      target: bob-web-prod
+    ports:
+      - "8080:80"
+    environment:
+      - DEBUG=1
+  bob:
+    image: bobcamera/bob-ros2-iron-prod2:2.1.3
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    build:
+      context: .
+      target: bob-ros2-iron-prod
+    #user: "${UID}:${GID}"
+    ports:
+      - "9090:9090"
+    environment:
+      - BOB_SOURCE="'video_overlay'"
+      - BOB_RTSP_URL=""
+      - BOB_CAMERA_ID=0
+      - BOB_ENABLE_VISUALISER="False"
+      - BOB_ENABLE_RECORDING="False"
+      - BOB_BGS_ALGORITHM="vibe"
+      - BOB_TRACKING_SENSITIVITY="'medium'"
+      - BOB_TRACKING_USEMASK="False"
+      - BOB_TRACKING_MASK_FILE="assets/masks/mask.jpg"
+      - BOB_VIDEOS="/workspaces/bobcamera/media/fisheye_videos/mike-drone.mp4;/workspaces/bobcamera/media/fisheye_videos/mikeg-30min.mp4"
+      - BOB_SIMULATION_NUM_OBJECTS="25"
+      - RMW_IMPLEMENTATION="rmw_fastrtps_cpp"
+      - FASTRTPS_DEFAULT_PROFILES_FILE="/workspaces/bobcamera/src/ros2/config/fastdds.xml"
+    volumes: 
+      - ${PWD}/assets/:/workspaces/bobcamera/src/ros2/assets/
+
+volumes:
+  assets:
+    driver: local
