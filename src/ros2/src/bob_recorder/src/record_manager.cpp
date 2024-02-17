@@ -63,7 +63,7 @@ private:
 
         time_synchronizer_->registerCallback(&RecordManager::process_recordings, this);
 
-        img_recorder_ = std::make_unique<ImageRecorder>(total_pre_frames_, true);
+        img_recorder_ = std::make_unique<ImageRecorder>(total_pre_frames_);
         json_recorder_ = std::make_unique<JsonRecorder>(total_pre_frames_);
         video_recorder_ = std::make_unique<VideoRecorder>(total_pre_frames_);
     };

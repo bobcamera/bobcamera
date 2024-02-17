@@ -8,12 +8,12 @@ struct TrackPoint {
 
 class ImageRecorder {
 public:
-    ImageRecorder(int pre_buffer_size, bool draw_trajectories_enabled = true) 
-        : max_pre_buffer_size_(pre_buffer_size), draw_trajectories_enabled_(draw_trajectories_enabled)
+    ImageRecorder(int pre_buffer_size) : max_pre_buffer_size_(pre_buffer_size)
     {
         pre_buffer_ptr_ = std::make_unique<std::deque<cv::Mat>>();
         heatmap_accumulator_ = cv::Mat();
         frame_for_drawing_ = cv::Mat();
+        draw_trajectories_enabled_ = true;
     }
 
     void accumulate_mask(const cv::Mat& fg_mask) 
@@ -118,7 +118,7 @@ private:
             }
         }
     }
-    
+
     std::vector<cv::Scalar> pre_defined_colors = {
         cv::Scalar(255, 0, 0),     // Bright Red
         cv::Scalar(0, 255, 0),     // Lime Green
@@ -131,7 +131,8 @@ private:
         cv::Scalar(147, 20, 255)   // Deep Pink
     };
 
-    cv::Scalar get_color_for_track(int trackID) {
+    cv::Scalar get_color_for_track(int trackID) 
+    {
         return pre_defined_colors[trackID % pre_defined_colors.size()];
     }
 
