@@ -143,9 +143,8 @@ annotated_frame_resizer_node:
 multi_frame_viewer_node:
   ros__parameters:
     topics: 
-      - 'bob/camera/all_sky/bayer/resized'
-      - 'bob/frames/all_sky/foreground_mask/resized'
       - 'bob/frames/annotated/resized'
+      - 'bob/frames/all_sky/foreground_mask/resized'
 
 annotated_frame_compressor_node:
   ros__parameters:
