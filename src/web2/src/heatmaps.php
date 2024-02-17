@@ -64,6 +64,50 @@
     <script src="https://golden-layout.com/files/latest/js/goldenlayout.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js" integrity="sha512-WoO4Ih0CDOSLYafy22wZD/mcJ7k0ESLqtQsFa6zFKnEUrbtuGU+GkLtVhgt93xa2qewG5gKEC6CWlN8OaCTSVg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <style>
+        /* CSS for the loading spinner */
+        .spinner-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.5); /* Semi-transparent white overlay */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999; /* Ensure it's above other content */
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            background-color: #333;
+            border-radius: 100%;
+            -webkit-animation: sk-scaleout 1.0s infinite ease-in-out;
+            animation: sk-scaleout 1.0s infinite ease-in-out;
+        }
+
+        @-webkit-keyframes sk-scaleout {
+            0% {
+                -webkit-transform: scale(0);
+            }
+            100% {
+                -webkit-transform: scale(1.0);
+                opacity: 0;
+            }
+        }
+
+        @keyframes sk-scaleout {
+            0% {
+                -webkit-transform: scale(0);
+                transform: scale(0);
+            }
+            100% {
+                -webkit-transform: scale(1.0);
+                transform: scale(1.0);
+                opacity: 0;
+            }
+        }
         body .lm_content {
             overflow: scroll;
         }
@@ -130,6 +174,10 @@
     </style>
 </head>
 <body>
+
+<div class="spinner-overlay">
+    <div class="spinner"></div>
+</div>
 <div id="layoutContainer"></div>
 <script>
     var myChart;
@@ -673,5 +721,12 @@
 
 
 </script>
+
+<script>
+        // Hide loading spinner overlay once the page content is fully loaded
+        window.addEventListener('load', function () {
+            document.querySelector('.spinner-overlay').style.display = 'none';
+        });
+    </script>
 </body>
 </html>
