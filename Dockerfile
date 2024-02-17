@@ -20,9 +20,8 @@
 ###################################################################
 # MWG: This docker stage is used to build OpenCV
 ###################################################################
-FROM ubuntu:22.04 as opencv
+FROM ubuntu:22.04 as builder
 ENV TZ=Europe/London
-ENV OPENCV_VERSION=4.9.0
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
     && echo $TZ > /etc/timezone \
     && apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
@@ -32,37 +31,39 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
         wget \
         git \
         unzip \
+        libavcodec-dev \
+        libavformat-dev \
+        libswscale-dev \
+        libv4l-dev \
+        libxvidcore-dev \
+        libx264-dev \
+        libatlas-base-dev \
         python3-dev \
         python3-numpy \
         python3-pip \
+        libtbb2 \
+        libtbb-dev \
+        libdc1394-25 \
+        libdc1394-dev \
+        libopenexr-dev \
+        libunwind-dev \
         libgstreamer-plugins-base1.0-dev \
         libgstreamer-opencv1.0-0 \
         libgstreamer1.0-dev \
-        gstreamer1.0-tools \
+        liblapacke-dev \
+        libva-dev libva-drm2 libva-x11-2 libva-glx2 \
+        libhdf5-dev \
         qtbase5-dev \
         usbutils \
         libusb-1.0-0-dev \
-        libdc1394-dev \
-        libtbb-dev \
-        libeigen3-dev \
-        libva-dev libva-drm2 libva-x11-2 libva-glx2 \
-        # libavcodec-dev \
-        # libavformat-dev \
-        # libswscale-dev \
-        # libv4l-dev \
-        # libxvidcore-dev \
-        # libx264-dev \
-        # libatlas-base-dev \
-        # libtbb2 \
-        # libdc1394-25 \
-        # libopenexr-dev \
-        # libunwind-dev \
-        # liblapacke-dev \
-        # libhdf5-dev \
     && ln -s /usr/bin/python3 /usr/bin/python \
     && apt-get autoclean && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
-    && cd /tmp \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+###################################################################
+FROM builder AS opencv
+ENV OPENCV_VERSION=4.9.0
+RUN cd /tmp \
     && wget --no-check-certificate -O opencv-$OPENCV_VERSION.zip https://github.com/opencv/opencv/archive/$OPENCV_VERSION.zip \
     && wget --no-check-certificate -O opencv_contrib-$OPENCV_VERSION.zip https://github.com/opencv/opencv_contrib/archive/$OPENCV_VERSION.zip \
     && unzip opencv-$OPENCV_VERSION.zip \
@@ -188,7 +189,7 @@ WORKDIR /root
 
 
 
-# docker build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-iron-dev2:2.1.0 -t bobcamera/bob-ros2-iron-dev2:latest --target bob-ros2-iron-dev
+# docker build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-iron-dev2:2.1.2 -t bobcamera/bob-ros2-iron-dev2:latest --target bob-ros2-iron-dev
 # docker buildx build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-iron-dev2:2.1.0 -t bobcamera/bob-ros2-iron-dev2:latest --target bob-ros2-iron-dev
 # docker buildx build --progress=plain --push --platform linux/amd64,linux/arm64 -f Dockerfile . -t bobcamera/bob-ros2-iron-dev2:2.1.0 -t bobcamera/bob-ros2-iron-dev2:latest --target bob-ros2-iron-dev
 ###################################################################
@@ -219,13 +220,9 @@ COPY --from=boblib /usr/lib/python3 /usr/lib/python3
 COPY --from=qhy /opt/sdk_qhy /opt/sdk_qhy/
 # install dependencies
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
-        libtbb12 libqt5opengl5 libqt5test5 libdc1394-25 libjsoncpp-dev pip \
-        # libavcodec58 libavformat58 libswscale5 \
-        # liblapack3 libatlas-base-dev openexr libhdf5-dev \
-        gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-vaapi \
-        locales tzdata sudo bash-completion \
-        libboost-python-dev libboost-system-dev libtbb-dev \
-        libgstreamer-plugins-base1.0-0 libjsoncpp-dev \
+        libtbb12 libqt5opengl5 libqt5test5 libdc1394-25 libgstreamer-plugins-base1.0-0 \
+        libavcodec58 libavformat58 libswscale5 liblapack3 libatlas-base-dev openexr libhdf5-dev \
+        locales tzdata sudo bash-completion libjsoncpp-dev libboost-python-dev libboost-system-dev libtbb-dev pip \
         ros-${ROS_DISTRO}-vision-msgs ros-${ROS_DISTRO}-image-transport \
     && pip install Pillow \
     && pip install pymongo \
@@ -233,7 +230,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     # Install ONVIF library so we can get camera details using the ONVIF protocol
     && pip install onvif2_zeep \
     # Install the library used to convert the svg mask to a PNG and then a JPG
-    && pip install cairosvg \
+    && pip install cairosvg \    
     # Install QHY SDK
     && cd /opt/sdk_qhy && bash install.sh \
     # Install the libs locally
@@ -259,9 +256,7 @@ RUN mkdir -p /opt/ros2_ws/src \
    && bash /opt/ros/${ROS_DISTRO}/setup.bash \
    && rosdep update \
    && rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y \
-   && colcon build --parallel-workers $(nproc) --cmake-args -DCMAKE_BUILD_TYPE=Release \
-   && rm -rf log build
-
+   && colcon build
 
 
 # docker build --progress=plain --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-iron-build2:2.1.0 -t bobcamera/bob-ros2-iron-build2:latest --target bob-ros2-iron-build
@@ -283,7 +278,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
 
 
 
-# docker build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-iron-prod2:2.1.0 -t bobcamera/bob-ros2-iron-prod2:latest --target bob-ros2-iron-prod
+# docker build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-iron-prod2:2.1.4 -t bobcamera/bob-ros2-iron-prod2:latest --target bob-ros2-iron-prod
 # docker buildx build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-iron-prod2:2.1.0 -t bobcamera/bob-ros2-iron-prod2:latest --target bob-ros2-iron-prod
 # docker buildx build --progress=plain --push --platform linux/amd64,linux/arm64 -f Dockerfile . -t bobcamera/bob-ros2-iron-prod2:2.1.0 -t bobcamera/bob-ros2-iron-prod2:latest --target bob-ros2-iron-prod
 # docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY -v ~/Source/bobcamera/bobcamera/assets:/workspaces/bobcamera/src/ros2/assets/ bobcamera/bob-ros2-iron-prod2:2.1.0 bash
@@ -326,6 +321,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     libtbb12 libqt5opengl5 libqt5test5 libdc1394-25 libjsoncpp-dev pip \
     gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-vaapi \
     locales tzdata sudo bash-completion \
+    libhdf5-dev libatlas-base-dev \
     libboost-python-dev libboost-system-dev libtbb-dev \        
     ros-${ROS_DISTRO}-vision-msgs ros-${ROS_DISTRO}-image-transport \
     && pip install Pillow \
@@ -361,131 +357,10 @@ CMD ["ros2", "launch", "bob_launch", "application_launch.py"]
 
 # Navigate to http://localhost:8080 or http://127.0.0.1:8080 to view web output
 # docker run -it -p 8080:80 bobcamera/bob-web-prod:1.2.0 bash
-# docker build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-web-prod:1.2.0 -t bobcamera/bob-web-prod:latest --target bob-web-prod
+# docker build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-web-prod:1.2.1 -t bobcamera/bob-web-prod:latest --target bob-web-prod
 FROM php:8.3-apache AS bob-web-prod
 RUN apt-get update && apt-get install -y ffmpeg && apt-get clean
 COPY src/web2/src /var/www/html/
-
-
-
-###################################################################################
-# MWG: This is older stuff I think, keeo here for reference
-###################################################################################
-
-
-# ###################################################################
-# FROM boblib-app AS bob-ros2-dev
-# ENV DEBIAN_FRONTEND=noninteractive
-# ENV ROS_DISTRO=iron
-# ENV LANG=en_GB.UTF-8
-# ARG USERNAME=ros
-# ARG USER_UID=1000
-# ARG USER_GID=$USER_UID
-# RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
-#       build-essential \
-#       cmake \
-#       pkg-config \
-#       libtbb-dev \
-#       python3-dev \
-#       python3-numpy \
-#       python3-pip \
-#       python3-argcomplete \
-#       wget \
-#       git \
-#       libusb-1.0-0-dev \
-#       locales \
-#       curl \
-#       gnupg2 \
-#       lsb-release \
-#       sudo \
-#       tzdata \
-#       bash-completion \
-#       libboost-python-dev \
-#       libboost-system-dev \
-#       libjsoncpp-dev \
-#    && locale-gen en_GB.UTF-8 \
-#    && update-locale LC_ALL=en_GB.UTF-8 LANG=en_GB.UTF-8 \
-#    && dpkg-reconfigure --frontend noninteractive tzdata \
-#    && ln -s /usr/bin/python3 /usr/bin/python \
-#    && apt-get autoclean && apt-get clean \
-#    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp \
-#    && curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg \
-#    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null \
-#    && apt-get update && apt-get install -y \
-#          ros-${ROS_DISTRO}-ros-base \
-#          ros-${ROS_DISTRO}-rosbridge-server \
-#          ros-${ROS_DISTRO}-vision-msgs \
-#          ros-${ROS_DISTRO}-rmw-cyclonedds-cpp \
-#          python3-argcomplete \
-#          python3-vcstool \
-#          python3-rosdep \
-#          python3-colcon-common-extensions \
-#    && apt-get remove libopencv-dev \
-#    && rm -rf /var/lib/apt/lists/* \
-#    && rosdep init || echo "rosdep already initialized" \
-#    && rosdep update \
-#    && groupadd --gid $USER_GID $USERNAME \
-#    && useradd -s /bin/bash --uid $USER_UID --gid $USER_GID -m $USERNAME \
-#    # [Optional] Add sudo support for the non-root user
-#    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME\
-#    && chmod 0440 /etc/sudoers.d/$USERNAME \
-#    && echo "source /usr/share/bash-completion/completions/git" >> /home/$USERNAME/.bashrc \
-#    && echo "export DISPLAY=:0" >> /home/$USERNAME/.bashrc \
-#    && echo "if [ -f /opt/ros/${ROS_DISTRO}/setup.bash ]; then source /opt/ros/${ROS_DISTRO}/setup.bash; fi" >> /home/$USERNAME/.bashrc
-# #    && echo "if [ -f /opt/vulcanexus/${ROS_DISTRO}/setup.bash ]; then source /opt/vulcanexus/${ROS_DISTRO}/setup.bash; fi" >> /home/$USERNAME/.bashrc
-# ENV AMENT_PREFIX_PATH=/opt/ros/${ROS_DISTRO}
-# ENV COLCON_PREFIX_PATH=/opt/ros/${ROS_DISTRO}
-# ENV LD_LIBRARY_PATH=/opt/ros/${ROS_DISTRO}/lib
-# ENV PATH=/opt/ros/${ROS_DISTRO}/bin:$PATH
-# ENV PYTHONPATH=$PYTHONPATH:/opt/ros/${ROS_DISTRO}/lib/python3.10/site-packages
-# ENV ROS_PYTHON_VERSION=3
-# ENV ROS_VERSION=2
-# # Building new ros-${ROS_DISTRO}-vision-opencv
-# WORKDIR /opt/ros2_ws
-# RUN mkdir -p /opt/ros2_ws/src \
-#    && git clone https://github.com/ros-perception/vision_opencv.git \
-#    && bash /opt/ros/${ROS_DISTRO}/setup.bash \
-#    && rosdep update \
-#    && rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y \
-#    && colcon build --allow-overriding cv_bridge
-# ENV DEBIAN_FRONTEND=
-
-
-
-# ###################################################################
-# #FROM bob-ros2-dev AS bob-ros2-dev-install
-# FROM bobcamera/bob-ros2-dev AS bob-ros2-dev-install
-# COPY src/ros2 /workspaces/bobcamera/src/ros2
-# WORKDIR /workspaces/bobcamera/src/ros2
-
-# # RUN vcs import < src/ros2.repos src && \
-# #     rosdep update && \
-# #     rosdep install --from-paths src --ignore-src -y && \
-# #     colcon build --parallel-workers $(nproc) --cmake-args -DCMAKE_BUILD_TYPE=Release && \
-# #     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-# ENV BOB_SOURCE="'rtsp'" \
-#     BOB_RTSP_URL="rtsp://bob:bob!@10.20.30.75:554/cam/realmonitor?channel=1&subtype=0" \
-#     BOB_RTSP_WIDTH="1920" \
-#     BOB_RTSP_HEIGHT="1080" \
-#     BOB_CAMERA_ID="0" \
-#     BOB_ENABLE_VISUALISER="False" \
-#     BOB_OPTIMISED="True" \
-#     BOB_ENABLE_RECORDING="False" \
-#     RMW_IMPLEMENTATION="rmw_fastrtps_cpp" \
-#     FASTRTPS_DEFAULT_PROFILES_FILE="/workspaces/bobcamera/src/ros2/config/fastdds.xml" \
-#     BOB_BGS_ALGORITHM="vibe" \
-#     BOB_TRACKING_SENSITIVITY="'medium'" \
-#     BOB_TRACKING_USEMASK="False" \
-#     BOB_TRACKING_MASK_FILE="assets/masks/mask.jpg" \
-#     BOB_SIMULATION_WIDTH="2560" \
-#     BOB_SIMULATION_HEIGHT="2560" \
-#     BOB_SIMULATION_NUM_OBJECTS="5" \
-#     BOB_ENABLE_VISUALISER="False"
-
-# COPY entrypoint.sh /
-# ENTRYPOINT ["/entrypoint.sh"]
-# CMD ["ros2", "launch", "bob_launch", "application_launch.py"]
 
 
 
