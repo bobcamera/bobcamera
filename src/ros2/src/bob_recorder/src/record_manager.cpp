@@ -63,7 +63,7 @@ private:
 
         time_synchronizer_->registerCallback(&RecordManager::process_recordings, this);
 
-        img_recorder_ = std::make_unique<ImageRecorder>(total_pre_frames_);
+        img_recorder_ = std::make_unique<ImageRecorder>(total_pre_frames_, true);
         json_recorder_ = std::make_unique<JsonRecorder>(total_pre_frames_);
         video_recorder_ = std::make_unique<VideoRecorder>(total_pre_frames_);
     };
@@ -239,7 +239,7 @@ private:
                     video_recorder_->open_new_video(full_path, codec_str_, video_fps_, img.size(), img.channels() == 3);                    
 
                     img_recorder_->update_frame_for_drawing(img);
-                    img_recorder_->accumulate_pre_buffer_images();
+                    // img_recorder_->accumulate_pre_buffer_images(); // skipping for now - processor intensive
                 } 
                 else 
                 {
@@ -255,6 +255,13 @@ private:
                 json_recorder_->add_to_buffer(json_data, false);
                 video_recorder_->write_frame(img);
                 img_recorder_->accumulate_mask(fg_img);
+
+                for (const auto& detection : tracking_msg->detections)
+                {
+                    const auto& bbox = detection.bbox;
+                    double area = bbox.size_x * bbox.size_y; 
+                    img_recorder_->store_trajectory_point(detection.id, cv::Point(bbox.center.position.x, bbox.center.position.y), area);
+                }
 
                 if (tracking_msg->state.trackable == 0) 
                 {

@@ -1,8 +1,15 @@
 #include <opencv2/opencv.hpp>
 
+struct TrackPoint {
+    cv::Point point;
+    double bbox_area; 
+    TrackPoint(const cv::Point& pt, double area) : point(pt), bbox_area(area) {}
+};
+
 class ImageRecorder {
 public:
-    ImageRecorder(int pre_buffer_size) : max_pre_buffer_size_(pre_buffer_size)
+    ImageRecorder(int pre_buffer_size, bool draw_trajectories_enabled = true) 
+        : max_pre_buffer_size_(pre_buffer_size), draw_trajectories_enabled_(draw_trajectories_enabled)
     {
         pre_buffer_ptr_ = std::make_unique<std::deque<cv::Mat>>();
         heatmap_accumulator_ = cv::Mat();
@@ -22,10 +29,13 @@ public:
     void reset() 
     {
         heatmap_accumulator_ = cv::Mat::zeros(heatmap_accumulator_.size(), heatmap_accumulator_.type());
+        track_trajectories_.clear();
     }
 
     bool write_image(const std::string& full_path)
     {
+        draw_trajectories();
+
         cv::Mat converted_heatmap;
         if (heatmap_accumulator_.channels() == 1) 
         {
@@ -68,9 +78,68 @@ public:
         pre_buffer_ptr_->clear();
     }
 
+    void store_trajectory_point(int detection_id, const cv::Point& point, double area)
+    {
+        track_trajectories_[detection_id].emplace_back(point, area);
+    }
+
+    void set_draw_trajectories_enabled(bool enabled) 
+    {
+        draw_trajectories_enabled_ = enabled;
+    }
+
+    bool is_draw_trajectories_enabled() const 
+    {
+        return draw_trajectories_enabled_;
+    }
+
 private:
+
+    void draw_trajectories()
+    {
+        if (!draw_trajectories_enabled_)
+            return;
+
+        for (const auto& track : track_trajectories_)
+        {
+            cv::Scalar track_color = get_color_for_track(track.first); 
+
+            for (size_t i = 1; i < track.second.size(); i++)
+            {
+                int thickness = std::max(1, static_cast<int>(sqrt(track.second[i].bbox_area)));
+                thickness = std::min(thickness, 10);
+                int thickness_scaled = std::max(1, static_cast<int>(thickness * 0.2));
+                cv::line(frame_for_drawing_, track.second[i - 1].point, track.second[i].point, track_color, thickness_scaled);
+
+                if (i == 1)
+                {
+                    cv::drawMarker(frame_for_drawing_, track.second[0].point, track_color, cv::MARKER_DIAMOND, 10, thickness);
+                }
+            }
+        }
+    }
+    
+    std::vector<cv::Scalar> pre_defined_colors = {
+        cv::Scalar(255, 0, 0),     // Bright Red
+        cv::Scalar(0, 255, 0),     // Lime Green
+        cv::Scalar(0, 255, 255),   // Bright Yellow
+        cv::Scalar(255, 0, 255),   // Magenta
+        cv::Scalar(0, 165, 255),   // Orange
+        cv::Scalar(255, 255, 0),   // Bright Cyan
+        cv::Scalar(0, 215, 255),   // Gold
+        cv::Scalar(238, 130, 238), // Violet
+        cv::Scalar(147, 20, 255)   // Deep Pink
+    };
+
+    cv::Scalar get_color_for_track(int trackID) {
+        return pre_defined_colors[trackID % pre_defined_colors.size()];
+    }
+
     std::unique_ptr<std::deque<cv::Mat>> pre_buffer_ptr_;
+    std::map<int, std::vector<TrackPoint>> track_trajectories_;
     size_t max_pre_buffer_size_;
     cv::Mat heatmap_accumulator_;
     cv::Mat frame_for_drawing_;
+    bool draw_trajectories_enabled_;
+
 };
