@@ -170,7 +170,12 @@
             border: 1px solid greenyellow; /* Change as needed */
             border-radius: 5px;
         }
-
+        /* Add your CSS styles here */
+        #player-container {
+            position: relative;
+            width: 100%; /* Adjust width as needed */
+            height: 600px; /* Adjust height as needed */
+        }
     </style>
 </head>
 <body>
@@ -317,6 +322,7 @@
 
         myLayout.registerComponent('Video Player', function(container, componentState) {
             container.getElement().html(`
+            <div id="player-container">
             <video id="player" playsinline controls>
                 <source src="<?php echo 'videos/' . $date . '/allsky/' . $time . '.mp4'; ?>" />
             </video>
@@ -324,7 +330,7 @@
             <input type="range" id="opacitySlider" min="0" max="100" value="30" style="position: absolute; z-index: 10; width: 150px; top: 20px; left: 10px;">
             <div id="plyr-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none;">
                 <img id="bigHeatmapImage" src="" style="height: 100%; opacity: 0.3;">
-            </div>`);
+            </div></div>`);
 
             container.on('open', function() {
                 const video = document.getElementById('player');
@@ -424,47 +430,64 @@
         document.addEventListener('DOMContentLoaded', function() {
 
             <?php
-                $directory = $videoDirectory;
+
+                $directory = $jsonDirectory;
                 $videos = [];
-                function parseDuration($ffmpegOutput) {
-                    if (preg_match('/Duration: (\d+):(\d+):(\d+\.\d+)/', $ffmpegOutput, $matches)) {
-                        $hours = $matches[1];
-                        $minutes = $matches[2];
-                        $seconds = floatval($matches[3]);
-                        return ($hours * 3600) + ($minutes * 60) + $seconds;
-                    }
-                    return 0;
-                }
+                $logFilePath = 'logfile.txt'; // Specify the path to your log file
+
                 function extractTimestampFromFilename($filename) {
                     return intval(pathinfo($filename, PATHINFO_FILENAME));
                 }
+
                 $earliestTimestamp = PHP_INT_MAX;
                 $latestTimestamp = 0;
+
                 if ($handle = opendir($directory)) {
+                    
                     while (false !== ($file = readdir($handle))) {
-                        if (pathinfo($file, PATHINFO_EXTENSION) == 'mp4') {
-                            $timestamp = extractTimestampFromFilename($file);
-                            $ffmpegOutput = shell_exec("ffmpeg -i " . escapeshellarg($directory . '/' . $file) . " 2>&1");
-                            $duration = parseDuration($ffmpegOutput);
+                        
+                        if (pathinfo($file, PATHINFO_EXTENSION) == 'json') {
 
-                            $videos[] = [
-                                'name' => $file,
-                                'startTimestamp' => $timestamp,
-                                'duration' => $duration
-                            ];
+                            $jsonFilePath = $directory . '/' . $file;
+                            $jsonData = json_decode(file_get_contents($jsonFilePath), true);
+                            if ($jsonData && count($jsonData) >= 3) {
 
-                            $earliestTimestamp = min($earliestTimestamp, $timestamp);
-                            $latestTimestamp = max($latestTimestamp, $timestamp + $duration);
+                                $timestamp = extractTimestampFromFilename($file);
+                                $startTimestamp = $jsonData[1]['time_ns'];
+                                $endTimestamp = $jsonData[count($jsonData) - 1]['time_ns'];
+                                $duration = ($endTimestamp - $startTimestamp) / 1e9;  // ns to s
+
+                                $videoName = str_replace('.json', '.mp4', $file);
+                            
+                                // Construct video data array
+                                $videos[] = [
+                                    'name' => $videoName,
+                                    'startTimestamp' => $timestamp,
+                                    'duration' => $duration
+                                ];
+                       
+                                $earliestTimestamp = min($earliestTimestamp, $timestamp);
+                                $latestTimestamp = max($latestTimestamp, $timestamp + $duration);
+
+                            } else {
+                                // Log error if JSON data doesn't match expected structure
+                            }
                         }
                     }
                     closedir($handle);
+                } else {
+
                 }
-                // Adjust the start and end times to be one minute before and after the video clips
+                
                 $adjustedStart = $earliestTimestamp - 60; // One minute before the first clip
-                $adjustedEnd = $latestTimestamp + 60; // One minute after the last clip
+                $adjustedEnd = $latestTimestamp + 60; // One minute after the last clip      
+
+                $adjustedStartMillis = round($adjustedStart * 1000);
+                $adjustedEndMillis = round($adjustedEnd * 1000);
+
                 echo 'var videoData = ' . json_encode($videos) . ';';
-                echo 'var adjustedStart = ' . $adjustedStart * 1000 . ';'; // Convert to milliseconds
-                echo 'var adjustedEnd = ' . $adjustedEnd * 1000 . ';'; // Convert to milliseconds
+                echo 'var adjustedStart = ' . $adjustedStartMillis . ';';
+                echo 'var adjustedEnd = ' . $adjustedEndMillis . ';';
             ?>
 
             updateHeatmapSrc('<?php echo 'videos/'. $date .'/heatmaps/'. $time . '.jpg'; ?>');

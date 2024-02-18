@@ -95,7 +95,7 @@ class ConfigDiscoverer():
                     counter = counter + 1
                     if success:
                         self.height, self.width, channels = frame.shape
-                        print(f"Discovery - OpenCV Details :- width:{self.width}, height: {self.height} @ FPS: {self.fps}")
+                        print(f"Discovery - OpenCV (v{cv2.__version__}) Details :- width:{self.width}, height: {self.height} @ FPS: {self.fps}")
                         success = True
                         break
                     
