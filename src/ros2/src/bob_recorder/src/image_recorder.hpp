@@ -108,7 +108,7 @@ private:
             {
                 int thickness = std::max(1, static_cast<int>(sqrt(track.second[i].bbox_area)));
                 thickness = std::min(thickness, 10);
-                int thickness_scaled = std::max(1, static_cast<int>(thickness * 0.2));
+                int thickness_scaled = std::max(1, static_cast<int>(thickness * 0.35));
                 cv::line(frame_for_drawing_, track.second[i - 1].point, track.second[i].point, track_color, thickness_scaled);
 
                 if (i == 1)
