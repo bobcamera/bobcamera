@@ -9,8 +9,9 @@ services:
       - "8080:80"
     environment:
       - DEBUG=1
-    volumes: 
-      - ${PWD}/assets/recordings:/var/www/html/videos
+  # If you want to view recordings taken by bob, uncomment the comment below.      
+  #  volumes: 
+  #    - ${PWD}/assets/recordings:/var/www/html/videos
     depends_on:
       - bob
   bob:
@@ -40,9 +41,9 @@ services:
     volumes: 
       - ${PWD}/assets/:/workspaces/bobcamera/src/ros2/assets/
       - ${PWD}/media:/workspaces/bobcamera/media
-    # If you want to use a usb camera uncomment the devices comment below
-    #devices:
-    #  - /dev/video0:/dev/video0 
+  # If you want to use a usb camera uncomment the devices comment below
+  #  devices:
+  #    - /dev/video0:/dev/video0 
   # cron:
   #   image: ghcr.io/bobcamera/bob-crontab
   #   #privileged: true
