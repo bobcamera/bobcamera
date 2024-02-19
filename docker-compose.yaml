@@ -1,7 +1,7 @@
 version: '3'
 services:
   web:
-    image: bobcamera/bob-web-prod:1.2.5
+    image: bobcamera/bob-web-prod:1.2.6
     build: 
       context: .
       target: bob-web-prod
@@ -10,12 +10,12 @@ services:
     environment:
       - DEBUG=1
   # If you want to view recordings taken by bob, uncomment the comment below.      
-  #  volumes: 
-  #    - ${PWD}/assets/recordings:/var/www/html/videos
+    volumes: 
+      - ${PWD}/assets/recordings:/var/www/html/videos
     depends_on:
       - bob
   bob:
-    image: bobcamera/bob-ros2-prod:1.2.5
+    image: bobcamera/bob-ros2-prod:1.2.6
     extra_hosts:
       - "host.docker.internal:host-gateway"
     build:
