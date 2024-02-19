@@ -11,6 +11,8 @@ services:
       - DEBUG=1
     volumes: 
       - ${PWD}/assets/recordings:/var/www/html/videos
+    depends_on:
+      - bob
   bob:
     image: bobcamera/bob-ros2-prod:1.2.5
     extra_hosts:
