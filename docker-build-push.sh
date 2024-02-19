@@ -27,11 +27,12 @@ echo "Version number entered: $version_number"
 rm -r ./src/ros2/assets/calibration/*
 rm -r ./src/ros2/assets/config/*
 rm -r ./src/ros2/assets/masks/*
-rm -r ./src/ros2/assets/recording/*
+rm -r ./src/ros2/assets/recordings/*
 rm -r ./src/ros2/assets/wsdl/*
 
 docker build \
     --progress=plain \
+    --push \
     --platform linux/amd64 \
     -f Dockerfile . \
     -t bobcamera/bob-opencv:$version_number \
@@ -59,16 +60,16 @@ docker build \
     --push \
     --platform linux/amd64 \
     -f Dockerfile . \
-    -t bobcamera/bob-ros2-iron-dev:$version_number \
-    -t bobcamera/bob-ros2-iron-dev:latest \
+    -t bobcamera/bob-ros2-dev:$version_number \
+    -t bobcamera/bob-ros2-dev:latest \
     --target bob-ros2-iron-dev
 
 docker build \
     --progress=plain \
     --platform linux/amd64 \
     -f Dockerfile . \
-    -t bobcamera/bob-ros2-iron-build:$version_number \
-    -t bobcamera/bob-ros2-iron-build:latest \
+    -t bobcamera/bob-ros2-build:$version_number \
+    -t bobcamera/bob-ros2-build:latest \
     --target bob-ros2-iron-build
 
 docker build \
@@ -76,8 +77,8 @@ docker build \
     --push \
     --platform linux/amd64 \
     -f Dockerfile . \
-    -t bobcamera/bob-ros2-iron-prod:$version_number \
-    -t bobcamera/bob-ros2-iron-prod:latest \
+    -t bobcamera/bob-ros2-prod:$version_number \
+    -t bobcamera/bob-ros2-prod:latest \
     --target bob-ros2-iron-prod
 
 docker build \

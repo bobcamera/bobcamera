@@ -1,7 +1,7 @@
 version: '3'
 services:
   web:
-    image: bobcamera/bob-web-prod:1.2.1
+    image: bobcamera/bob-web-prod:1.2.5
     build: 
       context: .
       target: bob-web-prod
@@ -12,7 +12,7 @@ services:
     volumes: 
       - ${PWD}/assets/recordings:/var/www/html/videos
   bob:
-    image: bobcamera/bob-ros2-iron-prod2:2.1.4
+    image: bobcamera/bob-ros2-prod:1.2.5
     extra_hosts:
       - "host.docker.internal:host-gateway"
     build:

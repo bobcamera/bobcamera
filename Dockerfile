@@ -359,7 +359,7 @@ CMD ["ros2", "launch", "bob_launch", "application_launch.py"]
 # docker run -it -p 8080:80 bobcamera/bob-web-prod:1.2.0 bash
 # docker build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-web-prod:1.2.1 -t bobcamera/bob-web-prod:latest --target bob-web-prod
 FROM php:8.3-apache AS bob-web-prod
-RUN apt-get update && apt-get install -y ffmpeg && apt-get clean
+#RUN apt-get update && apt-get install -y ffmpeg && apt-get clean
 COPY src/web2/src /var/www/html/
 
 
