@@ -28,32 +28,41 @@ public:
 
     void reset() 
     {
-        heatmap_accumulator_ = cv::Mat::zeros(heatmap_accumulator_.size(), heatmap_accumulator_.type());
+        heatmap_accumulator_ = cv::Mat();
         track_trajectories_.clear();
     }
 
-    bool write_image(const std::string& full_path)
-    {
-        draw_trajectories();
+bool write_image(const std::string& full_path)
+{
+    draw_trajectories();
 
+    cv::Mat overlay;
+
+    if (!heatmap_accumulator_.empty()) 
+    {
         cv::Mat converted_heatmap;
         if (heatmap_accumulator_.channels() == 1) 
         {
             cv::cvtColor(heatmap_accumulator_, converted_heatmap, cv::COLOR_GRAY2BGR);
         } 
 
-        cv::Mat overlay;
         cv::addWeighted(frame_for_drawing_, 0.5, converted_heatmap, 0.5, 0, overlay);
-
-        if (cv::imwrite(full_path, overlay)) 
-        {
-            return true;
-        } 
-        else 
-        {
-            return false;
-        }
     }
+    else 
+    {
+        overlay = frame_for_drawing_.clone();
+    }
+
+    if (cv::imwrite(full_path, overlay)) 
+    {
+        return true;
+    } 
+    else 
+    {
+        return false;
+    }
+}
+
 
     void update_frame_for_drawing(const cv::Mat& img) 
     {
@@ -108,7 +117,7 @@ private:
             {
                 int thickness = std::max(1, static_cast<int>(sqrt(track.second[i].bbox_area)));
                 thickness = std::min(thickness, 10);
-                int thickness_scaled = std::max(1, static_cast<int>(thickness * 0.35));
+                int thickness_scaled = std::max(1, static_cast<int>(thickness * 0.40));
                 cv::line(frame_for_drawing_, track.second[i - 1].point, track.second[i].point, track_color, thickness_scaled);
 
                 if (i == 1)

@@ -24,6 +24,8 @@ public:
     explicit RecordManager(const rclcpp::NodeOptions& options)
     : ParameterNode("recorder_manager", options)
     , current_state_(RecordingState::BeforeStart)
+    , prev_frame_width_(0)
+    , prev_frame_height_(0)
     {
         one_shot_timer_ = this->create_wall_timer(
             std::chrono::seconds(2), 
@@ -213,6 +215,21 @@ private:
             cv::Mat img;
             ImageUtils::convert_image_msg(image_msg, img, true);
 
+            if (current_state_ == RecordingState::BeforeStart && prev_frame_width_ == 0 && prev_frame_height_ == 0)
+            {
+                // Initialize prev_frame_width_ and prev_frame_height_ with the dimensions of the first received image
+                prev_frame_width_ = img.cols;
+                prev_frame_height_ = img.rows;
+            }
+            else if(img.rows != prev_frame_height_ || img.cols != prev_frame_width_ )
+            {
+                RCLCPP_INFO(get_logger(), "Frame dimensions changed. ");
+                prev_frame_height_ = img.rows;
+                prev_frame_width_ = img.cols;
+                current_state_ = RecordingState::AfterEnd;
+                current_end_frame_ = 0;
+            }
+
             cv::Mat fg_img;
             ImageUtils::convert_image_msg(image_fg_msg, fg_img, false);
 
@@ -258,9 +275,12 @@ private:
 
                 for (const auto& detection : tracking_msg->detections)
                 {
-                    const auto& bbox = detection.bbox;
-                    double area = bbox.size_x * bbox.size_y; 
-                    img_recorder_->store_trajectory_point(detection.id, cv::Point(bbox.center.position.x, bbox.center.position.y), area);
+                    if(detection.state == 2) // ActiveTarget
+                    {
+                        const auto& bbox = detection.bbox;
+                        double area = bbox.size_x * bbox.size_y; 
+                        img_recorder_->store_trajectory_point(detection.id, cv::Point(bbox.center.position.x, bbox.center.position.y), area);
+                    }
                 }
 
                 if (tracking_msg->state.trackable == 0) 
@@ -342,6 +362,8 @@ private:
     size_t current_end_frame_;
     size_t total_pre_frames_;
     int number_seconds_save_;
+    int prev_frame_width_;
+    int prev_frame_height_;
 };
 
 
