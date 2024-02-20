@@ -62,7 +62,7 @@ docker build \
     -f Dockerfile . \
     -t bobcamera/bob-ros2-dev:$version_number \
     -t bobcamera/bob-ros2-dev:latest \
-    --target bob-ros2-iron-dev
+    --target bob-ros2-dev
 
 docker build \
     --progress=plain \
@@ -70,7 +70,7 @@ docker build \
     -f Dockerfile . \
     -t bobcamera/bob-ros2-build:$version_number \
     -t bobcamera/bob-ros2-build:latest \
-    --target bob-ros2-iron-build
+    --target bob-ros2-build
 
 docker build \
     --progress=plain \
@@ -79,7 +79,7 @@ docker build \
     -f Dockerfile . \
     -t bobcamera/bob-ros2-prod:$version_number \
     -t bobcamera/bob-ros2-prod:latest \
-    --target bob-ros2-iron-prod
+    --target bob-ros2-prod
 
 docker build \
     --progress=plain \
