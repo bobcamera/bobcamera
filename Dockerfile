@@ -10,16 +10,14 @@
 # docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY bobcamera/boblib-app:latest bash
 # docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY bobcamera/boblib-opencv:latest bash
 
-
-# MWG 2024.02.10 Verisoned all containers to 2.1.0 as I need to test this stuff and don't want to interfere with existing containers
 # --progress=plain this build switch will show entire build output
 # --no-cache this build switch will rebuild and not use any cached output
 
-# docker build --progress=plain --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-opencv:2.1.0 -t bobcamera/bob-opencv:latest --target opencv
-# docker buildx build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-opencv:2.1.0 -t bobcamera/bob-opencv:latest --target opencv
-###################################################################
-# MWG: This docker stage is used to build OpenCV
-###################################################################
+# docker build --progress=plain --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-opencv:1.2.7 -t bobcamera/bob-opencv:latest --target opencv
+# docker buildx build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-opencv:1.2.7 -t bobcamera/bob-opencv:latest --target opencv
+#############################################################################
+# MWG: This docker stage is used to setup and build the OpenCV builder image
+#############################################################################
 FROM ubuntu:22.04 as builder
 ENV TZ=Europe/London
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
@@ -60,6 +58,8 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
     && apt-get autoclean && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
+###################################################################
+# MWG: This docker stage is used to build OpenCV
 ###################################################################
 FROM builder AS opencv
 ENV OPENCV_VERSION=4.9.0
@@ -109,9 +109,6 @@ RUN cd /tmp \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.10/
 
-
-
-
 ###################################################################
 # MWG: This docker stage is used to build the QHY stuff
 ###################################################################
@@ -132,13 +129,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends wget tar \
     && cd $TMPDIR/sdk_qhy \
     && bash install.sh
 
-
-
-
-
-
-# docker build --progress=plain --platform linux/amd64 -f Dockerfile . -t bobcamera/boblib:2.1.0 -t bobcamera/boblib:latest --target boblib
-# docker buildx build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/boblib:2.1.0 -t bobcamera/boblib:latest --target boblib
+# docker build --progress=plain --platform linux/amd64 -f Dockerfile . -t bobcamera/boblib:1.2.7 -t bobcamera/boblib:latest --target boblib
+# docker buildx build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/boblib:1.2.7 -t bobcamera/boblib:latest --target boblib
 ###################################################################
 # MWG: This docker stage is used to build BobLib Library
 ###################################################################
@@ -155,12 +147,9 @@ RUN cd /opt/sdk_qhy && bash install.sh \
     && make install
 ENV PYTHONPATH=$PYTHONPATH:/usr/local/lib/python3/dist-packages/
 
-
-
-
-# docker build --progress=plain --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-boblibapp:2.1.0 -t bobcamera/bob-boblibapp:latest --target boblib-app
-# docker buildx build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-boblibapp:2.1.0 -t bobcamera/bob-boblibapp:latest --target boblib-app
-# docker buildx build --progress=plain --push --platform linux/amd64,linux/arm64 -f Dockerfile . -t bobcamera/bob-boblibapp:2.1.0 -t bobcamera/bob-boblibapp:latest --target boblib-app
+# docker build --progress=plain --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-boblibapp:1.2.7 -t bobcamera/bob-boblibapp:latest --target boblib-app
+# docker buildx build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-boblibapp:1.2.7 -t bobcamera/bob-boblibapp:latest --target boblib-app
+# docker buildx build --progress=plain --push --platform linux/amd64,linux/arm64 -f Dockerfile . -t bobcamera/bob-boblibapp:1.2.7 -t bobcamera/bob-boblibapp:latest --target boblib-app
 # docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY bobcamera/bob-boblibapp:latest bash
 ###################################################################
 # MWG: This docker stage is used to build BobLib Application
@@ -187,17 +176,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.10/:/usr/local/lib/python3/dist-packages/
 WORKDIR /root
 
-
-
-# docker build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-iron-dev2:2.1.2 -t bobcamera/bob-ros2-iron-dev2:latest --target bob-ros2-iron-dev
-# docker buildx build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-iron-dev2:2.1.0 -t bobcamera/bob-ros2-iron-dev2:latest --target bob-ros2-iron-dev
-# docker buildx build --progress=plain --push --platform linux/amd64,linux/arm64 -f Dockerfile . -t bobcamera/bob-ros2-iron-dev2:2.1.0 -t bobcamera/bob-ros2-iron-dev2:latest --target bob-ros2-iron-dev
+# docker build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-dev:1.2.7 -t bobcamera/bob-ros2-dev:latest --target bob-ros2-dev
+# docker buildx build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-dev:1.2.7 -t bobcamera/bob-ros2-dev:latest --target bob-ros2-dev
+# docker buildx build --progress=plain --push --platform linux/amd64,linux/arm64 -f Dockerfile . -t bobcamera/bob-ros2-dev:1.2.7 -t bobcamera/bob-ros2-dev:latest --target bob-ros2-dev
 ###################################################################
-# MWG I think the docker build script below has been used to build:
-#                  *****bob-ros2-iron-dev2*****
-# This is due to the docker buildx command that can be seen below
+# MWG: This docker stage is used to build the ros2 dev environment
 ###################################################################
-FROM ros:iron AS bob-ros2-iron-dev
+FROM ros:iron AS bob-ros2-dev
 ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.10/:/usr/local/lib/python3/dist-packages/:/opt/ros/${ROS_DISTRO}/lib/python3.10/site-packages
 ENV PATH=/opt/ros/${ROS_DISTRO}/bin:$PATH
 ENV DEBIAN_FRONTEND=noninteractive
@@ -258,13 +243,12 @@ RUN mkdir -p /opt/ros2_ws/src \
    && rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y \
    && colcon build
 
-
-# docker build --progress=plain --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-iron-build2:2.1.0 -t bobcamera/bob-ros2-iron-build2:latest --target bob-ros2-iron-build
-# docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY bobcamera/bob-ros2-iron-build2:2.1.0 bash
+# docker build --progress=plain --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-build:1.2.7 -t bobcamera/bob-ros2-build:latest --target bob-ros2-build
+# docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY bobcamera/bob-ros2-build:1.2.7 bash
 ###############################################################
 # MWG: This docker stage is used to build the ros2 application
 ###############################################################
-FROM bob-ros2-iron-dev AS bob-ros2-iron-build
+FROM bob-ros2-dev AS bob-ros2-build
 COPY src/ros2 /workspaces/bobcamera/src/ros2
 WORKDIR /workspaces/bobcamera/src/ros2
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
@@ -274,19 +258,15 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     && bash /opt/ros2_ws/install/setup.bash \
     && colcon build --parallel-workers $(nproc) --cmake-args -DCMAKE_BUILD_TYPE=Release
 
-
-
-
-
-# docker build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-iron-prod2:2.1.4 -t bobcamera/bob-ros2-iron-prod2:latest --target bob-ros2-iron-prod
-# docker buildx build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-iron-prod2:2.1.0 -t bobcamera/bob-ros2-iron-prod2:latest --target bob-ros2-iron-prod
-# docker buildx build --progress=plain --push --platform linux/amd64,linux/arm64 -f Dockerfile . -t bobcamera/bob-ros2-iron-prod2:2.1.0 -t bobcamera/bob-ros2-iron-prod2:latest --target bob-ros2-iron-prod
-# docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY -v ~/Source/bobcamera/bobcamera/assets:/workspaces/bobcamera/src/ros2/assets/ bobcamera/bob-ros2-iron-prod2:2.1.0 bash
+# docker build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-prod:1.2.7 -t bobcamera/bob-ros2-prod:latest --target bob-ros2-prod
+# docker buildx build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-prod:1.2.7 -t bobcamera/bob-ros2-prod:latest --target bob-ros2-prod
+# docker buildx build --progress=plain --push --platform linux/amd64,linux/arm64 -f Dockerfile . -t bobcamera/bob-ros2-prod:1.2.7 -t bobcamera/bob-ros2-prod:latest --target bob-ros2-prod
+# docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY -v ~/Source/bobcamera/bobcamera/assets:/workspaces/bobcamera/src/ros2/assets/ bobcamera/bob-ros2-prod:1.2.3 bash
 ###################################################################################
 # MWG: This docker stage is used to construct the image with the build artifacts 
 # outputted from the build stage above
 ###################################################################################
-FROM ros:iron-ros-core AS bob-ros2-iron-prod
+FROM ros:iron-ros-core AS bob-ros2-prod
 #FROM ros:iron AS bob-ros2-iron-prod
 ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.10/:/usr/local/lib/python3/dist-packages/:/opt/ros/${ROS_DISTRO}/lib/python3.10/site-packages
 ENV PATH=/opt/ros/${ROS_DISTRO}/bin:$PATH
@@ -309,11 +289,11 @@ COPY --from=boblib /usr/local/lib/python3/dist-packages/ /usr/local/lib/python3/
 COPY --from=boblib /usr/lib/python3 /usr/lib/python3
 COPY --from=qhy /opt/sdk_qhy /opt/sdk_qhy/
 COPY media/fisheye_videos /workspaces/bobcamera/media/fisheye_videos
-COPY --from=bob-ros2-iron-build /workspaces/bobcamera/src/ros2/assets /workspaces/bobcamera/src/ros2/assets
-COPY --from=bob-ros2-iron-build /workspaces/bobcamera/src/ros2/install /workspaces/bobcamera/src/ros2/install
-COPY --from=bob-ros2-iron-build /workspaces/bobcamera/src/ros2/config /workspaces/bobcamera/src/ros2/config
-COPY --from=bob-ros2-iron-build /workspaces/bobcamera/src/ros2/launch* /workspaces/bobcamera/src/ros2/
-COPY --from=bob-ros2-iron-build /opt/ros2_ws/install/ /opt/ros2_ws/install/
+COPY --from=bob-ros2-build /workspaces/bobcamera/src/ros2/assets /workspaces/bobcamera/src/ros2/assets
+COPY --from=bob-ros2-build /workspaces/bobcamera/src/ros2/install /workspaces/bobcamera/src/ros2/install
+COPY --from=bob-ros2-build /workspaces/bobcamera/src/ros2/config /workspaces/bobcamera/src/ros2/config
+COPY --from=bob-ros2-build /workspaces/bobcamera/src/ros2/launch* /workspaces/bobcamera/src/ros2/
+COPY --from=bob-ros2-build /opt/ros2_ws/install/ /opt/ros2_ws/install/
 # install dependencies
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     # Nano for debug purposes
@@ -354,15 +334,12 @@ COPY entrypoint.sh /
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["ros2", "launch", "bob_launch", "application_launch.py"]
 
-
 # Navigate to http://localhost:8080 or http://127.0.0.1:8080 to view web output
-# docker run -it -p 8080:80 bobcamera/bob-web-prod:1.2.0 bash
-# docker build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-web-prod:1.2.1 -t bobcamera/bob-web-prod:latest --target bob-web-prod
+# docker run -it -p 8080:80 bobcamera/bob-web-prod:1.2.7 bash
+# docker build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-web-prod:1.2.7 -t bobcamera/bob-web-prod:latest --target bob-web-prod
 FROM php:8.3-apache AS bob-web-prod
 #RUN apt-get update && apt-get install -y ffmpeg && apt-get clean
 COPY src/web2/src /var/www/html/
-
-
 
 # ###################################################################
 # # https://lostindetails.com/articles/How-to-run-cron-inside-Docker#dockerfile
@@ -380,4 +357,3 @@ COPY src/web2/src /var/www/html/
 
 # # Creating entry point for cron
 # ENTRYPOINT ["cron", "-f"]
-
