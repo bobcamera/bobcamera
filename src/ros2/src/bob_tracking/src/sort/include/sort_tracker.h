@@ -35,7 +35,7 @@ namespace SORT
                                         std::map<int, cv::Rect>& matched,
                                         std::vector<cv::Rect>& unmatched_det,
                                         // float iou_threshold = 0.001); // 0 to 1 for IOU
-                                        float iou_threshold = -0.95); // -1 to 1 for DIOU
+                                        float iou_threshold = -0.9); // -1 to 1 for DIOU
 
         const std::vector<Track> get_active_trackers() const;
         const std::vector<Track> get_live_trackers() const;

@@ -1,6 +1,7 @@
 import os
 import yaml
 import cv2
+import shutil
 from onvif2 import ONVIFCamera
 from launch.actions import LogInfo
 from launch import LaunchDescription
@@ -26,12 +27,12 @@ class ConfigDiscoverer():
         self.height = 0
         self.width = 0
         self.fps = 0
-        self.bitrate = 0
+        self.bitrate = 10240000
 
         self.onvif_success = False
 
         self.onvif_profile_for_settings_determination = 'main'
-        self.wsdl_location = 'src/bob_monitor/resource/wsdl'
+        self.wsdl_location = 'assets/wsdl'
         self.resolutions = {3840:2160, 2560:1440, 1920:1080, 1600:900, 1280:720, 1024:768, 800:600, 640:480, 320:240}
 
     def discover(self):
@@ -94,7 +95,7 @@ class ConfigDiscoverer():
                     counter = counter + 1
                     if success:
                         self.height, self.width, channels = frame.shape
-                        print(f"Discovery - OpenCV Details :- width:{self.width}, height: {self.height} @ FPS: {self.fps}")
+                        print(f"Discovery - OpenCV (v{cv2.__version__}) Details :- width:{self.width}, height: {self.height} @ FPS: {self.fps}")
                         success = True
                         break
                     
@@ -181,6 +182,7 @@ class ConfigDiscoverer():
             mycam = ONVIFCamera(rtsp_host, rtsp_port, rtsp_user, rtsp_password, self.wsdl_location)
             return True
         except Exception as e:
+            print(f"Error connecting to RTSP camera using ONVIF ({rtsp_user}:{rtsp_password}@{rtsp_host}:{rtsp_port}): {e}")
             return False
 
 def create_storage_folders(context):
@@ -190,6 +192,11 @@ def create_storage_folders(context):
     os.makedirs('assets/config', exist_ok=True)
     os.makedirs('assets/recordings', exist_ok=True)
     os.makedirs('assets/masks', exist_ok=True)
+    os.makedirs('assets/wsdl', exist_ok=True)
+    if not os.path.isdir('assets/wsdl/ver10'):
+        shutil.copytree('install/bob_monitor/share/bob_monitor/ver10', 'assets/wsdl/ver10')
+    if not os.path.isdir('assets/wsdl/ver20'):
+        shutil.copytree('install/bob_monitor/share/bob_monitor/ver20', 'assets/wsdl/ver20')
 
 def application_config(context):
 
@@ -216,7 +223,9 @@ def application_config(context):
     tracking_use_mask = LaunchConfiguration('tracking_usemask_arg').perform(context) in ('True', 'true')
     tracking_mask_dir = os.path.dirname(tracking_mask_file)
 
-    update_config = LaunchConfiguration('update_config_from_env_vars_arg').perform(context) in ('True', 'true')
+    bitrate_str = 'bitrate=10240000'
+
+    update_config = LaunchConfiguration('update_config_from_env_vars_arg').perform(context) in ('True', 'true')    
 
     discoverer = ConfigDiscoverer(source, rtsp_url, camera_id, videos)
     if discoverer.discover():
@@ -225,6 +234,7 @@ def application_config(context):
         simulation_width = discoverer.width
         simulation_height = discoverer.height        
         fps = discoverer.fps
+        bitrate_str = f'bitrate={discoverer.bitrate}'
 
     if update_config:
         
@@ -292,7 +302,8 @@ def application_config(context):
             yaml_output['info_webapi_node']['ros__parameters']['video_fps'] = fps
 
             # allsky_recorder_node
-            yaml_output['allsky_recorder_node']['ros__parameters']['video_fps'] = fps
+            yaml_output['allsky_recorder_node']['ros__parameters']['video_fps'] = fps            
+            yaml_output['allsky_recorder_node']['ros__parameters']['pipeline'] = f'appsrc ! videoconvert ! openh264enc {bitrate_str} qp-min=10 qp-max=51 ! h264parse ! mp4mux ! filesink location='
 
             # onvif details
             if discoverer.onvif_success:

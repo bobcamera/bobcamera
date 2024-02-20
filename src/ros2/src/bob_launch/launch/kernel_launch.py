@@ -169,7 +169,6 @@ def generate_launch_description():
                     ('bob/resizer/target', 'bob/frames/all_sky/foreground_mask/resized')],
                 parameters = [config],
                 extra_arguments=[{'use_intra_process_comms': True}],
-                condition=IfCondition(PythonExpression([LaunchConfiguration('optimised_arg'), " == False" ])),
             ),
             ComposableNode(
                 package='bob_image_processing',

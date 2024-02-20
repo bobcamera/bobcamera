@@ -117,9 +117,11 @@ allsky_recorder_node:
     tracking_topic: 'bob/tracker/tracking'
     camera_info_topic: bob/camera/all_sky/camera_info
     prefix: ''
+    #codec: 'h264'
     codec: 'avc1'
-    video_fps: 10.0
+    video_fps: 15.0
     seconds_save: 2
+    pipeline: 'appsrc ! videoconvert ! openh264enc bitrate=10240000 qp-min=10 qp-max=51 ! h264parse ! mp4mux ! filesink location='
 
 annotated_frame_provider_node:
   ros__parameters:
@@ -141,14 +143,8 @@ annotated_frame_resizer_node:
 multi_frame_viewer_node:
   ros__parameters:
     topics: 
-      - 'bob/camera/all_sky/bayer/resized'
+      - 'bob/frames/annotated/resized'
       - 'bob/frames/all_sky/foreground_mask/resized'
-      - 'bob/frames/annotated/resized'
-
-single_frame_viewer_node:
-  ros__parameters:
-    topics: 
-      - 'bob/frames/annotated/resized'
 
 annotated_frame_compressor_node:
   ros__parameters:
@@ -185,12 +181,12 @@ prometheus_metrics_node:
 
 onvif_service_node:
   ros__parameters:
-    onvif_wsdl_path: 'src/bob_monitor/resource/wsdl'
+    onvif_wsdl_path: 'assets/wsdl'
 
 # Web infrastructure
 info_webapi_node:
   ros__parameters:
-    application_version: '0.0.1'
+    application_version: '1.2.7'
     frame_width: 0
     frame_height: 0
     video_fps: 15.0
