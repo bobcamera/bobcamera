@@ -50,7 +50,7 @@ To save a file using nano, press CTRL + X, then Y, then ENTER
 
 ### 8. To start up BOB
 ```
-./run-bob.sh
+./run.sh
 ```
 ### 9. Use your system browser and navigate to [http://localhost:8080](http://localhost:8080)
 
