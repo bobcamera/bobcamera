@@ -4,7 +4,7 @@
 # Any changes should follow the existing structure to avoid errors or unexpected behavior.
 
 # Source options: rtsp, usb, video, simulate, rtsp_overlay, video_overlay
-export BOB_SOURCE=${BOB_SOURCE:-"'video'"}
+export BOB_SOURCE=${BOB_SOURCE:-"'video_overlay'"}
 
 # RTSP URL examples:
 # Hikvision: export BOB_RTSP_URL=${BOB_RTSP_URL:-"rtsp://user:password@0.0.0.0:554/Streaming/Channels/101"}
@@ -29,7 +29,7 @@ export BOB_TRACKING_MASK_FILE=${BOB_TRACKING_MASK_FILE:-"assets/masks/mask.jpg"}
 export BOB_VIDEOS=${BOB_VIDEOS:-"/workspaces/bobcamera/media/fisheye_videos/mike-drone.mp4;/workspaces/bobcamera/media/fisheye_videos/mikeg-30min.mp4"}
 
 # Simulation settings
-export BOB_SIMULATION_NUM_OBJECTS=${BOB_SIMULATION_NUM_OBJECTS:-"5"}
+export BOB_SIMULATION_NUM_OBJECTS=${BOB_SIMULATION_NUM_OBJECTS:-"15"}
 
 # RMW settings
 export RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION:-"rmw_fastrtps_cpp"}

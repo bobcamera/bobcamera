@@ -117,11 +117,10 @@ allsky_recorder_node:
     tracking_topic: 'bob/tracker/tracking'
     camera_info_topic: bob/camera/all_sky/camera_info
     prefix: ''
-    #codec: 'h264'
     codec: 'avc1'
     video_fps: 15.0
     seconds_save: 2
-    pipeline: 'appsrc ! videoconvert ! openh264enc bitrate=10240000 qp-min=10 qp-max=51 ! h264parse ! mp4mux ! filesink location='
+    #pipeline: 'appsrc ! videoconvert ! openh264enc bitrate=10240000 qp-min=10 qp-max=51 ! h264parse ! mp4mux ! filesink location='
 
 annotated_frame_provider_node:
   ros__parameters:

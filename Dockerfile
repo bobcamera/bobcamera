@@ -142,7 +142,6 @@ COPY . /opt/bobcamera
 COPY --from=qhy /opt/sdk_qhy /opt/sdk_qhy/
 RUN cd /opt/sdk_qhy && bash install.sh \
     && cd /opt \
-    #&& GIT_SSL_NO_VERIFY=true git clone --recursive https://github.com/bobcamera/bobcamera.git \
     && mkdir -p /opt/bobcamera/src/boblib/build \
     && cd /opt/bobcamera/src/boblib/build \
     && cmake -DCMAKE_INSTALL_PREFIX=/usr/local .. \
@@ -168,8 +167,6 @@ COPY --from=qhy /opt/sdk_qhy /opt/sdk_qhy/
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libtbb12 libqt5opengl5 libqt5test5 libdc1394-25 \
         gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-vaapi \
-        # libavcodec58 libavformat58 libswscale5 \
-        # liblapack3 libatlas-base-dev openexr libhdf5-dev \
     # Install QHY SDK
     && cd /opt/sdk_qhy && bash install.sh \
     # Install the libs locally
@@ -258,8 +255,6 @@ FROM bob-ros2-dev AS bob-ros2-build
 COPY src/ros2 /workspaces/bobcamera/src/ros2
 WORKDIR /workspaces/bobcamera/src/ros2
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
-    # Nano for debug purposes
-    # nano \
     && bash /opt/ros/$ROS_DISTRO/setup.bash \
     && bash /opt/ros2_ws/install/setup.bash \
     && colcon build --parallel-workers $(nproc) --cmake-args -DCMAKE_BUILD_TYPE=Release
@@ -274,7 +269,6 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
 # outputted from the build stage above
 ###################################################################################
 FROM ros:iron-ros-core AS bob-ros2-prod
-#FROM ros:iron AS bob-ros2-iron-prod
 ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.10/:/usr/local/lib/python3/dist-packages/:/opt/ros/${ROS_DISTRO}/lib/python3.10/site-packages
 ENV PATH=/opt/ros/${ROS_DISTRO}/bin:$PATH
 ENV DEBIAN_FRONTEND=noninteractive
@@ -290,8 +284,6 @@ ARG USER_GID=$USER_UID
 # Copy the compiled libs
 COPY --from=boblib /usr/local/lib/libopencv_*.so /usr/local/lib
 COPY --from=boblib /usr/local/lib/libboblib.a /usr/local/lib
-# COPY --from=boblib /usr/local/lib/cmake /usr/local/lib/cmake
-# COPY --from=boblib /usr/local/include /usr/local/include
 COPY --from=boblib /usr/local/lib/python3/dist-packages/ /usr/local/lib/python3/dist-packages/
 COPY --from=boblib /usr/lib/python3 /usr/lib/python3
 COPY --from=qhy /opt/sdk_qhy /opt/sdk_qhy/
@@ -303,8 +295,6 @@ COPY --from=bob-ros2-build /workspaces/bobcamera/src/ros2/launch* /workspaces/bo
 COPY --from=bob-ros2-build /opt/ros2_ws/install/ /opt/ros2_ws/install/
 # install dependencies
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
-    # Nano for debug purposes
-    #nano \
     libtbb12 libqt5opengl5 libqt5test5 libdc1394-25 libjsoncpp-dev pip \
     gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-vaapi \
     locales tzdata sudo bash-completion \
@@ -325,17 +315,11 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     # cleaning
     && apt-get autoclean && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /opt/sdk_qhy \
-    # user related install
-    # && locale-gen en_GB.UTF-8 \
-    # && update-locale LC_ALL=en_GB.UTF-8 LANG=en_GB.UTF-8 \
-    # && dpkg-reconfigure --frontend noninteractive tzdata \
     && groupadd --gid $USER_GID $USERNAME \
     && useradd -s /bin/bash --uid $USER_UID --gid $USER_GID -m $USERNAME \
     && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME\
     && chmod 0440 /etc/sudoers.d/$USERNAME \
-    # && echo "source /usr/share/bash-completion/completions/git" >> /home/$USERNAME/.bashrc \
     && echo "export DISPLAY=:0" >> /home/$USERNAME/.bashrc
-    # && echo "if [ -f /opt/ros/${ROS_DISTRO}/setup.bash ]; then source /opt/ros/${ROS_DISTRO}/setup.bash; fi" >> /home/$USERNAME/.bashrc
 WORKDIR /workspaces/bobcamera/src/ros2
 COPY entrypoint.sh /
 ENTRYPOINT ["/entrypoint.sh"]

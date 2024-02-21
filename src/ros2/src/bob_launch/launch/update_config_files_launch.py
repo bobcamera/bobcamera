@@ -27,7 +27,7 @@ class ConfigDiscoverer():
         self.height = 0
         self.width = 0
         self.fps = 0
-        self.bitrate = 10240000
+        #self.bitrate = 10240000
 
         self.onvif_success = False
 
@@ -223,7 +223,7 @@ def application_config(context):
     tracking_use_mask = LaunchConfiguration('tracking_usemask_arg').perform(context) in ('True', 'true')
     tracking_mask_dir = os.path.dirname(tracking_mask_file)
 
-    bitrate_str = 'bitrate=10240000'
+    #bitrate_str = 'bitrate=10240000'
 
     update_config = LaunchConfiguration('update_config_from_env_vars_arg').perform(context) in ('True', 'true')    
 
@@ -234,7 +234,7 @@ def application_config(context):
         simulation_width = discoverer.width
         simulation_height = discoverer.height        
         fps = discoverer.fps
-        bitrate_str = f'bitrate={discoverer.bitrate}'
+        #bitrate_str = f'bitrate={discoverer.bitrate}'
 
     if update_config:
         
@@ -303,7 +303,7 @@ def application_config(context):
 
             # allsky_recorder_node
             yaml_output['allsky_recorder_node']['ros__parameters']['video_fps'] = fps            
-            yaml_output['allsky_recorder_node']['ros__parameters']['pipeline'] = f'appsrc ! videoconvert ! openh264enc {bitrate_str} qp-min=10 qp-max=51 ! h264parse ! mp4mux ! filesink location='
+            #yaml_output['allsky_recorder_node']['ros__parameters']['pipeline'] = f'appsrc ! videoconvert ! openh264enc {bitrate_str} qp-min=10 qp-max=51 ! h264parse ! mp4mux ! filesink location='
 
             # onvif details
             if discoverer.onvif_success:

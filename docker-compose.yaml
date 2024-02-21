@@ -9,7 +9,7 @@ services:
       - "8080:80"
     environment:
       - DEBUG=1
-  # If you want to view recordings taken by bob, uncomment the comment below.      
+  # If you want to view demo recordings, comment out the volume section below.      
     volumes: 
       - ${PWD}/assets/recordings:/var/www/html/videos
     depends_on:
