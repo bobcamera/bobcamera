@@ -2,13 +2,12 @@ version: '3'
 services:
   web:
     image: bobcamera/bob-web-prod:1.2.7
+    user: ${MY_UID}:${MY_GID}
     build: 
       context: .
       target: bob-web-prod
     ports:
       - "8080:80"
-    environment:
-      - DEBUG=1
   # If you want to view demo recordings, comment out the volume section below.      
     volumes: 
       - ${PWD}/assets/recordings:/var/www/html/videos
@@ -16,12 +15,12 @@ services:
       - bob
   bob:
     image: bobcamera/bob-ros2-prod:1.2.7
+    user: ${MY_UID}:${MY_GID}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     build:
       context: .
-      target: bob-ros2-iron-prod
-    #user: "${UID}:${GID}"
+      target: bob-ros2-iron-prod    
     ports:
       - "9090:9090"
     environment:  # add in .env
