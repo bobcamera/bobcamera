@@ -2,7 +2,7 @@ version: '3'
 services:
   web:
     image: bobcamera/bob-web-prod:1.2.7
-    #user: ${MY_UID}:${MY_GID}#
+    #user: ${MY_UID}:${MY_GID}
     build: 
       context: .
       target: bob-web-prod
@@ -20,7 +20,7 @@ services:
       - "host.docker.internal:host-gateway"
     build:
       context: .
-      target: bob-ros2-iron-prod    
+      target: bob-ros2-prod    
     ports:
       - "9090:9090"
     environment:  # add in .env
