@@ -34,18 +34,29 @@
     // JSON FILES
     // Define the JSON directory path
     $jsonDirectory = dirname(__FILE__) . '/videos/' . $date . '/json/';
-    // Construct the JSON file path
-    $jsonFilePath = $jsonDirectory . $time . '.json';
-    // Initialize a variable to hold the JSON data
-    $jsonData = null;
-    // Check if the JSON file exists and then read it
-    if (file_exists($jsonFilePath)) {
-        $jsonContent = file_get_contents($jsonFilePath);
 
-        $jsonData = json_decode($jsonContent, true); // 'true' converts it to an associative array
-    } else {
-        echo "JSON file not found: " . $jsonFilePath;
+    // Initialize an array to hold JSON data for all files
+    $jsonData = array();
+
+    // Loop through all JSON files in the directory
+    foreach (glob($jsonDirectory . '*.json') as $jsonFilePath) {
+        // Extract the timestamp from the filename
+        $time = basename($jsonFilePath, '.json');
+
+        // Check if the JSON file exists and then read it
+        if (file_exists($jsonFilePath)) {
+            $jsonContent = file_get_contents($jsonFilePath);
+            $jsonData[$time] = json_decode($jsonContent, true); // 'true' converts it to an associative array
+        } else {
+            // Provide a fallback behavior for the missing JSON file
+            // For example, you can set $jsonData[$time] to an empty array or null
+            // You can also log this event for debugging purposes
+            $jsonData[$time] = null; // or [] for an empty array
+            // Optionally, you can log the missing JSON file
+            // error_log("JSON file not found: " . $jsonFilePath);
+        }
     }
+
 ?>
 
 <!DOCTYPE html>
