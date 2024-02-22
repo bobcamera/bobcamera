@@ -85,7 +85,6 @@ echo "<th>Event Grid</th>";
 //echo "<th>Startrails</th>";
 echo "<th>Event Player</th>";
 echo "<th>Event Table</th>";
-echo "<th>Scatter</th>";
 echo "<th>Action</th>";
 echo "</tr>";
 echo "</thead>";
@@ -104,7 +103,6 @@ foreach ($videoDirs as $videoDir) {
         //echo "<td><i class='fas fa-star icon' style='color: grey;'></i></td>";
         echo "<td><a href='heatmaps.php?date=" . urlencode($videoDir) . "'><i class='fas fa-play-circle icon' style='color: #337AB7;'></i></a></td>";
         echo "<td><a href='summary.php?date=" . urlencode($videoDir) . "'><i class='fas fa-table icon' style='color: #337AB7;'></i></a></td>";
-        echo "<td><a href='scatter.php?date=" . urlencode($videoDir) . "'><i class='fas fa-chart-line icon' style='color: #337AB7;'></i></a></td>";
         echo "<td><button class='delete-btn'><i class='fas fa-trash'></i> Delete</button></td>";
         echo "</tr>";
     }
