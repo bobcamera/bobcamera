@@ -40,6 +40,19 @@ services:
     volumes: 
       - ${PWD}/assets/:/workspaces/bobcamera/src/ros2/assets/
       - ${PWD}/media:/workspaces/bobcamera/media
+  rstudio:
+    image: dceoy/rstudio-server:latest
+    #user: ${MY_UID}:${MY_GID}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8787:8787"
+    volumes: 
+      - ${PWD}/assets/recordings:/home/rstudio
+    working_dir: "/home/rstudio dceoy/rstudio-server"
+    depends_on:
+      - bob
+      
   # If you want to use a usb camera uncomment the devices comment below
   #  devices:
   #    - /dev/video0:/dev/video0 
