@@ -182,7 +182,7 @@
             <div class="metric-header"> ----------- Display Frame Rate ----------- </div><br>
             <div class="metric-readings">
                 <label for="frame_rate">Target Display Frame Rate:</label>
-                <input type="number" id="frame_rate" name="frame_rate" value="6" style="width: 50px;">
+                <input type="number" id="frame_rate" name="frame_rate" value="10" style="width: 50px;">
             </div>
             <div class="metric-readings">
                 <label for="recent_avg_frame_rate">Current Display Frame Rate:</label>
@@ -309,7 +309,9 @@
                 console.log("Bob-ROS2 Version:", result.version);
                 document.getElementById('applicationVersion').innerText = result.version;
                 console.log(`Bob-ROS2 Frame Size: w=${result.frame_width}  h=${result.frame_height}`);
-                console.log(`Bob-ROS2 FPS: ${result.video_fps}`);                
+                console.log(`Bob-ROS2 FPS: ${result.video_fps}`);    
+                
+                document.getElementById('frame_rate').value = result.video_fps;   
             });
 
             topicStream.subscribe(function (message) {
