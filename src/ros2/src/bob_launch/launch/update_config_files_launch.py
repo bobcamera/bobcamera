@@ -220,7 +220,6 @@ def application_config(context):
     bgs_algo = str(LaunchConfiguration('bgs_algorithm_arg').perform(context))
 
     tracking_mask_file = str(LaunchConfiguration('tracking_maskfile_arg').perform(context))
-    tracking_use_mask = LaunchConfiguration('tracking_usemask_arg').perform(context) in ('True', 'true')
     tracking_mask_dir = os.path.dirname(tracking_mask_file)
 
     #bitrate_str = 'bitrate=10240000'
@@ -277,19 +276,15 @@ def application_config(context):
 
             # minimal_background_subtractor_node
             yaml_output['minimal_background_subtractor_node']['ros__parameters']['bgs'] = bgs_algo
-            yaml_output['minimal_background_subtractor_node']['ros__parameters']['use_mask'] = tracking_use_mask
 
             # low_background_subtractor_node
             yaml_output['low_background_subtractor_node']['ros__parameters']['bgs'] = bgs_algo
-            yaml_output['low_background_subtractor_node']['ros__parameters']['use_mask'] = tracking_use_mask
 
             # medium_background_subtractor_node
             yaml_output['medium_background_subtractor_node']['ros__parameters']['bgs'] = bgs_algo
-            yaml_output['medium_background_subtractor_node']['ros__parameters']['use_mask'] = tracking_use_mask
 
             # high_background_subtractor_node
             yaml_output['high_background_subtractor_node']['ros__parameters']['bgs'] = bgs_algo
-            yaml_output['high_background_subtractor_node']['ros__parameters']['use_mask'] = tracking_use_mask
 
             # mask_webapi_node
             yaml_output['mask_webapi_node']['ros__parameters']['masks_folder'] = tracking_mask_dir

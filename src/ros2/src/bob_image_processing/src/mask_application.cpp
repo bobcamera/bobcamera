@@ -14,6 +14,8 @@
 
 #include <filesystem>
 
+#include "bob_interfaces/srv/bgs_reset_request.hpp"
+
 class MaskApplication 
     : public ParameterNode
 {
@@ -42,14 +44,16 @@ public:
         pub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
 
         declare_node_parameters();
-        
-        timer_callback();
 
         image_publisher_ = create_publisher<sensor_msgs::msg::Image>("bob/camera/all_sky/bayer_masked", pub_qos_profile);
         image_subscription_ = create_subscription<sensor_msgs::msg::Image>("bob/camera/all_sky/bayer", sub_qos_profile, 
             std::bind(&MaskApplication::callback, this, std::placeholders::_1));
 
         timer_ = create_wall_timer(std::chrono::seconds(60), std::bind(&MaskApplication::timer_callback, this));
+
+        bgs_reset_client_ = create_client<bob_interfaces::srv::BGSResetRequest>("bob/bgs/reset");
+
+        timer_callback();
     }
 
     void declare_node_parameters()
@@ -120,6 +124,7 @@ private:
             if (mask_enabled_)
             {
                 RCLCPP_INFO(get_logger(), "Mask Disabled.");
+                request_bgs_reset(false);
             }
             mask_enabled_ = false;            
         }
@@ -128,11 +133,28 @@ private:
             if (!mask_enabled_)
             {
                 RCLCPP_INFO(get_logger(), "Mask Enabled.");
+                request_bgs_reset(true);                
             }
-
             mask_enabled_ = true;
             cv::cvtColor(mask, converted_mask_, cv::COLOR_GRAY2BGR);            
-        }        
+        } 
+    }
+  
+    void request_bgs_reset(const bool enabled)
+    {
+        auto request = std::make_shared<bob_interfaces::srv::BGSResetRequest::Request>();
+        request->mask_enabled = enabled;
+        if (bgs_reset_client_->service_is_ready())
+        {
+            auto result = bgs_reset_client_->async_send_request(request, std::bind(&MaskApplication::request_bgs_reset_callback, this, std::placeholders::_1));
+        }
+    }
+
+    void request_bgs_reset_callback(rclcpp::Client<bob_interfaces::srv::BGSResetRequest>::SharedFuture future)
+    {
+        auto response = future.get();
+        if(response->success)
+            RCLCPP_INFO(get_logger(), "BGS Reset Successfull");
     }
 
     cv::Mat converted_mask_;
@@ -141,6 +163,7 @@ private:
     std::string mask_filename_;
     bool mask_enabled_;
     rclcpp::TimerBase::SharedPtr timer_;
+    rclcpp::Client<bob_interfaces::srv::BGSResetRequest>::SharedPtr bgs_reset_client_;
 };
 
 

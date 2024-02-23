@@ -91,7 +91,6 @@ def generate_launch_description():
                 name='mask_application_node',
                 parameters = [config],
                 extra_arguments=[{'use_intra_process_comms': True}],
-                condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_usemask_arg'), " == True"])),  
             ),
             #Minimal sensitivity:
             ComposableNode(
@@ -225,10 +224,6 @@ def generate_launch_description():
         LogInfo(
             condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'high'" ])),
             msg=['Tracking sensitivity is set to: HIGH.']),
-
-        LogInfo(
-            condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_usemask_arg'), " == True" ])),
-            msg=['Masking is set to: ON.']),
 
         LogInfo(
             condition=IfCondition(PythonExpression([LaunchConfiguration('enable_recording_arg'), " == True" ])),

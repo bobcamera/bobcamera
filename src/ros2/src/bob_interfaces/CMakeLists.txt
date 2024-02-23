@@ -44,6 +44,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Tracking.msg"
   #"msg/ConfigItem.msg"  
   #"srv/ConfigEntry.srv"
+  "srv/BGSResetRequest.srv"
   "srv/ConfigEntryUpdate.srv"
   #"srv/ConfigEntryArray.srv"
   "srv/ApplicationInfo.srv"
