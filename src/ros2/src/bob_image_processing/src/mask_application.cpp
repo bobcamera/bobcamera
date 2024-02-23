@@ -12,6 +12,8 @@
 
 #include <visibility_control.h>
 
+#include <filesystem>
+
 class MaskApplication 
     : public ParameterNode
 {
@@ -41,23 +43,13 @@ public:
 
         declare_node_parameters();
         
-        // Load mask
-        cv::Mat mask = cv::imread(mask_filename_, cv::IMREAD_UNCHANGED);
-
-        if (mask.empty())
-        {
-            RCLCPP_ERROR(this->get_logger(), "Failed to load mask.");
-            return;
-        }
-        else
-        {
-            cv::cvtColor(mask, converted_mask_, cv::COLOR_GRAY2BGR);
-        }
+        timer_callback();
 
         image_publisher_ = create_publisher<sensor_msgs::msg::Image>("bob/camera/all_sky/bayer_masked", pub_qos_profile);
         image_subscription_ = create_subscription<sensor_msgs::msg::Image>("bob/camera/all_sky/bayer", sub_qos_profile, 
             std::bind(&MaskApplication::callback, this, std::placeholders::_1));
 
+        timer_ = create_wall_timer(std::chrono::seconds(60), std::bind(&MaskApplication::timer_callback, this));
     }
 
     void declare_node_parameters()
@@ -76,25 +68,33 @@ private:
     {
         try
         {
-            cv::Mat img;
-            ImageUtils::convert_image_msg(img_msg, img, false);
-
-            // Print dimensions
-            // RCLCPP_INFO(this->get_logger(), "Image dimensions: %d x %d", img.cols, img.rows);
-            // RCLCPP_INFO(this->get_logger(), "Mask dimensions: %d x %d", converted_mask_.cols, converted_mask_.rows);
-
-            // Check dimensions
-            if(img.rows != converted_mask_.rows || img.cols != converted_mask_.cols)
+            if(mask_enabled_)
             {
-                RCLCPP_WARN(this->get_logger(), "Frame and mask dimensions do not match. Attempting resize.");
-                cv::resize(converted_mask_, converted_mask_, cv::Size(img.cols, img.rows));
+                cv::Mat img;
+                ImageUtils::convert_image_msg(img_msg, img, false);
+
+                // Print dimensions
+                // RCLCPP_INFO(this->get_logger(), "Image dimensions: %d x %d", img.cols, img.rows);
+                // RCLCPP_INFO(this->get_logger(), "Mask dimensions: %d x %d", converted_mask_.cols, converted_mask_.rows);
+
+                // Check dimensions
+                if(img.rows != converted_mask_.rows || img.cols != converted_mask_.cols)
+                {
+                    RCLCPP_WARN(this->get_logger(), "Frame and mask dimensions do not match. Attempting resize.");
+                    RCLCPP_WARN(this->get_logger(), "Note: Please ensure your mask has not gone stale, you might want to recreate it.");
+                    cv::resize(converted_mask_, converted_mask_, cv::Size(img.cols, img.rows));
+                }
+
+                cv::Mat masked_frame = img.mul(converted_mask_/255.0);
+
+                // Convert back to ROS Image message and publish
+                auto ros_image = cv_bridge::CvImage(img_msg->header, sensor_msgs::image_encodings::BGR8, masked_frame).toImageMsg();            
+                image_publisher_->publish(*ros_image);
             }
-
-            cv::Mat masked_frame = img.mul(converted_mask_/255.0);
-
-            // Convert back to ROS Image message and publish
-            auto ros_image = cv_bridge::CvImage(img_msg->header, sensor_msgs::image_encodings::BGR8, masked_frame).toImageMsg();
-            image_publisher_->publish(*ros_image);
+            else
+            {
+                image_publisher_->publish(*img_msg);
+            }
         }
         catch (cv_bridge::Exception &e)
         {
@@ -106,10 +106,41 @@ private:
         }        
     }
 
+    void timer_callback()
+    {
+        cv::Mat mask;
+        // Load mask
+        if (std::filesystem::exists(mask_filename_))
+        {
+            mask = cv::imread(mask_filename_, cv::IMREAD_UNCHANGED);    
+        }
+
+        if (mask.empty())
+        {
+            if (mask_enabled_)
+            {
+                RCLCPP_INFO(get_logger(), "Mask Disabled.");
+            }
+            mask_enabled_ = false;            
+        }
+        else
+        {
+            if (!mask_enabled_)
+            {
+                RCLCPP_INFO(get_logger(), "Mask Enabled.");
+            }
+
+            mask_enabled_ = true;
+            cv::cvtColor(mask, converted_mask_, cv::COLOR_GRAY2BGR);            
+        }        
+    }
+
     cv::Mat converted_mask_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscription_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
     std::string mask_filename_;
+    bool mask_enabled_;
+    rclcpp::TimerBase::SharedPtr timer_;
 };
 
 
