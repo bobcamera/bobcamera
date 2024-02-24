@@ -52,7 +52,7 @@
 <ul class="nav flex-column">
     <li class="nav-item">
         <a class="nav-link d-flex align-items-center gap-2" href="https://bobcamera.github.io/" target="_blank">
-            <i class="bi bi-globe"></i>Online
+            <i class="bi bi-globe"></i>Documentation
         </a>
     </li>
     <li class="nav-item">
