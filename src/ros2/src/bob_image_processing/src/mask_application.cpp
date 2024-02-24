@@ -72,7 +72,7 @@ private:
     {
         try
         {
-            if(mask_enabled_)
+            if (mask_enabled_)
             {
                 cv::Mat img;
                 ImageUtils::convert_image_msg(img_msg, img, false);
@@ -113,6 +113,7 @@ private:
     void timer_callback()
     {
         cv::Mat mask;
+
         // Load mask
         if (std::filesystem::exists(mask_filename_))
         {
@@ -133,10 +134,17 @@ private:
             if (!mask_enabled_)
             {
                 RCLCPP_INFO(get_logger(), "Mask Enabled.");
-                request_bgs_reset(true);                
+                request_bgs_reset(true);
             }
+
             mask_enabled_ = true;
-            cv::cvtColor(mask, converted_mask_, cv::COLOR_GRAY2BGR);            
+            
+            if (!areImagesEqual(mask, grey_mask_))
+            {
+                grey_mask_= mask;
+                cv::cvtColor(mask, converted_mask_, cv::COLOR_GRAY2BGR);
+                request_bgs_reset(true);
+            }
         } 
     }
   
@@ -157,6 +165,22 @@ private:
             RCLCPP_INFO(get_logger(), "BGS Reset Successfull");
     }
 
+    bool areImagesEqual(const cv::Mat& image1, const cv::Mat& image2) 
+    {
+        // Check if dimensions are the same
+        if (image1.size() != image2.size()) {
+            return false;
+        }
+
+        // Compute absolute difference between images
+        cv::Mat diff;
+        absdiff(image1, image2, diff);
+
+        // Check if the images are identical (all pixels are equal)
+        return countNonZero(diff) == 0;
+    }
+
+    cv::Mat grey_mask_;
     cv::Mat converted_mask_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscription_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
