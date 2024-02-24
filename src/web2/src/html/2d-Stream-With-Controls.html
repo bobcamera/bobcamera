@@ -295,7 +295,13 @@
         ros : ros, 
         name : '/bob/webapi/mask/update/svg', 
         serviceType : 'bob_interfaces/srv/MaskSvgUpdate'
-    });    
+    });
+
+    var updateMaskOverrideService = new ROSLIB.Service({
+        ros : ros, 
+        name : '/bob/mask/override', 
+        serviceType : 'bob_interfaces/srv/MaskOverrideRequest'
+    });
 
     // Function to handle toggling of buttons
     function toggleButtons() {
@@ -408,6 +414,7 @@
         updateSvgMaskService.callService(request, function(result) {
             if (result.success) {
                 console.log("Mask sent successfully!");
+                alert('It can take up to 60 seconds for your new mask to be applied.')
             } else {
                 console.error("Failed to send mask:", result.message);
             }
@@ -463,7 +470,7 @@
     }
 
     function drawPolygon(polygon, fillStyle, drawBorder) {
-        console.log("drawPolygon");
+        //console.log("drawPolygon");
         maskCanvasCtx.beginPath();
         maskCanvasCtx.moveTo(polygon[0].x, polygon[0].y);
         for (let i = 1; i < polygon.length; i++) {maskCanvasCtx.lineTo(polygon[i].x, polygon[i].y);}
@@ -479,7 +486,7 @@
             maskCanvasCtx.setLineDash([]);
             maskCanvasCtx.lineDashOffset = 0;
         }
-        console.log(polygon);
+        //console.log(polygon);
     }
 
     function redrawCanvas() {
@@ -488,7 +495,7 @@
             const isCurrentPolygon = index === polygons.length - 1;
             drawPolygon(polygon, editMode && isCurrentPolygon ? 'rgba(0, 0, 0, 0.1)' : 'rgba(0, 0, 0, 1)', editMode && isCurrentPolygon);
         });
-        console.log(polygons);
+        //console.log(polygons);
     }
 
     function clearMask() {
@@ -584,6 +591,22 @@
         link.click();
     }
 
+    function overrideMask(enable) {
+        //console.log(`Override mask - setting: ${enable}`);
+
+        var request = new ROSLIB.ServiceRequest({
+            mask_enabled: enable
+        });
+
+        updateMaskOverrideService.callService(request, function(result) {
+            if (result.success) {
+                console.log("Mask override sent successfully!");
+            } else {
+                console.error("Failed to send mask override:", result.message);
+            }
+        });
+    }
+
     // EVENT LISTENERS
     videoStream.addEventListener('loadedmetadata', () => {
         maskCanvas.width = videoStream.offsetWidth;
@@ -591,15 +614,15 @@
     });
 
     maskCanvas.addEventListener('mousedown', (e) => {
-        console.log("MouseDown Event:");
-        console.log("Edit Mode:", editMode);
-        console.log("Stream Container:", streamContainer);
-        console.log("Video Stream:", videoStream);
-        console.log("Mask Canvas:", maskCanvas);
-        console.log("Buffering Overlay:", bufferingOverlay);
-        console.log("Video Stream Width:", videoStream.offsetWidth);
-        console.log("Video Stream Height:", videoStream.offsetHeight);
-        console.log("Event Details:", e);
+        //console.log("MouseDown Event:");
+        //console.log("Edit Mode:", editMode);
+        //console.log("Stream Container:", streamContainer);
+        //console.log("Video Stream:", videoStream);
+        //console.log("Mask Canvas:", maskCanvas);
+        //console.log("Buffering Overlay:", bufferingOverlay);
+        //console.log("Video Stream Width:", videoStream.offsetWidth);
+        //console.log("Video Stream Height:", videoStream.offsetHeight);
+        //console.log("Event Details:", e);
         if (!editMode || e.button === 2) return;
         if (e.detail > 1) {
             const currentPolygon = polygons[polygons.length - 1];
@@ -613,9 +636,9 @@
         const rect = maskCanvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-        console.log("Bounding Client Rect:", rect);
-        console.log("Mouse X Coordinate:", x);
-        console.log("Mouse Y Coordinate:", y);
+        //console.log("Bounding Client Rect:", rect);
+        //console.log("Mouse X Coordinate:", x);
+        //console.log("Mouse Y Coordinate:", y);
         const currentPolygon = polygons[polygons.length - 1];
         if (currentPolygon.length > 0) {
             const firstNode = currentPolygon[0];
@@ -634,7 +657,7 @@
     
 
     maskCanvas.addEventListener('mousemove', (e) => {
-        <!-- console.log("mousemove event:", e); -->
+        //console.log("mousemove event:", e);
         if (!drawing || !editMode) return;
         const rect = maskCanvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
@@ -651,10 +674,12 @@
         editMode = !editMode;
         toggleButtons();
         if (editMode) {
+            overrideMask(false);
             // Clear any existing polygons if starting a new edit session
-            polygons = [[]];
+            polygons = [[]];            
         } else {
-            redrawCanvas();
+            overrideMask(true);
+            redrawCanvas();            
         }
     });
 
@@ -671,6 +696,7 @@
         editMode = false; // Close edit controls
         toggleButtons(); // Update button display
         clearMask();
+        overrideMask(true);
     });
 
     // Save Mask JPG Button Event Listner

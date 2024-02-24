@@ -15,6 +15,7 @@
 #include <filesystem>
 
 #include "bob_interfaces/srv/bgs_reset_request.hpp"
+#include "bob_interfaces/srv/mask_override_request.hpp"
 
 class MaskApplication 
     : public ParameterNode
@@ -52,6 +53,13 @@ public:
         timer_ = create_wall_timer(std::chrono::seconds(60), std::bind(&MaskApplication::timer_callback, this));
 
         bgs_reset_client_ = create_client<bob_interfaces::srv::BGSResetRequest>("bob/bgs/reset");
+
+        mask_override_service_ = create_service<bob_interfaces::srv::MaskOverrideRequest>(
+            "bob/mask/override", 
+            std::bind(&MaskApplication::mask_override_request, 
+            this, 
+            std::placeholders::_1, 
+            std::placeholders::_2));
 
         timer_callback();
     }
@@ -176,6 +184,21 @@ private:
             RCLCPP_INFO(get_logger(), "BGS Reset Successfull");
     }
 
+    void mask_override_request(const std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Request> request, 
+        std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Response> response)
+    {
+        mask_enable_override_ = request->mask_enabled;
+        if (request->mask_enabled)
+        {
+            RCLCPP_INFO(get_logger(), "Mask Override set to: True");
+        }
+        else
+        {
+            RCLCPP_INFO(get_logger(), "Mask Override set to: True");
+        }
+        response->success = true;        
+    }
+
     bool areImagesEqual(const cv::Mat& image1, const cv::Mat& image2) 
     {
         // Check if dimensions are the same
@@ -200,6 +223,7 @@ private:
     bool mask_enable_override_;
     rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::Client<bob_interfaces::srv::BGSResetRequest>::SharedPtr bgs_reset_client_;
+    rclcpp::Service<bob_interfaces::srv::MaskOverrideRequest>::SharedPtr mask_override_service_;
 };
 
 

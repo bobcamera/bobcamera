@@ -49,6 +49,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   #"srv/ConfigEntryArray.srv"
   "srv/ApplicationInfo.srv"
   "srv/Mask.srv"
+  "srv/MaskOverrideRequest.srv"
   #"srv/MaskJpgUpdate.srv"
   "srv/MaskSvgUpdate.srv"
   "srv/CameraSettings.srv"
