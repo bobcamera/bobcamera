@@ -39,7 +39,32 @@
     </a>
 </h6>
 <ul class="nav flex-column">
-    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="http://localhost:8787" target="_blank"><i class="bi bi-globe"></i>RStudio</a></li>
+    <li class="nav-item">
+        <a class="nav-link d-flex align-items-center gap-2" href="http://localhost:8787" target="_blank"><i class="bi bi-terminal"></i>RStudio</a>
+    </li>
+ </ul>
+ <hr class="my-3">
+<h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-1 mb-1 text-body-secondary text-uppercase">
+    <span>Documentation</span>
+    <a class="link-secondary" href="#" aria-label="">
+    </a>
+</h6>
+<ul class="nav flex-column">
+    <li class="nav-item">
+        <a class="nav-link d-flex align-items-center gap-2" href="https://bobcamera.github.io/" target="_blank">
+            <i class="bi bi-globe"></i>Online
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link d-flex align-items-center gap-2" href="https://github.com/bobcamera/bobcamera/issues/new/choose" target="_blank">
+            <i class="bi bi-github"></i>Found a Bug
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link d-flex align-items-center gap-2" href="https://github.com/bobcamera/bobcamera/issues/new/choose" target="_blank">
+            <i class="bi bi-github"></i>Request Feature
+        </a>
+    </li>    
  </ul>
 <!--<hr class="my-3">
 <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-1 mb-1 text-body-secondary text-uppercase">
@@ -83,7 +108,7 @@
             Github
         </a>
     </li>
-    <li class="nav-item">
+    <!--<li class="nav-item">
         <a class="nav-link d-flex align-items-center gap-2" target="_blank" href="https://docs.google.com/spreadsheets/d/1N21H6HiBQFIPVtARJmt848pmYed0YJ0AsFPDFgNtDdw/edit?usp=sharing">
         <i class="bi bi-chat-left-text"></i>
             Feedback
@@ -96,5 +121,5 @@
             </svg>
             Settings
         </a>
-    </li>
+    </li>-->
 </ul>
