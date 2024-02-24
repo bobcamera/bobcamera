@@ -298,18 +298,28 @@
     });    
 
     // Function to handle toggling of buttons
-function toggleButtons() {
-    const clearMaskBtn = document.getElementById('clearMaskBtn');
-    const sendMaskSVGButton = document.getElementById('sendMaskSVG'); // Update to get the sendMaskSVG button
-    const editMaskBtn = document.getElementById('editMaskBtn');
+    function toggleButtons() {
+        const clearMaskBtn = document.getElementById('clearMaskBtn');
+        const sendMaskSVGButton = document.getElementById('sendMaskSVG'); // Update to get the sendMaskSVG button
+        const editMaskBtn = document.getElementById('editMaskBtn');
 
-    clearMaskBtn.style.display = editMode ? 'inline-block' : 'none';
-    sendMaskSVGButton.style.display = editMode ? 'inline-block' : 'none';
-    editMaskBtn.innerHTML = editMode ? '<i class="fas fa-times"></i>' : '<i class="fa-solid fa-pen-to-square"></i>';
-    editMaskBtn.title = editMode ? 'Cancel' : 'Edit Mask';
-    
-}
+        clearMaskBtn.style.display = editMode ? 'inline-block' : 'none';
+        sendMaskSVGButton.style.display = editMode ? 'inline-block' : 'none';
+        editMaskBtn.innerHTML = editMode ? '<i class="fas fa-times"></i>' : '<i class="fa-solid fa-pen-to-square"></i>';
+        editMaskBtn.title = editMode ? 'Cancel' : 'Edit Mask';
+        
+    }
 
+    function updateCanvasDimensions() {
+        maskCanvas.width = streamContainer.clientWidth;
+        maskCanvas.height = streamContainer.clientHeight;
+    }
+
+    // Add event listener for changes in the size of the video stream container
+    window.addEventListener('resize', updateCanvasDimensions);
+
+    // Initial call to set canvas dimensions to match container
+    updateCanvasDimensions();
 
     function init() {
         window.addEventListener('DOMContentLoaded', function () {
@@ -321,8 +331,9 @@ function toggleButtons() {
                 console.log(`Bob-ROS2 FPS: ${result.video_fps}`);    
                 
                 document.getElementById('frame_rate').value = result.video_fps;   
+                
             });
-
+            
             topicStream.subscribe(function (message) {
                 updateMessageRate();
                 if (!firstImageReceived) {
@@ -513,8 +524,8 @@ function toggleButtons() {
         return maskCanvasCtx;
     }
 
-    function updateDimensions() {
-        console.log("updateDimensions");
+    function updateDimensions() 
+    {
         let newHeight = videoStream.offsetHeight;
         let newWidth = videoStream.offsetWidth;
         streamContainer.style.height = `${newHeight}px`;
@@ -530,10 +541,7 @@ function toggleButtons() {
         bufferingOverlay.width = newWidth * devicePixelRatio;
         bufferingOverlay.height = newHeight * devicePixelRatio;
         maskCanvasCtx.scale(devicePixelRatio, devicePixelRatio);
-        console.log(maskCanvas.clientWidth);
-        console.log(maskCanvas.clientHeight);
-        console.log(maskCanvas.offsetWidth);
-        console.log(maskCanvas.offsetHeight);
+        updateCanvasDimensions(); 
     }
 
     function saveMaskSVG() {
@@ -576,8 +584,6 @@ function toggleButtons() {
         link.click();
     }
 
-
-
     // EVENT LISTENERS
     videoStream.addEventListener('loadedmetadata', () => {
         maskCanvas.width = videoStream.offsetWidth;
@@ -585,34 +591,31 @@ function toggleButtons() {
     });
 
     maskCanvas.addEventListener('mousedown', (e) => {
-        console.log("maskCanvas.addEventListener");
-        console.log("editMode: "+editMode);
-        console.log(document.getElementById('stream'));
-        console.log(videoStream);
-        console.log(maskCanvas);
-        console.log(document.getElementById('bufferingOverlay'));
-        console.log(videoStream.offsetWidth);
-        console.log(videoStream.offsetHeight);
-        console.log(e);
+        console.log("MouseDown Event:");
+        console.log("Edit Mode:", editMode);
+        console.log("Stream Container:", streamContainer);
+        console.log("Video Stream:", videoStream);
+        console.log("Mask Canvas:", maskCanvas);
+        console.log("Buffering Overlay:", bufferingOverlay);
+        console.log("Video Stream Width:", videoStream.offsetWidth);
+        console.log("Video Stream Height:", videoStream.offsetHeight);
+        console.log("Event Details:", e);
         if (!editMode || e.button === 2) return;
         if (e.detail > 1) {
             const currentPolygon = polygons[polygons.length - 1];
             if (currentPolygon.length > 2) {
                 drawing = false;
                 polygons.push([]);
-            } return;
+            }
+            return;
         }
         drawing = true;
         const rect = maskCanvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-        console.log("rect: "+rect);
-        console.log("rect.left: "+rect.left);
-        console.log("rect.top: "+rect.top);
-        console.log("e.clientX: "+e.clientX);
-        console.log("e.clientY: "+e.clientY);
-        console.log("x: "+x);
-        console.log("y: "+y);
+        console.log("Bounding Client Rect:", rect);
+        console.log("Mouse X Coordinate:", x);
+        console.log("Mouse Y Coordinate:", y);
         const currentPolygon = polygons[polygons.length - 1];
         if (currentPolygon.length > 0) {
             const firstNode = currentPolygon[0];
@@ -628,8 +631,10 @@ function toggleButtons() {
         }
         redrawCanvas();
     });
+    
 
     maskCanvas.addEventListener('mousemove', (e) => {
+        <!-- console.log("mousemove event:", e); -->
         if (!drawing || !editMode) return;
         const rect = maskCanvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
