@@ -25,7 +25,7 @@ def generate_launch_description():
     
     enable_visualiser_arg_value = EnvironmentVariable('BOB_ENABLE_VISUALISER', default_value="True")
     
-    enable_rosbridge_arg_value = EnvironmentVariable('BOB_ENABLE_ROSBRIDGE', default_value="False")
+    enable_rosbridge_arg_value = EnvironmentVariable('BOB_ENABLE_ROSBRIDGE', default_value="True")
     enable_recording_arg_value = EnvironmentVariable('BOB_ENABLE_RECORDING', default_value="False")    
     
     simulation_width_arg_value = EnvironmentVariable('BOB_SIMULATION_WIDTH', default_value="0")

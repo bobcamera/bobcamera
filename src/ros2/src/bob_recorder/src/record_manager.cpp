@@ -155,7 +155,7 @@ private:
                 }
             ),
             ParameterNode::ActionParam(
-                rclcpp::Parameter("img_topic", "bob/camera/all_sky/bayer"), 
+                rclcpp::Parameter("img_topic", "bob/frames/masked"), 
                 [this](const rclcpp::Parameter& param) {img_topic_ = param.as_string();}
             ),
             ParameterNode::ActionParam(

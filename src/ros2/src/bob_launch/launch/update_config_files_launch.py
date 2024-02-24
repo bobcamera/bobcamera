@@ -223,6 +223,7 @@ def application_config(context):
     tracking_mask_dir = os.path.dirname(tracking_mask_file)
 
     #bitrate_str = 'bitrate=10240000'
+    mask_enable_override = source in ('\'rtsp\'', '\'rtsp_overlay\'', '\'usb\'')
 
     update_config = LaunchConfiguration('update_config_from_env_vars_arg').perform(context) in ('True', 'true')    
 
@@ -273,6 +274,7 @@ def application_config(context):
 
             # mask_application_node
             yaml_output['mask_application_node']['ros__parameters']['mask_file'] = tracking_mask_file
+            yaml_output['mask_application_node']['ros__parameters']['mask_enable_override'] = mask_enable_override
 
             # minimal_background_subtractor_node
             yaml_output['minimal_background_subtractor_node']['ros__parameters']['bgs'] = bgs_algo

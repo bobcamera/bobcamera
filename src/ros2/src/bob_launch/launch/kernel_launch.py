@@ -58,7 +58,7 @@ def generate_launch_description():
                 name='simulated_frame_provider_node',  
                 parameters = [config],
                 remappings=[
-                    ('bob/simulation/output_frame', 'bob/camera/all_sky/bayer')
+                    ('bob/simulation/output_frame', 'bob/frames/masked')
                 ],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'simulate'" ])),  
@@ -76,7 +76,7 @@ def generate_launch_description():
                 plugin='SimulationOverlayProviderNode',  
                 name='simulation_overlay_provider_node',
                 parameters = [config],
-                remappings=[('bob/simulation/output_frame', '/bob/camera/all_sky/bayer')],
+                remappings=[('bob/simulation/output_frame', 'bob/camera/all_sky/bayer')],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([
                     LaunchConfiguration('source_arg'), 
@@ -152,13 +152,13 @@ def generate_launch_description():
             ComposableNode(
                 package='bob_image_processing',
                 plugin='FrameResizer',
-                name='bayer_frame_resizer_node',
+                name='masked_frame_resizer_node',
                 remappings=[
-                    ('bob/resizer/source', 'bob/camera/all_sky/bayer'),
-                    ('bob/resizer/target', 'bob/camera/all_sky/bayer/resized')],
+                    ('bob/resizer/source', 'bob/frames/masked'),
+                    ('bob/resizer/target', 'bob/frames/masked/resized')],
                 parameters = [config],
                 extra_arguments=[{'use_intra_process_comms': True}],
-            ),
+            ),            
             ComposableNode(
                 package='bob_image_processing',
                 plugin='FrameResizer',

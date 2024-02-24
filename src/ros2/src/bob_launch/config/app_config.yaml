@@ -72,6 +72,7 @@ simulation_overlay_provider_node:
 mask_application_node:
   ros__parameters:
     mask_file: ''
+    mask_enable_override: True
 
 minimal_background_subtractor_node:
   ros__parameters:
@@ -108,7 +109,7 @@ track_provider_node:
 allsky_recorder_node:
   ros__parameters:
     recordings_directory: 'assets/recordings'
-    img_topic: 'bob/camera/all_sky/bayer'
+    img_topic: 'bob/frames/masked'
     fg_img_topic: 'bob/frames/all_sky/foreground_mask'
     tracking_topic: 'bob/tracker/tracking'
     camera_info_topic: bob/camera/all_sky/camera_info
@@ -122,7 +123,7 @@ annotated_frame_provider_node:
   ros__parameters:
     pass: True
 
-bayer_frame_resizer_node:
+masked_frame_resizer_node:
   ros__parameters:
     resize_height: 960
 
@@ -145,7 +146,7 @@ annotated_frame_compressor_node:
   ros__parameters:
     compression_quality: 95
 
-bayer_compressor_node:
+masked_compressor_node:
   ros__parameters:
     compression_quality: 95
 

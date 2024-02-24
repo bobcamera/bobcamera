@@ -17,7 +17,7 @@ def generate_launch_description():
         name='day_night_classifier_node',
         parameters = [config],
         remappings=[
-            ('bob/observer_frame/source', 'bob/camera/all_sky/bayer/resized')],
+            ('bob/observer_frame/source', 'bob/frames/masked/resized')],
     )
 
     cloud_estimator_node = Node(
@@ -27,7 +27,7 @@ def generate_launch_description():
         name='cloud_estimator_node',
         parameters = [config],
         remappings=[
-            ('bob/observer_frame/source', 'bob/camera/all_sky/bayer/resized')],        
+            ('bob/observer_frame/source', 'bob/frames/masked/resized')],        
     )
     
     tracking_monitor_node = Node(
@@ -53,11 +53,11 @@ def generate_launch_description():
         name='onvif_service_node',
         parameters = [config],
         condition=IfCondition(PythonExpression([
-                    LaunchConfiguration('source_arg'), 
-                    " == 'rtsp'",
-                    " or ", 
-                    LaunchConfiguration('source_arg'), 
-                    " == 'rtsp_overlay'"])),
+            LaunchConfiguration('source_arg'), 
+            " == 'rtsp'",
+            " or ", 
+            LaunchConfiguration('source_arg'), 
+            " == 'rtsp_overlay'"])),
     )
 
     ptz_manager_node = Node(

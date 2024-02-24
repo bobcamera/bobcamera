@@ -29,7 +29,7 @@ def generate_launch_description():
         name='mask_webapi_node',
         parameters = [config],
         remappings=[
-            #('bob/observer_frame/source', 'bob/camera/all_sky/bayer/resized')
+            #('input', 'output')
         ],
     )
 

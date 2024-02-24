@@ -45,7 +45,7 @@ public:
 
         declare_node_parameters();
 
-        image_publisher_ = create_publisher<sensor_msgs::msg::Image>("bob/camera/all_sky/bayer_masked", pub_qos_profile);
+        image_publisher_ = create_publisher<sensor_msgs::msg::Image>("bob/frames/masked", pub_qos_profile);
         image_subscription_ = create_subscription<sensor_msgs::msg::Image>("bob/camera/all_sky/bayer", sub_qos_profile, 
             std::bind(&MaskApplication::callback, this, std::placeholders::_1));
 
@@ -62,7 +62,11 @@ public:
             ParameterNode::ActionParam(
                 rclcpp::Parameter("mask_file", "mask.pgm"), 
                 [this](const rclcpp::Parameter& param) {mask_filename_ = param.as_string();}
-            )
+            ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("mask_enable_override", true), 
+                [this](const rclcpp::Parameter& param) {mask_enable_override_ = param.as_bool();}
+            ),
         };
         add_action_parameters(params);
     }
@@ -72,7 +76,7 @@ private:
     {
         try
         {
-            if (mask_enabled_)
+            if (mask_enable_override_ && mask_enabled_)
             {
                 cv::Mat img;
                 ImageUtils::convert_image_msg(img_msg, img, false);
@@ -193,6 +197,7 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
     std::string mask_filename_;
     bool mask_enabled_;
+    bool mask_enable_override_;
     rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::Client<bob_interfaces::srv::BGSResetRequest>::SharedPtr bgs_reset_client_;
 };

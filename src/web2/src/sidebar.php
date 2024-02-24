@@ -89,7 +89,7 @@
     <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="iframe.php?file=html/topic-pub-sub-example.html"><i class="bi bi-terminal"></i>ROS2 Pub/Sub</a></li>
     <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="iframe.php?file=html/ros2-service-call-test.html"><i class="bi bi-terminal"></i>ROS2 Service Call</a></li>
     <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="iframe.php?file=html/topic-parameter-test-2.html"><i class="bi bi-terminal"></i>ROS2 Parameters</a></li>    
-</ul> -->
+</ul>
 <hr class="my-3">
 <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-1 mb-1 text-body-secondary text-uppercase">
     <span>Demos</span>
@@ -108,7 +108,7 @@
             Github
         </a>
     </li>
-    <!--<li class="nav-item">
+    <li class="nav-item">
         <a class="nav-link d-flex align-items-center gap-2" target="_blank" href="https://docs.google.com/spreadsheets/d/1N21H6HiBQFIPVtARJmt848pmYed0YJ0AsFPDFgNtDdw/edit?usp=sharing">
         <i class="bi bi-chat-left-text"></i>
             Feedback
