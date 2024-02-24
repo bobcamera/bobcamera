@@ -112,40 +112,47 @@ private:
 
     void timer_callback()
     {
-        cv::Mat mask;
-
-        // Load mask
-        if (std::filesystem::exists(mask_filename_))
+        try
         {
-            mask = cv::imread(mask_filename_, cv::IMREAD_UNCHANGED);    
+            cv::Mat mask;
+
+            // Load mask
+            if (std::filesystem::exists(mask_filename_))
+            {
+                mask = cv::imread(mask_filename_, cv::IMREAD_UNCHANGED);    
+            }
+
+            if (mask.empty())
+            {
+                if (mask_enabled_)
+                {
+                    RCLCPP_INFO(get_logger(), "Mask Disabled.");
+                    request_bgs_reset(false);
+                }
+                mask_enabled_ = false;            
+            }
+            else
+            {
+                if (!mask_enabled_)
+                {
+                    RCLCPP_INFO(get_logger(), "Mask Enabled.");
+                    request_bgs_reset(true);
+                }
+
+                mask_enabled_ = true;
+                
+                if (!areImagesEqual(mask, grey_mask_))
+                {
+                    grey_mask_= mask;
+                    cv::cvtColor(mask, converted_mask_, cv::COLOR_GRAY2BGR);
+                    request_bgs_reset(true);
+                }
+            }
         }
-
-        if (mask.empty())
+        catch (cv::Exception &cve)
         {
-            if (mask_enabled_)
-            {
-                RCLCPP_INFO(get_logger(), "Mask Disabled.");
-                request_bgs_reset(false);
-            }
-            mask_enabled_ = false;            
-        }
-        else
-        {
-            if (!mask_enabled_)
-            {
-                RCLCPP_INFO(get_logger(), "Mask Enabled.");
-                request_bgs_reset(true);
-            }
-
-            mask_enabled_ = true;
-            
-            if (!areImagesEqual(mask, grey_mask_))
-            {
-                grey_mask_= mask;
-                cv::cvtColor(mask, converted_mask_, cv::COLOR_GRAY2BGR);
-                request_bgs_reset(true);
-            }
-        } 
+            RCLCPP_ERROR(get_logger(), "Open CV exception on timer callback: %s", cve.what());
+        }  
     }
   
     void request_bgs_reset(const bool enabled)
