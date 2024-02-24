@@ -1,7 +1,7 @@
 version: '3'
 services:
   web:
-    image: bobcamera/bob-web-prod:1.2.7
+    image: bobcamera/bob-web-prod:1.2.8
     #user: ${MY_UID}:${MY_GID}
     ports:
       - "8080:80"
@@ -11,7 +11,7 @@ services:
     depends_on:
       - bob
   bob:
-    image: bobcamera/bob-ros2-prod:1.2.7
+    image: bobcamera/bob-ros2-prod:1.2.8
     #user: ${MY_UID}:${MY_GID}
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -25,7 +25,6 @@ services:
       - BOB_ENABLE_RECORDING=${BOB_ENABLE_RECORDING}
       - BOB_BGS_ALGORITHM=${BOB_BGS_ALGORITHM}
       - BOB_TRACKING_SENSITIVITY=${BOB_TRACKING_SENSITIVITY}
-      - BOB_TRACKING_USEMASK=${BOB_TRACKING_USEMASK}
       - BOB_TRACKING_MASK_FILE=${BOB_TRACKING_MASK_FILE}
       - BOB_VIDEOS=${BOB_VIDEOS}
       - BOB_SIMULATION_NUM_OBJECTS=${BOB_SIMULATION_NUM_OBJECTS}
