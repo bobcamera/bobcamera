@@ -1,4 +1,4 @@
-# BOB the UAP Detector, Tracker and Recorder
+# BOB the Universal Object Tracker
 
 Below are the installation instructions for installing BOB, your friendly Object (bird, insect, bat, uap) detector, tracker and recorder
 The application uses Docker and Docker Compose to run, at present we are still in a very early release phase so this the install process is not polished at all. We will endeavour to improve this over time to please bear with us.
