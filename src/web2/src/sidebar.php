@@ -6,15 +6,32 @@
 <ul class="nav flex-column">
     <li class="nav-item">
         <a class="nav-link d-flex align-items-center gap-2" aria-current="page" href="iframe.php?file=html/2d-Stream-With-Controls.html">
-        <i class="bi bi-camera-video"></i>
+        <i class="bi bi-camera"></i>
             Live Stream
         </a>
     </li>
-    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="iframe.php?file=html/2D-full-width-stream.html"><i class="bi bi-camera"></i>Wide View</a></li>
     <!-- <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="iframe.php?file=html/2D-full-height-stream.html"><i class="bi bi-camera"></i>Fisheye Full View</a></li> -->
-
 </ul>
-
+<h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-1 mb-1 text-body-secondary text-uppercase">
+    <span>Wide View</span>
+    <a class="link-secondary" href="#" aria-label="">
+    </a>
+</h6>
+<ul class="nav flex-column">
+    <li class="nav-item">
+        <a class="nav-link d-flex align-items-center gap-2" href="iframe.php?file=html/2D-full-width-stream-annotated.html">
+        <i class="bi bi-camera"></i>
+            Annotated
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link d-flex align-items-center gap-2" href="iframe.php?file=html/2D-full-width-stream-forgroung-mask.html">
+        <i class="bi bi-camera"></i>
+            Foreground Mask
+        </a>
+    </li>    
+    <!-- <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="iframe.php?file=html/2D-full-height-stream.html"><i class="bi bi-camera"></i>Fisheye Full View</a></li> -->
+</ul>
 <hr class="my-3">
 <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-1 mb-1 text-body-secondary text-uppercase">
     <span>Recordings</span>
@@ -66,8 +83,8 @@
         </a>
     </li>    
  </ul>
-<!--<hr class="my-3">
-<h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-1 mb-1 text-body-secondary text-uppercase">
+<hr class="my-3">
+<!--<h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-1 mb-1 text-body-secondary text-uppercase">
     <span>Editors</span>
     <a class="link-secondary" href="#" aria-label="">
     </a>
@@ -122,4 +139,16 @@
             Settings
         </a>
     </li>-->
+<h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-1 mb-1 text-body-secondary text-uppercase">
+    <span>Project</span>
+    <a class="link-secondary" href="#" aria-label="">
+    </a>
+</h6>
+<ul class="nav flex-column">
+    <li class="nav-item">
+        <a class="nav-link d-flex align-items-center gap-2" target="_blank" href="https://github.com/bobcamera/bobcamera">
+            <i class="bi bi-github"></i>
+            Github
+        </a>
+    </li>    
 </ul>

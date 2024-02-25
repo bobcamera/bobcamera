@@ -110,7 +110,7 @@ allsky_recorder_node:
   ros__parameters:
     recordings_directory: 'assets/recordings'
     img_topic: 'bob/frames/masked'
-    fg_img_topic: 'bob/frames/all_sky/foreground_mask'
+    fg_img_topic: 'bob/frames/foreground_mask'
     tracking_topic: 'bob/tracker/tracking'
     camera_info_topic: bob/camera/all_sky/camera_info
     prefix: ''
@@ -140,13 +140,17 @@ multi_frame_viewer_node:
   ros__parameters:
     topics: 
       - 'bob/frames/annotated/resized'
-      - 'bob/frames/all_sky/foreground_mask/resized'
+      - 'bob/frames/foreground_mask/resized'
 
 annotated_frame_compressor_node:
   ros__parameters:
     compression_quality: 95
 
 masked_compressor_node:
+  ros__parameters:
+    compression_quality: 95
+
+foreground_mask_compressor_node:
   ros__parameters:
     compression_quality: 95
 

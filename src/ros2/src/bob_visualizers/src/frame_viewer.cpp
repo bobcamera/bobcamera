@@ -40,7 +40,7 @@ private:
     {
         std::vector<ParameterNode::ActionParam> params = {
             ParameterNode::ActionParam(
-                rclcpp::Parameter("topics", std::vector<std::string>({"bob/frames/masked", "bob/frames/all_sky/foreground_mask"})), 
+                rclcpp::Parameter("topics", std::vector<std::string>({"bob/frames/masked", "bob/frames/foreground_mask"})), 
                 [this](const rclcpp::Parameter& param) {topics_ = param.as_string_array();}
             ),
         };

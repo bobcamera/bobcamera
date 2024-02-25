@@ -57,7 +57,16 @@ def generate_launch_description():
                     ('bob/compressor/source', 'bob/frames/masked/resized'),
                     ('bob/compressor/target', 'bob/frames/masked/resized/compressed')],
                 parameters = [config],
-                extra_arguments=[{'use_intra_process_comms': True}]),                               
+                extra_arguments=[{'use_intra_process_comms': True}]),
+           ComposableNode(
+                package='bob_image_processing',
+                plugin='FrameCompressor',
+                name='foreground_mask_compressor_node',
+                remappings=[
+                    ('bob/compressor/source', 'bob/frames/foreground_mask/resized'),
+                    ('bob/compressor/target', 'bob/frames/foreground_mask/resized/compressed')],
+                parameters = [config],
+                extra_arguments=[{'use_intra_process_comms': True}]),                
         ],
         output='screen',
     )

@@ -164,8 +164,8 @@ def generate_launch_description():
                 plugin='FrameResizer',
                 name='foreground_mask_frame_resizer_node',
                 remappings=[
-                    ('bob/resizer/source', 'bob/frames/all_sky/foreground_mask'),
-                    ('bob/resizer/target', 'bob/frames/all_sky/foreground_mask/resized')],
+                    ('bob/resizer/source', 'bob/frames/foreground_mask'),
+                    ('bob/resizer/target', 'bob/frames/foreground_mask/resized')],
                 parameters = [config],
                 extra_arguments=[{'use_intra_process_comms': True}],
             ),
