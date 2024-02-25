@@ -27,7 +27,7 @@ class ConfigDiscoverer():
         self.height = 0
         self.width = 0
         self.fps = 0
-        self.bitrate = 10240000
+        #self.bitrate = 10240000
 
         self.onvif_success = False
 
@@ -220,10 +220,10 @@ def application_config(context):
     bgs_algo = str(LaunchConfiguration('bgs_algorithm_arg').perform(context))
 
     tracking_mask_file = str(LaunchConfiguration('tracking_maskfile_arg').perform(context))
-    tracking_use_mask = LaunchConfiguration('tracking_usemask_arg').perform(context) in ('True', 'true')
     tracking_mask_dir = os.path.dirname(tracking_mask_file)
 
-    bitrate_str = 'bitrate=10240000'
+    #bitrate_str = 'bitrate=10240000'
+    mask_enable_override = source in ('\'rtsp\'', '\'rtsp_overlay\'', '\'usb\'')
 
     update_config = LaunchConfiguration('update_config_from_env_vars_arg').perform(context) in ('True', 'true')    
 
@@ -234,7 +234,7 @@ def application_config(context):
         simulation_width = discoverer.width
         simulation_height = discoverer.height        
         fps = discoverer.fps
-        bitrate_str = f'bitrate={discoverer.bitrate}'
+        #bitrate_str = f'bitrate={discoverer.bitrate}'
 
     if update_config:
         
@@ -274,22 +274,19 @@ def application_config(context):
 
             # mask_application_node
             yaml_output['mask_application_node']['ros__parameters']['mask_file'] = tracking_mask_file
+            yaml_output['mask_application_node']['ros__parameters']['mask_enable_override'] = mask_enable_override
 
             # minimal_background_subtractor_node
             yaml_output['minimal_background_subtractor_node']['ros__parameters']['bgs'] = bgs_algo
-            yaml_output['minimal_background_subtractor_node']['ros__parameters']['use_mask'] = tracking_use_mask
 
             # low_background_subtractor_node
             yaml_output['low_background_subtractor_node']['ros__parameters']['bgs'] = bgs_algo
-            yaml_output['low_background_subtractor_node']['ros__parameters']['use_mask'] = tracking_use_mask
 
             # medium_background_subtractor_node
             yaml_output['medium_background_subtractor_node']['ros__parameters']['bgs'] = bgs_algo
-            yaml_output['medium_background_subtractor_node']['ros__parameters']['use_mask'] = tracking_use_mask
 
             # high_background_subtractor_node
             yaml_output['high_background_subtractor_node']['ros__parameters']['bgs'] = bgs_algo
-            yaml_output['high_background_subtractor_node']['ros__parameters']['use_mask'] = tracking_use_mask
 
             # mask_webapi_node
             yaml_output['mask_webapi_node']['ros__parameters']['masks_folder'] = tracking_mask_dir
@@ -303,7 +300,7 @@ def application_config(context):
 
             # allsky_recorder_node
             yaml_output['allsky_recorder_node']['ros__parameters']['video_fps'] = fps            
-            yaml_output['allsky_recorder_node']['ros__parameters']['pipeline'] = f'appsrc ! videoconvert ! openh264enc {bitrate_str} qp-min=10 qp-max=51 ! h264parse ! mp4mux ! filesink location='
+            #yaml_output['allsky_recorder_node']['ros__parameters']['pipeline'] = f'appsrc ! videoconvert ! openh264enc {bitrate_str} qp-min=10 qp-max=51 ! h264parse ! mp4mux ! filesink location='
 
             # onvif details
             if discoverer.onvif_success:

@@ -1,27 +1,20 @@
 version: '3'
 services:
   web:
-    image: bobcamera/bob-web-prod:1.2.7
-    build: 
-      context: .
-      target: bob-web-prod
+    image: bobcamera/bob-web-prod:1.2.9
+    #user: ${MY_UID}:${MY_GID}
     ports:
       - "8080:80"
-    environment:
-      - DEBUG=1
-  # If you want to view recordings taken by bob, uncomment the comment below.      
+  # If you want to view demo recordings, comment out the volume section below.      
     volumes: 
       - ${PWD}/assets/recordings:/var/www/html/videos
     depends_on:
       - bob
   bob:
-    image: bobcamera/bob-ros2-prod:1.2.7
+    image: bobcamera/bob-ros2-prod:1.2.9
+    #user: ${MY_UID}:${MY_GID}
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    build:
-      context: .
-      target: bob-ros2-iron-prod
-    #user: "${UID}:${GID}"
     ports:
       - "9090:9090"
     environment:  # add in .env
@@ -32,7 +25,6 @@ services:
       - BOB_ENABLE_RECORDING=${BOB_ENABLE_RECORDING}
       - BOB_BGS_ALGORITHM=${BOB_BGS_ALGORITHM}
       - BOB_TRACKING_SENSITIVITY=${BOB_TRACKING_SENSITIVITY}
-      - BOB_TRACKING_USEMASK=${BOB_TRACKING_USEMASK}
       - BOB_TRACKING_MASK_FILE=${BOB_TRACKING_MASK_FILE}
       - BOB_VIDEOS=${BOB_VIDEOS}
       - BOB_SIMULATION_NUM_OBJECTS=${BOB_SIMULATION_NUM_OBJECTS}
@@ -41,6 +33,19 @@ services:
     volumes: 
       - ${PWD}/assets/:/workspaces/bobcamera/src/ros2/assets/
       - ${PWD}/media:/workspaces/bobcamera/media
+  rstudio:
+    image: dceoy/rstudio-server:latest
+    #user: ${MY_UID}:${MY_GID}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8787:8787"
+    volumes: 
+      - ${PWD}/assets/recordings:/home/rstudio/recordings
+    working_dir: "/home/rstudio dceoy/rstudio-server"
+    depends_on:
+      - bob
+      
   # If you want to use a usb camera uncomment the devices comment below
   #  devices:
   #    - /dev/video0:/dev/video0 

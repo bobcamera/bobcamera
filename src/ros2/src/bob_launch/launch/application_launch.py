@@ -25,7 +25,7 @@ def generate_launch_description():
     
     enable_visualiser_arg_value = EnvironmentVariable('BOB_ENABLE_VISUALISER', default_value="True")
     
-    enable_rosbridge_arg_value = EnvironmentVariable('BOB_ENABLE_ROSBRIDGE', default_value="False")
+    enable_rosbridge_arg_value = EnvironmentVariable('BOB_ENABLE_ROSBRIDGE', default_value="True")
     enable_recording_arg_value = EnvironmentVariable('BOB_ENABLE_RECORDING', default_value="False")    
     
     simulation_width_arg_value = EnvironmentVariable('BOB_SIMULATION_WIDTH', default_value="0")
@@ -35,7 +35,6 @@ def generate_launch_description():
     bgs_algorithm_value = EnvironmentVariable('BOB_BGS_ALGORITHM', default_value="vibe")    
     
     tracking_sensitivity_arg_value  = EnvironmentVariable('BOB_TRACKING_SENSITIVITY', default_value="'high'")
-    tracking_usemask_arg_value  = EnvironmentVariable('BOB_TRACKING_USEMASK', default_value="False")
     tracking_maskfile_arg_value  = EnvironmentVariable('BOB_TRACKING_MASK_FILE', default_value="'mask.pgm'")
 
     video_arg_value  = EnvironmentVariable('BOB_VIDEOS', default_value="")
@@ -132,12 +131,6 @@ def generate_launch_description():
         description="Tracking sensitivity of the bgs and blob detector, it drives a set of parameters for the algos."
         )  
 
-    tracking_usemask_arg = DeclareLaunchArgument(
-        'tracking_usemask_arg',
-        default_value=tracking_usemask_arg_value,
-        description="Use mask set."
-        )    
-    
     tracking_maskfile_arg = DeclareLaunchArgument(
         'tracking_maskfile_arg',
         default_value=tracking_maskfile_arg_value,
@@ -173,7 +166,6 @@ def generate_launch_description():
 
         bgs_algorithm_arg,
         tracking_sensitivity_arg,
-        tracking_usemask_arg,
         tracking_maskfile_arg,
 
         video_arg,

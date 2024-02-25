@@ -155,7 +155,7 @@ private:
                 }
             ),
             ParameterNode::ActionParam(
-                rclcpp::Parameter("img_topic", "bob/camera/all_sky/bayer"), 
+                rclcpp::Parameter("img_topic", "bob/frames/masked"), 
                 [this](const rclcpp::Parameter& param) {img_topic_ = param.as_string();}
             ),
             ParameterNode::ActionParam(
@@ -163,7 +163,7 @@ private:
                 [this](const rclcpp::Parameter& param) {tracking_topic_ = param.as_string();}
             ),
             ParameterNode::ActionParam(
-                rclcpp::Parameter("fg_img_topic", "bob/frames/all_sky/foreground_mask"), 
+                rclcpp::Parameter("fg_img_topic", "bob/frames/foreground_mask"), 
                 [this](const rclcpp::Parameter& param) {fg_img_topic_ = param.as_string();}
             ),
             ParameterNode::ActionParam(

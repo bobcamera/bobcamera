@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 set -o errexit
 set -o nounset
@@ -36,7 +36,4 @@ else
     printf '\nDocker Compose installed successfully\n\n'
 fi
 
-#docker compose version
-
-#UID=${UID} GID=${GID} docker-compose build
-#UID=${UID} GID=${GID} docker-compose up
+./run.sh

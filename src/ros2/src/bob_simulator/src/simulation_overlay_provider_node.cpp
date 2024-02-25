@@ -20,7 +20,9 @@ class SimulationOverlayProviderNode
 public:
     COMPOSITION_PUBLIC
     explicit SimulationOverlayProviderNode(const rclcpp::NodeOptions & options) 
-    : ParameterNode("simulation_overlay_provider_node", options) 
+    : ParameterNode("simulation_overlay_provider_node", options),
+      default_size_range_{2, 10}, 
+      default_step_range_{5, 30} 
     {
         rclcpp::QoS subscriber_qos_profile(10);
         subscriber_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
@@ -34,11 +36,8 @@ public:
 
         declare_node_parameters();
 
-        std::pair<int, int> default_size_range(2, 10); 
-        std::pair<int, int> default_step_range(5, 30);  
-
         for(int i = 0; i < num_simulated_objects_; i++) {
-            moving_circles_.emplace_back(width_, height_, 0.5, default_size_range, default_step_range);
+            moving_circles_.emplace_back(width_, height_, 0.5, default_size_range_, default_step_range_);
         }
 
         sub_camera_ = this->create_subscription<sensor_msgs::msg::Image>(
@@ -74,6 +73,8 @@ private:
     std::vector<MovingCircle> moving_circles_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub_camera_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_synthetic_frame_;
+    std::pair<int, int> default_size_range_; 
+    std::pair<int, int> default_step_range_;  
 
     void camera_callback(const sensor_msgs::msg::Image::SharedPtr msg_image) {
 
@@ -83,9 +84,18 @@ private:
         }
 
         try {
-            
             cv::Mat input_frame;
             ImageUtils::convert_image_msg(msg_image, input_frame, false);
+
+            if (input_frame.cols != width_ || input_frame.rows != height_) 
+            {
+                width_ = input_frame.cols;
+                height_ = input_frame.rows;
+                moving_circles_.clear();
+                for(int i = 0; i < num_simulated_objects_; i++) {
+                    moving_circles_.emplace_back(width_, height_, 0.5, default_size_range_, default_step_range_);
+                }
+            }
 
             for(auto &circle : moving_circles_) {
                 circle.move();
@@ -94,11 +104,11 @@ private:
             auto frame_synthetic_msg = cv_bridge::CvImage(msg_image->header, input_frame.channels() == 1 ? sensor_msgs::image_encodings::MONO8 : sensor_msgs::image_encodings::BGR8, input_frame).toImageMsg();
             pub_synthetic_frame_->publish(*frame_synthetic_msg);
 
-
         } catch(const std::exception& e) {
             RCLCPP_ERROR(get_logger(), "Exception during frame overlay simulation: %s", e.what());
         }
     }
+
 };
 
 int main(int argc, char **argv) 
