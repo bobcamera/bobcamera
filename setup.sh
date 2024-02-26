@@ -36,4 +36,4 @@ else
     printf '\nDocker Compose installed successfully\n\n'
 fi
 
-./run.sh
+#./run.sh
