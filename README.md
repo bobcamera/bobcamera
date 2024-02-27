@@ -29,6 +29,7 @@ cd bobcamera
 ./setup.sh
 ```
 ### 5. Reboot the machine
+- Only required if Docker has been installed during the setup script
 ```
 sudo shutdown -r now
 ```
@@ -36,22 +37,21 @@ sudo shutdown -r now
 ```
 cd ~/bobcamera
 ```
-### 7. Copy the .env.example file to .env and edit the file to set the right values for your camera
-
-You can do this with your favorite file manager and text editor.
-
-In this example, we use nano:
-```
-cp .env.example .env
-nano .env
-```
-
-To save a file using nano, press CTRL + X, then Y, then ENTER
-
-### 8. To start up BOB
+### 7. To start up BOB
 ```
 ./run.sh
 ```
-### 9. Use your system browser and navigate to [http://localhost:8080](http://localhost:8080)
+### 8. Use your system browser and navigate to [http://localhost:8080](http://localhost:8080)
 
-### 10. To shut BOB down, type CTRL + C in the terminal
+### 9. To shut BOB down, type CTRL + C in the terminal
+
+
+#### To change configuration please execute: 
+```
+./config.sh 
+```
+
+#### To reset to default configuration, please execute: 
+```
+./setup.sh 
+```
