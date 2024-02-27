@@ -51,6 +51,21 @@ set_config_options() {
     local unconfirmed_result="true"
     local current_value=$(grep "^$var_name=" "$ENV_FILE" | cut -d '=' -f2- | tr -d '"') 
     local formatted_options=""
+    if [ "$1" = "BOB_ENABLE_VISUALISER" ]; then
+        echo -e "This parameter activates a separate annotated frame stream viewer outside the web user interface\n"
+    elif [ "$1" = "BOB_ENABLE_RECORDING" ]; then 
+        echo -e "This parameter activates the recording of video files from tracks\n"
+    elif [ "$1" = "BOB_SOURCE" ]; then
+        echo -e "\nHere you can select the source for the video stream"
+        echo "Choose a number from 1 to 6:"
+        echo -e "\trtsp(1): Use a rtsp video-stream"
+        echo -e "\tusb(2): Use a usb video-stream, this is experimental, as it has only been tested and validated on Linux"
+        echo -e "\tvideo(3): pre-recorded video-feed"
+        echo -e "\tsimulate(4): simulation of tracker functionality in front of a blank background, with injected blobs"
+        echo -e "\trtsp_overlay(5): Like (4) but in front of your rtsp-stream"
+        echo -e "\tvideo_overlay(5): Like (4) but in front of the video-stream\n"
+    fi
+
     for i in "${!options[@]}"; do
         if [ "$add_apostrophes" = "true" ]; then
             formatted_options+="\"${options[$i]}\"($((i+1))), "
@@ -143,7 +158,7 @@ set_testing_videos() {
 
 set_number_of_simulated_objects() {
     clear
-    current_value=$(grep "^BOB_SIMULATION_NUM_OBJECTS=" "$ENV_FILE" | cut -d '=' -f2- | tr -d '"')
+    current_value=$(grep "^BOB_SIMULATION_NUM_OBJE CTS=" "$ENV_FILE" | cut -d '=' -f2- | tr -d '"')
     read -p "Enter number of simulated objects [$current_value]: " BOB_SIMULATION_NUM_OBJECTS
     BOB_SIMULATION_NUM_OBJECTS="${BOB_SIMULATION_NUM_OBJECTS:-$current_value}"
     sed -i "s|^BOB_SIMULATION_NUM_OBJECTS=.*|BOB_SIMULATION_NUM_OBJECTS=\"$BOB_SIMULATION_NUM_OBJECTS\"|" "$ENV_FILE"
@@ -188,3 +203,4 @@ while true; do
         esac
     fi
 done
+
