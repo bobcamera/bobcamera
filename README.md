@@ -45,13 +45,14 @@ cd ~/bobcamera
 
 ### 9. To shut BOB down, type CTRL + C in the terminal
 
+---
 
-#### To change configuration please execute: 
+To change configuration please execute: 
 ```
 ./config.sh 
 ```
 
-#### To reset to default configuration, please execute: 
+To reset to default configuration, please execute: 
 ```
 ./setup.sh 
 ```
