@@ -36,8 +36,7 @@ show_menu() {
     show_bob
     echo "1. Source type"
     [ "$usb_mode" = "'usb'" ] && echo "2. USB Source Selection (Experimental only tested on Linux)" || echo "2. RTSP URL for Fisheye Camera" 
-    echo "3. Visualizer"
-    echo "4. Recording"
+    echo "3. Recording"
     echo "s. Show results"
     echo "q. Quit"
 }
@@ -176,8 +175,8 @@ while true; do
         case $choice in
             1) set_config_options "BOB_SOURCE" "Source options:" "true" rtsp usb video simulate rtsp_overlay video_overlay;;
             2) [ "$usb_mode" = "'usb'" ] && set_usb || set_rtsp ;;
-            3) set_config_options "BOB_ENABLE_VISUALISER" "Enable Visualizer:" "false" True False;;
-            4) set_config_options "BOB_ENABLE_RECORDING" "Enable Recording:" "false" True False;;
+            3) set_config_options "BOB_ENABLE_RECORDING" "Enable Recording:" "false" True False;;
+            4) set_config_options "BOB_ENABLE_VISUALISER" "Enable Visualizer:" "false" True False;;
             5) set_config_options "BOB_BGS_ALGORITHM" "Background substraction algorithm:"  "false" vibe wmv;;
             6) set_config_options "BOB_TRACKING_SENSITIVITY" "Tracking sensitivity options:" "true"  minimal low medium high;;
             7) set_mask_file ;;
@@ -194,8 +193,7 @@ while true; do
         case $choice in
             1) set_config_options "BOB_SOURCE" "Source options:" "true" rtsp usb video simulate rtsp_overlay video_overlay;;
             2) [ "$usb_mode" = "'usb'" ] && set_usb || set_rtsp ;;
-            3) set_config_options "BOB_ENABLE_VISUALISER" "Enable Visualizer:" "false" True False;;
-            4) set_config_options "BOB_ENABLE_RECORDING" "Enable Recording:" "false" True False;;
+            3) set_config_options "BOB_ENABLE_RECORDING" "Enable Recording:" "false" True False;;
             s) clear; cat ".env"; echo -e "\n\nPress Enter to continue..."; read ;;
             q) clear; echo "Exiting...";  exit ;;
             a) clear; advanced_mode="true";;
