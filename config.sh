@@ -143,7 +143,7 @@ set_testing_videos() {
 
 set_number_of_simulated_objects() {
     clear
-    current_value=$(grep "^BOB_SIMULATION_NUM_OBJE CTS=" "$ENV_FILE" | cut -d '=' -f2- | tr -d '"')
+    current_value=$(grep "^BOB_SIMULATION_NUM_OBJECTS=" "$ENV_FILE" | cut -d '=' -f2- | tr -d '"')
     read -p "Enter number of simulated objects [$current_value]: " BOB_SIMULATION_NUM_OBJECTS
     BOB_SIMULATION_NUM_OBJECTS="${BOB_SIMULATION_NUM_OBJECTS:-$current_value}"
     sed -i "s|^BOB_SIMULATION_NUM_OBJECTS=.*|BOB_SIMULATION_NUM_OBJECTS=\"$BOB_SIMULATION_NUM_OBJECTS\"|" "$ENV_FILE"
