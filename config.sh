@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash 
 
 ENV_FILE=".env"
 
@@ -18,7 +18,7 @@ show_menu_advanced() {
     clear
     show_bob
     echo "1. Source type"
-    [ "$usb_mode" = "'usb'" ] && echo "2. USB Source Selection" || echo "2. RTSP URL for Fisheye Camera" 
+    [ "$usb_mode" = "'usb'" ] && echo "2. USB Source Selection (Experimental only tested on Linux)" || echo "2. RTSP URL for Fisheye Camera" 
     echo "3. Visualizer"
     echo "4. Recording"
     echo "5. Background Substraction Algorithm"
@@ -35,7 +35,7 @@ show_menu() {
     clear
     show_bob
     echo "1. Source type"
-    [ "$usb_mode" = "'usb'" ] && echo "2. USB Source Selection" || echo "2. RTSP URL for Fisheye Camera" 
+    [ "$usb_mode" = "'usb'" ] && echo "2. USB Source Selection (Experimental only tested on Linux)" || echo "2. RTSP URL for Fisheye Camera" 
     echo "3. Visualizer"
     echo "4. Recording"
     echo "s. Show results"
@@ -86,6 +86,13 @@ set_rtsp() {
     echo 'Example Hikvision: "rtsp://user:password@0.0.0.0:554/Streaming/Channels/101"'
     echo 'Example Amcrest and Dahua: "rtsp://user:password@0.0.0.0:554/cam/realmonitor?channel=1&subtype=0"'
     default_url=$(grep "^BOB_RTSP_URL=" "$ENV_FILE" | cut -d '=' -f2-  | tr -d '"')
+    [[ $default_url =~ rtsp://([^:]+):([^@]+)@([^:]+):([^/]+)/(.*) ]]
+    BOB_RTSP_USER="${BASH_REMATCH[1]}"
+    BOB_RTSP_PASSWORD="${BASH_REMATCH[2]}"
+    BOB_RTSP_IP="${BASH_REMATCH[3]}"
+    BOB_RTSP_PORT="${BASH_REMATCH[4]}"
+    BOB_RTSP_URLPATH="${BASH_REMATCH[5]}"
+
     echo -e "Current URL: $default_url\n\n"
     read -p "Enter the user: " new_user
     BOB_RTSP_USER="${new_user:-$BOB_RTSP_USER}"
@@ -95,7 +102,7 @@ set_rtsp() {
     BOB_RTSP_IP="${new_ip:-$BOB_RTSP_IP}"
     read -p "Enter the port: " new_port
     BOB_RTSP_PORT="${new_port:-$BOB_RTSP_PORT}"
-    read -p "Enter the URL-Path: " new_urlpath
+    read -p "Enter the URL-Path: /" new_urlpath
     BOB_RTSP_URLPATH="${new_urlpath:-$BOB_RTSP_URLPATH}"
     BOB_RTSP_URL="rtsp://$BOB_RTSP_USER:$BOB_RTSP_PASSWORD@$BOB_RTSP_IP:$BOB_RTSP_PORT/$BOB_RTSP_URLPATH"
     echo "Constructed RTSP URL: $BOB_RTSP_URL"  
@@ -136,7 +143,7 @@ set_testing_videos() {
 
 set_number_of_simulated_objects() {
     clear
-    current_value=$(grep "^BOB_SIMULATION_NUM_OBJECTS=" "$ENV_FILE" | cut -d '=' -f2- | tr -d '"')
+    current_value=$(grep "^BOB_SIMULATION_NUM_OBJE CTS=" "$ENV_FILE" | cut -d '=' -f2- | tr -d '"')
     read -p "Enter number of simulated objects [$current_value]: " BOB_SIMULATION_NUM_OBJECTS
     BOB_SIMULATION_NUM_OBJECTS="${BOB_SIMULATION_NUM_OBJECTS:-$current_value}"
     sed -i "s|^BOB_SIMULATION_NUM_OBJECTS=.*|BOB_SIMULATION_NUM_OBJECTS=\"$BOB_SIMULATION_NUM_OBJECTS\"|" "$ENV_FILE"
