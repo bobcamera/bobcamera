@@ -37,3 +37,9 @@ else
 fi
 
 #./run.sh
+
+# Copy the .env file
+cp .env.example .env
+
+# Run the config script
+./config.sh
