@@ -9,20 +9,72 @@ validate_version_number() {
     fi
 }
 
-# Prompt the user for a version number
-while :; do
-    read -p "Enter version number (format: number.number.number): " version_number
 
-    # Validate the version number format
-    if validate_version_number "$version_number"; then
-        break  # Exit the loop if the version number format is valid
+web_version=$(grep -Po '(?<=image: bobcamera/bob-web-prod:)\d+\.\d+\.\d+' docker-compose.yaml)
+bob_version=$(grep -Po '(?<=image: bobcamera/bob-ros2-prod:)\d+\.\d+\.\d+' docker-compose.yaml)
+if [ "$web_version" == "$bob_version" ]; then
+    echo "Versions are consistent: $web_version"
+else
+    echo "Versions are not consistent:"
+    echo "Web Version: $web_version"
+    echo "Bob Version: $bob_version"
+    exit 1
+fi
+
+# Split version number into major, minor, and patch
+IFS='.' read -r major minor patch <<< "$web_version"
+
+
+while :; do 
+    read -p "Do you want to increment the patch-number y(es) or do you want to set your own numbers n(o)" patchincrement
+    response_lower=$(echo "$patchincrement" | tr '[:upper:]' '[:lower:]')
+    if [ "$response_lower" = "no" ] || [ "$response_lower" = "n" ]; then
+        # Prompt the user for a version number
+        while :; do
+            read -p "Enter version number (format: number.number.number): " version_number
+            # Validate the version number format
+            if validate_version_number "$version_number"; then
+                break  # Exit the loop if the version number format is valid
+            else
+                echo "Invalid version number format. Please enter a version number in the format number.number.number"
+            fi
+        done
+        break
+    elif [ "$response_lower" = "yes" ] || [ "$response_lower" = "y" ]; then
+         # Increment the patch version
+        patch=$((patch + 1))
+        version_number="$major.$minor.$patch"
+        echo "New version number is: $version_number"
+
+        break
     else
-        echo "Invalid version number format. Please enter a version number in the format number.number.number"
+        echo "Invalid response. Please enter 'yes' or 'no'."
     fi
 done
 
-# If the version number format is correct, continue with the script
-echo "Version number entered: $version_number"
+# Replace version number in docker-compose.yaml
+if sed -i "s/bobcamera\/bob-web-prod:$web_version/bobcamera\/bob-web-prod:$version_number/" docker-compose.yaml && \
+   sed -i "s/bobcamera\/bob-ros2-prod:$bob_version/bobcamera\/bob-ros2-prod:$version_number/" docker-compose.yaml; then
+    echo "Version numbers updated to $version_number in docker-compose.yaml."
+else
+    echo "Failed to update version numbers in docker-compose.yaml."
+fi
+
+# Replace version number in Dockerfile
+if sed -i "s/FROM bobcamera\/bob-ros2-dev:$web_version/FROM bobcamera\/bob-ros2-dev:$version_number/" src/ros2/.devcontainer/Dockerfile; then
+    echo "Version number updated to $version_number in Dockerfile."
+else
+    echo "Failed to update version number in Dockerfile."
+fi
+
+# Replace version number in app_config.yaml
+if sed -i "s/application_version: '$web_version'/application_version: '$version_number'/" src/ros2/src/bob_launch/config/app_config.yaml; then
+    echo "Version number updated to $version_number in app_config.yaml."
+else
+    echo "Failed to update version number in app_config.yaml."
+fi
+
+read -rp "Press return to continue..."
 
 rm -r ./src/ros2/assets/calibration/*
 rm -r ./src/ros2/assets/config/*
