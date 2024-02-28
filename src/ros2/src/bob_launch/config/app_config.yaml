@@ -72,6 +72,7 @@ simulation_overlay_provider_node:
 mask_application_node:
   ros__parameters:
     mask_file: ''
+    mask_enable_override: True
 
 minimal_background_subtractor_node:
   ros__parameters:
@@ -79,7 +80,6 @@ minimal_background_subtractor_node:
     vibe_params: '{"threshold": 70, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8}'
     wmv_params: '{"enableWeight": true, "enableThreshold": true, "threshold": 60.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}'
     blob_params: '{"sizeThreshold": 11, "areaThreshold": 121, "minDistance": 121, "maxBlobs": 50}'
-    use_mask: False
 
 low_background_subtractor_node:
   ros__parameters:
@@ -87,7 +87,6 @@ low_background_subtractor_node:
     vibe_params: '{"threshold": 55, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8}'
     wmv_params: '{"enableWeight": true, "enableThreshold": true, "threshold": 45.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}'
     blob_params: '{"sizeThreshold": 8, "areaThreshold": 64, "minDistance": 64, "maxBlobs": 50}'
-    use_mask: False
 
 medium_background_subtractor_node:
   ros__parameters:
@@ -95,7 +94,6 @@ medium_background_subtractor_node:
     vibe_params: '{"threshold": 40, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 16}'
     wmv_params: '{"enableWeight": true, "enableThreshold": true, "threshold": 30.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}'
     blob_params: '{"sizeThreshold": 4, "areaThreshold": 16, "minDistance": 16, "maxBlobs": 50}'
-    use_mask: False
 
 high_background_subtractor_node:
   ros__parameters:
@@ -103,7 +101,6 @@ high_background_subtractor_node:
     vibe_params: '{"threshold": 30, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 16}'
     wmv_params: '{"enableWeight": true, "enableThreshold": true, "threshold": 15.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}'
     blob_params: '{"sizeThreshold": 2, "areaThreshold": 4, "minDistance": 4, "maxBlobs": 50}'
-    use_mask: False
 
 track_provider_node:
   ros__parameters:
@@ -112,20 +109,21 @@ track_provider_node:
 allsky_recorder_node:
   ros__parameters:
     recordings_directory: 'assets/recordings'
-    img_topic: 'bob/camera/all_sky/bayer'
-    fg_img_topic: 'bob/frames/all_sky/foreground_mask'
+    img_topic: 'bob/frames/masked'
+    fg_img_topic: 'bob/frames/foreground_mask'
     tracking_topic: 'bob/tracker/tracking'
     camera_info_topic: bob/camera/all_sky/camera_info
     prefix: ''
     codec: 'avc1'
-    video_fps: 10.0
+    video_fps: 15.0
     seconds_save: 2
+    #pipeline: 'appsrc ! videoconvert ! openh264enc bitrate=10240000 qp-min=10 qp-max=51 ! h264parse ! mp4mux ! filesink location='
 
 annotated_frame_provider_node:
   ros__parameters:
     pass: True
 
-bayer_frame_resizer_node:
+masked_frame_resizer_node:
   ros__parameters:
     resize_height: 960
 
@@ -141,20 +139,18 @@ annotated_frame_resizer_node:
 multi_frame_viewer_node:
   ros__parameters:
     topics: 
-      - 'bob/camera/all_sky/bayer/resized'
-      - 'bob/frames/all_sky/foreground_mask/resized'
       - 'bob/frames/annotated/resized'
-
-single_frame_viewer_node:
-  ros__parameters:
-    topics: 
-      - 'bob/frames/annotated/resized'
+      - 'bob/frames/foreground_mask/resized'
 
 annotated_frame_compressor_node:
   ros__parameters:
     compression_quality: 95
 
-bayer_compressor_node:
+masked_compressor_node:
+  ros__parameters:
+    compression_quality: 95
+
+foreground_mask_compressor_node:
   ros__parameters:
     compression_quality: 95
 
@@ -185,12 +181,12 @@ prometheus_metrics_node:
 
 onvif_service_node:
   ros__parameters:
-    onvif_wsdl_path: 'src/bob_monitor/resource/wsdl'
+    onvif_wsdl_path: 'assets/wsdl'
 
 # Web infrastructure
 info_webapi_node:
   ros__parameters:
-    application_version: '0.0.1'
+    application_version: '1.2.9'
     frame_width: 0
     frame_height: 0
     video_fps: 15.0

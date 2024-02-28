@@ -27,22 +27,7 @@ def generate_launch_description():
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([
                     LaunchConfiguration('enable_visualiser_arg'), 
-                    " == True", 
-                    " and ", 
-                    LaunchConfiguration('optimised_arg'), 
-                    " == False"]))),
-            ComposableNode(
-                package='bob_visualizers',
-                plugin='FrameViewer',
-                name='single_frame_viewer_node',
-                parameters = [config],
-                extra_arguments=[{'use_intra_process_comms': True}],
-                condition=IfCondition(PythonExpression([
-                    LaunchConfiguration('enable_visualiser_arg'), 
-                    " == True",
-                    " and ", 
-                    LaunchConfiguration('optimised_arg'), 
-                    " == True"]))),
+                    " == True"])))
             ],
             output='screen',
     )
@@ -64,26 +49,29 @@ def generate_launch_description():
                     ('bob/compressor/target', 'bob/frames/annotated/resized/compressed')],
                 parameters = [config],
                 extra_arguments=[{'use_intra_process_comms': True}]),
-
-            # New node for compressing the bayer image
             ComposableNode(
                 package='bob_image_processing',
                 plugin='FrameCompressor',
-                name='bayer_compressor_node',
+                name='masked_compressor_node',
                 remappings=[
-                    ('bob/compressor/source', 'bob/camera/all_sky/bayer/resized'),
-                    ('bob/compressor/target', 'bob/camera/all_sky/bayer/resized/compressed')],
+                    ('bob/compressor/source', 'bob/frames/masked/resized'),
+                    ('bob/compressor/target', 'bob/frames/masked/resized/compressed')],
                 parameters = [config],
-                extra_arguments=[{'use_intra_process_comms': True}]),             
+                extra_arguments=[{'use_intra_process_comms': True}]),
+           ComposableNode(
+                package='bob_image_processing',
+                plugin='FrameCompressor',
+                name='foreground_mask_compressor_node',
+                remappings=[
+                    ('bob/compressor/source', 'bob/frames/foreground_mask/resized'),
+                    ('bob/compressor/target', 'bob/frames/foreground_mask/resized/compressed')],
+                parameters = [config],
+                extra_arguments=[{'use_intra_process_comms': True}]),                
         ],
         output='screen',
     )
 
     return LaunchDescription([
-
-        LogInfo(
-            condition=IfCondition(PythonExpression([LaunchConfiguration('optimised_arg'), " == True" ])),
-            msg=['Optimisation enabled.']),
 
         LogInfo(
             condition=IfCondition(PythonExpression([LaunchConfiguration('enable_visualiser_arg'), " == False" ])),

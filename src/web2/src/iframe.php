@@ -10,9 +10,12 @@ $time = $_GET['time'] ?? '1705000021';
 <head>
     <script src="lib/bootstrap/color-modes.js"></script>
     <meta charset="utf-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="">
-    <title>Bob Player</title>
+    <title>Bob - Universal Object Tracker</title>
     <link rel="canonical" href="https://getbootstrap.com/docs/5.3/examples/dashboard/">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@3">
     <link href="lib/bootstrap/bootstrap.min.css" rel="stylesheet">

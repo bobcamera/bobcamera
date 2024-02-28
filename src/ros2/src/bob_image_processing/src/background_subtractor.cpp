@@ -17,6 +17,8 @@
 
 #include <visibility_control.h>
 
+#include "bob_interfaces/srv/bgs_reset_request.hpp"
+
 class BackgroundSubtractor
     : public ParameterNode
 {
@@ -42,6 +44,7 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscription_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
     rclcpp::Publisher<vision_msgs::msg::BoundingBox2DArray>::SharedPtr detection_publisher_;
+    rclcpp::Service<bob_interfaces::srv::BGSResetRequest>::SharedPtr bgs_reset_service_;
 
     BGSType bgs_type_;
     std::unique_ptr<boblib::bgs::CoreBgs> bgsPtr{nullptr};
@@ -67,6 +70,21 @@ private:
         pub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
 
         declare_node_parameters();
+
+        image_subscription_ = create_subscription<sensor_msgs::msg::Image>(
+            "bob/frames/masked", 
+            sub_qos_profile_,
+            std::bind(&BackgroundSubtractor::imageCallback, this, std::placeholders::_1)
+        );
+        image_publisher_ = create_publisher<sensor_msgs::msg::Image>("bob/frames/foreground_mask", pub_qos_profile_);
+        detection_publisher_ = create_publisher<vision_msgs::msg::BoundingBox2DArray>("bob/detector/all_sky/bounding_boxes", pub_qos_profile_);
+
+        bgs_reset_service_ = create_service<bob_interfaces::srv::BGSResetRequest>(
+            "bob/bgs/reset", 
+            std::bind(&BackgroundSubtractor::reset_bgs_request, 
+            this, 
+            std::placeholders::_1, 
+            std::placeholders::_2));
     }
 
     void declare_node_parameters()
@@ -153,26 +171,6 @@ private:
                     }
                 }
             ),
-            ParameterNode::ActionParam(
-                rclcpp::Parameter("use_mask", true), 
-                [this](const rclcpp::Parameter& param) 
-                {
-                    bool should_use_mask = param.as_bool();
-
-                    RCLCPP_INFO(get_logger(), "Setting masking: %s", should_use_mask ? "True" : "False");
-
-                    std::string topic_name = should_use_mask ? "bob/camera/all_sky/bayer_masked" : "bob/camera/all_sky/bayer";
-
-                    image_subscription_ = create_subscription<sensor_msgs::msg::Image>(
-                        topic_name, 
-                        sub_qos_profile_,
-                        std::bind(&BackgroundSubtractor::imageCallback, this, std::placeholders::_1)
-                    );
-                    image_publisher_ = create_publisher<sensor_msgs::msg::Image>("bob/frames/all_sky/foreground_mask", pub_qos_profile_);
-                    detection_publisher_ = create_publisher<vision_msgs::msg::BoundingBox2DArray>("bob/detector/all_sky/bounding_boxes", pub_qos_profile_);
-                }
-            ),
-
             ParameterNode::ActionParam(
                 rclcpp::Parameter("blob_params", R"({"sizeThreshold": 7, "areaThreshold": 49, "minDistance": 40, "maxBlobs": 50})"), 
                 [this](const rclcpp::Parameter& param) 
@@ -268,6 +266,14 @@ private:
             bbox2D.size_y = bbox.height;
             bbox2D_array.boxes.push_back(bbox2D);
         }
+    }
+
+    void reset_bgs_request(const std::shared_ptr<bob_interfaces::srv::BGSResetRequest::Request> request, 
+        std::shared_ptr<bob_interfaces::srv::BGSResetRequest::Response> response)
+    {
+        if(request->mask_enabled) { }
+        bgsPtr->restart();
+        response->success = true;        
     }
 
     std::unique_ptr<boblib::bgs::CoreBgs> createBGS(BGSType _type)

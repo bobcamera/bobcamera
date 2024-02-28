@@ -1,6 +1,7 @@
 #!/bin/bash
 #colcon build --packages-select bob_interfaces
 source install/setup.bash
+source /opt/ros2_ws/install/setup.bash
 
 # Fast DDS
 export RMW_IMPLEMENTATION=rmw_fastrtps_cpp

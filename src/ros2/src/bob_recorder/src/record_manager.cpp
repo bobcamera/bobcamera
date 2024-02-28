@@ -24,6 +24,8 @@ public:
     explicit RecordManager(const rclcpp::NodeOptions& options)
     : ParameterNode("recorder_manager", options)
     , current_state_(RecordingState::BeforeStart)
+    , prev_frame_width_(0)
+    , prev_frame_height_(0)
     {
         one_shot_timer_ = this->create_wall_timer(
             std::chrono::seconds(2), 
@@ -153,7 +155,7 @@ private:
                 }
             ),
             ParameterNode::ActionParam(
-                rclcpp::Parameter("img_topic", "bob/camera/all_sky/bayer"), 
+                rclcpp::Parameter("img_topic", "bob/frames/masked"), 
                 [this](const rclcpp::Parameter& param) {img_topic_ = param.as_string();}
             ),
             ParameterNode::ActionParam(
@@ -161,7 +163,7 @@ private:
                 [this](const rclcpp::Parameter& param) {tracking_topic_ = param.as_string();}
             ),
             ParameterNode::ActionParam(
-                rclcpp::Parameter("fg_img_topic", "bob/frames/all_sky/foreground_mask"), 
+                rclcpp::Parameter("fg_img_topic", "bob/frames/foreground_mask"), 
                 [this](const rclcpp::Parameter& param) {fg_img_topic_ = param.as_string();}
             ),
             ParameterNode::ActionParam(
@@ -176,6 +178,10 @@ private:
                 rclcpp::Parameter("codec", "avc1"), 
                 [this](const rclcpp::Parameter& param) {codec_str_ = param.as_string();}
             ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("pipeline", "appsrc ! videoconvert ! x264enc ! mp4mux ! filesink location="), 
+                [this](const rclcpp::Parameter& param) {pipeline_str_ = param.as_string();}
+            ),            
             ParameterNode::ActionParam(
                 rclcpp::Parameter("video_fps", 30.0), 
                 [this](const rclcpp::Parameter& param) 
@@ -209,6 +215,21 @@ private:
             cv::Mat img;
             ImageUtils::convert_image_msg(image_msg, img, true);
 
+            if (current_state_ == RecordingState::BeforeStart && prev_frame_width_ == 0 && prev_frame_height_ == 0)
+            {
+                // Initialize prev_frame_width_ and prev_frame_height_ with the dimensions of the first received image
+                prev_frame_width_ = img.cols;
+                prev_frame_height_ = img.rows;
+            }
+            else if(img.rows != prev_frame_height_ || img.cols != prev_frame_width_ )
+            {
+                RCLCPP_INFO(get_logger(), "Frame dimensions changed. ");
+                prev_frame_height_ = img.rows;
+                prev_frame_width_ = img.cols;
+                current_state_ = RecordingState::AfterEnd;
+                current_end_frame_ = 0;
+            }
+
             cv::Mat fg_img;
             ImageUtils::convert_image_msg(image_fg_msg, fg_img, false);
 
@@ -230,10 +251,12 @@ private:
                     }
 
                     std::string full_path = dated_directory_ + "/allsky/" + prefix_str_ + base_filename_ + ".mp4";
-                    video_recorder_->open_new_video(full_path, codec_str_, video_fps_, img.size(), img.channels() == 3);
+                    const std::string out_pipeline = pipeline_str_ + full_path;
+                    //video_recorder_->open_new_video(out_pipeline, codec_str_, video_fps_, img.size(), img.channels() == 3);
+                    video_recorder_->open_new_video(full_path, codec_str_, video_fps_, img.size(), img.channels() == 3);                    
 
                     img_recorder_->update_frame_for_drawing(img);
-                    img_recorder_->accumulate_pre_buffer_images();
+                    // img_recorder_->accumulate_pre_buffer_images(); // skipping for now - processor intensive
                 } 
                 else 
                 {
@@ -249,6 +272,16 @@ private:
                 json_recorder_->add_to_buffer(json_data, false);
                 video_recorder_->write_frame(img);
                 img_recorder_->accumulate_mask(fg_img);
+
+                for (const auto& detection : tracking_msg->detections)
+                {
+                    if(detection.state == 2) // ActiveTarget
+                    {
+                        const auto& bbox = detection.bbox;
+                        double area = bbox.size_x * bbox.size_y; 
+                        img_recorder_->store_trajectory_point(detection.id, cv::Point(bbox.center.position.x, bbox.center.position.y), area);
+                    }
+                }
 
                 if (tracking_msg->state.trackable == 0) 
                 {
@@ -316,6 +349,7 @@ private:
     std::string fg_img_topic_;
     std::string camera_info_topic_;
     std::string codec_str_;
+    std::string pipeline_str_;
     std::string prefix_str_;
     std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> sub_frame_;
     std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> sub_fg_frame_;
@@ -328,6 +362,8 @@ private:
     size_t current_end_frame_;
     size_t total_pre_frames_;
     int number_seconds_save_;
+    int prev_frame_width_;
+    int prev_frame_height_;
 };
 
 

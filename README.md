@@ -1,6 +1,6 @@
-# BOB the UAP Detector, Tracker and Recorder
+# BOB the Universal Object Tracker
 
-Below are the installation instructions for installing BOB, your friendly neighbourhood UAP detector, tracker and recorder
+Below are the installation instructions for installing BOB, your friendly Object (bird, insect, bat, uap) detector, tracker and recorder
 The application uses Docker and Docker Compose to run, at present we are still in a very early release phase so this the install process is not polished at all. We will endeavour to improve this over time to please bear with us.
 
 *It is possible to run Bobcamera on Windows 10 or Windows 11 through WSL. Please refer to the [Windows setup instructions](WINDOWS_SETUP.md) to prep your machine before running the steps below.*
@@ -24,38 +24,46 @@ git clone --recursive https://github.com/bobcamera/bobcamera.git
 ```
 cd bobcamera
 ```
-### 4. Set the setup script as executable
-```
-chmod +x setup.sh
-```
-### 5. Run the setup script, this will install docker and docker compose
+### 4. Run the setup script, this will install docker and docker compose
 ```
 ./setup.sh
 ```
-### 6. Reboot the machine
+### 5. Reboot the machine
+- Only required if Docker has been installed during the setup script
 ```
 sudo shutdown -r now
 ```
-### 7. Navigate back to the bobcamera directory once rebooted
+### 6. Navigate back to the bobcamera directory once rebooted
 ```
 cd ~/bobcamera
 ```
-### 8. Copy the .env.example file to .env and edit the file to set the right values for your camera
+### 7. To start up BOB
+```
+./run.sh
+```
+### 8. Use your system browser and navigate to [http://localhost:8080](http://localhost:8080)
 
-You can do this with your favorite file manager and text editor.
+### 9. To shut BOB down, type CTRL + C in the terminal
 
-In this example, we use nano:
+--- 
+## Appendix: 
+
+### I. To change the configuration after initial setup please execute: 
+```
+./config.sh 
+```
+
+### II. To update to the lastest version of bob please execute: 
+```
+git pull origin main
+```
+
+### III. Reset the config file to factory conditions: 
 ```
 cp .env.example .env
-nano .env
 ```
-
-To save a file using nano, press CTRL + X, then Y, then ENTER
-
-### 11. To start up BOB
+or
 ```
-docker compose up
+./setup.sh
 ```
-### 12. Use your system browser and navigate to [http://127.0.0.1:8080](http://127.0.0.1:8080)
-
-### 13. To shut BOB down, type CTRL + C in the terminal
+and select "No" in the prompt. 

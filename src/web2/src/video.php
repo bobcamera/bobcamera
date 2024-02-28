@@ -23,48 +23,49 @@
         #player {
             height: 90%;
         }
-
-        /* #brightness-control {
-            position: absolute;
-            bottom: 135px;
-            right: 41px;
-            -webkit-appearance: none;
-            width: 150px;
-            height: 5px;
-            transform: rotate(-90deg);
-            transform-origin: right bottom;
-            display: none;
-        }
-
-        .fab {
-            position: absolute;
-            bottom: -69px;
-            right: 20px;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background-color: #007bff;
-            color: white;
-            text-align: center;
-            line-height: 50px;
-            font-size: 24px;
-            cursor: pointer;
-            z-index: 10;
-        } */
     </style>
 </head>
 <body>
     <?php
         $date = $_GET['date'] ?? '20240112';
         $time = $_GET['time'] ?? 'defaultTime';
+
+        // Read the JSON file
+        $jsonFile = 'videos/' . $date . '/json/' . $time . '.json';
+        $jsonData = file_exists($jsonFile) ? json_decode(file_get_contents($jsonFile), true) : [];
+
+        // Extract camera information from the JSON data
+        $cameraInfo = isset($jsonData[0]['camera_info']) ? $jsonData[0]['camera_info'] : [];
+
+        // Extract the MP4 file name
+        $mp4FileName = $time . '.mp4';
     ?>
 
     <div class="video-container">
-        <!-- <div class="fab" onclick="toggleSlider()">☀</div>  -->
         <video id="player" playsinline controls autoplay muted>
-            <source src="<?php echo 'videos/' . $date . '/allsky/' . $time . '.mp4'; ?>" />
+            <source src="<?php echo 'videos/' . $date . '/allsky/' . $mp4FileName; ?>" />
         </video>
-        <!-- <input type="range" id="brightness-control" min="0" max="200" value="100"> -->
+    </div>
+
+    <!-- Summary table -->
+    <div class="summary-table">
+        <h2>Video Summary</h2>
+        <table>
+            <tr>
+                <th>Attribute</th>
+                <th>Value</th>
+            </tr>
+            <?php foreach ($cameraInfo as $key => $value): ?>
+                <tr>
+                    <td><?php echo ucfirst(str_replace('_', ' ', $key)); ?></td>
+                    <td><?php echo $value; ?></td>
+                </tr>
+            <?php endforeach; ?>
+            <tr>
+                <td>MP4 File Name</td>
+                <td><?php echo $mp4FileName; ?></td>
+            </tr>
+        </table>
     </div>
 
     <!-- Plyr.js Library -->
@@ -72,17 +73,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const player = new Plyr('#player');
-            const video = document.getElementById('player');
-            // const brightnessControl = document.getElementById('brightness-control');
-            // brightnessControl.addEventListener('input', function() {
-            //     video.style.filter = `brightness(${this.value}%)`;
-            // });
         });
-
-        // function toggleSlider() {
-        //     const slider = document.getElementById('brightness-control');
-        //     slider.style.display = slider.style.display === 'none' ? 'block' : 'none';
-        // }
     </script>
 </body>
 </html>
