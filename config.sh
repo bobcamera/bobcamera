@@ -19,8 +19,8 @@ show_menu_advanced() {
     show_bob
     echo "1. Source type"
     [ "$usb_mode" = "'usb'" ] && echo "2. USB Source Selection (Experimental only tested on Linux)" || echo "2. RTSP URL for Fisheye Camera" 
-    echo "3. Visualizer"
-    echo "4. Recording"
+    echo "3. Recording"
+    echo "4. Visualizer"
     echo "5. Background Substraction Algorithm"
     echo "6. Tracking Sensitivity"
     echo "7. Masking File Path"
@@ -62,7 +62,7 @@ set_config_options() {
         echo -e "\tvideo(3): pre-recorded video-feed"
         echo -e "\tsimulate(4): simulation of tracker functionality in front of a blank background, with injected blobs"
         echo -e "\trtsp_overlay(5): Like (4) but in front of your rtsp-stream"
-        echo -e "\tvideo_overlay(5): Like (4) but in front of the video-stream\n"
+        echo -e "\tvideo_overlay(6): Like (4) but in front of the video-stream\n"
     fi
 
     for i in "${!options[@]}"; do
@@ -73,32 +73,39 @@ set_config_options() {
         fi
     done
     formatted_options=${formatted_options%, *} 
+    while true; do 
+        echo "$initial_message"
+        echo "Current value: $current_value"
+        echo "Options: $formatted_options"
+        read -p "Enter $var_name (1-${#options[@]}): " choice_num
+        if ! [[ "$choice_num" =~ ^[1-${#options[@]}]$ ]]; then
+            echo "Invalid input. Please enter a number between 1 and ${#options[@]}."
+            continue
+        else 
+            value="${options[$((choice_num-1))]}"
 
-    echo "$initial_message"
-    echo "Current value: $current_value"
-    echo "Options: $formatted_options"
-    read -p "Enter $var_name (1-${#options[@]}): " choice_num
-    if ! [[ "$choice_num" =~ ^[1-${#options[@]}]$ ]]; then
-        echo "Invalid input. Please enter a number between 1 and ${#options[@]}."
-        continue
-    fi
-    value="${options[$((choice_num-1))]}"
+            if [ "$add_apostrophes" = "true" ]; then
+                sed -i "s/$var_name=.*/$var_name=\"'$value'\"/" "$ENV_FILE"
+                echo "Value in $ENV_FILE replaced with: $var_name=\"'$value'\""
+            else
+                sed -i "s/$var_name=.*/$var_name=\"$value\"/" "$ENV_FILE"
+                echo "Value in $ENV_FILE replaced with: $var_name=\"$value\""
+            fi
+            break
+        fi
+    done
 
-    if [ "$add_apostrophes" = "true" ]; then
-        sed -i "s/$var_name=.*/$var_name=\"'$value'\"/" "$ENV_FILE"
-        echo "Value in $ENV_FILE replaced with: $var_name=\"'$value'\""
-    else
-        sed -i "s/$var_name=.*/$var_name=\"$value\"/" "$ENV_FILE"
-        echo "Value in $ENV_FILE replaced with: $var_name=\"$value\""
-    fi
 }
 
 
 set_rtsp() {
     clear
     show_bob
-    echo 'Example Hikvision: "rtsp://user:password@0.0.0.0:554/Streaming/Channels/101"'
-    echo 'Example Amcrest and Dahua: "rtsp://user:password@0.0.0.0:554/cam/realmonitor?channel=1&subtype=0"'
+    echo 'Example Hikvision: rtsp://peter:pAsSwOrD123427@12.8.9.3:554/Streaming/Channels/101'
+    echo 'Example Amcrest and Dahua: rtsp://user:password@0.0.0.0:554/cam/realmonitor?channel=1&subtype=0'
+    echo 'Pattern: rtsp://{name of the user}:{password of user}@{IP-Address}:{Port Number}/{Path}'
+    echo '{} is just a placeholder in the Pattern, just give the value without additional symbols like {} or "" or the like'
+
     default_url=$(grep "^BOB_RTSP_URL=" "$ENV_FILE" | cut -d '=' -f2-  | tr -d '"')
     [[ $default_url =~ rtsp://([^:]+):([^@]+)@([^:]+):([^/]+)/(.*) ]]
     BOB_RTSP_USER="${BASH_REMATCH[1]}"
@@ -108,20 +115,19 @@ set_rtsp() {
     BOB_RTSP_URLPATH="${BASH_REMATCH[5]}"
 
     echo -e "Current URL: $default_url\n\n"
-    read -p "Enter the user: " new_user
+    read -p "Enter the name of the user (e.g. peter): " new_user
     BOB_RTSP_USER="${new_user:-$BOB_RTSP_USER}"
-    read -p "Enter the password: " new_password
+    read -p "Enter the password of the user (e.g. pAsSwOrD1234): " new_password
     BOB_RTSP_PASSWORD="${new_password:-$BOB_RTSP_PASSWORD}"
-    read -p "Enter the IP address: " new_ip
+    read -p "Enter the IP address: (e.g. 12.8.9.3) " new_ip
     BOB_RTSP_IP="${new_ip:-$BOB_RTSP_IP}"
-    read -p "Enter the port: " new_port
+    read -p "Enter the port (e.g. 554): " new_port
     BOB_RTSP_PORT="${new_port:-$BOB_RTSP_PORT}"
-    read -p "Enter the URL-Path: /" new_urlpath
+    read -p "Enter the URL-Path (e.g. Streaming/Channels/101): /" new_urlpath
     BOB_RTSP_URLPATH="${new_urlpath:-$BOB_RTSP_URLPATH}"
     BOB_RTSP_URL="rtsp://$BOB_RTSP_USER:$BOB_RTSP_PASSWORD@$BOB_RTSP_IP:$BOB_RTSP_PORT/$BOB_RTSP_URLPATH"
     echo "Constructed RTSP URL: $BOB_RTSP_URL"  
     sed -i "s|^BOB_RTSP_URL=.*|BOB_RTSP_URL=\"$(echo "$BOB_RTSP_URL" | sed 's/&/\\&/g')\"|" "$ENV_FILE"
-
 }
 
 
@@ -171,33 +177,34 @@ while true; do
     usb_mode=$(grep "^BOB_SOURCE=" "$ENV_FILE" | cut -d '=' -f2- | tr -d '"')
     if [ "$advanced_mode" = "true" ]; then
         show_menu_advanced    
-        read -p "Enter your choice: " choice
+        read -p "Select a number: " choice
         case $choice in
-            1) set_config_options "BOB_SOURCE" "Source options:" "true" rtsp usb video simulate rtsp_overlay video_overlay;;
-            2) [ "$usb_mode" = "'usb'" ] && set_usb || set_rtsp ;;
-            3) set_config_options "BOB_ENABLE_RECORDING" "Enable Recording:" "false" True False;;
-            4) set_config_options "BOB_ENABLE_VISUALISER" "Enable Visualizer:" "false" True False;;
-            5) set_config_options "BOB_BGS_ALGORITHM" "Background substraction algorithm:"  "false" vibe wmv;;
-            6) set_config_options "BOB_TRACKING_SENSITIVITY" "Tracking sensitivity options:" "true"  minimal low medium high;;
-            7) set_mask_file ;;
-            8) set_testing_videos ;;
-            9) set_number_of_simulated_objects ;;
-            s) clear; cat ".env"; echo -e "\n\nPress Enter to continue..."; read ;;
-            q) clear; echo "Exiting...";  exit ;;
-            b) clear; advanced_mode="false";;
+            1) set_config_options "BOB_SOURCE" "Source options:" "true" rtsp usb video simulate rtsp_overlay video_overlay;read -rp "Press Enter to continue...";;
+            2) [ "$usb_mode" = "'usb'" ] && set_usb || set_rtsp ;read -rp "Press Enter to continue...";;
+            3) set_config_options "BOB_ENABLE_RECORDING" "Enable Recording:" "false" True False;read -rp "Press Enter to continue...";;
+            4) set_config_options "BOB_ENABLE_VISUALISER" "Enable Visualizer:" "false" True False;read -rp "Press Enter to continue...";;
+            5) set_config_options "BOB_BGS_ALGORITHM" "Background substraction algorithm:"  "false" vibe wmv;read -rp "Press Enter to continue...";;
+            6) set_config_options "BOB_TRACKING_SENSITIVITY" "Tracking sensitivity options:" "true"  minimal low medium high;read -rp "Press Enter to continue...";;
+            7) set_mask_file ;read -rp "Press Enter to continue...";;
+            8) set_testing_videos ;read -rp "Press Enter to continue...";;
+            9) set_number_of_simulated_objects ;read -rp "Press Enter to continue...";;
+            s) clear; cat ".env";echo -e "\n\n"; read -rp "Press Enter to continue...";;
+            q) clear; exit ;;
+            b) clear; advanced_mode="false";;   
             *) echo "Invalid option. Press Enter to continue..."; read ;;
         esac
     else 
         show_menu
-        read -p "Enter your choice: " choice
+        read -p "Select a number: " choice
         case $choice in
-            1) set_config_options "BOB_SOURCE" "Source options:" "true" rtsp usb video simulate rtsp_overlay video_overlay;;
-            2) [ "$usb_mode" = "'usb'" ] && set_usb || set_rtsp ;;
-            3) set_config_options "BOB_ENABLE_RECORDING" "Enable Recording:" "false" True False;;
-            s) clear; cat ".env"; echo -e "\n\nPress Enter to continue..."; read ;;
-            q) clear; echo "Exiting...";  exit ;;
+            1) set_config_options "BOB_SOURCE" "Source options:" "true" rtsp usb video simulate rtsp_overlay video_overlay;read -rp "Press Enter to continue...";;
+            2) [ "$usb_mode" = "'usb'" ] && set_usb || set_rtsp ;read -rp "Press Enter to continue...";;
+            3) set_config_options "BOB_ENABLE_RECORDING" "Enable Recording:" "false" True False;read -rp "Press Enter to continue...";;
+            s) clear; cat ".env";echo -e "\n\n"; read -rp "Press Enter to continue...";; 
+            q) clear; exit ;;
             a) clear; advanced_mode="true";;
             *) echo "Invalid option. Press Enter to continue..."; read ;;
         esac
     fi
+    
 done
