@@ -45,14 +45,25 @@ cd ~/bobcamera
 
 ### 9. To shut BOB down, type CTRL + C in the terminal
 
----
+--- 
+## Appendix: 
 
-To change configuration please execute: 
+### I. To change the configuration after initial setup please execute: 
 ```
 ./config.sh 
 ```
 
-To reset to default configuration, please execute: 
+### II. To update to the lastest version of bob please execute: 
 ```
-./setup.sh 
+git pull origin main
 ```
+
+### III. Reset the config file to factory conditions: 
+```
+cp .env.example .env
+```
+or
+```
+./setup.sh
+```
+and select "No" in the prompt. 

@@ -119,7 +119,7 @@ set_rtsp() {
     BOB_RTSP_USER="${new_user:-$BOB_RTSP_USER}"
     read -p "Enter the password of the user (e.g. pAsSwOrD1234): " new_password
     BOB_RTSP_PASSWORD="${new_password:-$BOB_RTSP_PASSWORD}"
-    read -p "Enter the IP address: (e.g. 12.8.9.3) " new_ip
+    read -p "Enter the IP address (e.g. 12.8.9.3): " new_ip
     BOB_RTSP_IP="${new_ip:-$BOB_RTSP_IP}"
     read -p "Enter the port (e.g. 554): " new_port
     BOB_RTSP_PORT="${new_port:-$BOB_RTSP_PORT}"
