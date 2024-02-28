@@ -38,8 +38,31 @@ fi
 
 #./run.sh
 
-# Copy the .env file
-cp .env.example .env
+#!/bin/bash
+
+if [ -f ".env" ]; then
+    echo -e "An .env-File exists already! Type y(es), if you want to retain the existing .env-File," 
+    while true; do
+        read -p "type n(o) if you want to have it overwritten by the default .env-File. y/n?" retain_env
+        response_lower=$(echo "$retain_env" | tr '[:upper:]' '[:lower:]')
+        if [ "$response_lower" = "no" ] || [ "$response_lower" = "n" ]; then
+            echo "File will be overwritten."
+            cp .env.example .env
+            break
+        elif [ "$response_lower" = "yes" ] || [ "$response_lower" = "y" ]; then
+            echo "File will be kept."
+            break
+        else
+            echo "Invalid response. Please enter 'yes' or 'no'."
+            pause 1
+            continue
+        fi
+    done
+else
+    # Copy the .env file
+    cp .env.example .env
+fi
+sleep 2
 
 # Run the config script
 ./config.sh
