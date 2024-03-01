@@ -72,7 +72,7 @@ private:
         declare_node_parameters();
 
         image_subscription_ = create_subscription<sensor_msgs::msg::Image>(
-            "bob/frames/masked", 
+            "bob/frames/allsky/masked/detection", 
             sub_qos_profile_,
             std::bind(&BackgroundSubtractor::imageCallback, this, std::placeholders::_1)
         );

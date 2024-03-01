@@ -35,7 +35,6 @@ def generate_launch_description():
     bgs_algorithm_value = EnvironmentVariable('BOB_BGS_ALGORITHM', default_value="vibe")    
     
     tracking_sensitivity_arg_value  = EnvironmentVariable('BOB_TRACKING_SENSITIVITY', default_value="'high'")
-    tracking_maskfile_arg_value  = EnvironmentVariable('BOB_TRACKING_MASK_FILE', default_value="'mask.pgm'")
 
     video_arg_value  = EnvironmentVariable('BOB_VIDEOS', default_value="")
 
@@ -131,12 +130,6 @@ def generate_launch_description():
         description="Tracking sensitivity of the bgs and blob detector, it drives a set of parameters for the algos."
         )  
 
-    tracking_maskfile_arg = DeclareLaunchArgument(
-        'tracking_maskfile_arg',
-        default_value=tracking_maskfile_arg_value,
-        description="Use mask set."
-        )   
-
     video_arg = DeclareLaunchArgument(
         'video_arg',
         default_value=video_arg_value,
@@ -166,7 +159,6 @@ def generate_launch_description():
 
         bgs_algorithm_arg,
         tracking_sensitivity_arg,
-        tracking_maskfile_arg,
 
         video_arg,
 

@@ -46,8 +46,8 @@ public:
 
         declare_node_parameters();
 
-        image_publisher_ = create_publisher<sensor_msgs::msg::Image>("bob/frames/masked", pub_qos_profile);
-        image_subscription_ = create_subscription<sensor_msgs::msg::Image>("bob/camera/all_sky/bayer", sub_qos_profile, 
+        image_publisher_ = create_publisher<sensor_msgs::msg::Image>("bob/mask/target", pub_qos_profile);
+        image_subscription_ = create_subscription<sensor_msgs::msg::Image>("bob/mask/source", sub_qos_profile, 
             std::bind(&MaskApplication::callback, this, std::placeholders::_1));
 
         timer_ = create_wall_timer(std::chrono::seconds(60), std::bind(&MaskApplication::timer_callback, this));

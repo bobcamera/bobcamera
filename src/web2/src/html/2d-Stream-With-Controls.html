@@ -274,15 +274,16 @@
     // Event Listeners for when the connection to the ROS2 environment is closed
     ros.on('close', function () { console.log('Connection to websocket server closed.'); });
 
-    var ros2ImageTopic1 = '/bob/camera/all_sky/bayer/resized/compressed'; // define the ROS2 Subscription Topic 1
-    var ros2ImageTopic2 = '/bob/frames/annotated/resized/compressed'; // define the ROS2 Subscription Topic 2
-    var currentRos2ImageTopic = ros2ImageTopic2; // Set the ROS2 Topic to Subscribe to
-    var compressedImageMsgType = 'sensor_msgs/msg/CompressedImage'; // define the Msg Type of the ROS2 Subsc. Topic
+    var ros2ImageDetectionMaskTopic = '/bob/frames/allsky/masked/detection/resized/compressed';
+    var ros2ImageSecurityMaskTopic = '/bob/frames/allsky/masked/security/resized/compressed';
+    var ros2ImageAnnotatedTopic = '/bob/frames/annotated/resized/compressed'; // define the ROS2 Subscription Topic 2
+    
+    var currentRos2ImageTopic = ros2ImageAnnotatedTopic; // Set the ROS2 Topic to Subscribe to
 
     var topicStream = new ROSLIB.Topic({
         ros: ros,
         name: currentRos2ImageTopic,
-        messageType: compressedImageMsgType
+        messageType: 'sensor_msgs/msg/CompressedImage'
     });
     
     var versionService = new ROSLIB.Service({
@@ -299,7 +300,7 @@
 
     var updateMaskOverrideService = new ROSLIB.Service({
         ros : ros, 
-        name : '/bob/mask/override', 
+        name : '/bob/mask/detection/override', 
         serviceType : 'bob_interfaces/srv/MaskOverrideRequest'
     });
 
@@ -376,7 +377,15 @@
         });
     }
 
-    function sendMaskSVG() {
+    function sendDetectionMaskSVG() {
+        sendMaskSVG('detection-mask.svg')
+    }
+
+    function sendSecurityMaskSVG() {
+        sendMaskSVG('security-mask.svg')
+    }    
+
+    function sendMaskSVG(file_name) {
 
         let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${maskCanvas.width}" height="${maskCanvas.height}">`;
 
@@ -407,7 +416,7 @@
         svgContent += '</svg>';
         
         var request = new ROSLIB.ServiceRequest({
-            file_name: 'mask.svg', // or .pgm
+            file_name: file_name,
             mask: svgContent
         });
 
@@ -692,7 +701,7 @@
     });
 
     sendMaskSVGButton.addEventListener('click', () => {
-        sendMaskSVG();
+        sendDetectionMaskSVG();
         editMode = false; // Close edit controls
         toggleButtons(); // Update button display
         clearMask();

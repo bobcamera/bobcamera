@@ -9,7 +9,7 @@ def generate_launch_description():
             name='all_sky_publisher_node',
             output='screen',
             parameters=[{'camera_id': ''}
-                        , {'image_publish_topic': 'bob/camera/all_sky/bayer'}
+                        , {'image_publish_topic': 'bob/frames/allsky/original'}
                         , {'image_info_publish_topic': 'bob/camera/all_sky/image_info'}
                         , {'camera_info_publish_topic': 'bob/camera/all_sky/camera_info'}
                         , {'enable_profiling': False}
@@ -43,13 +43,13 @@ def generate_launch_description():
         #     executable='frame_viewer_node',
         #     name='frame_viewer_node',
         #     output='screen',
-        #     parameters=[{"topics": ["bob/frames/annotated", "bob/camera/all_sky/bayer", "bob/frames/foreground_mask"]}]
+        #     parameters=[{"topics": ["bob/frames/annotated", "bob/frames/allsky/original", "bob/frames/foreground_mask"]}]
         # ),
         Node(
             package='bob_visualizers',
             executable='frame_bbox_viewer_node',
             name='frame_bbox_viewer_node',
             output='screen',
-            parameters=[{"topics": ["bob/camera/all_sky/bayer", "bob/frames/foreground_mask"]}]
+            parameters=[{"topics": ["bob/frames/allsky/original", "bob/frames/foreground_mask"]}]
         ),
     ])

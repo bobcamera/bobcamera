@@ -6,7 +6,7 @@ rtsp_camera_node:
     onvif_port: 0
     onvif_user: ''
     onvif_password: ''        
-    image_publish_topic: 'bob/camera/all_sky/bayer'
+    image_publish_topic: 'bob/frames/allsky/original'
     image_info_publish_topic: 'bob/camera/all_sky/image_info'
     camera_info_publish_topic: 'bob/camera/all_sky/camera_info'
     source_type: 'RTSP_STREAM'
@@ -31,7 +31,7 @@ rtsp_overlay_camera_node:
 
 web_camera_video_node:
   ros__parameters:
-    image_publish_topic: 'bob/camera/all_sky/bayer'
+    image_publish_topic: 'bob/frames/allsky/original'
     image_info_publish_topic: 'bob/camera/all_sky/image_info'
     camera_info_publish_topic: 'bob/camera/all_sky/camera_info'
     source_type: 'VIDEO_FILE'
@@ -40,7 +40,7 @@ web_camera_video_node:
 
 usb_camera_node:
   ros__parameters:
-    image_publish_topic: 'bob/camera/all_sky/bayer'
+    image_publish_topic: 'bob/frames/allsky/original'
     image_info_publish_topic: 'bob/camera/all_sky/image_info'
     camera_info_publish_topic: 'bob/camera/all_sky/camera_info'
     source_type: 'USB_CAMERA'
@@ -69,9 +69,14 @@ simulation_overlay_provider_node:
     num_objects: 0
     video_fps: 10.0
 
-mask_application_node:
+detection_mask_application_node:
   ros__parameters:
-    mask_file: ''
+    mask_file: 'assets/masks/detection-mask.jpg'
+    mask_enable_override: True
+
+security_mask_application_node:
+  ros__parameters:
+    mask_file: 'assets/masks/security-mask.jpg'
     mask_enable_override: True
 
 minimal_background_subtractor_node:
@@ -109,7 +114,7 @@ track_provider_node:
 allsky_recorder_node:
   ros__parameters:
     recordings_directory: 'assets/recordings'
-    img_topic: 'bob/frames/masked'
+    img_topic: 'bob/frames/allsky/masked/security'
     fg_img_topic: 'bob/frames/foreground_mask'
     tracking_topic: 'bob/tracker/tracking'
     camera_info_topic: bob/camera/all_sky/camera_info
@@ -123,7 +128,11 @@ annotated_frame_provider_node:
   ros__parameters:
     pass: True
 
-masked_frame_resizer_node:
+detection_masked_frame_resizer_node:
+  ros__parameters:
+    resize_height: 960
+
+security_masked_frame_resizer_node:
   ros__parameters:
     resize_height: 960
 
@@ -141,12 +150,18 @@ multi_frame_viewer_node:
     topics: 
       - 'bob/frames/annotated/resized'
       - 'bob/frames/foreground_mask/resized'
+      - 'bob/frames/allsky/masked/detection/resized'
+      - 'bob/frames/allsky/masked/security/resized'
 
 annotated_frame_compressor_node:
   ros__parameters:
     compression_quality: 95
 
-masked_compressor_node:
+detection_masked_compressor_node:
+  ros__parameters:
+    compression_quality: 95
+
+security_masked_compressor_node:
   ros__parameters:
     compression_quality: 95
 

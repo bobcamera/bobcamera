@@ -52,12 +52,21 @@ def generate_launch_description():
             ComposableNode(
                 package='bob_image_processing',
                 plugin='FrameCompressor',
-                name='masked_compressor_node',
+                name='detection_masked_compressor_node',
                 remappings=[
-                    ('bob/compressor/source', 'bob/frames/masked/resized'),
-                    ('bob/compressor/target', 'bob/frames/masked/resized/compressed')],
+                    ('bob/compressor/source', 'bob/frames/allsky/masked/detection/resized'),
+                    ('bob/compressor/target', 'bob/frames/allsky/masked/detection/resized/compressed')],
                 parameters = [config],
                 extra_arguments=[{'use_intra_process_comms': True}]),
+            ComposableNode(
+                package='bob_image_processing',
+                plugin='FrameCompressor',
+                name='security_masked_compressor_node',
+                remappings=[
+                    ('bob/compressor/source', 'bob/frames/allsky/masked/security/resized'),
+                    ('bob/compressor/target', 'bob/frames/allsky/masked/security/resized/compressed')],
+                parameters = [config],
+                extra_arguments=[{'use_intra_process_comms': True}]),                
            ComposableNode(
                 package='bob_image_processing',
                 plugin='FrameCompressor',

@@ -58,7 +58,7 @@ def generate_launch_description():
                 name='simulated_frame_provider_node',  
                 parameters = [config],
                 remappings=[
-                    ('bob/simulation/output_frame', 'bob/frames/masked')
+                    ('bob/simulation/output_frame', 'bob/frames/allsky/masked/detection')
                 ],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'simulate'" ])),  
@@ -76,7 +76,7 @@ def generate_launch_description():
                 plugin='SimulationOverlayProviderNode',  
                 name='simulation_overlay_provider_node',
                 parameters = [config],
-                remappings=[('bob/simulation/output_frame', 'bob/camera/all_sky/bayer')],
+                remappings=[('bob/simulation/output_frame', 'bob/frames/allsky/original')],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([
                     LaunchConfiguration('source_arg'), 
@@ -88,10 +88,25 @@ def generate_launch_description():
             ComposableNode(
                 package='bob_image_processing',  
                 plugin='MaskApplication',  
-                name='mask_application_node',
+                name='detection_mask_application_node',
                 parameters = [config],
+                remappings=[
+                    ('bob/mask/override', 'bob/mask/detection/override'),
+                    ('bob/mask/source', 'bob/frames/allsky/original'),
+                    ('bob/mask/target', 'bob/frames/allsky/masked/detection')],
                 extra_arguments=[{'use_intra_process_comms': True}],
             ),
+            ComposableNode(
+                package='bob_image_processing',  
+                plugin='MaskApplication',  
+                name='security_mask_application_node',
+                parameters = [config],
+                remappings=[
+                    ('bob/mask/override', 'bob/mask/security/override'),
+                    ('bob/mask/source', 'bob/frames/allsky/original'),
+                    ('bob/mask/target', 'bob/frames/allsky/masked/security')],
+                extra_arguments=[{'use_intra_process_comms': True}],
+            ),            
             #Minimal sensitivity:
             ComposableNode(
                 package='bob_image_processing',
@@ -152,13 +167,23 @@ def generate_launch_description():
             ComposableNode(
                 package='bob_image_processing',
                 plugin='FrameResizer',
-                name='masked_frame_resizer_node',
+                name='detection_masked_frame_resizer_node',
                 remappings=[
-                    ('bob/resizer/source', 'bob/frames/masked'),
-                    ('bob/resizer/target', 'bob/frames/masked/resized')],
+                    ('bob/resizer/source', 'bob/frames/allsky/masked/detection'),
+                    ('bob/resizer/target', 'bob/frames/allsky/masked/detection/resized')],
                 parameters = [config],
                 extra_arguments=[{'use_intra_process_comms': True}],
-            ),            
+            ),
+            ComposableNode(
+                package='bob_image_processing',
+                plugin='FrameResizer',
+                name='security_masked_frame_resizer_node',
+                remappings=[
+                    ('bob/resizer/source', 'bob/frames/allsky/masked/security'),
+                    ('bob/resizer/target', 'bob/frames/allsky/masked/security/resized')],
+                parameters = [config],
+                extra_arguments=[{'use_intra_process_comms': True}],
+            ),              
             ComposableNode(
                 package='bob_image_processing',
                 plugin='FrameResizer',

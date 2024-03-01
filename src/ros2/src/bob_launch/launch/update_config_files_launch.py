@@ -219,8 +219,7 @@ def application_config(context):
 
     bgs_algo = str(LaunchConfiguration('bgs_algorithm_arg').perform(context))
 
-    tracking_mask_file = str(LaunchConfiguration('tracking_maskfile_arg').perform(context))
-    tracking_mask_dir = os.path.dirname(tracking_mask_file)
+    tracking_mask_dir = 'assets/masks'
 
     #bitrate_str = 'bitrate=10240000'
     mask_enable_override = source in ('\'rtsp\'', '\'rtsp_overlay\'', '\'usb\'')
@@ -272,9 +271,11 @@ def application_config(context):
             yaml_output['simulation_overlay_provider_node']['ros__parameters']['width'] = simulation_width
             yaml_output['simulation_overlay_provider_node']['ros__parameters']['video_fps'] = fps
 
-            # mask_application_node
-            yaml_output['mask_application_node']['ros__parameters']['mask_file'] = tracking_mask_file
-            yaml_output['mask_application_node']['ros__parameters']['mask_enable_override'] = mask_enable_override
+            # detection_mask_application_node
+            yaml_output['detection_mask_application_node']['ros__parameters']['mask_enable_override'] = mask_enable_override
+
+            # security_mask_application_node
+            yaml_output['security_mask_application_node']['ros__parameters']['mask_enable_override'] = mask_enable_override
 
             # minimal_background_subtractor_node
             yaml_output['minimal_background_subtractor_node']['ros__parameters']['bgs'] = bgs_algo
