@@ -197,8 +197,10 @@
                 <span hidden id="total_avg_frame_rate">0</span>
             </div>
             <br>
-            <div class="metric-header">Mask Controls</div> <!-- Added title for mask controls -->
-                <button id="editMaskBtn" title="Edit Mask"><i class="fa-solid fa-pen-to-square"></i></button>
+            <div id="mask-controls-header-dev" class="metric-header">Mask Controls</div> <!-- Added title for mask controls -->
+                <button id="editDetectionMaskBtn" title="Edit Detection Mask"><i class="fa-solid fa-pen-to-square"></i></button>
+                <button id="editSecurityMaskBtn" title="Edit Security Mask"><i class="fa-solid fa-pen-to-square"></i></button>
+                <button id="cancelEditMaskBtn" title="Cancel" style="display: none;"><i class="fas fa-times"></i></button>
                 <!-- <button id="invertMaskBtn" title="Invert Mask" class=""><i class="fas fa-clone"></i></button>
                 <button id="saveMaskJPG" title="Download JPG"><i class="fas fa-download"></i></button>
                 <button id="saveMaskSVG" title="Download SVG"><i class="fas fa-download"></i></button> -->
@@ -234,6 +236,7 @@
     let offset = 0;
 
     var invertMask = true;
+    var maskType = 'detection'; // either detection or security
 
     let videoStream = document.getElementById('image-subscription');
     let maskCanvas = document.getElementById('maskCanvas');
@@ -245,13 +248,16 @@
     // maskCanvas.width = maskCanvas.clientWidth * devicePixelRatio;
     // maskCanvas.height = maskCanvas.clientHeight * devicePixelRatio;
     // maskCanvasCtx.scale(devicePixelRatio, devicePixelRatio);
-    const editMaskBtn = document.getElementById('editMaskBtn');
+    //const editMaskBtn = document.getElementById('editMaskBtn');
+    const maskControlsHeaderDiv = document.getElementById('mask-controls-header-dev');
+    const editSecurityMaskBtn = document.getElementById('editSecurityMaskBtn');
+    const editDetectionMaskBtn = document.getElementById('editDetectionMaskBtn');
+    const cancelEditMaskBtn = document.getElementById('cancelEditMaskBtn');
     //const invertMaskBtn = document.getElementById('invertMaskBtn');
     const clearMaskBtn = document.getElementById('clearMaskBtn');
     // const saveMaskJPGBtn = document.getElementById('saveMaskJPG');
     // const saveMaskSVGBtn = document.getElementById('saveMaskSVG');
     const sendMaskSVGButton = document.getElementById('sendMaskSVG');
-    const maskControlsToggleBtn = document.getElementById('maskControlsToggleBtn');
 
     let startingBufferSize = 20;
     let isPlaying = true;
@@ -298,23 +304,25 @@
         serviceType : 'bob_interfaces/srv/MaskSvgUpdate'
     });
 
-    var updateMaskOverrideService = new ROSLIB.Service({
+    var detectionMaskOverrideService = new ROSLIB.Service({
         ros : ros, 
         name : '/bob/mask/detection/override', 
         serviceType : 'bob_interfaces/srv/MaskOverrideRequest'
     });
 
+    var securityMaskOverrideService = new ROSLIB.Service({
+        ros : ros, 
+        name : '/bob/mask/security/override', 
+        serviceType : 'bob_interfaces/srv/MaskOverrideRequest'
+    });    
+
     // Function to handle toggling of buttons
     function toggleButtons() {
-        const clearMaskBtn = document.getElementById('clearMaskBtn');
-        const sendMaskSVGButton = document.getElementById('sendMaskSVG'); // Update to get the sendMaskSVG button
-        const editMaskBtn = document.getElementById('editMaskBtn');
-
+        cancelEditMaskBtn.style.display = editMode ? 'inline-block' : 'none';
         clearMaskBtn.style.display = editMode ? 'inline-block' : 'none';
         sendMaskSVGButton.style.display = editMode ? 'inline-block' : 'none';
-        editMaskBtn.innerHTML = editMode ? '<i class="fas fa-times"></i>' : '<i class="fa-solid fa-pen-to-square"></i>';
-        editMaskBtn.title = editMode ? 'Cancel' : 'Edit Mask';
-        
+        editSecurityMaskBtn.style.display = editMode ? 'none' : 'inline-block';
+        editDetectionMaskBtn.style.display = editMode ? 'none' : 'inline-block';
     }
 
     function updateCanvasDimensions() {
@@ -377,15 +385,17 @@
         });
     }
 
-    function sendDetectionMaskSVG() {
-        sendMaskSVG('detection-mask.svg')
-    }
+    function sendMaskSVG() {
 
-    function sendSecurityMaskSVG() {
-        sendMaskSVG('security-mask.svg')
-    }    
+        console.log(`sendMaskSVG:${maskType}`);
 
-    function sendMaskSVG(file_name) {
+        file_name = 'unknown-mask.svg';
+        if (maskType === 'detection') {
+            file_name = 'detection-mask.svg';
+        }
+        if (maskType === 'security') {
+            file_name = 'security-mask.svg';   
+        }
 
         let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${maskCanvas.width}" height="${maskCanvas.height}">`;
 
@@ -600,6 +610,29 @@
         link.click();
     }
 
+    function editMaskBtnClick() {
+        editMode = !editMode;
+        toggleButtons();
+        if (editMode) {
+
+            if (maskType === 'detection') {
+                maskControlsHeaderDiv.innerText = 'Editing Detection Mask';
+            } else if (maskType === 'security') {
+                maskControlsHeaderDiv.innerText = 'Editing Security Mask';
+            } else {
+                maskControlsHeaderDiv.innerText = 'BUG: Unknown Mask Type - This should not happen';
+            }
+
+            overrideMask(false);
+            // Clear any existing polygons if starting a new edit session
+            polygons = [[]];            
+        } else {
+            maskControlsHeaderDiv.innerText = 'Mask Controls';
+            overrideMask(true);
+            redrawCanvas();            
+        }
+    }
+
     function overrideMask(enable) {
         //console.log(`Override mask - setting: ${enable}`);
 
@@ -607,13 +640,25 @@
             mask_enabled: enable
         });
 
-        updateMaskOverrideService.callService(request, function(result) {
-            if (result.success) {
-                console.log("Mask override sent successfully!");
-            } else {
-                console.error("Failed to send mask override:", result.message);
-            }
-        });
+        if (maskType === 'detection') {
+            detectionMaskOverrideService.callService(request, function(result) {
+                if (result.success) {
+                    console.log("Detection mask override sent successfully!");
+                } else {
+                    console.error("Failed to send detection mask override:", result.message);
+                }
+            });
+        }
+
+        if (maskType === 'security') {
+            securityMaskOverrideService.callService(request, function(result) {
+                if (result.success) {
+                    console.log("security mask override sent successfully!");
+                } else {
+                    console.error("Failed to send security mask override:", result.message);
+                }
+            });
+        }
     }
 
     // EVENT LISTENERS
@@ -664,7 +709,6 @@
         redrawCanvas();
     });
     
-
     maskCanvas.addEventListener('mousemove', (e) => {
         //console.log("mousemove event:", e);
         if (!drawing || !editMode) return;
@@ -678,19 +722,22 @@
         currentPolygon.pop();
     });
 
-    // Edit Mask Button Event Listener
-    editMaskBtn.addEventListener('click', () => {
-        editMode = !editMode;
-        toggleButtons();
-        if (editMode) {
-            overrideMask(false);
-            // Clear any existing polygons if starting a new edit session
-            polygons = [[]];            
-        } else {
-            overrideMask(true);
-            redrawCanvas();            
-        }
+    // Edit detection  Mask Button Event Listener
+    editDetectionMaskBtn.addEventListener('click', () => {        
+        maskType = 'detection';
+        editMaskBtnClick();
     });
+
+    // Edit security Mask Button Event Listener
+    editSecurityMaskBtn.addEventListener('click', () => {        
+        maskType = 'security';
+        editMaskBtnClick();    
+    });
+
+    // Edit security Mask Button Event Listener
+    cancelEditMaskBtn.addEventListener('click', () => {
+        editMaskBtnClick();
+    });    
 
     // Clear Mask Button Event Listner
     clearMaskBtn.addEventListener('click', () => {
@@ -701,11 +748,12 @@
     });
 
     sendMaskSVGButton.addEventListener('click', () => {
-        sendDetectionMaskSVG();
+        sendMaskSVG();
         editMode = false; // Close edit controls
         toggleButtons(); // Update button display
         clearMask();
         overrideMask(true);
+        maskControlsHeaderDiv.innerText = 'Mask Controls';
     });
 
     // Save Mask JPG Button Event Listner

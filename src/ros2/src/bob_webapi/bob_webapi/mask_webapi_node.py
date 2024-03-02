@@ -74,10 +74,10 @@ class MaskWebApiNode(Node):
       input_svg_file = mask_file_path
 
       # Output PNG file path
-      output_png_file = os.path.join(self.masks_folder, 'mask.png')
+      output_png_file = os.path.join(self.masks_folder, os.path.splitext(request.file_name)[0] + '.png')
 
       # Output JPG file path
-      output_jpg_file = os.path.join(self.masks_folder, 'mask.jpg')
+      output_jpg_file = os.path.join(self.masks_folder, os.path.splitext(request.file_name)[0] + '.jpg')
 
       # Convert SVG to PNG
       cairosvg.svg2png(url=input_svg_file, write_to=output_png_file, output_width=self.mask_width, output_height=self.mask_height)

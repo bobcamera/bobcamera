@@ -182,7 +182,7 @@ class ConfigDiscoverer():
             mycam = ONVIFCamera(rtsp_host, rtsp_port, rtsp_user, rtsp_password, self.wsdl_location)
             return True
         except Exception as e:
-            print(f"Error connecting to RTSP camera using ONVIF ({rtsp_user}:{rtsp_password}@{rtsp_host}:{rtsp_port}): {e}")
+            #print(f"Error connecting to RTSP camera using ONVIF ({rtsp_user}:{rtsp_password}@{rtsp_host}:{rtsp_port}): {e}")
             return False
 
 def create_storage_folders(context):

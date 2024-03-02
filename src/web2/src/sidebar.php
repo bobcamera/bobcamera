@@ -29,7 +29,19 @@
         <i class="bi bi-camera"></i>
             Foreground Mask
         </a>
-    </li>    
+    </li>
+    <li class="nav-item">
+        <a class="nav-link d-flex align-items-center gap-2" href="iframe.php?file=html/2D-full-width-stream-security-mask.html">
+        <i class="bi bi-camera"></i>
+            Security Mask
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link d-flex align-items-center gap-2" href="iframe.php?file=html/2D-full-width-stream-detection-mask.html">
+        <i class="bi bi-camera"></i>
+            Detection Mask
+        </a>
+    </li>           
     <!-- <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="iframe.php?file=html/2D-full-height-stream.html"><i class="bi bi-camera"></i>Fisheye Full View</a></li> -->
 </ul>
 <hr class="my-3">
