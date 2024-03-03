@@ -86,7 +86,7 @@
             
         </style>
 
-        <title>Foreground Mask Image Stream (Wide View)</title>
+        <title>Privacy Mask Image Stream (Wide View)</title>
 
         <meta charset="utf-8" />
 
@@ -138,7 +138,7 @@
             // Create a topicStream for subscription
             var topicStream = new ROSLIB.Topic({
                 ros: ros, 
-                name: '/bob/frames/allsky/masked/security/resized/compressed', 
+                name: '/bob/frames/allsky/masked/privacy/resized/compressed', 
                 messageType: 'sensor_msgs/msg/CompressedImage'
             });
 
@@ -156,7 +156,7 @@
 
             var maskOverrideService = new ROSLIB.Service({
                 ros : ros, 
-                name : '/bob/mask/security/override', 
+                name : '/bob/mask/privacy/override', 
                 serviceType : 'bob_interfaces/srv/MaskOverrideRequest'
             });             
 
@@ -166,7 +166,7 @@
             let maskCanvasCtx = maskCanvas.getContext('2d');
 
             const invertMask = true;
-            const maskFilename = 'security-mask.svg';
+            const maskFilename = 'privacy-mask.svg';
             let drawing = false;
             let editMode = false;
             let polygons = [];

@@ -74,9 +74,9 @@ detection_mask_application_node:
     mask_file: 'assets/masks/detection-mask.jpg'
     mask_enable_override: True
 
-security_mask_application_node:
+privacy_mask_application_node:
   ros__parameters:
-    mask_file: 'assets/masks/security-mask.jpg'
+    mask_file: 'assets/masks/privacy-mask.jpg'
     mask_enable_override: True
 
 minimal_background_subtractor_node:
@@ -114,7 +114,7 @@ track_provider_node:
 allsky_recorder_node:
   ros__parameters:
     recordings_directory: 'assets/recordings'
-    img_topic: 'bob/frames/allsky/masked/security'
+    img_topic: 'bob/frames/allsky/masked/privacy'
     fg_img_topic: 'bob/frames/foreground_mask'
     tracking_topic: 'bob/tracker/tracking'
     camera_info_topic: bob/camera/all_sky/camera_info
@@ -132,7 +132,7 @@ detection_masked_frame_resizer_node:
   ros__parameters:
     resize_height: 960
 
-security_masked_frame_resizer_node:
+privacy_masked_frame_resizer_node:
   ros__parameters:
     resize_height: 960
 
@@ -151,7 +151,7 @@ multi_frame_viewer_node:
       - 'bob/frames/annotated/resized'
       - 'bob/frames/foreground_mask/resized'
       - 'bob/frames/allsky/masked/detection/resized'
-      - 'bob/frames/allsky/masked/security/resized'
+      - 'bob/frames/allsky/masked/privacy/resized'
 
 annotated_frame_compressor_node:
   ros__parameters:
@@ -161,7 +161,7 @@ detection_masked_compressor_node:
   ros__parameters:
     compression_quality: 95
 
-security_masked_compressor_node:
+privacy_masked_compressor_node:
   ros__parameters:
     compression_quality: 95
 

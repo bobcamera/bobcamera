@@ -99,12 +99,12 @@ def generate_launch_description():
             ComposableNode(
                 package='bob_image_processing',  
                 plugin='MaskApplication',  
-                name='security_mask_application_node',
+                name='privacy_mask_application_node',
                 parameters = [config],
                 remappings=[
-                    ('bob/mask/override', 'bob/mask/security/override'),
+                    ('bob/mask/override', 'bob/mask/privacy/override'),
                     ('bob/mask/source', 'bob/frames/allsky/original'),
-                    ('bob/mask/target', 'bob/frames/allsky/masked/security')],
+                    ('bob/mask/target', 'bob/frames/allsky/masked/privacy')],
                 extra_arguments=[{'use_intra_process_comms': True}],
             ),            
             #Minimal sensitivity:
@@ -177,10 +177,10 @@ def generate_launch_description():
             ComposableNode(
                 package='bob_image_processing',
                 plugin='FrameResizer',
-                name='security_masked_frame_resizer_node',
+                name='privacy_masked_frame_resizer_node',
                 remappings=[
-                    ('bob/resizer/source', 'bob/frames/allsky/masked/security'),
-                    ('bob/resizer/target', 'bob/frames/allsky/masked/security/resized')],
+                    ('bob/resizer/source', 'bob/frames/allsky/masked/privacy'),
+                    ('bob/resizer/target', 'bob/frames/allsky/masked/privacy/resized')],
                 parameters = [config],
                 extra_arguments=[{'use_intra_process_comms': True}],
             ),              

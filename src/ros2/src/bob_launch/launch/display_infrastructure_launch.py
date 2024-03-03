@@ -61,10 +61,10 @@ def generate_launch_description():
             ComposableNode(
                 package='bob_image_processing',
                 plugin='FrameCompressor',
-                name='security_masked_compressor_node',
+                name='privacy_masked_compressor_node',
                 remappings=[
-                    ('bob/compressor/source', 'bob/frames/allsky/masked/security/resized'),
-                    ('bob/compressor/target', 'bob/frames/allsky/masked/security/resized/compressed')],
+                    ('bob/compressor/source', 'bob/frames/allsky/masked/privacy/resized'),
+                    ('bob/compressor/target', 'bob/frames/allsky/masked/privacy/resized/compressed')],
                 parameters = [config],
                 extra_arguments=[{'use_intra_process_comms': True}]),                
            ComposableNode(
