@@ -73,11 +73,13 @@ detection_mask_application_node:
   ros__parameters:
     mask_file: 'assets/masks/detection-mask.jpg'
     mask_enable_override: True
+    mask_enable_offset_correction: True
 
 privacy_mask_application_node:
   ros__parameters:
     mask_file: 'assets/masks/privacy-mask.jpg'
     mask_enable_override: True
+    mask_enable_offset_correction: False
 
 minimal_background_subtractor_node:
   ros__parameters:

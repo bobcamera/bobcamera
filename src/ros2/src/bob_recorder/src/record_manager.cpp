@@ -8,6 +8,7 @@
 #include <message_filters/time_synchronizer.h>
 #include <rclcpp_components/register_node_macro.hpp>
 #include <sensor_msgs/msg/image.hpp>
+#include <sensor_msgs/msg/region_of_interest.hpp>
 #include <visibility_control.h>
 #include "bob_camera/msg/camera_info.hpp"
 #include "bob_interfaces/msg/tracking.hpp"
@@ -28,7 +29,7 @@ public:
     , prev_frame_height_(0)
     {
         one_shot_timer_ = this->create_wall_timer(
-            std::chrono::seconds(2), 
+            std::chrono::seconds(1), 
             [this]() {
                 this->init(); 
                 this->one_shot_timer_.reset();  
@@ -60,6 +61,10 @@ private:
         sub_tracking_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::Tracking>>(shared_from_this(), tracking_topic_, rmw_qos_profile);
         sub_camera_info_ = std::make_shared<message_filters::Subscriber<bob_camera::msg::CameraInfo>>(shared_from_this(), camera_info_topic_, rmw_qos_profile);
 
+        roi_subscription_ = create_subscription<sensor_msgs::msg::RegionOfInterest>(
+            "bob/mask/roi", sub_qos_profile,
+            std::bind(&RecordManager::roi_callback, this, std::placeholders::_1));
+
         time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image, 
             bob_interfaces::msg::Tracking, bob_camera::msg::CameraInfo>>(*sub_frame_, *sub_fg_frame_, *sub_tracking_, *sub_camera_info_, 10);
 
@@ -69,6 +74,13 @@ private:
         json_recorder_ = std::make_unique<JsonRecorder>(total_pre_frames_);
         video_recorder_ = std::make_unique<VideoRecorder>(total_pre_frames_);
     };
+
+    void roi_callback(const sensor_msgs::msg::RegionOfInterest::SharedPtr roi_msg) 
+    {
+        x_offset_ = roi_msg->x_offset;
+        y_offset_ = roi_msg->y_offset;
+        RCLCPP_INFO(get_logger(), "roi_callback");
+    }
 
     std::string get_current_date() 
     {
@@ -260,7 +272,7 @@ private:
                 } 
                 else 
                 {
-                    json_data = JsonRecorder::build_json_value(image_msg, tracking_msg, false);
+                    json_data = JsonRecorder::build_json_value(image_msg, tracking_msg, false, x_offset_, y_offset_);
                     json_recorder_->add_to_pre_buffer(json_data, false);
                     video_recorder_->add_to_pre_buffer(img);
                     img_recorder_->add_to_pre_buffer(fg_img);
@@ -268,10 +280,10 @@ private:
                 break;
 
             case RecordingState::BetweenEvents:
-                json_data = JsonRecorder::build_json_value(image_msg, tracking_msg, true);
+                json_data = JsonRecorder::build_json_value(image_msg, tracking_msg, true, x_offset_, y_offset_);
                 json_recorder_->add_to_buffer(json_data, false);
                 video_recorder_->write_frame(img);
-                img_recorder_->accumulate_mask(fg_img);
+                img_recorder_->accumulate_mask(fg_img, img.size(), x_offset_, y_offset_);
 
                 for (const auto& detection : tracking_msg->detections)
                 {
@@ -309,10 +321,10 @@ private:
                 }
                 else 
                 {
-                    json_data = JsonRecorder::build_json_value(image_msg, tracking_msg, false);
+                    json_data = JsonRecorder::build_json_value(image_msg, tracking_msg, false, x_offset_, y_offset_);
                     json_recorder_->add_to_buffer(json_data, false);
                     video_recorder_->write_frame(img);
-                    img_recorder_->accumulate_mask(fg_img);
+                    img_recorder_->accumulate_mask(fg_img, img.size(), x_offset_, y_offset_);
 
                     --current_end_frame_;
                     if (tracking_msg->state.trackable > 0) 
@@ -355,6 +367,7 @@ private:
     std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> sub_fg_frame_;
     std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::Tracking>> sub_tracking_;
     std::shared_ptr<message_filters::Subscriber<bob_camera::msg::CameraInfo>> sub_camera_info_;
+    rclcpp::Subscription<sensor_msgs::msg::RegionOfInterest>::SharedPtr roi_subscription_;
     std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image,
          bob_interfaces::msg::Tracking, bob_camera::msg::CameraInfo>> time_synchronizer_;
 
@@ -364,6 +377,8 @@ private:
     int number_seconds_save_;
     int prev_frame_width_;
     int prev_frame_height_;
+    int x_offset_;
+    int y_offset_;
 };
 
 
