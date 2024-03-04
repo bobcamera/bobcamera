@@ -359,7 +359,6 @@
             function svcSendMaskSVG() {
 
                 let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${maskCanvas.width}" height="${maskCanvas.height}">`;
-
                 if (invertMask) {
                     // Add a black background rectangle
                     svgContent += `<rect width="100%" height="100%" fill="black" />`;
@@ -369,18 +368,19 @@
                                 const command = index === 0 ? 'M' : 'L';
                                 return `${command}${point.x},${point.y}`;
                             }).join(' ') + 'Z';
-                            // Set fill to "none" for transparency, and add a stroke with your desired color
                             svgContent += `<path d="${pathData}" fill="white" stroke="white" />`;
                         }
                     });
                 } else {
+                    // Add a white background rectangle
+                    svgContent += `<rect width="100%" height="100%" fill="white" />`;
                     polygons.forEach(polygon => {
                         if (polygon.length > 2) {
                             const pathData = polygon.map((point, index) => {
                                 const command = index === 0 ? 'M' : 'L';
                                 return `${command}${point.x},${point.y}`;
                             }).join(' ') + 'Z';
-                            svgContent += `<path d="${pathData}" fill="black" />`;
+                            svgContent += `<path d="${pathData}" fill="black" stroke="black" />`;
                         }
                     });
                 }
