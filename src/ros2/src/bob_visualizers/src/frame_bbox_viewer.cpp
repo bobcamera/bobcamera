@@ -49,7 +49,7 @@ private:
         auto rmw_qos_profile = sub_qos_profile_.get_rmw_qos_profile();
 
         sub_image_.subscribe(this, topics_[current_topic_], rmw_qos_profile);
-        sub_bbox_.subscribe(this, "bob/detector/all_sky/bounding_boxes", rmw_qos_profile);
+        sub_bbox_.subscribe(this, "bob/detection/allsky/boundingboxes", rmw_qos_profile);
 
         time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, vision_msgs::msg::BoundingBox2DArray>>(sub_image_, sub_bbox_, 2);
         time_synchronizer_->registerCallback(&FrameBBoxViewer::imageCallback, this);

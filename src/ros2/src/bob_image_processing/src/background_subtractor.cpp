@@ -77,7 +77,7 @@ private:
             std::bind(&BackgroundSubtractor::imageCallback, this, std::placeholders::_1)
         );
         image_publisher_ = create_publisher<sensor_msgs::msg::Image>("bob/frames/foreground_mask", pub_qos_profile_);
-        detection_publisher_ = create_publisher<vision_msgs::msg::BoundingBox2DArray>("bob/detector/all_sky/bounding_boxes", pub_qos_profile_);
+        detection_publisher_ = create_publisher<vision_msgs::msg::BoundingBox2DArray>("bob/detection/allsky/boundingboxes", pub_qos_profile_);
 
         bgs_reset_service_ = create_service<bob_interfaces::srv::BGSResetRequest>(
             "bob/bgs/reset", 
