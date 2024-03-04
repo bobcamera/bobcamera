@@ -50,6 +50,13 @@
                 padding-bottom: 5px;
             }
 
+            .metric-text {
+                display: flex;
+                justify-content: space-between;
+                padding-bottom: 5px;
+                font-size: 14px;
+            }
+
             button {
                 background-color: #fff;
                 border: 1px solid #ccc;
@@ -123,11 +130,14 @@
 
         <div class="metric-panel">
             <div id="mask-controls-header-dev" class="metric-header">Mask Controls</div>
-                <button id="editMaskBtn" title="Edit Mask"><i class="fa-solid fa-pen-to-square"></i></button>
-                <button id="deleteMaskBtn" title="Delete Mask"><i class="fas fa-trash"></i></i></button>
-                <button id="cancelMaskBtn" title="Cancel" style="display: none;"><i class="fas fa-times"></i></button>
-                <button id="sendMaskSVGBtn" title="Save Mask" style="background-color: lightgreen;"><i class="fa-solid fa-floppy-disk"></i></button>
-                <button id="clearMaskBtn" title="Clear Mask" style="background-color: rosybrown;"><i class="fas fa-trash"></i></button>
+            <div class="metric-text">
+                Draw the areas you want to exclude.
+            </div>
+            <button id="editMaskBtn" title="Edit Mask"><i class="fa-solid fa-pen-to-square"></i></button>
+            <button id="deleteMaskBtn" title="Delete Mask"><i class="fas fa-trash"></i></i></button>
+            <button id="cancelMaskBtn" title="Cancel" style="display: none;"><i class="fas fa-times"></i></button>
+            <button id="sendMaskSVGBtn" title="Save Mask" style="background-color: lightgreen;"><i class="fa-solid fa-floppy-disk"></i></button>
+            <button id="clearMaskBtn" title="Clear Mask" style="background-color: rosybrown;"><i class="fas fa-trash"></i></button>
         </div>
         <div id="stream" width="" height="">
             <img id="image-subscription" width="" height="" />
