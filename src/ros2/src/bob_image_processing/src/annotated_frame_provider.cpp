@@ -22,7 +22,9 @@ public:
     COMPOSITION_PUBLIC
     explicit AnnotatedFrameProvider(const rclcpp::NodeOptions & options)
         : ParameterNode("annotated_frame_provider_node", options),
-          annotated_frame_creator_(std::map<std::string, std::string>())
+          annotated_frame_creator_(std::map<std::string, std::string>()),
+        x_offset_(0),
+        y_offset_(0)
     {
         timer_ = create_wall_timer(std::chrono::seconds(1), std::bind(&AnnotatedFrameProvider::init, this));
     }

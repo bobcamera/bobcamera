@@ -173,7 +173,7 @@ private:
                     request_bgs_reset(true);
                 }
 
-                if (mask_enable_offset_correction_)
+                if (mask_enable_offset_correction_ && mask_enable_override_)
                 {
                     bounding_box_ = cv::Rect(grey_mask_.cols, grey_mask_.rows, 0, 0);
                     for (int y = 0; y < grey_mask_.rows; ++y) 
