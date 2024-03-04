@@ -280,14 +280,6 @@
 
             maskCanvas.addEventListener('mousedown', (e) => {                
                 //console.log('maskCanvas.mousedown');
-                //console.log("MouseDown Event:");
-                //console.log("Edit Mode:", editMode);
-                //console.log("Stream Container:", streamContainer);
-                //console.log("Video Stream:", videoStream);
-                //console.log("Mask Canvas:", maskCanvas);
-                //console.log("Video Stream Width:", videoStream.offsetWidth);
-                //console.log("Video Stream Height:", videoStream.offsetHeight);
-                //console.log("Event Details:", e);                
                 if (!editMode || e.button === 2) return;
                 if (e.detail > 1) {
                     const currentPolygon = polygons[polygons.length - 1];
@@ -301,9 +293,6 @@
                 const rect = maskCanvas.getBoundingClientRect();
                 const x = e.clientX - rect.left;
                 const y = e.clientY - rect.top;
-                //console.log("Bounding Client Rect:", rect);
-                //console.log("Mouse X Coordinate:", x);
-                //console.log("Mouse Y Coordinate:", y);                
                 const currentPolygon = polygons[polygons.length - 1];
                 if (currentPolygon.length > 0) {
                     const firstNode = currentPolygon[0];

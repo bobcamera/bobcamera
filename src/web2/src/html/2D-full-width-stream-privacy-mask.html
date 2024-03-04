@@ -278,7 +278,8 @@
                 maskCanvas.height = videoStream.offsetHeight;
             });
 
-            maskCanvas.addEventListener('mousedown', (e) => {                
+            maskCanvas.addEventListener('mousedown', (e) => {       
+                //console.log('maskCanvas.mousedown');         
                 if (!editMode || e.button === 2) return;
                 if (e.detail > 1) {
                     const currentPolygon = polygons[polygons.length - 1];
