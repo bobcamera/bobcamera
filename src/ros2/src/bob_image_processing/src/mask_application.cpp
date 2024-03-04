@@ -139,7 +139,6 @@ private:
 
     void timer_callback()
     {
-        RCLCPP_INFO(get_logger(), "timer_callback");
         try
         {
             cv::Mat mask;
@@ -199,7 +198,7 @@ private:
                     roi_publisher_->publish(roi_msg);
 
                     cv::Size frame_size(bounding_box_.width, bounding_box_.height);
-                    RCLCPP_INFO(get_logger(), "Frame size determined from mask: %d x %d", frame_size.width, frame_size.height);
+                    RCLCPP_INFO(get_logger(), "Detection frame size determined from mask: %d x %d", frame_size.width, frame_size.height);
                 }
 
             }

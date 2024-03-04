@@ -79,7 +79,6 @@ private:
     {
         x_offset_ = roi_msg->x_offset;
         y_offset_ = roi_msg->y_offset;
-        RCLCPP_INFO(get_logger(), "roi_callback");
     }
 
     std::string get_current_date() 

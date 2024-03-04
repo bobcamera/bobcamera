@@ -71,11 +71,8 @@ private:
 
     void roi_callback(const sensor_msgs::msg::RegionOfInterest::SharedPtr roi_msg) 
     {
-        // Extract offset information from the ROI message
         x_offset_ = roi_msg->x_offset;
         y_offset_ = roi_msg->y_offset;
-
-        RCLCPP_INFO(get_logger(), "roi_callback");
     }
 
     void callback(const sensor_msgs::msg::Image::SharedPtr& image_msg,
