@@ -58,7 +58,7 @@ def generate_launch_description():
                 name='simulated_frame_provider_node',  
                 parameters = [config],
                 remappings=[
-                    ('bob/simulation/output_frame', 'bob/frames/allsky/masked/detection')
+                    ('bob/simulation/output_frame', 'bob/frames/allsky/original')
                 ],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'simulate'" ])),  
