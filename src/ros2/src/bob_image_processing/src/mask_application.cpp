@@ -173,7 +173,7 @@ private:
                     request_bgs_reset(true);
                 }
 
-                if (mask_enable_offset_correction_ && mask_enable_override_)
+                if (mask_enable_offset_correction_)
                 {
                     bounding_box_ = cv::Rect(grey_mask_.cols, grey_mask_.rows, 0, 0);
                     for (int y = 0; y < grey_mask_.rows; ++y) 
@@ -200,7 +200,6 @@ private:
                     cv::Size frame_size(bounding_box_.width, bounding_box_.height);
                     RCLCPP_INFO(get_logger(), "Detection frame size determined from mask: %d x %d", frame_size.width, frame_size.height);
                 }
-
             }
         }
         catch (cv::Exception &cve)
