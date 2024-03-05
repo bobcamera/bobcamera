@@ -223,6 +223,7 @@ def application_config(context):
 
     #bitrate_str = 'bitrate=10240000'
     mask_enable_override = source in ('\'rtsp\'', '\'rtsp_overlay\'', '\'usb\'')
+    mask_enable_offset_correction = source in ('\'rtsp\'', '\'rtsp_overlay\'', '\'usb\'')
 
     update_config = LaunchConfiguration('update_config_from_env_vars_arg').perform(context) in ('True', 'true')    
 
@@ -273,6 +274,7 @@ def application_config(context):
 
             # detection_mask_application_node
             yaml_output['detection_mask_application_node']['ros__parameters']['mask_enable_override'] = mask_enable_override
+            yaml_output['detection_mask_application_node']['ros__parameters']['mask_enable_offset_correction'] = mask_enable_offset_correction
 
             # privacy_mask_application_node
             yaml_output['privacy_mask_application_node']['ros__parameters']['mask_enable_override'] = mask_enable_override
