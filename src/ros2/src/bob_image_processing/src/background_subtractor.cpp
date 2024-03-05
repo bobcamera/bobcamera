@@ -273,7 +273,7 @@ private:
     {
         if(request->mask_enabled) { }
         bgsPtr->restart();
-        response->success = true;        
+        response->success = true;
     }
 
     std::unique_ptr<boblib::bgs::CoreBgs> createBGS(BGSType _type)

@@ -223,7 +223,7 @@ private:
     {
         auto response = future.get();
         if(response->success)
-            RCLCPP_INFO(get_logger(), "BGS Reset Successfull");
+            RCLCPP_DEBUG(get_logger(), "BGS Reset Successfull");
     }
 
     void mask_override_request(const std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Request> request, 
@@ -232,11 +232,11 @@ private:
         mask_enable_override_ = request->mask_enabled;
         if (request->mask_enabled)
         {
-            RCLCPP_INFO(get_logger(), "Mask Override set to: True");
+            RCLCPP_DEBUG(get_logger(), "Mask Override set to: True");
         }
         else
         {
-            RCLCPP_INFO(get_logger(), "Mask Override set to: True");
+            RCLCPP_DEBUG(get_logger(), "Mask Override set to: False");
         }
         response->success = true;        
     }
