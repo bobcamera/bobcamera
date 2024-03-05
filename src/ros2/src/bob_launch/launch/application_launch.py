@@ -171,7 +171,7 @@ def generate_launch_description():
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([
                 launch_package_dir, 
-                '/kernel_launch.py']),
+                '/allsky_kernel_launch.py']),
         ),
 
         IncludeLaunchDescription(
