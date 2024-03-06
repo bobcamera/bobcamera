@@ -21,7 +21,7 @@ class RosbagRecorder():
     converter_options = rosbag2_py._storage.ConverterOptions('', '')
     self.writer.open(storage_options, converter_options)
 
-    image_topic_info = rosbag2_py._storage.TopicMetadata(name='bob/camera/all_sky/bayer', type='sensor_msgs/msg/Image', serialization_format='cdr')
+    image_topic_info = rosbag2_py._storage.TopicMetadata(name='bob/frames/allsky/original', type='sensor_msgs/msg/Image', serialization_format='cdr')
     tracking_state_topic_info = rosbag2_py._storage.TopicMetadata(name='bob/tracker/tracking_state', type='bob_interfaces/msg/TrackingState', serialization_format='cdr')
     detection_topic_info = rosbag2_py._storage.TopicMetadata(name='bob/tracker/detections', type='bob_interfaces/msg/TrackDetectionArray', serialization_format='cdr')
     trajectory_topic_info = rosbag2_py._storage.TopicMetadata(name='bob/tracker/trajectory', type='bob_interfaces/msg/TrackTrajectoryArray', serialization_format='cdr')
@@ -37,7 +37,7 @@ class RosbagRecorder():
     msg_trajectory_array:TrackTrajectoryArray, msg_prediction_array:TrackTrajectoryArray):
      
     ns = Time.from_msg(masked_frame.header.stamp).nanoseconds
-    self.writer.write('bob/camera/all_sky/bayer', serialize_message(masked_frame), ns)
+    self.writer.write('bob/frames/allsky/original', serialize_message(masked_frame), ns)
     self.writer.write('bob/tracker/tracking_state', serialize_message(msg_tracking_state), ns)
     self.writer.write('bob/tracker/detections', serialize_message(msg_detection_array), ns)
     self.writer.write('bob/tracker/trajectory', serialize_message(msg_trajectory_array), ns)

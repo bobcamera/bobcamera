@@ -17,7 +17,7 @@ def generate_launch_description():
         name='day_night_classifier_node',
         parameters = [config],
         remappings=[
-            ('bob/observer_frame/source', 'bob/frames/masked/resized')],
+            ('bob/observer_frame/source', 'bob/frames/allsky/masked/detection/resized')],
     )
 
     cloud_estimator_node = Node(
@@ -27,7 +27,7 @@ def generate_launch_description():
         name='cloud_estimator_node',
         parameters = [config],
         remappings=[
-            ('bob/observer_frame/source', 'bob/frames/masked/resized')],        
+            ('bob/observer_frame/source', 'bob/frames/allsky/masked/detection/resized')],        
     )
     
     tracking_monitor_node = Node(

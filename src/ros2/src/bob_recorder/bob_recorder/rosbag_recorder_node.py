@@ -21,7 +21,7 @@ class RosbagRecorderNode(Node):
 
     self.recorder = RosbagRecorder()
 
-    self.sub_masked_frame = message_filters.Subscriber(self, Image, 'bob/camera/all_sky/bayer', qos_profile=subscriber_qos_profile)
+    self.sub_masked_frame = message_filters.Subscriber(self, Image, 'bob/frames/allsky/original', qos_profile=subscriber_qos_profile)
     self.sub_tracking_state = message_filters.Subscriber(self, TrackingState, 'bob/tracker/tracking_state', qos_profile=subscriber_qos_profile)    
     self.sub_tracker_detections = message_filters.Subscriber(self, TrackDetectionArray, 'bob/tracker/detections', qos_profile=subscriber_qos_profile)
     self.sub_tracker_trajectory = message_filters.Subscriber(self, TrackTrajectoryArray, 'bob/tracker/trajectory', qos_profile=subscriber_qos_profile)

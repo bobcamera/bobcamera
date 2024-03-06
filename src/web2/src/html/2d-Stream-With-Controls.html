@@ -122,9 +122,9 @@
                 background-color: rgb(82, 241, 117);
             }
 
-            #clearMaskBtn,
-            #saveMaskSVGButton,
-            #cancelMaskBtn {
+            #editMaskBtn,
+            #sendMaskSVG,
+            #clearMaskBtn {
                 display: none; /* Initially hide Clear Mask, Save Mask, and Cancel buttons */
             }
             
@@ -197,12 +197,12 @@
                 <span hidden id="total_avg_frame_rate">0</span>
             </div>
             <br>
-            <div class="metric-header">Mask Controls</div> <!-- Added title for mask controls -->
+            <div class="metric-header" style="display: none;">Mask Controls</div> <!-- Added title for mask controls -->
                 <button id="editMaskBtn" title="Edit Mask"><i class="fa-solid fa-pen-to-square"></i></button>
                 <!-- <button id="invertMaskBtn" title="Invert Mask" class=""><i class="fas fa-clone"></i></button>
                 <button id="saveMaskJPG" title="Download JPG"><i class="fas fa-download"></i></button>
                 <button id="saveMaskSVG" title="Download SVG"><i class="fas fa-download"></i></button> -->
-                <button id="sendMaskSVG" title="Send Mask As ROS2 Message" style="background-color: lightgreen; display: none;"><i class="fa-solid fa-floppy-disk"></i></button>
+                <button id="sendMaskSVG" title="Send Mask As ROS2 Message" style="background-color: lightgreen;"><i class="fa-solid fa-floppy-disk"></i></button>
                 <button id="clearMaskBtn" title="Clear Mask" style="background-color: rosybrown;"><i class="fas fa-trash"></i></button>
         </div>
         <div id="stream" width="" height="">

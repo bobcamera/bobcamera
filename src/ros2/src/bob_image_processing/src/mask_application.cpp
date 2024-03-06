@@ -16,6 +16,7 @@
 
 #include "bob_interfaces/srv/bgs_reset_request.hpp"
 #include "bob_interfaces/srv/mask_override_request.hpp"
+#include <sensor_msgs/msg/region_of_interest.hpp>
 
 class MaskApplication 
     : public ParameterNode
@@ -23,13 +24,19 @@ class MaskApplication
 public:
     COMPOSITION_PUBLIC
     explicit MaskApplication(const rclcpp::NodeOptions & options)
-        : ParameterNode("mask_application_node", options)
+        : ParameterNode("mask_application_node", options), bounding_box_(0, 0, 0, 0) 
     {
-        try {
-            init();
-        } catch(const std::exception &e) {
-            RCLCPP_ERROR(this->get_logger(), "Exception in MaskApplicationNode constructor: %s", e.what());
-        }
+        one_shot_timer_ = this->create_wall_timer(
+            std::chrono::seconds(2),
+            [this]() {
+                try {
+                    init();
+                } catch(const std::exception &e) {
+                    RCLCPP_ERROR(this->get_logger(), "Exception in MaskApplicationNode constructor: %s", e.what());
+                }
+                one_shot_timer_.reset();
+            }
+        );
     }
 
     void init()
@@ -46,8 +53,9 @@ public:
 
         declare_node_parameters();
 
-        image_publisher_ = create_publisher<sensor_msgs::msg::Image>("bob/frames/masked", pub_qos_profile);
-        image_subscription_ = create_subscription<sensor_msgs::msg::Image>("bob/camera/all_sky/bayer", sub_qos_profile, 
+        image_publisher_ = create_publisher<sensor_msgs::msg::Image>("bob/mask/target", pub_qos_profile);
+        roi_publisher_ = create_publisher<sensor_msgs::msg::RegionOfInterest>("bob/mask/roi", pub_qos_profile);
+        image_subscription_ = create_subscription<sensor_msgs::msg::Image>("bob/mask/source", sub_qos_profile, 
             std::bind(&MaskApplication::callback, this, std::placeholders::_1));
 
         timer_ = create_wall_timer(std::chrono::seconds(60), std::bind(&MaskApplication::timer_callback, this));
@@ -75,6 +83,10 @@ public:
                 rclcpp::Parameter("mask_enable_override", true), 
                 [this](const rclcpp::Parameter& param) {mask_enable_override_ = param.as_bool();}
             ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("mask_enable_offset_correction", true), 
+                [this](const rclcpp::Parameter& param) {mask_enable_offset_correction_ = param.as_bool();}
+            ),
         };
         add_action_parameters(params);
     }
@@ -89,11 +101,6 @@ private:
                 cv::Mat img;
                 ImageUtils::convert_image_msg(img_msg, img, false);
 
-                // Print dimensions
-                // RCLCPP_INFO(this->get_logger(), "Image dimensions: %d x %d", img.cols, img.rows);
-                // RCLCPP_INFO(this->get_logger(), "Mask dimensions: %d x %d", converted_mask_.cols, converted_mask_.rows);
-
-                // Check dimensions
                 if(img.rows != converted_mask_.rows || img.cols != converted_mask_.cols)
                 {
                     RCLCPP_WARN(this->get_logger(), "Frame and mask dimensions do not match. Attempting resize.");
@@ -101,11 +108,19 @@ private:
                     cv::resize(converted_mask_, converted_mask_, cv::Size(img.cols, img.rows));
                 }
 
-                cv::Mat masked_frame = img.mul(converted_mask_/255.0);
+                cv::Mat masked_frame;
+                if (mask_enable_offset_correction_)
+                {
+                    cv::Rect roi(bounding_box_.x, bounding_box_.y, bounding_box_.width, bounding_box_.height);
+                    masked_frame = img(roi).mul(converted_mask_(roi)/255.0);
+                }
+                else
+                {
+                    masked_frame = img.mul(converted_mask_/255.0);
+                }
 
-                // Convert back to ROS Image message and publish
                 auto ros_image = cv_bridge::CvImage(img_msg->header, sensor_msgs::image_encodings::BGR8, masked_frame).toImageMsg();            
-                image_publisher_->publish(*ros_image);
+                image_publisher_->publish(*ros_image); 
             }
             else
             {
@@ -127,8 +142,6 @@ private:
         try
         {
             cv::Mat mask;
-
-            // Load mask
             if (std::filesystem::exists(mask_filename_))
             {
                 mask = cv::imread(mask_filename_, cv::IMREAD_UNCHANGED);    
@@ -159,6 +172,34 @@ private:
                     cv::cvtColor(mask, converted_mask_, cv::COLOR_GRAY2BGR);
                     request_bgs_reset(true);
                 }
+
+                if (mask_enable_offset_correction_)
+                {
+                    bounding_box_ = cv::Rect(grey_mask_.cols, grey_mask_.rows, 0, 0);
+                    for (int y = 0; y < grey_mask_.rows; ++y) 
+                    {
+                        for (int x = 0; x < grey_mask_.cols; ++x) 
+                        {
+                            if (grey_mask_.at<uchar>(y, x) == 255) 
+                            { 
+                                bounding_box_.x = std::min(bounding_box_.x, x);
+                                bounding_box_.y = std::min(bounding_box_.y, y);
+                                bounding_box_.width = std::max(bounding_box_.width, x - bounding_box_.x);
+                                bounding_box_.height = std::max(bounding_box_.height, y - bounding_box_.y);
+                            }
+                        }
+                    }
+
+                    sensor_msgs::msg::RegionOfInterest roi_msg;
+                    roi_msg.x_offset = bounding_box_.x;
+                    roi_msg.y_offset = bounding_box_.y;
+                    roi_msg.width = bounding_box_.width;
+                    roi_msg.height = bounding_box_.height;
+                    roi_publisher_->publish(roi_msg);
+
+                    cv::Size frame_size(bounding_box_.width, bounding_box_.height);
+                    RCLCPP_INFO(get_logger(), "Detection frame size determined from mask: %d x %d", frame_size.width, frame_size.height);
+                }
             }
         }
         catch (cv::Exception &cve)
@@ -166,7 +207,7 @@ private:
             RCLCPP_ERROR(get_logger(), "Open CV exception on timer callback: %s", cve.what());
         }  
     }
-  
+
     void request_bgs_reset(const bool enabled)
     {
         auto request = std::make_shared<bob_interfaces::srv::BGSResetRequest::Request>();
@@ -181,7 +222,7 @@ private:
     {
         auto response = future.get();
         if(response->success)
-            RCLCPP_INFO(get_logger(), "BGS Reset Successfull");
+            RCLCPP_DEBUG(get_logger(), "BGS Reset Successfull");
     }
 
     void mask_override_request(const std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Request> request, 
@@ -190,11 +231,11 @@ private:
         mask_enable_override_ = request->mask_enabled;
         if (request->mask_enabled)
         {
-            RCLCPP_INFO(get_logger(), "Mask Override set to: True");
+            RCLCPP_DEBUG(get_logger(), "Mask Override set to: True");
         }
         else
         {
-            RCLCPP_INFO(get_logger(), "Mask Override set to: True");
+            RCLCPP_DEBUG(get_logger(), "Mask Override set to: False");
         }
         response->success = true;        
     }
@@ -216,14 +257,18 @@ private:
 
     cv::Mat grey_mask_;
     cv::Mat converted_mask_;
+    cv::Rect bounding_box_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscription_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::RegionOfInterest>::SharedPtr roi_publisher_;
     std::string mask_filename_;
     bool mask_enabled_;
     bool mask_enable_override_;
+    bool mask_enable_offset_correction_;
     rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::Client<bob_interfaces::srv::BGSResetRequest>::SharedPtr bgs_reset_client_;
     rclcpp::Service<bob_interfaces::srv::MaskOverrideRequest>::SharedPtr mask_override_service_;
+    rclcpp::TimerBase::SharedPtr one_shot_timer_;
 };
 
 

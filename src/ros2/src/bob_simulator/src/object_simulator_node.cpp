@@ -45,7 +45,7 @@ private:
     {
         std::vector<ParameterNode::ActionParam> params = {
             ParameterNode::ActionParam(
-                rclcpp::Parameter("image_publish_topic", "bob/frames/masked"), 
+                rclcpp::Parameter("image_publish_topic", "bob/simulation/output_frame"), 
                 [this](const rclcpp::Parameter& param) {
                     image_publish_topic_ = param.as_string(); 
                     image_publisher_ = create_publisher<sensor_msgs::msg::Image>(image_publish_topic_, qos_profile_);

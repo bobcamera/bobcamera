@@ -21,9 +21,6 @@ export BOB_BGS_ALGORITHM=${BOB_BGS_ALGORITHM:-"vibe"}
 # Tracking sensitivity options: minimal, low, medium, high
 export BOB_TRACKING_SENSITIVITY=${BOB_TRACKING_SENSITIVITY:-"'medium'"}
 
-# Masking
-export BOB_TRACKING_MASK_FILE=${BOB_TRACKING_MASK_FILE:-"assets/masks/mask.jpg"}
-
 # Video files list separated by ';'
 export BOB_VIDEOS=${BOB_VIDEOS:-"/workspaces/bobcamera/media/fisheye_videos/mike-drone.mp4;/workspaces/bobcamera/media/fisheye_videos/mikeg-30min.mp4"}
 

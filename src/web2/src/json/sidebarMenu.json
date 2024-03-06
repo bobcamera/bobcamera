@@ -1,0 +1,117 @@
+{
+    "menu": [
+        {
+            "title": "Streaming",
+            "key": "streaming",
+            "items": [
+                {
+                    "name": "Live Stream",
+                    "key": "liveStream",
+                    "url": "iframe.php?file=html/2d-Stream-With-Controls.html",
+                    "icon": "bi-camera"
+                }
+            ]
+        },
+        {
+            "title": "Wide View",
+            "key": "wideView",
+            "items": [
+                {
+                    "name": "Annotated",
+                    "key": "annotated",
+                    "url": "iframe.php?file=html/2D-full-width-stream-annotated.html",
+                    "icon": "bi-camera"
+                },
+                {
+                    "name": "Foreground Mask",
+                    "key": "foregroundMask",
+                    "url": "iframe.php?file=html/2D-full-width-stream-forgroung-mask.html",
+                    "icon": "bi-camera"
+                }
+            ]
+        },
+        {
+            "title": "Mask Control",
+            "key": "maskControl",
+            "items": [
+                {
+                    "name": "Privacy Mask",
+                    "key": "privacyMask",
+                    "url": "iframe.php?file=html/2D-full-width-stream-privacy-mask.html",
+                    "icon": "bi-camera"
+                },
+                {
+                    "name": "Detection Mask",
+                    "key": "detectionMask",
+                    "url": "iframe.php?file=html/2D-full-width-stream-detection-mask.html",
+                    "icon": "bi-camera"
+                }
+            ]
+        },
+        {
+            "title": "Recordings",
+            "key": "recordings",
+            "items": [
+                {
+                    "name": "Recording Navigation",
+                    "key": "recordingNavigation",
+                    "url": "iframe.php?file=recordings.php",
+                    "icon": "bi-camera-video"
+                }
+            ]
+        },
+        {
+            "title": "Data Science",
+            "key": "dataScience",
+            "items": [
+                {
+                    "name": "RStudio",
+                    "key": "rStudio",
+                    "url": "http://localhost:8787",
+                    "icon": "bi-terminal",
+                    "target": "_blank"
+                }
+            ]
+        },
+        {
+            "title": "Documentation",
+            "key": "documentation",
+            "items": [
+                {
+                    "name": "Documentation",
+                    "key": "documentation",
+                    "url": "https://bobcamera.github.io/",
+                    "icon": "bi-globe",
+                    "target": "_blank"
+                },
+                {
+                    "name": "Found a Bug",
+                    "key": "foundABug",
+                    "url": "https://github.com/bobcamera/bobcamera/issues/new/choose",
+                    "icon": "bi-github",
+                    "target": "_blank"
+                },
+                {
+                    "name": "Request Feature",
+                    "key": "requestFeature",
+                    "url": "https://github.com/bobcamera/bobcamera/issues/new/choose",
+                    "icon": "bi-github",
+                    "target": "_blank"
+                }
+            ]
+        },
+        {
+            "title": "Project",
+            "key": "project",
+            "items": [
+                {
+                    "name": "Github",
+                    "key": "github",
+                    "url": "https://github.com/bobcamera/bobcamera",
+                    "icon": "bi-github",
+                    "target": "_blank"
+                }
+            ]
+        }
+    ]
+}

@@ -87,7 +87,7 @@ private:
         storage_options_.uri = db_uri.string();
         writer_.open(storage_options_);
 
-        image_topic_info_.name = "bob/camera/all_sky/bayer";
+        image_topic_info_.name = "bob/frames/allsky/original";
         image_topic_info_.type = "sensor_msgs/msg/Image";
         image_topic_info_.serialization_format = "cdr";
         writer_.create_topic(image_topic_info_);
@@ -99,7 +99,7 @@ private:
         writer_.create_topic(tracking_topic_info_);
         tracking_serialized_bag_msg_->topic_name = tracking_topic_info_.name;
 
-        sub_masked_frame_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(shared_from_this(), "bob/camera/all_sky/bayer", rmw_qos_profile);
+        sub_masked_frame_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(shared_from_this(), "bob/frames/allsky/original", rmw_qos_profile);
         sub_tracking_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::Tracking>>(shared_from_this(), "bob/tracker/tracking", rmw_qos_profile);
 
         time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::Tracking>>(*sub_masked_frame_, *sub_tracking_, 10);

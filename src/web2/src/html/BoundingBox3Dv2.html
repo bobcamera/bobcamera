@@ -67,7 +67,7 @@
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         animate();
 
-        var topic_name = '/bob/detector/all_sky/bounding_boxes';
+        var topic_name = '/bob/detection/allsky/boundingboxes';
         var message_type = 'vision_msgs/msg/BoundingBox2DArray';
         function init() {
             window.addEventListener('DOMContentLoaded', function () {

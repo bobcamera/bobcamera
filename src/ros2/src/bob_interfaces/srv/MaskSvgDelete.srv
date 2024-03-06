@@ -1,6 +1,4 @@
 string file_name
-sensor_msgs/Image mask
-bool invert
 ---
 bool success
 string message # information, e.g. error message
