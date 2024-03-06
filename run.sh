@@ -8,3 +8,13 @@ docker compose  \
     --file ./docker/docker-compose.yaml  \
     --env-file .env  \
     up
+
+# docker compose  \
+#     --file ./docker/docker-compose-headless.yaml  \
+#     --env-file .env  \
+#     up
+
+# docker compose  \
+#     --file ./docker/docker-compose-demo.yaml  \
+#     --env-file .env  \
+#     up

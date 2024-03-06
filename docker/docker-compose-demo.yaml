@@ -5,9 +5,6 @@ services:
     #user: ${MY_UID}:${MY_GID}
     ports:
       - "8080:80"
-  # If you want to view demo recordings, comment out the volume section below.      
-    volumes: 
-      - ${PWD}/assets/recordings:/var/www/html/videos
     depends_on:
       - bob
   bob:
@@ -18,15 +15,15 @@ services:
     ports:
       - "9090:9090"
     environment:  # add in .env
-      - BOB_SOURCE=${BOB_SOURCE}
-      - BOB_RTSP_URL=${BOB_RTSP_URL}
-      - BOB_CAMERA_ID=${BOB_CAMERA_ID}
-      - BOB_ENABLE_VISUALISER=${BOB_ENABLE_VISUALISER}
-      - BOB_ENABLE_RECORDING=${BOB_ENABLE_RECORDING}
-      - BOB_BGS_ALGORITHM=${BOB_BGS_ALGORITHM}
-      - BOB_TRACKING_SENSITIVITY=${BOB_TRACKING_SENSITIVITY}
-      - BOB_VIDEOS=${BOB_VIDEOS}
-      - BOB_SIMULATION_NUM_OBJECTS=${BOB_SIMULATION_NUM_OBJECTS}
+      - BOB_SOURCE='video_overlay'
+      - BOB_RTSP_URL=''
+      - BOB_CAMERA_ID=0
+      - BOB_ENABLE_VISUALISER=False
+      - BOB_ENABLE_RECORDING=False
+      - BOB_BGS_ALGORITHM=vibe
+      - BOB_TRACKING_SENSITIVITY='medium'
+      - BOB_VIDEOS=/workspaces/bobcamera/media/fisheye_videos/mike-drone.mp4;/workspaces/bobcamera/media/fisheye_videos/mikeg-30min.mp4
+      - BOB_SIMULATION_NUM_OBJECTS=15
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
       - FASTRTPS_DEFAULT_PROFILES_FILE=/workspaces/bobcamera/src/ros2/config/fastdds.xml
     volumes: 
