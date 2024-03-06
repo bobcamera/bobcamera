@@ -53,6 +53,8 @@ public:
 
         declare_node_parameters();
 
+        roi_calc_complete_ = false;
+
         image_publisher_ = create_publisher<sensor_msgs::msg::Image>("bob/mask/target", pub_qos_profile);
         roi_publisher_ = create_publisher<sensor_msgs::msg::RegionOfInterest>("bob/mask/roi", pub_qos_profile);
         image_subscription_ = create_subscription<sensor_msgs::msg::Image>("bob/mask/source", sub_qos_profile, 
@@ -87,6 +89,14 @@ public:
                 rclcpp::Parameter("mask_enable_offset_correction", true), 
                 [this](const rclcpp::Parameter& param) {mask_enable_offset_correction_ = param.as_bool();}
             ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("image_width", 0), 
+                [this](const rclcpp::Parameter& param) {image_width_ = param.as_int();}
+            ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("image_height", 0), 
+                [this](const rclcpp::Parameter& param) {image_height_ = param.as_int();}
+            ),                        
         };
         add_action_parameters(params);
     }
@@ -153,8 +163,9 @@ private:
                 {
                     RCLCPP_INFO(get_logger(), "Mask Disabled.");
                     request_bgs_reset(false);
+                    roi_calc_complete_ = false;
                 }
-                mask_enabled_ = false;            
+                mask_enabled_ = false;                
             }
             else
             {
@@ -162,6 +173,7 @@ private:
                 {
                     RCLCPP_INFO(get_logger(), "Mask Enabled.");
                     request_bgs_reset(true);
+                    roi_calc_complete_ = false;
                 }
 
                 mask_enabled_ = true;
@@ -171,11 +183,23 @@ private:
                     grey_mask_= mask;
                     cv::cvtColor(mask, converted_mask_, cv::COLOR_GRAY2BGR);
                     request_bgs_reset(true);
+                    roi_calc_complete_ = false;
                 }
+            }
 
-                if (mask_enable_offset_correction_)
+            if (mask_enable_offset_correction_ && !roi_calc_complete_)
+            {
+                sensor_msgs::msg::RegionOfInterest roi_msg;
+                if(mask.empty())
                 {
-                    bounding_box_ = cv::Rect(grey_mask_.cols, grey_mask_.rows, 0, 0);
+                    roi_msg.x_offset = 0;
+                    roi_msg.y_offset = 0;
+                    roi_msg.width = image_width_;
+                    roi_msg.height = image_height_;
+                }
+                else
+                {
+                    bounding_box_ = cv::Rect(grey_mask_.cols, grey_mask_.rows, 0, 0);                                
                     for (int y = 0; y < grey_mask_.rows; ++y) 
                     {
                         for (int x = 0; x < grey_mask_.cols; ++x) 
@@ -190,17 +214,18 @@ private:
                         }
                     }
 
-                    sensor_msgs::msg::RegionOfInterest roi_msg;
                     roi_msg.x_offset = bounding_box_.x;
                     roi_msg.y_offset = bounding_box_.y;
                     roi_msg.width = bounding_box_.width;
                     roi_msg.height = bounding_box_.height;
-                    roi_publisher_->publish(roi_msg);
-
-                    cv::Size frame_size(bounding_box_.width, bounding_box_.height);
-                    RCLCPP_INFO(get_logger(), "Detection frame size determined from mask: %d x %d", frame_size.width, frame_size.height);
                 }
-            }
+
+                roi_publisher_->publish(roi_msg);
+                roi_calc_complete_ = true;
+
+                cv::Size frame_size(roi_msg.width, roi_msg.height);
+                RCLCPP_INFO(get_logger(), "Detection frame size determined from mask: %d x %d", frame_size.width, frame_size.height);
+            }            
         }
         catch (cv::Exception &cve)
         {
@@ -269,6 +294,9 @@ private:
     rclcpp::Client<bob_interfaces::srv::BGSResetRequest>::SharedPtr bgs_reset_client_;
     rclcpp::Service<bob_interfaces::srv::MaskOverrideRequest>::SharedPtr mask_override_service_;
     rclcpp::TimerBase::SharedPtr one_shot_timer_;
+    bool roi_calc_complete_;
+    int image_height_;
+    int image_width_;
 };
 
 

@@ -105,23 +105,23 @@
         <link href="https://cdn.jsdelivr.net/npm/@mdi/font/css/materialdesignicons.min.css" rel="stylesheet">        
 
         <script>
+            function rosConnect(ros, websocketsURL){
+                ros = new ROSLIB.Ros({url: websocketsURL});
+                ros.on('connection', function(){console.log('Connected to websocket server.')});
+                ros.on('error', function(){console.log('Error connecting to websocket server: ', error);});
+                ros.on('close', function(){
+                    console.log('Connection to websocket server closed, trtrying in 5 seconds.');
+                    // Try to reconnect in 5 seconds
+                    setTimeout(function(){rosConnect(ros, websocketsURL)}, 5000);
+                });
+            }
+
             // Set up the connection to the ROS2 environment using the roslib.js library
 
             // Define the Websockets address of the ROS2 environment
             var websocketsURL = 'ws://localhost:9090';
-
-            // Create a ROSLIB.Ros object which will connect to the ROS2 environment via websockets
             var ros = new ROSLIB.Ros({url: websocketsURL});
-
-            // Define callbacks for connection events
-            ros.on('connection', function () {console.log('Connected to websocket server.');});
-
-            // Define callbacks for error events
-            ros.on('error', function (error) {console.log('Error connecting to websocket server: ', error);});
-
-            // Define callbacks for close events
-            ros.on('close', function () {console.log('Connection to websocket server closed.');});
-
+            rosConnect(ros, websocketsURL);
         </script>
 
     </head>
@@ -129,7 +129,7 @@
     <body>
 
         <div class="metric-panel">
-            <div id="mask-controls-header-dev" class="metric-header">Mask Controls</div>
+            <div id="mask-controls-header-dev" class="metric-header">Detection Mask Controls</div>
             <div class="metric-text">
                 Draw the area you want to track in.
             </div>            
