@@ -16,15 +16,29 @@ public:
         draw_trajectories_enabled_ = true;
     }
 
-    void accumulate_mask(const cv::Mat& fg_mask) 
+    void accumulate_mask(const cv::Mat& fg_mask, const cv::Size& frame_size, int x_offset, int y_offset) 
     {
+        x_offset_ = x_offset;
+        y_offset_ = y_offset;
+        
         if (heatmap_accumulator_.empty()) 
         {
-            heatmap_accumulator_ = cv::Mat::zeros(fg_mask.size(), fg_mask.type());
+            heatmap_accumulator_ = cv::Mat::zeros(frame_size, fg_mask.type());
         }
 
-        cv::add(heatmap_accumulator_, fg_mask, heatmap_accumulator_);
+        cv::Mat shifted_fg_mask = cv::Mat::zeros(frame_size, fg_mask.type());
+
+        cv::Rect roi_rect(std::max(0, -x_offset), std::max(0, -y_offset), 
+                        std::min(frame_size.width - std::max(0, -x_offset), fg_mask.cols),
+                        std::min(frame_size.height - std::max(0, -y_offset), fg_mask.rows));
+
+        cv::Rect accumulator_roi_rect(std::max(0, x_offset), std::max(0, y_offset), 
+                                    roi_rect.width, roi_rect.height);
+
+        fg_mask(roi_rect).copyTo(shifted_fg_mask(accumulator_roi_rect));
+        cv::add(heatmap_accumulator_, shifted_fg_mask, heatmap_accumulator_);
     }
+
 
     void reset() 
     {
@@ -81,7 +95,7 @@ public:
     {
         for (const auto& img : *pre_buffer_ptr_) 
         {
-            accumulate_mask(img);
+            accumulate_mask(img, img.size(), x_offset_, y_offset_);
         }
         pre_buffer_ptr_->clear();
     }
@@ -117,11 +131,15 @@ private:
                 int thickness = std::max(1, static_cast<int>(sqrt(track.second[i].bbox_area)));
                 thickness = std::min(thickness, 10);
                 int thickness_scaled = std::max(1, static_cast<int>(thickness * 0.40));
-                cv::line(frame_for_drawing_, track.second[i - 1].point, track.second[i].point, track_color, thickness_scaled);
+                
+                cv::Point shifted_start_point = track.second[i - 1].point + cv::Point(x_offset_, y_offset_);
+                cv::Point shifted_end_point = track.second[i].point + cv::Point(x_offset_, y_offset_);
+                cv::line(frame_for_drawing_, shifted_start_point, shifted_end_point, track_color, thickness_scaled);
 
                 if (i == 1)
                 {
-                    cv::drawMarker(frame_for_drawing_, track.second[0].point, track_color, cv::MARKER_DIAMOND, 10, thickness);
+                    // Draw the marker only for the first point of the trajectory
+                    cv::drawMarker(frame_for_drawing_, shifted_start_point, track_color, cv::MARKER_DIAMOND, 10, thickness);
                 }
             }
         }
@@ -150,5 +168,6 @@ private:
     cv::Mat heatmap_accumulator_;
     cv::Mat frame_for_drawing_;
     bool draw_trajectories_enabled_;
-
+    int x_offset_;
+    int y_offset_;
 };

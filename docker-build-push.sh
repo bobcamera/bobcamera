@@ -10,8 +10,8 @@ validate_version_number() {
 }
 
 
-web_version=$(grep -Po '(?<=image: bobcamera/bob-web-prod:)\d+\.\d+\.\d+' docker-compose.yaml)
-bob_version=$(grep -Po '(?<=image: bobcamera/bob-ros2-prod:)\d+\.\d+\.\d+' docker-compose.yaml)
+web_version=$(grep -Po '(?<=image: bobcamera/bob-web-prod:)\d+\.\d+\.\d+' ./docker/docker-compose.yaml)
+bob_version=$(grep -Po '(?<=image: bobcamera/bob-ros2-prod:)\d+\.\d+\.\d+' ./docker/docker-compose.yaml)
 if [ "$web_version" == "$bob_version" ]; then
     echo "Docker compose version numbers are consistent: $web_version"
 else
@@ -58,11 +58,11 @@ done
 echo ""
 
 # Replace version number in docker-compose.yaml
-if sed -i "s/bobcamera\/bob-web-prod:$web_version/bobcamera\/bob-web-prod:$version_number/" docker-compose.yaml && \
-   sed -i "s/bobcamera\/bob-ros2-prod:$bob_version/bobcamera\/bob-ros2-prod:$version_number/" docker-compose.yaml; then
-    echo "Version number successfully updated - docker-compose.yaml."
+if sed -i "s/bobcamera\/bob-web-prod:$web_version/bobcamera\/bob-web-prod:$version_number/" ./docker/docker-compose.yaml && \
+   sed -i "s/bobcamera\/bob-ros2-prod:$bob_version/bobcamera\/bob-ros2-prod:$version_number/" ./docker/docker-compose.yaml; then
+    echo "Version number successfully updated - ./docker/docker-compose.yaml."
 else
-    echo "Failed to update version number - docker-compose.yaml."
+    echo "Failed to update version number - ./docker/docker-compose.yaml."
 fi
 
 # Replace version number in ros2 dev Dockerfile
@@ -93,7 +93,7 @@ docker build \
     --progress=plain \
     --push \
     --platform linux/amd64 \
-    -f Dockerfile . \
+    -f ./docker/Dockerfile . \
     -t bobcamera/bob-opencv:$version_number \
     -t bobcamera/bob-opencv:latest \
     --target opencv
@@ -101,7 +101,7 @@ docker build \
 docker build \
     --progress=plain \
     --platform linux/amd64 \
-    -f Dockerfile . \
+    -f ./docker/Dockerfile . \
     -t bobcamera/boblib:$version_number \
     -t bobcamera/boblib:latest \
     --target boblib
@@ -109,7 +109,7 @@ docker build \
 docker build \
     --progress=plain \
     --platform linux/amd64 \
-    -f Dockerfile . \
+    -f ./docker/Dockerfile . \
     -t bobcamera/bob-boblibapp:$version_number \
     -t bobcamera/bob-boblibapp:latest \
     --target boblib-app
@@ -118,7 +118,7 @@ docker build \
     --progress=plain \
     --push \
     --platform linux/amd64 \
-    -f Dockerfile . \
+    -f ./docker/Dockerfile . \
     -t bobcamera/bob-ros2-dev:$version_number \
     -t bobcamera/bob-ros2-dev:latest \
     --target bob-ros2-dev
@@ -126,7 +126,7 @@ docker build \
 docker build \
     --progress=plain \
     --platform linux/amd64 \
-    -f Dockerfile . \
+    -f ./docker/Dockerfile . \
     -t bobcamera/bob-ros2-build:$version_number \
     -t bobcamera/bob-ros2-build:latest \
     --target bob-ros2-build
@@ -135,7 +135,7 @@ docker build \
     --progress=plain \
     --push \
     --platform linux/amd64 \
-    -f Dockerfile . \
+    -f ./docker/Dockerfile . \
     -t bobcamera/bob-ros2-prod:$version_number \
     -t bobcamera/bob-ros2-prod:latest \
     --target bob-ros2-prod
@@ -144,7 +144,7 @@ docker build \
     --progress=plain \
     --push \
     --platform linux/amd64 \
-    -f Dockerfile . \
+    -f ./docker/Dockerfile . \
     -t bobcamera/bob-web-prod:$version_number \
     -t bobcamera/bob-web-prod:latest \
     --target bob-web-prod

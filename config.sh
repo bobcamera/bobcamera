@@ -23,9 +23,8 @@ show_menu_advanced() {
     echo "4. Visualizer"
     echo "5. Background Substraction Algorithm"
     echo "6. Tracking Sensitivity"
-    echo "7. Masking File Path"
-    echo "8. Testing Videos"
-    echo "9. Number of Simulation Objects"
+    echo "7. Testing Videos"
+    echo "8. Number of Simulation Objects"
     echo "s. Show results"
     echo "q. Quit"
     echo "b. Basic mode"
@@ -145,14 +144,6 @@ set_usb() {
 
 
 
-set_mask_file() {
-    clear
-    current_value=$(grep "^BOB_TRACKING_MASK_FILE=" "$ENV_FILE" | cut -d '=' -f2-  | tr -d '"')
-    read -p "Enter your Masking file with path [$current_value]: " BOB_TRACKING_MASK_FILE
-    BOB_TRACKING_MASK_FILE="${BOB_TRACKING_MASK_FILE:-$current_value}"
-    sed -i "s|^BOB_TRACKING_MASK_FILE=.*|BOB_TRACKING_MASK_FILE=\"$BOB_TRACKING_MASK_FILE\"|" "$ENV_FILE"
-}
-
 set_testing_videos() {
     clear
     current_value=$(grep "^BOB_VIDEOS=" "$ENV_FILE" | cut -d '=' -f2-  | tr -d '"')
@@ -185,9 +176,8 @@ while true; do
             4) set_config_options "BOB_ENABLE_VISUALISER" "Enable Visualizer:" "false" True False;read -rp "Press Enter to continue...";;
             5) set_config_options "BOB_BGS_ALGORITHM" "Background substraction algorithm:"  "false" vibe wmv;read -rp "Press Enter to continue...";;
             6) set_config_options "BOB_TRACKING_SENSITIVITY" "Tracking sensitivity options:" "true"  minimal low medium high;read -rp "Press Enter to continue...";;
-            7) set_mask_file ;read -rp "Press Enter to continue...";;
-            8) set_testing_videos ;read -rp "Press Enter to continue...";;
-            9) set_number_of_simulated_objects ;read -rp "Press Enter to continue...";;
+            7) set_testing_videos ;read -rp "Press Enter to continue...";;
+            8) set_number_of_simulated_objects ;read -rp "Press Enter to continue...";;
             s) clear; cat ".env";echo -e "\n\n"; read -rp "Press Enter to continue...";;
             q) clear; exit ;;
             b) clear; advanced_mode="false";;   

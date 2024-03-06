@@ -50,7 +50,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/ApplicationInfo.srv"
   "srv/Mask.srv"
   "srv/MaskOverrideRequest.srv"
-  #"srv/MaskJpgUpdate.srv"
+  "srv/MaskSvgDelete.srv"
   "srv/MaskSvgUpdate.srv"
   "srv/CameraSettings.srv"
   DEPENDENCIES std_msgs sensor_msgs vision_msgs geometry_msgs

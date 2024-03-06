@@ -64,7 +64,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Bob Player</title>
+    <title>BOB the Universal Object Tracker</title>
     <link rel="stylesheet" href="https://cdn.plyr.io/3.6.2/plyr.css" />
     <link rel="stylesheet" href="https://golden-layout.com/files/latest/css/goldenlayout-base.css" />
     <!-- <link rel="stylesheet" href="https://golden-layout.com/files/latest/css/goldenlayout-light-theme.css" /> -->

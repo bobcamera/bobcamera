@@ -44,7 +44,9 @@ public:
     }
 
     cv::Mat create_frame(const cv::Mat& annotated_frame,
-                         const bob_interfaces::msg::Tracking& msg_tracking)
+                         const bob_interfaces::msg::Tracking& msg_tracking,
+                         int x_offset,
+                         int y_offset)
     {
         int cropped_track_counter = 0;
         bool enable_cropped_tracks = true; // settings.at("visualiser_show_cropped_tracks");
@@ -79,8 +81,9 @@ public:
             {
                 cv::Rect bbox = get_sized_bbox(detection.bbox);
                 detections[detection.id] = bbox;
-                cv::Point p1(bbox.x, bbox.y);
-                cv::Point p2(bbox.x + bbox.width, bbox.y + bbox.height);
+                cv::Point p1(bbox.x + x_offset, bbox.y + y_offset);
+                cv::Point p2(bbox.x + bbox.width + x_offset, bbox.y + bbox.height + y_offset);
+            
                 cv::Scalar color = _color(tracking_state);
 
                 double orientation = detection.covariance_ellipse_orientation;
@@ -88,9 +91,10 @@ public:
                 double semi_minor_axis = detection.covariance_ellipse_semi_minor_axis;
 
                 cv::RotatedRect ellipse;
-                ellipse.center = cv::Point2f(bbox.x + bbox.width / 2, bbox.y + bbox.height / 2);
+                ellipse.center = cv::Point2f(bbox.x + bbox.width / 2 + x_offset, bbox.y + bbox.height / 2 + y_offset);
                 ellipse.size = cv::Size2f(semi_major_axis * 2, semi_minor_axis * 2);
-                ellipse.angle = orientation * 180 / M_PI; 
+                ellipse.angle = orientation * 180 / M_PI;
+
 
                 if (enable_cropped_tracks)
                 {

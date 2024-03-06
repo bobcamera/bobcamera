@@ -79,7 +79,9 @@ public:
 
     static Json::Value build_json_value(const sensor_msgs::msg::Image::SharedPtr& image_msg,
                                         const bob_interfaces::msg::Tracking::SharedPtr& tracking_msg,
-                                        bool include_detections) 
+                                        bool include_detections,
+                                        int x_offset,
+                                        int y_offset) 
     {
         Json::Value jsonValue;
 
@@ -100,8 +102,8 @@ public:
                 jsonDetection["state"] = detection.state;
 
                 Json::Value jsonBbox;
-                jsonBbox["x"] = detection.bbox.center.position.x;
-                jsonBbox["y"] = detection.bbox.center.position.y;
+                jsonBbox["x"] = detection.bbox.center.position.x + x_offset;
+                jsonBbox["y"] = detection.bbox.center.position.y + y_offset;
                 jsonBbox["width"] = detection.bbox.size_x;
                 jsonBbox["height"] = detection.bbox.size_y;
                 jsonDetection["bbox"] = jsonBbox;
@@ -112,6 +114,7 @@ public:
         
         return jsonValue;
     }
+
 
     static Json::Value build_json_camera_info(const bob_camera::msg::CameraInfo::SharedPtr& camera_info_msg) 
     { 

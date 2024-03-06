@@ -85,7 +85,7 @@
             </qos>
         </data_reader>
 
-        <topic profile_name="/bob/camera/all_sky/bayer">
+        <topic profile_name="/bob/frames/allsky/original">
             <historyQos>
                 <kind>KEEP_LAST</kind>
                 <depth>2</depth>
