@@ -61,6 +61,11 @@
                 document.getElementById('imageDisplayWindow').src = "data:image/jpeg;base64," + message.data;
             }
 
+            window.onbeforeunload = function(event) {
+                console.log('disposing......');
+                ros.close();
+            }
+
         </script>
 
     </body>

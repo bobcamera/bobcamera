@@ -276,9 +276,13 @@ def application_config(context):
             # detection_mask_application_node
             yaml_output['detection_mask_application_node']['ros__parameters']['mask_enable_override'] = mask_enable_override
             yaml_output['detection_mask_application_node']['ros__parameters']['mask_enable_offset_correction'] = mask_enable_offset_correction
+            yaml_output['detection_mask_application_node']['ros__parameters']['image_width'] = image_width
+            yaml_output['detection_mask_application_node']['ros__parameters']['image_height'] = image_height
 
             # privacy_mask_application_node
             yaml_output['privacy_mask_application_node']['ros__parameters']['mask_enable_override'] = mask_enable_override
+            yaml_output['privacy_mask_application_node']['ros__parameters']['image_width'] = image_width
+            yaml_output['privacy_mask_application_node']['ros__parameters']['image_height'] = image_height            
 
             # minimal_background_subtractor_node
             yaml_output['minimal_background_subtractor_node']['ros__parameters']['bgs'] = bgs_algo
