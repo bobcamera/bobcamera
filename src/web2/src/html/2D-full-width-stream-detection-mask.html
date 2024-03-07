@@ -105,14 +105,22 @@
         <link href="https://cdn.jsdelivr.net/npm/@mdi/font/css/materialdesignicons.min.css" rel="stylesheet">        
 
         <script>
-            function rosConnect(ros, websocketsURL){
-                ros = new ROSLIB.Ros({url: websocketsURL});
+            function rosConnect(ros, websocketsURL, retry=false){
+                if(ros) {
+                    ros.connect(websocketsURL);
+                } else {
+                    console.log('Creating new ros connection...');
+                    var ros = new ROSLIB.Ros();
+                    ros.connect(websocketsURL);
+                }
                 ros.on('connection', function(){console.log('Connected to websocket server.')});
                 ros.on('error', function(){console.log('Error connecting to websocket server: ', error);});
                 ros.on('close', function(){
-                    console.log('Connection to websocket server closed, trtrying in 5 seconds.');
                     // Try to reconnect in 5 seconds
-                    setTimeout(function(){rosConnect(ros, websocketsURL)}, 5000);
+                    if(retry) {
+                        console.log('Connection to websocket server closed, trying in 5 seconds.');
+                        setTimeout(function(){rosConnect(ros, websocketsURL)}, 5000);
+                    }
                 });
             }
 
@@ -120,8 +128,8 @@
 
             // Define the Websockets address of the ROS2 environment
             var websocketsURL = 'ws://localhost:9090';
-            var ros = new ROSLIB.Ros({url: websocketsURL});
-            rosConnect(ros, websocketsURL);
+            var ros = new ROSLIB.Ros();
+            rosConnect(ros, websocketsURL, true);
         </script>
 
     </head>
@@ -339,11 +347,11 @@
             // SERVICE FUNCTIONS
             function svcSendMaskSVG() {
 
-                var ros1 = new ROSLIB.Ros({url: websocketsURL});
-                rosConnect(ros1, websocketsURL);
+                let rosCon = new ROSLIB.Ros();
+                rosConnect(rosCon, websocketsURL);
 
-                var updateSvgMaskService = new ROSLIB.Service({
-                    ros : ros1, 
+                let updateSvgMaskService = new ROSLIB.Service({
+                    ros : rosCon, 
                     name : '/bob/webapi/mask/update/svg', 
                     serviceType : 'bob_interfaces/srv/MaskSvgUpdate'
                 });
@@ -376,7 +384,7 @@
                 }
                 svgContent += '</svg>';
 
-                var request = new ROSLIB.ServiceRequest({
+                let request = new ROSLIB.ServiceRequest({
                     file_name: maskFilename,
                     mask: svgContent
                 });
@@ -389,23 +397,23 @@
                         console.error("Failed to send mask:", result.message);
                     }
 
-                    ros1.close();
+                    rosCon.close();
                 });                
             }
 
             function svcOverrideMask(enable) {
                 //console.log(`Override mask - setting: ${enable}`);
 
-                var ros2 = new ROSLIB.Ros({url: websocketsURL});
-                rosConnect(ros2, websocketsURL);                
+                let rosCon = new ROSLIB.Ros();
+                rosConnect(rosCon, websocketsURL);                
 
-                var maskOverrideService = new ROSLIB.Service({
-                    ros : ros2, 
+                let maskOverrideService = new ROSLIB.Service({
+                    ros : rosCon, 
                     name : '/bob/mask/detection/override', 
                     serviceType : 'bob_interfaces/srv/MaskOverrideRequest'
                 });  
 
-                var request = new ROSLIB.ServiceRequest({
+                let request = new ROSLIB.ServiceRequest({
                     mask_enabled: enable
                 });
 
@@ -416,23 +424,23 @@
                         console.error("Failed to send mask override:", result.message);
                     }
 
-                    ros2.close();                    
+                    rosCon.close();                    
                 });                
             }            
 
             function svcDeleteMask() {
                 //console.log("Delete mask.");
 
-                var ros3 = new ROSLIB.Ros({url: websocketsURL});
-                rosConnect(ros3, websocketsURL);   
+                let rosCon = new ROSLIB.Ros();
+                rosConnect(rosCon, websocketsURL);   
 
-                var deleteMaskService = new ROSLIB.Service({
-                    ros : ros3, 
+                let deleteMaskService = new ROSLIB.Service({
+                    ros : rosCon, 
                     name : '/bob/webapi/mask/delete/svg', 
                     serviceType : 'bob_interfaces/srv/MaskSvgDelete'
                 });                     
 
-                var request = new ROSLIB.ServiceRequest({
+                let request = new ROSLIB.ServiceRequest({
                     file_name: maskFilename,
                 });
 
@@ -444,7 +452,7 @@
                         console.error("Failed to delete mask:", result.message);
                     }
 
-                    ros3.close();
+                    rosCon.close();
                 });               
             }
 
@@ -458,10 +466,6 @@
                 });
             }
 
-            function dispose() {
-                //ros.close();
-            }            
-
             // Listen for changes to the image's height
             const resizeObserver = new ResizeObserver(() => {
                 updateDimensions();
@@ -470,11 +474,10 @@
             resizeObserver.observe(videoStream);
 
             window.onload = init();
-            window.onunload = dispose();
-
-            // Start the animation loop
-            update();            
-
+            window.onbeforeunload = function(event) {
+                console.log('disposing......');
+                ros.close();
+            }
         </script>
 
     </body>
