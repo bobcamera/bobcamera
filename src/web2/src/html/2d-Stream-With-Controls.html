@@ -257,22 +257,23 @@
     let isPlaying = true;
     let firstImageReceived = false;
 
-    // Set up the ROS2 Environment Connection
-    // Define the WebSockets address of the ROS2 Environment (using roslib.js library)
-    // window.location.hostname is used to get the hostname of the local machine
+    function rosConnect(ros, websocketsURL){
+        ros = new ROSLIB.Ros({url: websocketsURL});
+        ros.on('connection', function(){console.log('Connected to websocket server.')});
+        ros.on('error', function(){console.log('Error connecting to websocket server: ', error);});
+        ros.on('close', function(){
+            console.log('Connection to websocket server closed, trtrying in 5 seconds.');
+            // Try to reconnect in 5 seconds
+            setTimeout(function(){rosConnect(ros, websocketsURL)}, 5000);
+        });
+    }
+
+    // Set up the connection to the ROS2 environment using the roslib.js library
+
+    // Define the Websockets address of the ROS2 environment
     var websocketsURL = 'ws://' + window.location.hostname + ':9090';
-
-    // Create a ROSLIB.Ros object which will connect to the ROS2 environment using WebSockets
-    var ros = new ROSLIB.Ros({ url: websocketsURL });
-
-    // Event Listeners for when the connection to the ROS2 environment is opened
-    ros.on('connection', function () { console.log('Connected to websocket server.'); });
-
-    // Event Listeners for when the connection to the ROS2 environment encounters an error
-    ros.on('error', function (error) { console.log('Error connecting to websocket server: ', error); });
-
-    // Event Listeners for when the connection to the ROS2 environment is closed
-    ros.on('close', function () { console.log('Connection to websocket server closed.'); });
+    var ros = new ROSLIB.Ros({url: websocketsURL});
+    rosConnect(ros, websocketsURL);
 
     var ros2ImageTopic1 = '/bob/camera/all_sky/bayer/resized/compressed'; // define the ROS2 Subscription Topic 1
     var ros2ImageTopic2 = '/bob/frames/annotated/resized/compressed'; // define the ROS2 Subscription Topic 2
@@ -717,6 +718,9 @@
         update();
     });*/
 
+    function dispose() {
+        //ros.close();
+    }   
 
     // Listen for changes to the image's height
     const resizeObserver = new ResizeObserver(() => {
@@ -726,6 +730,7 @@
     resizeObserver.observe(videoStream);
 
     window.onload = init();
+    window.onunload = dispose();
 
     // Start the animation loop
     update();
