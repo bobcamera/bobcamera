@@ -107,7 +107,7 @@ public:
                     {
                         try
                         {
-                            cv::Mat cropped_image = annotated_frame(cv::Rect(bbox.x, bbox.y, bbox.width, bbox.height));
+                            cv::Mat cropped_image = annotated_frame(cv::Rect(bbox.x + x_offset, bbox.y + y_offset, bbox.width, bbox.height));
                             const double cropped_percentage = 0.04;  
                             int cropped_size = static_cast<int>(std::min(total_width, total_height) * cropped_percentage);
 
