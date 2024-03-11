@@ -65,6 +65,21 @@ else
     echo "Failed to update version number - ./docker/docker-compose.yaml."
 fi
 
+# Replace version number in docker-compose-headless.yaml
+if sed -i "s/bobcamera\/bob-ros2-prod:$bob_version/bobcamera\/bob-ros2-prod:$version_number/" ./docker/docker-compose-headless.yaml; then
+    echo "Version number successfully updated - ./docker/docker-compose-headless.yaml."
+else
+    echo "Failed to update version number - ./docker/docker-compose-headless.yaml."
+fi
+
+# Replace version number in docker-compose-demo.yaml
+if sed -i "s/bobcamera\/bob-web-prod:$web_version/bobcamera\/bob-web-prod:$version_number/" ./docker/docker-compose-demo.yaml && \
+   sed -i "s/bobcamera\/bob-ros2-prod:$bob_version/bobcamera\/bob-ros2-prod:$version_number/" ./docker/docker-compose-demo.yaml; then
+    echo "Version number successfully updated - ./docker/docker-compose-demo.yaml."
+else
+    echo "Failed to update version number - ./docker/docker-compose-demo.yaml."
+fi
+
 # Replace version number in ros2 dev Dockerfile
 if sed -i "s/FROM bobcamera\/bob-ros2-dev:$web_version/FROM bobcamera\/bob-ros2-dev:$version_number/" src/ros2/.devcontainer/Dockerfile; then
     echo "Version number successfully updated - ROS2 .devcontainer Dockerfile."
