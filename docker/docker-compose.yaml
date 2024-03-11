@@ -31,8 +31,9 @@ services:
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
       - FASTRTPS_DEFAULT_PROFILES_FILE=/workspaces/bobcamera/src/ros2/config/fastdds.xml
     volumes: 
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro    
       - ${PWD}/assets/:/workspaces/bobcamera/src/ros2/assets/
-      - ${PWD}/media:/workspaces/bobcamera/media
   rstudio:
     image: dceoy/rstudio-server:latest
     #user: ${MY_UID}:${MY_GID}
