@@ -182,35 +182,14 @@ def generate_launch_description():
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([
                 launch_package_dir, 
-                '/allsky_kernel_launch.py']),
+                '/standard_launch.py']),
             condition=IfCondition(PythonExpression([LaunchConfiguration('operation_arg'), " == 'standard'" ]))
         ),
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([
                 launch_package_dir, 
-                '/display_infrastructure_launch.py']),
-            condition=IfCondition(PythonExpression([LaunchConfiguration('operation_arg'), " == 'standard'" ]))
-        ),
-
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource([
-                launch_package_dir, 
-                '/monitoring_infrastructure_launch.py']),
-            condition=IfCondition(PythonExpression([LaunchConfiguration('operation_arg'), " == 'standard'" ]))
-        ),
-
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource([
-                launch_package_dir, 
-                '/web_infrastructure_launch.py']),
-            condition=IfCondition(PythonExpression([LaunchConfiguration('operation_arg'), " == 'standard'" ]))
-        ),
-
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource([
-                launch_package_dir, 
-                '/allsky_headless_kernel_launch.py']),
+                '/headless_launch.py']),
             condition=IfCondition(PythonExpression([LaunchConfiguration('operation_arg'), " == 'headless'" ]))
         ),        
 
