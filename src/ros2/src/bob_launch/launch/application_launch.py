@@ -6,6 +6,9 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.event_handlers import OnExecutionComplete, OnProcessExit, OnProcessIO, OnProcessStart, OnShutdown
 from ament_index_python.packages import get_package_share_directory
 
+from launch.substitutions import PythonExpression, LaunchConfiguration 
+from launch.conditions import IfCondition
+
 def generate_launch_description():
     
     #https://roboticscasual.com/tutorial-ros2-launch-files-all-you-need-to-know/
@@ -15,6 +18,7 @@ def generate_launch_description():
     update_config_from_env_vars_arg_value = EnvironmentVariable('BOB_UPDATE_CONFIG_FROM_ENV_VARS', default_value="True")
 
     source_arg_value = EnvironmentVariable('BOB_SOURCE', default_value="'video'")
+    operation_arg_value = EnvironmentVariable('BOB_OPERATION_MODE', default_value="'standard'")
     
     rtsp_url_arg_value = EnvironmentVariable('BOB_RTSP_URL', default_value="")
     rtsp_width_arg_value = EnvironmentVariable('BOB_RTSP_WIDTH', default_value="0")
@@ -36,7 +40,7 @@ def generate_launch_description():
     
     tracking_sensitivity_arg_value  = EnvironmentVariable('BOB_TRACKING_SENSITIVITY', default_value="'high'")
 
-    video_arg_value  = EnvironmentVariable('BOB_VIDEOS', default_value="")
+    video_arg_value  = EnvironmentVariable('BOB_VIDEOS', default_value="")    
 
     #print(f'Generating launch description....')
 
@@ -50,6 +54,12 @@ def generate_launch_description():
         'source_arg',
         default_value=source_arg_value,
         description="Argument for the image source of the application."
+        )
+
+    operation_arg = DeclareLaunchArgument(
+        'operation_arg',
+        default_value=operation_arg_value,
+        description="Argument for the mode of operation."
         )
 
     rtsp_url_arg = DeclareLaunchArgument(
@@ -141,6 +151,7 @@ def generate_launch_description():
         update_config_from_env_vars_arg,
 
         source_arg,
+        operation_arg,
 
         rtsp_url_arg,
         rtsp_width_arg,
@@ -172,25 +183,36 @@ def generate_launch_description():
             PythonLaunchDescriptionSource([
                 launch_package_dir, 
                 '/allsky_kernel_launch.py']),
+            condition=IfCondition(PythonExpression([LaunchConfiguration('operation_arg'), " == 'standard'" ]))
         ),
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([
                 launch_package_dir, 
-                '/display_infrastructure_launch.py'])
+                '/display_infrastructure_launch.py']),
+            condition=IfCondition(PythonExpression([LaunchConfiguration('operation_arg'), " == 'standard'" ]))
         ),
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([
                 launch_package_dir, 
-                '/monitoring_infrastructure_launch.py'])
+                '/monitoring_infrastructure_launch.py']),
+            condition=IfCondition(PythonExpression([LaunchConfiguration('operation_arg'), " == 'standard'" ]))
         ),
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([
                 launch_package_dir, 
-                '/web_infrastructure_launch.py'])
+                '/web_infrastructure_launch.py']),
+            condition=IfCondition(PythonExpression([LaunchConfiguration('operation_arg'), " == 'standard'" ]))
         ),
+
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource([
+                launch_package_dir, 
+                '/allsky_headless_kernel_launch.py']),
+            condition=IfCondition(PythonExpression([LaunchConfiguration('operation_arg'), " == 'headless'" ]))
+        ),        
 
         RegisterEventHandler(
             OnShutdown(

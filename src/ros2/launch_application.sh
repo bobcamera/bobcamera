@@ -31,5 +31,8 @@ export BOB_SIMULATION_NUM_OBJECTS=${BOB_SIMULATION_NUM_OBJECTS:-"15"}
 export RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION:-"rmw_fastrtps_cpp"}
 export FASTRTPS_DEFAULT_PROFILES_FILE=${FASTRTPS_DEFAULT_PROFILES_FILE:-"/workspaces/bobcamera/src/ros2/config/fastdds.xml"}
 
+# Operational mode options: standard, headless
+export BOB_OPERATION_MODE=${BOB_OPERATION_MODE:-"'standard'"}
+
 # Launch the application
 ./launcher.sh application_launch.py

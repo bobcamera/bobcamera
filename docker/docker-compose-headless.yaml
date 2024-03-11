@@ -9,6 +9,7 @@ services:
       - "9090:9090"
     environment:  # add in .env
       - BOB_SOURCE=${BOB_SOURCE}
+      - BOB_OPERATION_MODE='headless'
       - BOB_RTSP_URL=${BOB_RTSP_URL}
       - BOB_CAMERA_ID=${BOB_CAMERA_ID}
       - BOB_ENABLE_VISUALISER=False
