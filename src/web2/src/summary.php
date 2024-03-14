@@ -12,9 +12,11 @@ $frameWidthAvailable = false;
 $frameHeightAvailable = false;
 $minDuration = PHP_INT_MAX; // Initialize minimum duration variable
 $maxDuration = 0; // Initialize maximum duration variable
+$maxEvents = 1000; // set the max events for the page
+$maxCounter = $maxEvents; // do a max number of events otherwise we get memory issues
 
 if ($handle = opendir($jsonDirectory)) {
-    while (false !== ($file = readdir($handle))) {
+    while (false !== ($file = readdir($handle)) && $maxCounter > 0) {
         if (pathinfo($file, PATHINFO_EXTENSION) == 'json') {
             $jsonFilePath = $jsonDirectory . '/' . $file;
             $jsonData = json_decode(file_get_contents($jsonFilePath), true);
@@ -94,6 +96,8 @@ if ($handle = opendir($jsonDirectory)) {
                     'frameHeight' => $frameHeightAvailable ? $cameraInfo['frame_height'] : 'N/A'
                 ];
             }
+
+            $maxCounter--;
         }
     }
     closedir($handle);
@@ -163,12 +167,13 @@ $meanDuration = $totalEvents > 0 ? $totalDuration / $totalEvents : 0;
 
     <main class="container mt-5">
         <h4 class="mb-4">Summary of events for <?php echo $date; ?></h4>
+        <?php if ($maxCounter == 0) echo "<h6 class=\"mb-3\">You have recorded more than $maxEvents events, if this event level persists impliment/change your detection mask or lower the sensitivity setting.</h6>" ?>
 
         <!-- Summary table -->
         <table class="table table-striped mt-5">
             <thead>
                 <tr>
-                    <th>Total Events</th>
+                    <th>Total Events <?php if ($maxCounter == 0) echo "(max $maxEvents)" ?></th>
                     <th>Mean Event Duration (s)</th>
                     <th>Minimum Event Duration (s)</th>
                     <th>Maximum Event Duration (s)</th>
