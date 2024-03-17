@@ -193,7 +193,11 @@
                 <span hidden id="total_avg_frame_rate">0</span>
             </div>
             <br>
-
+            <div class="metric-header"> ----------- Tuning Hint ----------- </div><br>
+            <div class="metric-readings">
+                <span id="tracker_hint">None</span>
+            </div>            
+            <br>
             <div class="metric-header"> ----------- Tracker Status ----------- </div><br>
             <div class="metric-readings">
                 <label for="tracking_state">Tracking:</label>
@@ -224,8 +228,16 @@
                 <label for="tracking_state_ended">Ended:</label>
                 <span id="tracking_state_ended">0</span>
             </div>
-
-            <br>            
+            <br>
+            <div class="metric-header"> ----------- Observer Status ----------- </div><br>
+            <div class="metric-readings">
+                <label for="day_night_classification">Day/Night:</label>
+                <span id="day_night_classification">0</span>
+            </div>
+            <div class="metric-readings">
+                <label for="cloud_estimation">Cloud Cover:</label>
+                <span id="cloud_estimation">0</span>
+            </div>            
         </div>
         <div id="stream" width="" height="">
             <img id="image-subscription" width="" height="" />
@@ -261,6 +273,11 @@
     let tracking_state_alive = document.getElementById('tracking_state_alive');
     let tracking_state_started = document.getElementById('tracking_state_started');
     let tracking_state_ended = document.getElementById('tracking_state_ended');
+
+    let day_night_classification = document.getElementById('day_night_classification');
+    let cloud_estimation = document.getElementById('cloud_estimation');
+
+    let tracker_hint = document.getElementById('tracker_hint');
 
     let devicePixelRatio = window.devicePixelRatio || 1;
 
@@ -311,8 +328,8 @@
 
     var stateStream = new ROSLIB.Topic({
         ros: ros,
-        name: '/bob/state',
-        messageType: 'bob_interfaces/msg/AggregationState'
+        name: '/bob/monitoring/status',
+        messageType: 'bob_interfaces/msg/MonitoringStatus'
     });
 
     var versionService = new ROSLIB.Service({
@@ -337,12 +354,24 @@
             stateStream.subscribe(function (message) {
                 updateIconColor(tracking_state_icon, (message.alive > 0))
                 updateIconColor(recording_state_icon, message.recording)
-                updateIconColor(max_blob_state_icon, !message.maxblobsreached)
+                updateIconColor(max_blob_state_icon, !message.max_blobs_reached)
 
                 tracking_state_trackable.innerHTML = message.trackable;
                 tracking_state_alive.innerHTML = message.alive;
                 tracking_state_started.innerHTML = message.started;
                 tracking_state_ended.innerHTML = message.ended;
+
+                if (message.day_night_enum === 0) {
+                    day_night_classification.innerHTML = 'Unknown';
+                } else if (message.day_night_enum === 1) {
+                    day_night_classification.innerHTML = 'Day'; //`Day - avg Brightness:${message.avg_brightness}`;
+                } else if (message.day_night_enum === 2) {
+                    day_night_classification.innerHTML = 'Night'; //`Night - avg Brightness:${message.avg_brightness}`;
+                }
+
+                cloud_estimation.innerHTML = `${Math.trunc(message.percentage_cloud_cover)}%`;
+
+                tracker_hint.innerHTML = message.tracking_hint;
             });
 
             frameStream.subscribe(function (message) {

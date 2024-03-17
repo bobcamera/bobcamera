@@ -32,7 +32,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/RecordingState.msg"
   "msg/DetectorState.msg"
   "msg/TrackingState.msg"
-  "msg/AggregationState.msg"
+  "msg/MonitoringStatus.msg"
   #"msg/ConfigEntryUpdated.msg"
   #"msg/ConfigEntryUpdatedArray.msg"
   #"msg/ClassifiedObject.msg"

@@ -4,8 +4,9 @@ import numpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy, QoSHistoryPolicy
 from bob_shared.node_runner import NodeRunner
-from bob_interfaces.msg import Tracking, TrackingState, RecordingState, DetectorState, AggregationState
+from bob_interfaces.msg import Tracking, RecordingState, DetectorState, MonitoringStatus, ObserverDayNight, ObserverCloudEstimation
 from bob_interfaces.srv import BGSResetRequest
+from bob_shared.enumerations import TrackingHintEnum
 
 class TrackerMonitorNode(Node):
 
@@ -30,6 +31,9 @@ class TrackerMonitorNode(Node):
     self.msg_tracking_state = None
     self.msg_recording_state = None
     self.msg_detector_state = None
+    self.msg_day_night_classification = None
+    self.msg_cloud_estimation = None
+    self.tracking_hint:TrackingHintEnum = TrackingHintEnum.NoHint
     
     self.avg_tracks = [0]*self.sample_set
     self.track_counter = 0
@@ -38,17 +42,21 @@ class TrackerMonitorNode(Node):
 
     self.busy_timer = self.create_timer(self.timer_busy_interval, self.tracking_busy_monitor)
     self.idle_timer = self.create_timer(self.timer_idle_interval, self.tracking_idle_monitor)
-    self.aggregation_timer = self.create_timer(self.observer_tracker_aggregation_interval, self.aggregation_publisher)
-
-    #self.pub_environment_data = self.create_publisher(ObserverDayNight, 'bob/observer/day_night_classifier', publisher_qos_profile)
+    self.aggregation_timer = self.create_timer(self.observer_tracker_aggregation_interval, self.monitoring_status_publisher)
 
     # setup services, publishers and subscribers    
     self.sub_detector_state = self.create_subscription(DetectorState, 'bob/detection/detector_state', self.detector_state_callback, subscriber_qos_profile)
     self.sub_tracking_state = self.create_subscription(Tracking, 'bob/tracker/tracking', self.tracking_state_callback, subscriber_qos_profile)
     self.sub_recording_state = self.create_subscription(RecordingState, 'bob/recording/recording_state', self.recording_state_callback, subscriber_qos_profile)
+
+    self.sub_environment_day_night = self.create_subscription(ObserverDayNight, 'bob/observer/day_night_classifier', 
+      self.day_night_callback, subscriber_qos_profile)
+    self.sub_recording_state = self.create_subscription(ObserverCloudEstimation, 'bob/observer/cloud_estimation', 
+      self.cloud_estimation_callback, subscriber_qos_profile)
+
     self.bgs_reset_client = self.create_client(BGSResetRequest, 'bob/bgs/reset')
 
-    self.pub_aggregation_state = self.create_publisher(AggregationState, 'bob/state', publisher_qos_profile)
+    self.pub_aggregation_state = self.create_publisher(MonitoringStatus, 'bob/monitoring/status', publisher_qos_profile)
 
     self.get_logger().info(f'{self.get_name()} node is up and running.')
    
@@ -61,11 +69,17 @@ class TrackerMonitorNode(Node):
 
   def detector_state_callback(self, msg_detector_state:DetectorState):
     self.msg_detector_state = msg_detector_state
-    if self.msg_detector_state.maxblobsreached:
+    if self.msg_detector_state.max_blobs_reached:
       self.get_logger().warn(f'Max blobs reached - please check detection mask or lower sensitivity level.')
       #request = BGSResetRequest.Request()
       #request.bgs_params = "test-service"
       #self.bgs_reset_client.call(request)
+
+  def day_night_callback(self, msg_day_night_classification:ObserverDayNight):
+    self.msg_day_night_classification = msg_day_night_classification
+
+  def cloud_estimation_callback(self, msg_cloud_estimation:ObserverCloudEstimation):
+    self.msg_cloud_estimation = msg_cloud_estimation
 
   def tracking_busy_monitor(self):
 
@@ -87,6 +101,7 @@ class TrackerMonitorNode(Node):
         #self.get_logger().info(f'{self.get_name()} BUSY ma: {ma}')
 
         if ma > self.tracking_profile_high_switch_threshold:
+          self.tracking_hint:TrackingHintEnum = TrackingHintEnum.LowerSensitivity
           self.get_logger().warn(f'Tracker needs tuning to a LOWER sensitivity level as its breaching the threshold of: {self.tracking_profile_high_switch_threshold} - Moving Average: {ma}')
           self.avg_tracks = [0]*self.sample_set # Reset the avg_tracks variable otherwise we might get several BUSY notifications
 
@@ -115,36 +130,56 @@ class TrackerMonitorNode(Node):
         #self.get_logger().info(f'{self.get_name()} IDLE ma: {ma}')
 
         if self.idle_enabled and ma == 0:
+          self.tracking_hint:TrackingHintEnum = TrackingHintEnum.IncreaseSensitivity
           self.get_logger().warn(f'Tracker should be tuned to a HIGHER sensitivity level if possible - Moving Average: {ma}')
 
       except Exception as e:
         self.get_logger().error(f"Exception during alive track monitor. Error: {e}.")
         self.get_logger().error(tb.format_exc())
 
-  def aggregation_publisher(self):
+  def monitoring_status_publisher(self):
 
-    aggregation_state_msg = AggregationState()
+    monitoring_status_msg = MonitoringStatus()
 
-    aggregation_state_msg.trackable = 0
-    aggregation_state_msg.alive = 0
-    aggregation_state_msg.started = 0
-    aggregation_state_msg.ended = 0
-    aggregation_state_msg.maxblobsreached = False
-    aggregation_state_msg.recording = False
+    monitoring_status_msg.trackable = 0
+    monitoring_status_msg.alive = 0
+    monitoring_status_msg.started = 0
+    monitoring_status_msg.ended = 0
+    monitoring_status_msg.max_blobs_reached = False
+    monitoring_status_msg.recording = False    
+    monitoring_status_msg.day_night_enum = 0
+    monitoring_status_msg.avg_brightness = 0
+    monitoring_status_msg.percentage_cloud_cover = 0
 
     if self.msg_tracking_state is not None:
-      aggregation_state_msg.trackable = self.msg_tracking_state.trackable
-      aggregation_state_msg.alive = self.msg_tracking_state.alive
-      aggregation_state_msg.started = self.msg_tracking_state.started
-      aggregation_state_msg.ended = self.msg_tracking_state.ended
+      monitoring_status_msg.trackable = self.msg_tracking_state.trackable
+      monitoring_status_msg.alive = self.msg_tracking_state.alive
+      monitoring_status_msg.started = self.msg_tracking_state.started
+      monitoring_status_msg.ended = self.msg_tracking_state.ended
     
     if self.msg_detector_state is not None:
-      aggregation_state_msg.maxblobsreached = self.msg_detector_state.maxblobsreached
+      monitoring_status_msg.max_blobs_reached = self.msg_detector_state.max_blobs_reached
     
     if self.msg_recording_state is not None:
-      aggregation_state_msg.recording = self.msg_recording_state.recording
+      monitoring_status_msg.recording = self.msg_recording_state.recording
 
-    self.pub_aggregation_state.publish(aggregation_state_msg)
+    if self.msg_day_night_classification is not None:
+      monitoring_status_msg.day_night_enum = self.msg_day_night_classification.day_night_enum
+      monitoring_status_msg.avg_brightness = self.msg_day_night_classification.avg_brightness
+
+    if self.msg_cloud_estimation is not None:
+      monitoring_status_msg.percentage_cloud_cover = self.msg_cloud_estimation.percentage_cloud_cover
+
+    monitoring_status_msg.tracking_hint = 'None'
+    if self.tracking_hint == TrackingHintEnum.IncreaseSensitivity:
+      monitoring_status_msg.tracking_hint = 'Increase Sensitivity'
+    elif self.tracking_hint == TrackingHintEnum.LowerSensitivity:
+      monitoring_status_msg.tracking_hint = 'Lower Sensitivity or Improve Detection Mask'
+    else:
+      if monitoring_status_msg.max_blobs_reached:
+        monitoring_status_msg.tracking_hint = 'Lower Sensitivity or Improve Detection Mask'
+
+    self.pub_aggregation_state.publish(monitoring_status_msg)
 
 def main(args=None):
 

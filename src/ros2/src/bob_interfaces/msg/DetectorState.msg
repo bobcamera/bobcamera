@@ -1,1 +1,1 @@
-bool maxblobsreached
+bool max_blobs_reached

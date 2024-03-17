@@ -243,12 +243,12 @@ private:
             boblib::blobs::DetectionResult det_result = blob_detector_ptr_->detect(mask, bboxes);
             if (det_result == boblib::blobs::DetectionResult::Success)
             {
-                state.maxblobsreached = false;
+                state.max_blobs_reached = false;
                 add_bboxes(bbox2D_array, bboxes);
             }
             else if(det_result == boblib::blobs::DetectionResult::MaxBlobsReached)
             {
-                state.maxblobsreached = true;
+                state.max_blobs_reached = true;
                 //RCLCPP_WARN(get_logger(), "Maximum blobs reached - please check detection mask");
             }
             
