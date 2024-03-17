@@ -178,12 +178,12 @@ foreground_mask_compressor_node:
 # Monitoring infrastructure
 day_night_classifier_node:
   ros__parameters:
-    observer_timer_interval: 30
+    observer_timer_interval: 90
     observer_day_night_brightness_threshold: 95
 
 cloud_estimator_node:
   ros__parameters:
-    observer_timer_interval: 30
+    observer_timer_interval: 90
 
 tracking_monitor_node:
   ros__parameters:
@@ -207,7 +207,7 @@ onvif_service_node:
 # Web infrastructure
 info_webapi_node:
   ros__parameters:
-    application_version: '1.2.11'
+    application_version: '1.2.12'
     frame_width: 0
     frame_height: 0
     video_fps: 15.0

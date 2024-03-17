@@ -1,7 +1,7 @@
 version: '3'
 services:
   bob:
-    image: bobcamera/bob-ros2-prod:1.2.11
+    image: bobcamera/bob-ros2-prod:1.2.12
     #user: ${MY_UID}:${MY_GID}
     extra_hosts:
       - "host.docker.internal:host-gateway"

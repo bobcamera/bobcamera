@@ -18,6 +18,7 @@
 #include <visibility_control.h>
 
 #include "bob_interfaces/srv/bgs_reset_request.hpp"
+#include "bob_interfaces/msg/detector_state.hpp"
 
 class BackgroundSubtractor
     : public ParameterNode
@@ -44,6 +45,7 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscription_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
     rclcpp::Publisher<vision_msgs::msg::BoundingBox2DArray>::SharedPtr detection_publisher_;
+    rclcpp::Publisher<bob_interfaces::msg::DetectorState>::SharedPtr state_publisher_;
     rclcpp::Service<bob_interfaces::srv::BGSResetRequest>::SharedPtr bgs_reset_service_;
 
     BGSType bgs_type_;
@@ -78,6 +80,7 @@ private:
         );
         image_publisher_ = create_publisher<sensor_msgs::msg::Image>("bob/frames/foreground_mask", pub_qos_profile_);
         detection_publisher_ = create_publisher<vision_msgs::msg::BoundingBox2DArray>("bob/detection/allsky/boundingboxes", pub_qos_profile_);
+        state_publisher_ = create_publisher<bob_interfaces::msg::DetectorState>("bob/detection/detector_state", pub_qos_profile_);
 
         bgs_reset_service_ = create_service<bob_interfaces::srv::BGSResetRequest>(
             "bob/bgs/reset", 
@@ -232,14 +235,26 @@ private:
             profile_stop("BGS");
 
             profile_start("Blob");
+            bob_interfaces::msg::DetectorState state;
             vision_msgs::msg::BoundingBox2DArray bbox2D_array;
             bbox2D_array.header = img_msg->header;
             std::vector<cv::Rect> bboxes;
-            if (blob_detector_ptr_->detect(mask, bboxes))
+
+            boblib::blobs::DetectionResult det_result = blob_detector_ptr_->detect(mask, bboxes);
+            if (det_result == boblib::blobs::DetectionResult::Success)
             {
+                state.maxblobsreached = false;
                 add_bboxes(bbox2D_array, bboxes);
             }
-            detection_publisher_->publish(bbox2D_array);
+            else if(det_result == boblib::blobs::DetectionResult::MaxBlobsReached)
+            {
+                state.maxblobsreached = true;
+                //RCLCPP_WARN(get_logger(), "Maximum blobs reached - please check detection mask");
+            }
+            
+            state_publisher_->publish(state);
+            detection_publisher_->publish(bbox2D_array);            
+
             profile_stop("Blob");
 
             profile_stop("Frame");
@@ -271,9 +286,13 @@ private:
     void reset_bgs_request(const std::shared_ptr<bob_interfaces::srv::BGSResetRequest::Request> request, 
         std::shared_ptr<bob_interfaces::srv::BGSResetRequest::Response> response)
     {
-        if(request->mask_enabled) { }
+        //RCLCPP_INFO(get_logger(), "Restarting the BGS");
+        if(!request->bgs_params.empty() && request->bgs_params.length() > 0) { 
+            RCLCPP_INFO(get_logger(), "We have updated bgs params to apply...");
+        }
         bgsPtr->restart();
         response->success = true;
+        //RCLCPP_INFO(get_logger(), "Restarting BGS: SUCCESS");
     }
 
     std::unique_ptr<boblib::bgs::CoreBgs> createBGS(BGSType _type)

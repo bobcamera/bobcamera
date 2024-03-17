@@ -15,6 +15,7 @@ def generate_launch_description():
         #namespace='bob',
         executable='day_night_classifier',
         name='day_night_classifier_node',
+        arguments=['--ros-args', '--log-level', 'INFO'],
         parameters = [config],
         remappings=[
             ('bob/observer_frame/source', 'bob/frames/allsky/masked/detection/resized')],
@@ -25,6 +26,7 @@ def generate_launch_description():
         #namespace='bob',
         executable='cloud_estimator',
         name='cloud_estimator_node',
+        arguments=['--ros-args', '--log-level', 'INFO'],
         parameters = [config],
         remappings=[
             ('bob/observer_frame/source', 'bob/frames/allsky/masked/detection/resized')],        
@@ -77,8 +79,8 @@ def generate_launch_description():
     )    
 
     return LaunchDescription([
-        # day_night_classifier_node,
-        # cloud_estimator_node,
+        day_night_classifier_node,
+        cloud_estimator_node,
         tracking_monitor_node,
         # prometheus_node,
         onvif_node,

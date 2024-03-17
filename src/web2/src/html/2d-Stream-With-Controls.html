@@ -186,6 +186,32 @@
                 <span hidden id="total_avg_frame_rate">0</span>
             </div>
             <br>
+
+            <!--<div class="metric-header"> ----------- Tracking State ----------- </div><br>
+            <div class="metric-readings">
+                <label for="tracking_state_trackable">Trackable:</label>
+                <span id="tracking_state_trackable">0</span>
+            </div>
+            <div class="metric-readings">
+                <label for="tracking_state_alive">Alive:</label>
+                <span id="tracking_state_alive">0</span>
+            </div>
+            <div class="metric-readings">
+                <label for="tracking_state_started">Started:</label>
+                <span id="tracking_state_started">0</span>
+            </div>
+            <div class="metric-readings">
+                <label for="tracking_state_ended">Ended:</label>
+                <span id="tracking_state_ended">0</span>
+            </div>
+            <br>-->
+
+            <div class="metric-header"> ----------- Recording State ----------- </div><br>
+            <div class="metric-readings">
+                <label for="recording_state">Recording:</label>
+                <span id="recording_state">false</span>
+            </div>
+            <br>
         </div>
         <div id="stream" width="" height="">
             <img id="image-subscription" width="" height="" />
@@ -211,7 +237,13 @@
 
     let videoStream = document.getElementById('image-subscription');
     let streamContainer = document.getElementById('stream');
-    let bufferingOverlay = document.getElementById('bufferingOverlay');
+    let bufferingOverlay = document.getElementById('bufferingOverlay');    
+    let recording_state = document.getElementById('recording_state');
+    //let tracking_state_trackable = document.getElementById('tracking_state_trackable');
+    //let tracking_state_alive = document.getElementById('tracking_state_alive');
+    //let tracking_state_started = document.getElementById('tracking_state_started');
+    //let tracking_state_ended = document.getElementById('tracking_state_ended');
+
     let devicePixelRatio = window.devicePixelRatio || 1;
 
     let startingBufferSize = 20;
@@ -226,12 +258,16 @@
             var ros = new ROSLIB.Ros();
             ros.connect(websocketsURL);
         }
-        ros.on('connection', function(){console.log('Connected to websocket server.')});
-        ros.on('error', function(){console.log('Error connecting to websocket server: ', error);});
+        ros.on('connection', function(){
+            //console.log('Connected to websocket server.')
+        });
+        ros.on('error', function(){
+            //console.log('Error connecting to websocket server: ', error);
+        });
         ros.on('close', function(){            
             // Try to reconnect in 5 seconds
             if (retry) {
-                console.log('Connection to websocket server closed, trying in 5 seconds.');
+                //console.log('Connection to websocket server closed, trying in 5 seconds.');
                 setTimeout(function(){rosConnect(ros, websocketsURL)}, 5000);
             }
         });
@@ -249,31 +285,57 @@
     var currentRos2ImageTopic = ros2ImageTopic2; // Set the ROS2 Topic to Subscribe to
     var compressedImageMsgType = 'sensor_msgs/msg/CompressedImage'; // define the Msg Type of the ROS2 Subsc. Topic
 
-    var topicStream = new ROSLIB.Topic({
+    var frameStream = new ROSLIB.Topic({
         ros: ros,
         name: currentRos2ImageTopic,
         messageType: compressedImageMsgType
+    });
+
+    /*var trackingStateStream = new ROSLIB.Topic({
+        ros: ros,
+        name: '/bob/tracker/tracking_state',
+        messageType: 'bob_interfaces/msg/TrackingState'
+    });*/
+
+    var recordingStateStream = new ROSLIB.Topic({
+        ros: ros,
+        name: '/bob/recording/recording_state',
+        messageType: 'bob_interfaces/msg/RecordingState'
     });
 
     var versionService = new ROSLIB.Service({
         ros : ros, 
         name : '/bob/webapi/application/info', 
         serviceType : 'bob_interfaces/srv/ApplicationInfo'
-    });    
+    });
 
     function init() {
         window.addEventListener('DOMContentLoaded', function () {
+
             var versionRequest = new ROSLIB.ServiceRequest({empty: ''});
             versionService.callService(versionRequest, function(result) {
                 console.log("Bob-ROS2 Version:", result.version);
                 document.getElementById('applicationVersion').innerText = result.version;
                 console.log(`Bob-ROS2 Frame Size: w=${result.frame_width}  h=${result.frame_height}`);
-                console.log(`Bob-ROS2 FPS: ${result.video_fps}`);    
+                console.log(`Bob-ROS2 FPS: ${result.video_fps}`);
                 
                 document.getElementById('frame_rate').value = result.video_fps;                
+            });  
+
+            /*trackingStateStream.subscribe(function (message) {
+                //tracking_state_trackable.innerHTML = message.trackable;
+                //tracking_state_alive.innerHTML = message.alive;
+                //tracking_state_started.innerHTML = message.started;
+                //tracking_state_ended.innerHTML = message.ended;
+                //console.log(`Tracking State - trackable:${message.trackable} alive:${message.alive} started:${message.started} ended:${message.ended}`);
+                console.log(`Tracking State`);
+            });*/
+
+            recordingStateStream.subscribe(function (message) {
+                recording_state.innerHTML = message.recording;
             });
-            
-            topicStream.subscribe(function (message) {
+
+            frameStream.subscribe(function (message) {
                 updateMessageRate();
                 if (!firstImageReceived) {
                     videoStream.src = "data:image/jpeg;base64," + message.data;
@@ -281,8 +343,7 @@
                     style.display = bufferReady ? 'none' : 'flex';
                     firstImageReceived = true;
                 }
-                if (document.getElementById('buffer_enabled').checked)
-                {
+                if (document.getElementById('buffer_enabled').checked) {
                     if (imageBuffer.length < bufferSize) {
                         imageBuffer.push(message);
                     }
@@ -294,7 +355,8 @@
                 } else {
                     videoStream.src = "data:image/jpeg;base64," + message.data;
                 }
-            });
+            });            
+
             // Call displayImage for the first time
             displayImage();
             document.getElementById('buffer_size').value = bufferSize;

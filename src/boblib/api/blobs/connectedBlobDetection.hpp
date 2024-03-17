@@ -6,6 +6,13 @@
 
 namespace boblib::blobs
 {
+    enum class DetectionResult 
+    {
+        Success,
+        NoBlobsDetected,
+        MaxBlobsReached
+    };
+
     struct ConnectedBlobDetectionParams final
     {
         static const int DEFAULT_SIZE_THRESHOLD = 5;
@@ -52,7 +59,7 @@ namespace boblib::blobs
         inline void set_min_distance(int _distance) { m_params.setMinDistance(_distance); }
 
         // Finds the connected components in the image and returns a list of bounding boxes
-        bool detect(const cv::Mat &_image, std::vector<cv::Rect> &_bboxes);
+        DetectionResult detect(const cv::Mat &_image, std::vector<cv::Rect> &_bboxes);
 
         // Finds the connected components in the image and returns a list of keypoints
         // This function uses detect and converts from Rect to KeyPoints using a fixed scale

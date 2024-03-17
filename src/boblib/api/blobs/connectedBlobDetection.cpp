@@ -150,7 +150,7 @@ namespace boblib::blobs
     }
 
     // Finds the connected components in the image and returns a list of bounding boxes
-    bool ConnectedBlobDetection::detect(const cv::Mat &_image, std::vector<cv::Rect> &_bboxes)
+    DetectionResult ConnectedBlobDetection::detect(const cv::Mat &_image, std::vector<cv::Rect> &_bboxes)
     {
         if (!m_initialized || *m_original_img_size != ImgSize(_image))
         {
@@ -188,10 +188,16 @@ namespace boblib::blobs
 
             pos_process_bboxes(_bboxes);
 
-            return true;
+            return DetectionResult::Success;
         }
-
-        return false;
+        else if (numLabels == 0)
+        {
+            return DetectionResult::NoBlobsDetected;
+        }
+        else
+        {
+            return DetectionResult::MaxBlobsReached;
+        }
     }
 
     void ConnectedBlobDetection::apply_detect_bboxes(const cv::Mat &_labels, std::vector<cv::Rect> &_bboxes)
