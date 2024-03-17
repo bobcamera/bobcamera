@@ -4,7 +4,7 @@ import numpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy, QoSHistoryPolicy
 from bob_shared.node_runner import NodeRunner
-from bob_interfaces.msg import TrackingState, RecordingState, DetectorState
+from bob_interfaces.msg import Tracking, TrackingState, RecordingState, DetectorState, AggregationState
 from bob_interfaces.srv import BGSResetRequest
 
 class TrackerMonitorNode(Node):
@@ -17,11 +17,13 @@ class TrackerMonitorNode(Node):
       parameters=
       [('observer_tracker_monitor_busy_interval', 5),
        ('observer_tracker_monitor_idle_interval', 60),
+       ('observer_tracker_aggregation_interval', 1),
        ('observer_tracking_profile_busy_switch_threshold', 5),
        ('observer_tracker_sample_set', 5)])
 
     self.timer_busy_interval = self.get_parameter('observer_tracker_monitor_busy_interval').value
     self.timer_idle_interval = self.get_parameter('observer_tracker_monitor_idle_interval').value
+    self.observer_tracker_aggregation_interval = self.get_parameter('observer_tracker_aggregation_interval').value
     self.tracking_profile_high_switch_threshold = self.get_parameter('observer_tracking_profile_busy_switch_threshold').value
     self.sample_set = self.get_parameter('observer_tracker_sample_set').value
 
@@ -36,19 +38,22 @@ class TrackerMonitorNode(Node):
 
     self.busy_timer = self.create_timer(self.timer_busy_interval, self.tracking_busy_monitor)
     self.idle_timer = self.create_timer(self.timer_idle_interval, self.tracking_idle_monitor)
+    self.aggregation_timer = self.create_timer(self.observer_tracker_aggregation_interval, self.aggregation_publisher)
 
     #self.pub_environment_data = self.create_publisher(ObserverDayNight, 'bob/observer/day_night_classifier', publisher_qos_profile)
 
     # setup services, publishers and subscribers    
     self.sub_detector_state = self.create_subscription(DetectorState, 'bob/detection/detector_state', self.detector_state_callback, subscriber_qos_profile)
-    self.sub_tracking_state = self.create_subscription(TrackingState, 'bob/tracker/tracking_state', self.tracking_state_callback, subscriber_qos_profile)
+    self.sub_tracking_state = self.create_subscription(Tracking, 'bob/tracker/tracking', self.tracking_state_callback, subscriber_qos_profile)
     self.sub_recording_state = self.create_subscription(RecordingState, 'bob/recording/recording_state', self.recording_state_callback, subscriber_qos_profile)
     self.bgs_reset_client = self.create_client(BGSResetRequest, 'bob/bgs/reset')
 
+    self.pub_aggregation_state = self.create_publisher(AggregationState, 'bob/state', publisher_qos_profile)
+
     self.get_logger().info(f'{self.get_name()} node is up and running.')
    
-  def tracking_state_callback(self, msg_tracking_state:TrackingState):
-    self.msg_tracking_state = msg_tracking_state
+  def tracking_state_callback(self, msg_tracking:Tracking):
+    self.msg_tracking_state = msg_tracking.state
 
   def recording_state_callback(self, msg_recording_state:RecordingState):
     self.msg_recording_state = msg_recording_state
@@ -115,6 +120,31 @@ class TrackerMonitorNode(Node):
       except Exception as e:
         self.get_logger().error(f"Exception during alive track monitor. Error: {e}.")
         self.get_logger().error(tb.format_exc())
+
+  def aggregation_publisher(self):
+
+    aggregation_state_msg = AggregationState()
+
+    aggregation_state_msg.trackable = 0
+    aggregation_state_msg.alive = 0
+    aggregation_state_msg.started = 0
+    aggregation_state_msg.ended = 0
+    aggregation_state_msg.maxblobsreached = False
+    aggregation_state_msg.recording = False
+
+    if self.msg_tracking_state is not None:
+      aggregation_state_msg.trackable = self.msg_tracking_state.trackable
+      aggregation_state_msg.alive = self.msg_tracking_state.alive
+      aggregation_state_msg.started = self.msg_tracking_state.started
+      aggregation_state_msg.ended = self.msg_tracking_state.ended
+    
+    if self.msg_detector_state is not None:
+      aggregation_state_msg.maxblobsreached = self.msg_detector_state.maxblobsreached
+    
+    if self.msg_recording_state is not None:
+      aggregation_state_msg.recording = self.msg_recording_state.recording
+
+    self.pub_aggregation_state.publish(aggregation_state_msg)
 
 def main(args=None):
 

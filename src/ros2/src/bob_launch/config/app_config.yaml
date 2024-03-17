@@ -189,6 +189,7 @@ tracking_monitor_node:
   ros__parameters:
     observer_tracker_monitor_busy_interval: 5
     observer_tracker_monitor_idle_interval: 60
+    observer_tracker_aggregation_interval: 1
     observer_tracking_profile_busy_switch_threshold: 5
     observer_tracker_sample_set: 5
 
