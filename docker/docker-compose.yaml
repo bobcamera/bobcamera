@@ -19,7 +19,7 @@ services:
       - "9090:9090"
     environment:  # add in .env
       - BOB_SOURCE=${BOB_SOURCE}
-      - BOB_OPERATION_MODE=${BOB_OPERATION_MODE}
+      - BOB_OPERATION_MODE='standard'
       - BOB_RTSP_URL=${BOB_RTSP_URL}
       - BOB_CAMERA_ID=${BOB_CAMERA_ID}
       - BOB_ENABLE_VISUALISER=${BOB_ENABLE_VISUALISER}
