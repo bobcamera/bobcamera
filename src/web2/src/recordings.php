@@ -103,7 +103,10 @@ foreach ($videoDirs as $videoDir) {
         //echo "<td><i class='fas fa-star icon' style='color: grey;'></i></td>";
         echo "<td><a href='heatmaps.php?date=" . urlencode($videoDir) . "'><i class='fas fa-play-circle icon' style='color: #337AB7;'></i></a></td>";
         echo "<td><a href='summary.php?date=" . urlencode($videoDir) . "'><i class='fas fa-table icon' style='color: #337AB7;'></i></a></td>";
-        echo "<td><button class='delete-btn'><i class='fas fa-trash'></i> Delete</button></td>";
+        //echo "<td><button class='delete-btn'><i class='fas fa-trash'></i> Delete</button></td>";
+
+        echo "<td><a href='delete-directory.php?date=" . urlencode($videoDir) . "' class='delete-btn' onclick=\"return confirm('Are you sure you want to delete this directory and all its contents?');\"><i class='fas fa-trash'></i> Delete</a></td>";
+        
         echo "</tr>";
     }
 }
