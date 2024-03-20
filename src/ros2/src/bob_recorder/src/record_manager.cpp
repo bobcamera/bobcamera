@@ -271,18 +271,14 @@ private:
 
                     std::string full_path = dated_directory_ + "/allsky/" + prefix_str_ + base_filename_ + ".mp4";
                     const std::string out_pipeline = pipeline_str_ + full_path;
-                    //video_recorder_->open_new_video(out_pipeline, codec_str_, video_fps_, img.size(), img.channels() == 3);
                     video_recorder_->open_new_video(full_path, codec_str_, video_fps_, img.size(), img.channels() == 3);                    
-
                     img_recorder_->update_frame_for_drawing(img);
-                    // img_recorder_->accumulate_pre_buffer_images(); // skipping for now - processor intensive
                 } 
                 else 
                 {
                     json_data = JsonRecorder::build_json_value(image_msg, tracking_msg, false, x_offset_, y_offset_);
                     json_recorder_->add_to_pre_buffer(json_data, false);
                     video_recorder_->add_to_pre_buffer(img);
-                    img_recorder_->add_to_pre_buffer(fg_img);
                 }
                 break;
 
@@ -342,7 +338,6 @@ private:
                     }
                 }
                 video_recorder_->add_to_pre_buffer(img);
-                img_recorder_->add_to_pre_buffer(fg_img);
                 break;
             }
 
@@ -399,7 +394,9 @@ private:
 int main(int argc, char **argv) 
 {
     rclcpp::init(argc, argv);
-    rclcpp::spin(std::make_shared<RecordManager>(rclcpp::NodeOptions()));
+    rclcpp::executors::StaticSingleThreadedExecutor executor;
+    executor.add_node(std::make_shared<RecordManager>(rclcpp::NodeOptions()));
+    executor.spin();
     rclcpp::shutdown();
     return 0;
 }

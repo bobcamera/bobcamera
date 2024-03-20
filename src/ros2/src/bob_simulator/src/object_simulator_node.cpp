@@ -84,7 +84,9 @@ private:
 int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
-    rclcpp::spin(std::make_shared<MovingObjectsSimulation>(rclcpp::NodeOptions()));
+    rclcpp::executors::StaticSingleThreadedExecutor executor;
+    executor.add_node(std::make_shared<MovingObjectsSimulation>(rclcpp::NodeOptions()));
+    executor.spin();
     rclcpp::shutdown();
     return 0;
 }
