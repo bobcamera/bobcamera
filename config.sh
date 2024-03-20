@@ -175,7 +175,7 @@ while true; do
             3) set_config_options "BOB_ENABLE_RECORDING" "Enable Recording:" "false" True False;read -rp "Press Enter to continue...";;
             4) set_config_options "BOB_ENABLE_VISUALISER" "Enable Visualizer:" "false" True False;read -rp "Press Enter to continue...";;
             5) set_config_options "BOB_BGS_ALGORITHM" "Background substraction algorithm:"  "false" vibe wmv;read -rp "Press Enter to continue...";;
-            6) set_config_options "BOB_TRACKING_SENSITIVITY" "Tracking sensitivity options:" "true"  minimal low medium high;read -rp "Press Enter to continue...";;
+            6) set_config_options "BOB_TRACKING_SENSITIVITY" "Tracking sensitivity options:" "true"  low medium high low_c medium_c high_c;read -rp "Press Enter to continue...";;
             7) set_testing_videos ;read -rp "Press Enter to continue...";;
             8) set_number_of_simulated_objects ;read -rp "Press Enter to continue...";;
             s) clear; cat ".env";echo -e "\n\n"; read -rp "Press Enter to continue...";;

@@ -18,7 +18,7 @@ export BOB_ENABLE_RECORDING=${BOB_ENABLE_RECORDING:-"False"}
 # Background subtraction algorithm: vibe or wmv
 export BOB_BGS_ALGORITHM=${BOB_BGS_ALGORITHM:-"vibe"}
 
-# Tracking sensitivity options: minimal, low, medium, high
+# Tracking sensitivity options: low, medium, high (use in blue sky or blanket cloud) or low_c, medium_c, high_c (broken cloud)
 export BOB_TRACKING_SENSITIVITY=${BOB_TRACKING_SENSITIVITY:-"'medium'"}
 
 # Video files list separated by ';'

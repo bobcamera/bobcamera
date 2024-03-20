@@ -28,6 +28,7 @@ public:
     explicit BackgroundSubtractor(const rclcpp::NodeOptions & options)
         : ParameterNode("background_subtractor_node", options)
         , enable_profiling_(false)
+        , median_filter_(false)
         , pub_qos_profile_(10)
         , sub_qos_profile_(10)
     {
@@ -53,6 +54,7 @@ private:
     std::unique_ptr<boblib::blobs::ConnectedBlobDetection> blob_detector_ptr_{nullptr};
     boblib::utils::Profiler profiler_;
     bool enable_profiling_;
+    bool median_filter_;
     
     rclcpp::QoS pub_qos_profile_;
     rclcpp::QoS sub_qos_profile_;
@@ -200,6 +202,10 @@ private:
                     }
                 }
             ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("median_filter", false), 
+                [this](const rclcpp::Parameter& param) {median_filter_ = param.as_bool();}
+            ),
         };
         add_action_parameters(params);
     }
@@ -229,6 +235,11 @@ private:
             profile_start("BGS");
             cv::Mat mask;
             bgsPtr->apply(gray_img, mask);
+
+            if(median_filter_)
+            {
+                cv::medianBlur(mask, mask, 3);
+            }
 
             auto image_msg = cv_bridge::CvImage(img_msg->header, sensor_msgs::image_encodings::MONO8, mask).toImageMsg();
             image_publisher_->publish(*image_msg);
