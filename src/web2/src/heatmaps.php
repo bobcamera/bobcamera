@@ -34,29 +34,6 @@
     // JSON FILES
     // Define the JSON directory path
     $jsonDirectory = dirname(__FILE__) . '/videos/' . $date . '/json/';
-
-    // Initialize an array to hold JSON data for all files
-    $jsonData = array();
-
-    // Loop through all JSON files in the directory
-    foreach (glob($jsonDirectory . '*.json') as $jsonFilePath) {
-        // Extract the timestamp from the filename
-        $time = basename($jsonFilePath, '.json');
-
-        // Check if the JSON file exists and then read it
-        if (file_exists($jsonFilePath)) {
-            $jsonContent = file_get_contents($jsonFilePath);
-            $jsonData[$time] = json_decode($jsonContent, true); // 'true' converts it to an associative array
-        } else {
-            // Provide a fallback behavior for the missing JSON file
-            // For example, you can set $jsonData[$time] to an empty array or null
-            // You can also log this event for debugging purposes
-            $jsonData[$time] = null; // or [] for an empty array
-            // Optionally, you can log the missing JSON file
-            // error_log("JSON file not found: " . $jsonFilePath);
-        }
-    }
-
 ?>
 
 <!DOCTYPE html>
@@ -202,10 +179,8 @@
     const frameRate = 25; // Replace with your video's frame rate
     const frameDuration = 1 / frameRate;
     var date = <?php echo $date; ?>;
-    var jsonData = <?php echo json_encode($jsonData); ?>;
-    var jsonFilePath = '<?php echo $jsonFilePath; ?>';
+    var jsonData = '';
     var jsonDirectory = '<?php echo $jsonDirectory; ?>';
-    var jsonContent = <?php echo $jsonContent; ?>;
     let isDragging = false;
     let startX, startY;
     let translateX = 0, translateY = 0;
@@ -228,21 +203,6 @@
                                             label: 'Video Player'
                                         }
                                     }
-                                    // ,
-                                    // {
-                                    //     type: 'component',
-                                    //     componentName: 'Heatmap',
-                                    //     componentState: {
-                                    //         label: 'Heatmap'
-                                    //     }
-                                    // },
-                                    // {
-                                    //     type: 'component',
-                                    //     componentName: 'JSON',
-                                    //     componentState: {
-                                    //         label: 'JSON'
-                                    //     }
-                                    // }
                                 ]
                             },
                             {
@@ -288,16 +248,6 @@
 
         var myLayout = new GoldenLayout(config, document.getElementById('layoutContainer'));
 
-        // // Register a component
-        // myLayout.registerComponent('Heatmap', function(container, componentState) {
-        //     container.getElement().html('<img id="heatmap" src="" alt="Heatmap" width="100%" height="100%">');
-        // });
-
-        // // Register a component
-        // myLayout.registerComponent('JSON', function(container, componentState) {
-        //     container.getElement().html('<div id="json" class="controls" style="white-space: pre-wrap; font-family: monospace;"></div>');
-        // });
-
         // Register a component
         myLayout.registerComponent('Timeline', function(container, componentState) {
             container.getElement().html('<div id="timeline"></div>');
@@ -310,26 +260,6 @@
             <input type="range" id="brightnessSlider" min="0" max="200" value="100" style="position: absolute; z-index: 10; width: 150px;">
             `);
         });
-
-
-        // myLayout.registerComponent('Video Player', function(container, componentState) {
-        //     container.getElement().html(`
-        //     <video id="player" playsinline controls>
-        //         <source src="<?php echo 'videos/' . $date . '/allsky/' . $time . '.mp4'; ?>" />
-        //     </video>
-        //     <input type="range" id="brightnessSlider" min="0" max="200" value="100" style="position: absolute; z-index: 10; width: 150px;">
-        //     <div id="plyr-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none;">
-        //         <img id="bigHeatmapImage" src="" style="height: 100%; opacity: 0.3;">
-        //     </div>`);
-
-        //     container.on('open', function() {
-        //         const video = document.getElementById('player');
-        //         const slider = document.getElementById('brightnessSlider');
-        //         slider.addEventListener('input', function() {
-        //             video.style.filter = `brightness(${this.value}%)`;
-        //         });
-        //     });
-        // });
 
         myLayout.registerComponent('Video Player', function(container, componentState) {
             container.getElement().html(`
@@ -562,50 +492,19 @@
                 if (params.componentType === 'series' && params.seriesType === 'scatter') {
                     let videoName = params.data.name; // Get the video file name
                     let newSource = '<?php echo $videoDirectory2; ?>' + videoName;
-                    console.log(newSource);
                     changeVideo(newSource);
                 }
             });
             let currentFrameNumber = getCurrentFrame();
-            displayJSON(currentFrameNumber);
 
             player.addEventListener('timeupdate', function() {
                 const currentFrameNumber = getCurrentFrame();
-                console.log("Current Frame: ", currentFrameNumber);
-                displayJSON(currentFrameNumber);
             });
-
-            // const video = document.getElementById('player');
-            // console.log(video);
-            // brightnessSlider = document.getElementById('brightnessSlider');
-            // console.log(brightnessSlider);
-            // brightnessSlider.addEventListener('input', function() {
-            //     video.style.filter = `brightness(${this.value}%)`;
-            // });
-
-
-
         });
-
-        function displayJSON(frameNumber) {
-            console.log("displayJSON");
-            console.log(frameNumber);
-            console.log("frameNumber: ",frameNumber);
-            console.log("document.getElementById('json'): ",document.getElementById("json"));
-            console.log("jsonData: ",jsonData);
-            console.log("jsonData[1]: ",jsonData[1]);
-            console.log("jsonData[1].frames: ",jsonData[1].frames);
-            console.log("jsonData[1].frames[frameNumber]: ",jsonData[1].frames[frameNumber]);
-            console.log("jsonData[1].frames[frameNumber].detections: ",jsonData[1].frames[frameNumber].detections);
-            var formattedJson = JSON.stringify(jsonData[1].frames[frameNumber].detections, undefined, 2);
-            document.getElementById("json").innerHTML = `<pre>${formattedJson}</pre>`;
-            // document.getElementById("json").innerHTML = JSON.stringify(jsonData[1].frames[frameNumber].detections, undefined, 2);
-        }
 
         function goToFrame(frameNumber) {
             const newTime = frameNumber / frameRate;
             player.currentTime = newTime;
-            displayJSON(frameNumber);
         }
 
         // function to use ajax to get the json file needed for currentVideoStartTimestamp
@@ -615,7 +514,7 @@
                 + date + '/json/' + currentVideoStartTimestamp + '.json',
                 dataType: 'json',
                 success: function(data) {
-                    console.log(data);
+                    //console.log(data);
                     jsonData = data;
                 }
             });
@@ -667,19 +566,15 @@
             highlightPointByTimestamp1(specificTimestamp);
             // update the video player
             let newSource = videoName;
-            console.log(newSource);
+            //console.log(newSource);
             let videoElement = document.querySelector('#player source');
             videoElement.setAttribute('src', newSource);
             player.load();
             player.play();
             getcurrentVideoJsonData();
-            displayJSON(getCurrentFrame());
         }
 
         function highlightPointByTimestamp(timestamp) {
-            console.log("highlightPointByTimestamp");
-            console.log(timestamp);
-            console.log(myChart);
             var seriesIndex = 0;
             var dataIndex = -1;
             // Loop through the data to find the matching timestamp
@@ -705,20 +600,12 @@
         }
 
         function highlightPointByTimestamp1(timestamp) {
-            console.log("highlightPointByTimestamp1");
-            console.log(timestamp);
-            console.log(myChart);
             var seriesIndex = 0;
             var dataIndex = -1;
             var seriesData = myChart.getOption().series[seriesIndex].data;
-            console.log(seriesData);
             for (var i = 0; i < seriesData.length; i++) {
-                console.log(seriesData[i].value[0]);
-                console.log(timestamp);
                 if (seriesData[i].value[0] === (parseInt(timestamp+'000'))) {
                     dataIndex = i;
-                    console.log("dataIndex");
-                    console.log(dataIndex);
                     break;
                 }
             }
@@ -740,19 +627,6 @@
             const currentTime = player.currentTime;
             return Math.floor(currentTime * frameRate);
         }
-
-        function getDetectionsForFrame(frameNumber) {
-            if (jsonData && jsonData[1] && jsonData[1].frames) {
-                for (let frame of jsonData[1].frames) {
-                    if (frame.time === frameNumber) {
-                        return frame.detections;
-                    }
-                }
-            }
-            return null;
-        }
-
-
 
 </script>
 

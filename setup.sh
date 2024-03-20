@@ -36,10 +36,7 @@ else
     printf '\nDocker Compose installed successfully\n\n'
 fi
 
-#./run.sh
-
-#!/bin/bash
-
+# Check if the .env file exists
 if [ -f ".env" ]; then
     echo -e "An .env-File exists already! Type y(es), if you want to retain the existing .env-File," 
     while true; do

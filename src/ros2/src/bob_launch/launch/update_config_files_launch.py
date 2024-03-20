@@ -283,9 +283,6 @@ def application_config(context):
             yaml_output['privacy_mask_application_node']['ros__parameters']['image_width'] = image_width
             yaml_output['privacy_mask_application_node']['ros__parameters']['image_height'] = image_height            
 
-            # minimal_background_subtractor_node
-            yaml_output['minimal_background_subtractor_node']['ros__parameters']['bgs'] = bgs_algo
-
             # low_background_subtractor_node
             yaml_output['low_background_subtractor_node']['ros__parameters']['bgs'] = bgs_algo
 
@@ -294,6 +291,15 @@ def application_config(context):
 
             # high_background_subtractor_node
             yaml_output['high_background_subtractor_node']['ros__parameters']['bgs'] = bgs_algo
+            
+            # low_filter_background_subtractor_node
+            yaml_output['low_filter_background_subtractor_node']['ros__parameters']['bgs'] = bgs_algo
+
+            # medium_filter_background_subtractor_node
+            yaml_output['medium_filter_background_subtractor_node']['ros__parameters']['bgs'] = bgs_algo
+
+            # high_filter_background_subtractor_node
+            yaml_output['high_filter_background_subtractor_node']['ros__parameters']['bgs'] = bgs_algo
 
             # mask_webapi_node
             yaml_output['mask_webapi_node']['ros__parameters']['masks_folder'] = tracking_mask_dir

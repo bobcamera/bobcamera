@@ -85,33 +85,53 @@ privacy_mask_application_node:
     image_width: 0
     image_height: 0    
 
-minimal_background_subtractor_node:
-  ros__parameters:
-    bgs: ''
-    vibe_params: '{"threshold": 70, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8}'
-    wmv_params: '{"enableWeight": true, "enableThreshold": true, "threshold": 60.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}'
-    blob_params: '{"sizeThreshold": 11, "areaThreshold": 121, "minDistance": 121, "maxBlobs": 50}'
-
 low_background_subtractor_node:
   ros__parameters:
     bgs: ''
     vibe_params: '{"threshold": 55, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8}'
     wmv_params: '{"enableWeight": true, "enableThreshold": true, "threshold": 45.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}'
     blob_params: '{"sizeThreshold": 8, "areaThreshold": 64, "minDistance": 64, "maxBlobs": 50}'
+    median_filter: False
 
 medium_background_subtractor_node:
   ros__parameters:
     bgs: ''
-    vibe_params: '{"threshold": 40, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 16}'
+    vibe_params: '{"threshold": 40, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 4}'
     wmv_params: '{"enableWeight": true, "enableThreshold": true, "threshold": 30.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}'
     blob_params: '{"sizeThreshold": 4, "areaThreshold": 16, "minDistance": 16, "maxBlobs": 50}'
+    median_filter: False
 
 high_background_subtractor_node:
   ros__parameters:
     bgs: ''
-    vibe_params: '{"threshold": 30, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 16}'
+    vibe_params: '{"threshold": 30, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4}'
     wmv_params: '{"enableWeight": true, "enableThreshold": true, "threshold": 15.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}'
     blob_params: '{"sizeThreshold": 2, "areaThreshold": 4, "minDistance": 4, "maxBlobs": 50}'
+    median_filter: False
+
+low_filter_background_subtractor_node:
+  ros__parameters:
+    bgs: ''
+    vibe_params: '{"threshold": 40, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8}'
+    wmv_params: '{"enableWeight": true, "enableThreshold": true, "threshold": 30.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}'
+    blob_params: '{"sizeThreshold": 4, "areaThreshold": 16, "minDistance": 16, "maxBlobs": 50}'
+    median_filter: True
+
+medium_filter_background_subtractor_node:
+  ros__parameters:
+    bgs: ''
+    vibe_params: '{"threshold": 30, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4}'
+    wmv_params: '{"enableWeight": true, "enableThreshold": true, "threshold": 20.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}'
+    blob_params: '{"sizeThreshold": 2, "areaThreshold": 4, "minDistance": 4, "maxBlobs": 50}'
+    median_filter: True
+
+high_filter_background_subtractor_node:
+  ros__parameters:
+    bgs: ''
+    vibe_params: '{"threshold": 20, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4}'
+    wmv_params: '{"enableWeight": true, "enableThreshold": true, "threshold": 15.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}'
+    blob_params: '{"sizeThreshold": 2, "areaThreshold": 4, "minDistance": 4, "maxBlobs": 50}'
+    median_filter: True
 
 track_provider_node:
   ros__parameters:
@@ -178,17 +198,18 @@ foreground_mask_compressor_node:
 # Monitoring infrastructure
 day_night_classifier_node:
   ros__parameters:
-    observer_timer_interval: 30
+    observer_timer_interval: 90
     observer_day_night_brightness_threshold: 95
 
 cloud_estimator_node:
   ros__parameters:
-    observer_timer_interval: 30
+    observer_timer_interval: 90
 
 tracking_monitor_node:
   ros__parameters:
     observer_tracker_monitor_busy_interval: 5
     observer_tracker_monitor_idle_interval: 60
+    observer_tracker_aggregation_interval: 1
     observer_tracking_profile_busy_switch_threshold: 5
     observer_tracker_sample_set: 5
 
@@ -207,7 +228,7 @@ onvif_service_node:
 # Web infrastructure
 info_webapi_node:
   ros__parameters:
-    application_version: '1.2.11'
+    application_version: '1.2.13'
     frame_width: 0
     frame_height: 0
     video_fps: 15.0

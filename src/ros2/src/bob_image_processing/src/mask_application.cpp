@@ -162,7 +162,7 @@ private:
                 if (mask_enabled_)
                 {
                     RCLCPP_INFO(get_logger(), "Mask Disabled.");
-                    request_bgs_reset(false);
+                    request_bgs_reset();
                     roi_calc_complete_ = false;
                 }
                 mask_enabled_ = false;                
@@ -172,7 +172,7 @@ private:
                 if (!mask_enabled_)
                 {
                     RCLCPP_INFO(get_logger(), "Mask Enabled.");
-                    request_bgs_reset(true);
+                    request_bgs_reset();
                     roi_calc_complete_ = false;
                 }
 
@@ -182,7 +182,7 @@ private:
                 {
                     grey_mask_= mask;
                     cv::cvtColor(mask, converted_mask_, cv::COLOR_GRAY2BGR);
-                    request_bgs_reset(true);
+                    request_bgs_reset();
                     roi_calc_complete_ = false;
                 }
             }
@@ -233,10 +233,10 @@ private:
         }  
     }
 
-    void request_bgs_reset(const bool enabled)
+    void request_bgs_reset()
     {
         auto request = std::make_shared<bob_interfaces::srv::BGSResetRequest::Request>();
-        request->mask_enabled = enabled;
+        request->bgs_params = "";
         if (bgs_reset_client_->service_is_ready())
         {
             auto result = bgs_reset_client_->async_send_request(request, std::bind(&MaskApplication::request_bgs_reset_callback, this, std::placeholders::_1));
@@ -303,7 +303,9 @@ private:
 int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
-    rclcpp::spin(std::make_shared<MaskApplication>(rclcpp::NodeOptions()));
+    rclcpp::executors::StaticSingleThreadedExecutor executor;
+    executor.add_node(std::make_shared<MaskApplication>(rclcpp::NodeOptions()));
+    executor.spin();
     rclcpp::shutdown();
     return 0;
 }

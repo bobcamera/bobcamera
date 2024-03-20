@@ -18,8 +18,8 @@ export BOB_ENABLE_RECORDING=${BOB_ENABLE_RECORDING:-"False"}
 # Background subtraction algorithm: vibe or wmv
 export BOB_BGS_ALGORITHM=${BOB_BGS_ALGORITHM:-"vibe"}
 
-# Tracking sensitivity options: minimal, low, medium, high
-export BOB_TRACKING_SENSITIVITY=${BOB_TRACKING_SENSITIVITY:-"'medium'"}
+# Tracking sensitivity options: low, medium, high (use in blue sky or blanket cloud) or low_c, medium_c, high_c (broken cloud)
+export BOB_TRACKING_SENSITIVITY=${BOB_TRACKING_SENSITIVITY:-"'medium_c'"}
 
 # Video files list separated by ';'
 export BOB_VIDEOS=${BOB_VIDEOS:-"/workspaces/bobcamera/media/fisheye_videos/mike-drone.mp4;/workspaces/bobcamera/media/fisheye_videos/mikeg-30min.mp4"}
@@ -30,6 +30,9 @@ export BOB_SIMULATION_NUM_OBJECTS=${BOB_SIMULATION_NUM_OBJECTS:-"15"}
 # RMW settings
 export RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION:-"rmw_fastrtps_cpp"}
 export FASTRTPS_DEFAULT_PROFILES_FILE=${FASTRTPS_DEFAULT_PROFILES_FILE:-"/workspaces/bobcamera/src/ros2/config/fastdds.xml"}
+
+# Operational mode options: standard, headless
+export BOB_OPERATION_MODE=${BOB_OPERATION_MODE:-"'standard'"}
 
 # Launch the application
 ./launcher.sh application_launch.py

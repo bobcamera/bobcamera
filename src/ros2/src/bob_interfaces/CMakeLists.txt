@@ -29,16 +29,19 @@ find_package(geometry_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/RecordingState.msg"
+  "msg/DetectorState.msg"
+  "msg/TrackingState.msg"
+  "msg/MonitoringStatus.msg"
   #"msg/ConfigEntryUpdated.msg"
   #"msg/ConfigEntryUpdatedArray.msg"
   #"msg/ClassifiedObject.msg"
   #"msg/ClassifiedObjectsArray.msg"
   "msg/ObserverCloudEstimation.msg"
-  "msg/ObserverDayNight.msg"
-  "msg/TrackingState.msg"
+  "msg/ObserverDayNight.msg"  
   "msg/TrackPoint.msg"
   "msg/TrackTrajectory.msg"
-  #"msg/TrackTrajectoryArray.msg"
+  #"msg/TrackTrajectoryArray.msg"  
   "msg/TrackDetection.msg"
   #"msg/TrackDetectionArray.msg"
   "msg/Tracking.msg"

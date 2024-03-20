@@ -12,6 +12,7 @@
 #include <visibility_control.h>
 #include "bob_camera/msg/camera_info.hpp"
 #include "bob_interfaces/msg/tracking.hpp"
+#include "bob_interfaces/msg/recording_state.hpp"
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
 #include "image_recorder.hpp"
@@ -24,7 +25,7 @@ public:
     COMPOSITION_PUBLIC
     explicit RecordManager(const rclcpp::NodeOptions& options)
     : ParameterNode("recorder_manager", options)
-    , current_state_(RecordingState::BeforeStart)
+    , current_state_(RecordingStateEnum::BeforeStart)
     , prev_frame_width_(0)
     , prev_frame_height_(0)
     {
@@ -38,7 +39,7 @@ public:
     }
 
 private:
-    enum class RecordingState {
+    enum class RecordingStateEnum {
         BeforeStart,
         BetweenEvents,
         AfterEnd
@@ -50,12 +51,18 @@ private:
 
         declare_node_parameters();
 
+        rclcpp::QoS pub_qos_profile{10};
+        pub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
+        pub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
+        pub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
+
         rclcpp::QoS sub_qos_profile{10};
         sub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
         sub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
         sub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
         auto rmw_qos_profile = sub_qos_profile.get_rmw_qos_profile();
 
+        state_publisher_ = create_publisher<bob_interfaces::msg::RecordingState>("bob/recording/recording_state", pub_qos_profile);
         sub_frame_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(shared_from_this(), img_topic_, rmw_qos_profile);
         sub_fg_frame_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(shared_from_this(), fg_img_topic_, rmw_qos_profile);
         sub_tracking_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::Tracking>>(shared_from_this(), tracking_topic_, rmw_qos_profile);
@@ -226,7 +233,7 @@ private:
             cv::Mat img;
             ImageUtils::convert_image_msg(image_msg, img, true);
 
-            if (current_state_ == RecordingState::BeforeStart && prev_frame_width_ == 0 && prev_frame_height_ == 0)
+            if (current_state_ == RecordingStateEnum::BeforeStart && prev_frame_width_ == 0 && prev_frame_height_ == 0)
             {
                 // Initialize prev_frame_width_ and prev_frame_height_ with the dimensions of the first received image
                 prev_frame_width_ = img.cols;
@@ -237,7 +244,7 @@ private:
                 RCLCPP_INFO(get_logger(), "Frame dimensions changed. ");
                 prev_frame_height_ = img.rows;
                 prev_frame_width_ = img.cols;
-                current_state_ = RecordingState::AfterEnd;
+                current_state_ = RecordingStateEnum::AfterEnd;
                 current_end_frame_ = 0;
             }
 
@@ -247,11 +254,12 @@ private:
             Json::Value json_data;
             switch (current_state_) 
             {
-            case RecordingState::BeforeStart:
+            case RecordingStateEnum::BeforeStart:
                 if (tracking_msg->state.trackable > 0) 
                 {
+                    recording_ = true;
                     RCLCPP_INFO(get_logger(), "Starting track recording...");
-                    current_state_ = RecordingState::BetweenEvents;
+                    current_state_ = RecordingStateEnum::BetweenEvents;
                     base_filename_ = generate_filename(image_msg);
 
                     std::string current_date = get_current_date();
@@ -263,22 +271,18 @@ private:
 
                     std::string full_path = dated_directory_ + "/allsky/" + prefix_str_ + base_filename_ + ".mp4";
                     const std::string out_pipeline = pipeline_str_ + full_path;
-                    //video_recorder_->open_new_video(out_pipeline, codec_str_, video_fps_, img.size(), img.channels() == 3);
                     video_recorder_->open_new_video(full_path, codec_str_, video_fps_, img.size(), img.channels() == 3);                    
-
                     img_recorder_->update_frame_for_drawing(img);
-                    // img_recorder_->accumulate_pre_buffer_images(); // skipping for now - processor intensive
                 } 
                 else 
                 {
                     json_data = JsonRecorder::build_json_value(image_msg, tracking_msg, false, x_offset_, y_offset_);
                     json_recorder_->add_to_pre_buffer(json_data, false);
                     video_recorder_->add_to_pre_buffer(img);
-                    img_recorder_->add_to_pre_buffer(fg_img);
                 }
                 break;
 
-            case RecordingState::BetweenEvents:
+            case RecordingStateEnum::BetweenEvents:
                 json_data = JsonRecorder::build_json_value(image_msg, tracking_msg, true, x_offset_, y_offset_);
                 json_recorder_->add_to_buffer(json_data, false);
                 video_recorder_->write_frame(img);
@@ -296,14 +300,15 @@ private:
 
                 if (tracking_msg->state.trackable == 0) 
                 {
-                    current_state_ = RecordingState::AfterEnd;
+                    current_state_ = RecordingStateEnum::AfterEnd;
                     current_end_frame_ = total_pre_frames_;
                 }
                 break;
 
-            case RecordingState::AfterEnd:
+            case RecordingStateEnum::AfterEnd:
                 if (current_end_frame_ == 0) 
                 {
+                    recording_ = false;
                     RCLCPP_INFO(get_logger(), "Ending track recording...");
                     std::string full_path = dated_directory_ + "/heatmaps/" + base_filename_ + ".jpg";
                     img_recorder_->write_image(full_path);
@@ -316,7 +321,7 @@ private:
 
                     img_recorder_->reset();
                     video_recorder_->close_video();
-                    current_state_ = RecordingState::BeforeStart;
+                    current_state_ = RecordingStateEnum::BeforeStart;
                 }
                 else 
                 {
@@ -328,14 +333,17 @@ private:
                     --current_end_frame_;
                     if (tracking_msg->state.trackable > 0) 
                     {
-                        current_state_ = RecordingState::BetweenEvents;
+                        current_state_ = RecordingStateEnum::BetweenEvents;
                         video_recorder_->clear_pre_buffer();
                     }
                 }
                 video_recorder_->add_to_pre_buffer(img);
-                img_recorder_->add_to_pre_buffer(fg_img);
                 break;
             }
+
+            bob_interfaces::msg::RecordingState state;
+            state.recording = recording_;
+            state_publisher_->publish(state);
         }
         catch (std::exception &e)
         {
@@ -348,7 +356,7 @@ private:
     std::unique_ptr<JsonRecorder> json_recorder_;
     rclcpp::TimerBase::SharedPtr timer_;
     std::string trackingTopic_;
-    RecordingState current_state_;
+    RecordingStateEnum current_state_;
     rclcpp::TimerBase::SharedPtr one_shot_timer_;
     std::mutex buffer_mutex_;
     std::string recordings_directory_;
@@ -362,13 +370,14 @@ private:
     std::string codec_str_;
     std::string pipeline_str_;
     std::string prefix_str_;
+    rclcpp::Publisher<bob_interfaces::msg::RecordingState>::SharedPtr state_publisher_;    
     std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> sub_frame_;
     std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> sub_fg_frame_;
     std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::Tracking>> sub_tracking_;
     std::shared_ptr<message_filters::Subscriber<bob_camera::msg::CameraInfo>> sub_camera_info_;
     rclcpp::Subscription<sensor_msgs::msg::RegionOfInterest>::SharedPtr roi_subscription_;
     std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image,
-         bob_interfaces::msg::Tracking, bob_camera::msg::CameraInfo>> time_synchronizer_;
+    bob_interfaces::msg::Tracking, bob_camera::msg::CameraInfo>> time_synchronizer_;
 
     double video_fps_;
     size_t current_end_frame_;
@@ -378,13 +387,16 @@ private:
     int prev_frame_height_;
     int x_offset_;
     int y_offset_;
+    bool recording_;
 };
 
 
 int main(int argc, char **argv) 
 {
     rclcpp::init(argc, argv);
-    rclcpp::spin(std::make_shared<RecordManager>(rclcpp::NodeOptions()));
+    rclcpp::executors::StaticSingleThreadedExecutor executor;
+    executor.add_node(std::make_shared<RecordManager>(rclcpp::NodeOptions()));
+    executor.spin();
     rclcpp::shutdown();
     return 0;
 }

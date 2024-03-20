@@ -133,7 +133,7 @@ def generate_launch_description():
                 parameters = [config],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'high'" ]))
-            ),      
+            ), 
             #Low sensitivity in partial cloud:
             ComposableNode(
                 package='bob_image_processing',
@@ -160,7 +160,7 @@ def generate_launch_description():
                 parameters = [config],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'high_c'" ]))
-            ),        
+            ),            
             ComposableNode(
                 package='bob_tracking',
                 plugin='TrackProvider',
@@ -175,53 +175,6 @@ def generate_launch_description():
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('enable_recording_arg'), " == True"])),  
             ),
-            ComposableNode(
-                package='bob_image_processing',
-                plugin='AnnotatedFrameProvider',
-                name='annotated_frame_provider_node',
-                extra_arguments=[{'use_intra_process_comms': True}]
-            ),
-            # Nodes for resizing the image in order to stick it on the network for display
-            ComposableNode(
-                package='bob_image_processing',
-                plugin='FrameResizer',
-                name='detection_masked_frame_resizer_node',
-                remappings=[
-                    ('bob/resizer/source', 'bob/frames/allsky/masked/detection'),
-                    ('bob/resizer/target', 'bob/frames/allsky/masked/detection/resized')],
-                parameters = [config],
-                extra_arguments=[{'use_intra_process_comms': True}],
-            ),
-            ComposableNode(
-                package='bob_image_processing',
-                plugin='FrameResizer',
-                name='privacy_masked_frame_resizer_node',
-                remappings=[
-                    ('bob/resizer/source', 'bob/frames/allsky/masked/privacy'),
-                    ('bob/resizer/target', 'bob/frames/allsky/masked/privacy/resized')],
-                parameters = [config],
-                extra_arguments=[{'use_intra_process_comms': True}],
-            ),              
-            ComposableNode(
-                package='bob_image_processing',
-                plugin='FrameResizer',
-                name='foreground_mask_frame_resizer_node',
-                remappings=[
-                    ('bob/resizer/source', 'bob/frames/foreground_mask'),
-                    ('bob/resizer/target', 'bob/frames/foreground_mask/resized')],
-                parameters = [config],
-                extra_arguments=[{'use_intra_process_comms': True}],
-            ),
-            ComposableNode(
-                package='bob_image_processing',
-                plugin='FrameResizer',
-                name='annotated_frame_resizer_node',
-                remappings=[
-                    ('bob/resizer/source', 'bob/frames/annotated'),
-                    ('bob/resizer/target', 'bob/frames/annotated/resized')],
-                parameters = [config],
-                extra_arguments=[{'use_intra_process_comms': True}]
-            ),             
         ],
         output='screen',
     )    
