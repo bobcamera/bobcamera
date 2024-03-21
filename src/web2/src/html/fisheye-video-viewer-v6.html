@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Viewer</title>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+        html, body {
+            overflow: hidden; /* This prevents scrolling in both x and y directions */
+            height:
+        }
+        .image-source-form {
+            position: fixed; /* Fixed position relative to the viewport */
+            right: 20px; /* 20 pixels from the right edge of the viewport */
+            bottom: 20px; /* 20 pixels from the bottom edge of the viewport */
+            background-color: white; /* Background color of the form */
+            padding: 10px; /* Padding inside the form */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Optional: Adds shadow for better visibility */
+            z-index: 1000; /* Ensures the form stays on top of other content */
+        }
+        .image-source-form input,
+        .image-source-form button {
+            margin-top: 5px; /* Adds a little space above each input/button */
+            display: block; /* Makes each input/button take its own line */
+            width: 100%; /* Makes inputs/buttons extend full width of the form */
+        }
+        .image-source-form button {
+            cursor: pointer; /* Changes the mouse cursor to indicate clickable button */
+        }
+       /* Styles for the FAB container and buttons */
+        .fab-container {
+            position: fixed;
+            bottom: 70px;
+            right: 20px;
+            /* transform: translateX(-10%); */
+            display: flex;
+            gap: 10px; /* Space between buttons */
+        }
+
+        .fab {
+            border: none;
+            background-color: #007bff;
+            color: white;
+            /* Explicit width and height to maintain circle shape */
+            width: 36px; /* Total width including padding */
+            height: 36px; /* Total height including padding */
+            padding: 10px;
+            /* Ensures the button is a perfect circle */
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex; /* Centers the icon horizontally and vertically */
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
+
+        /* Styles specifically for Font Awesome icons inside the FAB */
+        .fab i.fa {
+            font-size: 16px; /* Adjust icon size as needed */
+        }
+
+        .fab:hover {
+            background-color: #0056b3;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/dat.gui@0.7.9/build/dat.gui.min.js"></script>
+    <script src="../lib/three.min.js"></script>
+    <script src="../lib/eventemitter2.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/roslibjs/1.1.0/roslib.min.js"></script>
+
+</head>
+<body>
+    <img id="image_sub" hidden/ >
+    <form id="imageSourceForm" class="image-source-form" hidden>
+        <input type="text" id="imageSourceInput" placeholder="Enter image/video URL" />
+        <button type="submit">Load Image Source</button>
+    </form>
+    <!-- FABs for video controls -->
+    <div class="fab-container">
+        <button id="playButton" class="fab"><i class="fas fa-play"></i></button>
+        <button id="pauseButton" class="fab"><i class="fas fa-pause"></i></button>
+        <button id="incrementForwardButton" class="fab"><i class="fas fa-forward"></i></button>
+        <button id="incrementBackwardButton" class="fab"><i class="fas fa-backward"></i></button>
+        <button id="resetVideoButton" class="fab"><i class="fas fa-undo"></i></button>
+        <!-- <button id="resetLocalStorage" class="fab"><i class="fas fa-reset"></i></button> -->
+    </div>
+
+<script type="text/javascript">
+
+    // Declare variables
+        // let imageSourcePath = '../videos/20240118/heatmap/1705569685.jpg';
+        // let imageSourcePath = '../videos/20240118/allsky/1705569685.mp4';
+        // let heatmapImageSrc = '../videos/20240118/heatmaps/1705569685.jpg';
+        let imageSourcePath
+        let heatmapTexture;
+        let lastPosition = new THREE.Vector3();
+        let isPanning = false;
+        let startPoint = { x: 0, y: 0 };
+        let plane;
+        let torus;
+        let sourceType;
+        let isDragging = false;
+        let lastMousePosition = { x: 0, y: 0 };
+        let videoElement;
+
+        const url = window.location.href;
+        const urlParams = new URLSearchParams(window.location.search);
+        const date = urlParams.get('date');
+        const video = urlParams.get('video');
+        if (video) {
+            imageSourcePath = '../videos/'+date+'/allsky/'+video+'.mp4';
+            heatmapImageSrc = '../videos/'+date+'/heatmaps/'+video+'.jpg';
+        }
+
+//////////////////// GUI CONFIGURATION ////////////////////
+
+    // Initialize guiConfig with default values or load from localStorage
+        let guiConfig = JSON.parse(localStorage.getItem('guiConfig')) || {
+    // Camera Settings
+        cameraFOV: null,
+        cameraPosition: null,
+    // Image Display Settings
+        imageSourcePath: imageSourcePath,
+        adjustCenter: false,
+        rotatingImage: false,
+        imagePosition: null,
+        imageRotation: null,
+    // Torus Settings
+        resizeTorus: false,
+        torusScale: null,
+        torusColor: "#111111",
+        torusOpacity: 0.9,
+    // Display Fields
+        datetimeUTC: '2024-03-19 12:00 UTC',
+        datetimeLocal: '2024-03-19 08:00 EST',
+        uid: '12345',
+        systemName: 'System A',
+        cameraName: 'Camera 1',
+        latLong: '40.7128° N, 74.0060° W',
+        datetimeTimezone: 'CST',
+    // Camera Type
+        fisheyeLens: false,
+        ptzCamera: false,
+    // Video Display
+        // videoWidth: 640,
+        // videoHeight: 480,
+        brightness: 50,
+        contrast: 50,
+        fps: 25,
+        rotate: 0,
+        centerPoint: 0,
+        scale: 1,
+        zoomPan: 0,
+    // Heatmap Overlay
+        // heatmapWidth: 640,
+        // heatmapHeight: 480,
+        heatmapOpacity: 0.5,
+    // Configuration
+        configName: '',
+        filePath: '',
+        fileName: '',
+        tagForClassification: '',
+        notes: '',
+    // Mask
+        showPrivacyMask: false,
+        showDetectionMask: false,
+    };
+
+    if (video) {
+        guiConfig.imageSourcePath = '../videos/'+date+'/allsky/'+video+'.mp4';
+        guiConfig.heatmapImageSrc = '../videos/'+date+'/heatmaps/'+video+'.jpg';
+        saveGuiConfig();
+    }
+    const lastImagePath = JSON.parse(localStorage.getItem('guiConfig')).imageSourcePath;
+    if (lastImagePath) {document.getElementById('imageSourceInput').value = lastImagePath;}
+
+    let heatmapMaterial;
+    let heatmapGeometry;
+    let heatmapPlane;
+    let heatmapLoader = new THREE.TextureLoader();
+    heatmapLoader.load(guiConfig.heatmapImageSrc, function(texture) {
+        heatmapTexture = texture;
+        heatmapGeometry = new THREE.PlaneGeometry(4, 4);
+        heatmapMaterial = new THREE.MeshBasicMaterial({
+            map: heatmapTexture,
+            transparent: true,
+            opacity: guiConfig.heatmapOpacity
+        });
+        heatmapPlane = new THREE.Mesh(heatmapGeometry, heatmapMaterial);
+        heatmapPlane.position = centerPoint;
+        heatmapPlane.position.z += 0.01;
+        group.add(heatmapPlane);
+    });
+
+//////////////////// GUI CONTROLS ////////////////////
+    // Create dat.GUI controls
+    const gui = new dat.GUI({ autoPlace: true, width: 300 });
+    gui.add(guiConfig, 'heatmapOpacity', 0, 1).name('Heatmap Opacity').onChange((value) => {heatmapMaterial.opacity = value;saveGuiConfig();});
+    // imageFolder
+    const imageFolder = gui.addFolder('Edit Settings');
+    imageFolder.add(guiConfig, 'adjustCenter').name('Adjust Center').onChange((value) => {saveGuiConfig();});
+    imageFolder.add(guiConfig, 'rotatingImage').name('Rotate Image').onChange((value) => {saveGuiConfig();});
+    imageFolder.add(guiConfig, 'resizeTorus').name('Resize Circle').onChange((value) => {saveGuiConfig();});
+    // imageFolder.add(guiConfig, 'videoWidth');
+    // imageFolder.add(guiConfig, 'videoHeight');
+    // Heatmap Overlay Display
+    // const heatmapFolder = gui.addFolder('Heatmap Overlay');
+    // heatmapFolder.add(guiConfig, 'heatmapWidth');
+    // heatmapFolder.add(guiConfig, 'heatmapHeight');
+    // heatmapFolder.add(guiConfig, 'heatmapOpacity');
+    // heatmapFolder.add(guiConfig, 'heatmapOpacity', 0, 1).name('Opacity').onChange(function(value) {
+    //     if (heatmapMaterial) {
+    //         heatmapMaterial.opacity = value;
+    //     }
+    //     guiConfig.heatmapOpacity = value;
+    // });
+
+    // systemInfoFolder
+    // const systemInfoFolder = gui.addFolder('System Info');
+    // systemInfoFolder.add(guiConfig, 'systemName').listen();
+    // systemInfoFolder.add(guiConfig, 'latLong').listen();
+    // systemInfoFolder.add(guiConfig, 'datetimeLocal').listen();
+    // systemInfoFolder.add(guiConfig, 'datetimeTimezone').listen();
+    // systemInfoFolder.add(guiConfig, 'datetimeUTC').listen();
+    // systemInfoFolder.add(guiConfig, 'uid').listen();
+    // cameraInfoFolder
+    // const cameraInfoFolder = gui.addFolder('Camera Info');
+    // cameraInfoFolder.add(guiConfig, 'cameraName').listen();
+    // cameraInfoFolder.add(guiConfig, 'fisheyeLens');
+    // cameraInfoFolder.add(guiConfig, 'ptzCamera');
+    // maskFolder
+    // const maskFolder = gui.addFolder('Mask');
+    // maskFolder.add(guiConfig, 'showPrivacyMask');
+    // maskFolder.add(guiConfig, 'showDetectionMask');
+    imageFolder.addColor(guiConfig, 'torusColor').name('Circle Color').onChange((value) => {torus.material.color.set(value);saveGuiConfig();});
+    imageFolder.add(guiConfig, 'torusOpacity', 0, 1).name(' Circle Opacity').onChange((value) => {torus.material.opacity = value;saveGuiConfig();});
+    // viewerConfigFolder
+    // const viewerConfigFolder = gui.addFolder('Configuration');
+    // viewerConfigFolder.add(guiConfig, 'configName');
+    // viewerConfigFolder.add(guiConfig, 'filePath');
+    // viewerConfigFolder.add(guiConfig, 'fileName');
+    // viewerConfigFolder.add(guiConfig, 'tagForClassification');
+    // viewerConfigFolder.add(guiConfig, 'notes');
+    // imageFolder.open();
+
+//////////////////// THREE.JS SETUP ////////////////////
+    // Set up the scene, camera, and renderer
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 5;
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+        let group = new THREE.Group();
+        let centerPoint = new THREE.Vector3();
+        // Disable the interaction with three.js when using dat.GUI
+        gui.domElement.addEventListener('mousedown', function (e) { e.stopPropagation(); });
+
+    // Load last image source by default if available
+        window.addEventListener('DOMContentLoaded', (event) => {
+            // const url = window.location.href;
+            // const urlParams = new URLSearchParams(window.location.search);
+            // const video = urlParams.get('video');
+            // if (video) {
+            //     guiConfig.imageSourcePath = '../videos/20240118/allsky/'+video+'.mp4';
+            //     guiConfig.heatmapImageSrc = '../videos/20240118/heatmaps/'+video+'.jpg';
+            //     saveGuiConfig();
+            // }
+            // const lastImagePath = JSON.parse(localStorage.getItem('guiConfig')).imageSourcePath;
+            // if (lastImagePath) {document.getElementById('imageSourceInput').value = lastImagePath;}
+            init(guiConfig.imageSourcePath);
+            animate();
+        });
+
+    // Input Form Event Listener
+        document.getElementById('imageSourceInput').addEventListener('click', function() {
+            this.focus();
+        });
+
+    // Initialize Viewer
+        function init(imageSourcePath) {
+            // Set Camera FOV if available in local storage
+            if (guiConfig.cameraFOV) {
+                camera.fov = guiConfig.cameraFOV;
+                camera.updateProjectionMatrix();
+            }
+            // Set camera position if available in local storage
+            if (guiConfig.cameraPosition) {
+                camera.position.copy(guiConfig.cameraPosition);
+            }
+            // if the local storage has the image rotation, set it
+            if (guiConfig.imageRotation) {
+                group.rotation.copy(guiConfig.imageRotation);
+            }
+            if (imageSourcePath.endsWith('.mov')
+                || imageSourcePath.endsWith('.mp4')
+                || imageSourcePath.endsWith('.mkv'
+                || imageSourcePath.endsWith('.webm'))) {
+                sourceType = 'video';
+            } else if (imageSourcePath.endsWith('.png') || imageSourcePath.endsWith('.jpg')) {
+                sourceType = 'image';
+            } else {
+                sourceType = 'ros2 topic';
+            }
+            switch (sourceType) {
+                case 'video':
+                    console.log('Image source path: video');
+                    videoElement = document.createElement('video');
+                    videoElement.src = imageSourcePath;
+                    videoElement.loop = true;
+                    videoElement.muted = true;
+                    videoElement.play();
+                    const texture = new THREE.VideoTexture(videoElement);
+                    texture.minFilter = THREE.LinearFilter;
+                    texture.magFilter = THREE.LinearFilter;
+                    texture.format = THREE.RGBFormat;
+                    const geometry = new THREE.PlaneGeometry(4, 4);
+                    const material = new THREE.MeshBasicMaterial({ map: texture });
+                    plane = new THREE.Mesh(geometry, material);
+                    if (guiConfig.imagePosition) {
+                        plane.position.copy(guiConfig.imagePosition);
+                        heatmapPlane.position.copy(guiConfig.imagePosition);
+                    }
+                    centerPoint = plane.position.clone();
+                    group.add(plane);
+                    break;
+                case 'image':
+                    console.log('Image source path: image');
+                    const loader = new THREE.TextureLoader();
+                    loader.load(imageSourcePath, texture => {
+                        const geometry = new THREE.PlaneGeometry(4, 4);
+                        const material = new THREE.MeshBasicMaterial({ map: texture });
+                        plane = new THREE.Mesh(geometry, material);
+                        if (guiConfig.imagePosition) { plane.position.copy(guiConfig.imagePosition); }
+                        centerPoint = plane.position.clone();
+                        group.add(plane);
+                    });
+                    console.log(plane);
+                    break;
+                case 'ros2 topic':
+                    console.log('Image source path: ros2 topic');
+                    var ros = new ROSLIB.Ros({ url: 'ws://localhost:9090' });
+                    ros.on('connection', function () { console.log('Connected to websocket server.'); });
+                    ros.on('error', function (error) { console.log('Error connecting to websocket server: ', error); });
+                    ros.on('close', function () { console.log('Connection to websocket server closed.'); });
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const sourceTopic = urlParams.get('source');
+                    var listener = new ROSLIB.Topic({
+                        ros: ros,
+                        name: imageSourcePath,
+                        messageType: 'sensor_msgs/msg/CompressedImage',
+                    });
+                    listener.subscribe(function (message) {
+                        console.log('Topic: ' + listener.name);
+                        var image = new Image();
+                        image.onload = function () {
+                            var texture = new THREE.Texture(image);
+                            texture.needsUpdate = true;
+                            domeMaterial.map = texture;
+                        };
+                        image.src = "data:image/jpeg;base64," + message.data;
+                    });
+                    return;
+                    break;
+                default:
+                    console.log('Invalid sourceType');
+            }
+            const torusGeometry = new THREE.TorusGeometry(
+                2.67, // radius
+                0.6, // tube
+                128, // radialSegments
+                100 // tubularSegments
+            );
+            const torusMaterial = new THREE.MeshBasicMaterial({
+                color: new THREE.Color(guiConfig.torusColor),
+                transparent: true, opacity: guiConfig.torusOpacity
+            });
+            torus = new THREE.Mesh(torusGeometry, torusMaterial);
+            torus.position.z = 0.1;
+            if (guiConfig.torusScale) {torus.scale.copy(guiConfig.torusScale);}
+            group.add(torus);
+            scene.add(group);
+            window.addEventListener('mousedown', onMouseDown);
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mouseup', onMouseUp);
+            window.addEventListener('wheel', onWheel);
+            window.addEventListener('resize', onWindowResize);
+        }
+
+    // Function to save guiConfig to localStorage
+        function saveGuiConfig() {
+            localStorage.setItem('guiConfig', JSON.stringify(guiConfig));
+        }
+
+    // Function to handle mouse events
+        function onMouseMove(event) {
+            if (!isDragging) return;
+            const currentPosition = getMousePositionInWorld(event);
+            if (guiConfig.adjustCenter) {
+                // get mouse movement in the x and y direction
+                const deltaX = currentPosition.x - lastPosition.x;
+                const deltaY = currentPosition.y - lastPosition.y;
+                // translate the plane in the global x and y direction
+                plane.position.x += deltaX;
+                plane.position.y += deltaY;
+                heatmapPlane.position.x += deltaX;
+                heatmapPlane.position.y += deltaY;
+                // plane.position.x += deltaX;
+                // plane.position.y += deltaY;
+                // save the new position in the config object and save to localStorage
+                guiConfig.imagePosition = plane.position;
+            } else if (guiConfig.resizeTorus) {
+                const deltaX = currentPosition.x - lastPosition.x;
+                const deltaY = currentPosition.y - lastPosition.y;
+                const distance = currentPosition.distanceTo(centerPoint);
+                const deltaScale = (deltaX + deltaY) * 0.02;
+                torus.scale.set(Math.max(0.1, torus.scale.x + deltaScale),
+                Math.max(0.1, torus.scale.y + deltaScale), Math.max(0.1, torus.scale.z + deltaScale));
+                // store in the config object and save to localStorage
+                guiConfig.torusScale = torus.scale;
+            } else {
+                if (guiConfig.rotatingImage) {
+                    const deltaX = currentPosition.x - lastPosition.x;
+                    const isAbove = currentPosition.y > centerPoint.y;
+                    const rotationDirection = isAbove ? -1 : 1;
+                    // add the heat map plane to the group
+                    group.add(heatmapPlane);
+                    group.rotation.z += deltaX * 0.5 * rotationDirection;
+                    // heatmapPlane.rotation.z += deltaX * 0.5 * rotationDirection;
+                    // store in the config object and save to localStorage
+                    guiConfig.imageRotation = group.rotation;
+                } else {
+                    const deltaX = (event.clientX - startPoint.x) * 0.002;
+                    const deltaY = (event.clientY - startPoint.y) * 0.002;
+                    camera.position.x -= deltaX;
+                    camera.position.y += deltaY;
+                    startPoint.x = event.clientX;
+                    startPoint.y = event.clientY;
+                    // store Zoom/Pan in the config object and save to localStorage
+                    guiConfig.cameraFOV = camera.fov;
+                    guiConfig.cameraPosition = camera.position;
+                }
+            }
+            lastPosition.copy(currentPosition);
+            saveGuiConfig();
+        }
+
+    // Function to get mouse position in world coordinates
+        function getMousePositionInWorld(event) {
+            const rect = renderer.domElement.getBoundingClientRect();
+            const mouseX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            const mouseY = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            const vector = new THREE.Vector3(mouseX, mouseY, 0.5);
+            vector.unproject(camera);
+            const dir = vector.sub(camera.position).normalize();
+            const distance = -camera.position.z / dir.z;
+            const pos = camera.position.clone().add(dir.multiplyScalar(distance));
+            return pos;
+        }
+
+    // Function to handle mouse down event
+        function onMouseDown(event) {
+            event.preventDefault();
+            if (event.button !== 0) return;
+            isDragging = true;
+            const mousePosition = getMousePositionInWorld(event);
+            lastPosition.copy(mousePosition);
+            isPanning = true;
+            startPoint.x = event.clientX;
+            startPoint.y = event.clientY;
+            saveGuiConfig();
+        }
+
+    // Function to handle mouse up event
+        function onMouseUp(event) {
+            isDragging = false;
+        }
+
+    // Function to handle mouse wheel event
+        function onWheel(event) {
+            const fovAdjustment = event.deltaY * 0.05;
+            const newFov = camera.fov + fovAdjustment;
+            const minFov = .01;
+            const maxFov = 90;
+            camera.fov = THREE.MathUtils.clamp(newFov, minFov, maxFov);
+            camera.updateProjectionMatrix();
+            saveGuiConfig();
+        }
+
+    // Function to handle window resize event
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+    // Function to animate the scene
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+
+    // Function to reset guiConfig in local storage
+        function resetGuiConfig() {
+            localStorage.removeItem('guiConfig');
+            window.location.reload();
+        }
+
+    // Function to pause the video
+        function pause() {
+            if (videoElement) { // Check if videoElement exists
+                videoElement.pause();
+            } else {
+                console.log("No video element found to pause.");
+            }
+        }
+
+    // Function to play the video
+        function play() {
+            if (videoElement) { // Check if videoElement exists
+                videoElement.play();
+            } else {
+                console.log("No video element found to play.");
+            }
+        }
+
+    // restart video function
+        function restart() {
+            videoElement.currentTime = 0;
+            videoElement.play();
+        }
+
+    // incrementForward video function
+        function incrementForward() {
+            let videoDuration = videoElement.duration;
+            console.log('videoDuration: ', videoDuration)
+            //get fps from the dat.gui controls
+            let frameRate = guiConfig.fps;
+            console.log('frameRate: ', frameRate);
+            // calculate the time to increment 1 frame forward
+            let frames = videoDuration*frameRate;
+            console.log('frames: ', frames);
+            let timePerFrame = 6/frames;
+            console.log('variable: ', timePerFrame);
+            // increment the video by 1 frame forward
+            videoElement.currentTime += timePerFrame;
+            console.log('videoElement.currentTime: ', videoElement.currentTime);
+        }
+
+    // incrementBackward video function
+        function incrementBackward() {
+            let videoDuration = videoElement.duration;
+            console.log('videoDuration: ', videoDuration)
+            //get fps from the dat.gui controls
+            let frameRate = guiConfig.fps;
+            console.log('frameRate: ', frameRate);
+            // calculate the time to increment 1 frame forward
+            let frames = videoDuration*frameRate;
+            console.log('frames: ', frames);
+            let timePerFrame = 6/frames;
+            console.log('variable: ', timePerFrame);
+            // increment the video by 1 frame forward
+            videoElement.currentTime -= timePerFrame;
+            console.log('videoElement.currentTime: ', videoElement.currentTime);
+        }
+
+    // Add event listeners to the FABs
+        document.getElementById('playButton').addEventListener('click', play);
+        document.getElementById('pauseButton').addEventListener('click', pause);
+        document.getElementById('incrementForwardButton').addEventListener('click', incrementForward);
+        document.getElementById('incrementBackwardButton').addEventListener('click', incrementBackward);
+        document.getElementById('resetVideoButton').addEventListener('click', restart); // Assuming 'restart' resets the video
+        // document.getElementById('resetLocalStorage').addEventListener('click', resetGuiConfig);
+</script>
+</body>
+</html>
