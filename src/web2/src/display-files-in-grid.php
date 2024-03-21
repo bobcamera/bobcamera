@@ -14,7 +14,8 @@
         foreach ($videos as $video) {
             $videoName = substr($video, 0, -4);
             echo "<div id='videoListContainer2' style='height: 100%;' class='horizontal-scroll'>";
-            echo "<a href='video.php?date=" . $date . "&time=" . $videoName . "'>";
+            // echo "<a href='video.php?date=" . $date . "&time=" . $videoName . "'>";
+            echo "<a href='html/fisheye-video-viewer-v6.html?date=" . $date . "&video=" . $videoName . "'>";
             echo '<img src="videos/' . $date . '/heatmaps/' .  $videoName . '.jpg" height="120">';
             echo "</a>";
             echo "</div>";
