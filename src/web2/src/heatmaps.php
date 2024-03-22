@@ -572,6 +572,15 @@
             player.load();
             player.play();
             getcurrentVideoJsonData();
+            updateDownloadLink(newSource);
+        }
+
+        function updateDownloadLink(newSource) {
+            // Find the download button in the Plyr controls
+            let downloadButton = document.querySelector('.plyr__controls [data-plyr="download"]');
+            if (downloadButton) {
+                downloadButton.setAttribute('href', newSource);
+            }
         }
 
         function highlightPointByTimestamp(timestamp) {
