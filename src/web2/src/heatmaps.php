@@ -46,6 +46,7 @@
     <link rel="stylesheet" href="https://golden-layout.com/files/latest/css/goldenlayout-base.css" />
     <!-- <link rel="stylesheet" href="https://golden-layout.com/files/latest/css/goldenlayout-light-theme.css" /> -->
     <link type="text/css" rel="stylesheet" href="https://golden-layout.com/assets/css/goldenlayout-dark-theme.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/echarts@latest/dist/echarts.min.js"></script>
     <script src="https://cdn.plyr.io/3.6.2/plyr.polyfilled.js"></script>
@@ -164,6 +165,40 @@
             width: 100%; /* Adjust width as needed */
             height: 600px; /* Adjust height as needed */
         }
+        #fisheyeViewer{
+            position: absolute;
+            top: 100px;
+            left: 18px;
+            z-index: 10;
+        }
+        #goBackOneFrame{
+            position: absolute;
+            top: 150px;
+            left: 18px;
+            z-index: 10;
+        }
+        #advanceOneFrame{
+            position: absolute;
+            top: 150px;
+            left: 48px;
+            z-index: 10;
+        }
+        .custom-control {
+            background: none; /* Removes the background */
+            border: none; /* Removes the border */
+            padding: 0; /* Removes padding */
+            margin: 0; /* Adjust as needed */
+            cursor: pointer; /* Changes the cursor to a pointer to indicate it's clickable */
+            outline: none; /* Removes the outline on focus */
+        }
+        .custom-control i {
+            color: white; /* Or set a specific color */
+            font-size: inherit; /* Adjust the size as needed */
+        }
+        .divider-style {
+            border-left: 2px solid darkgrey; /* Adjust the width and color as needed */
+            padding-left: 10px; /* Adds some space between the border and the content */
+        }
     </style>
 </head>
 <body>
@@ -171,7 +206,9 @@
 <div class="spinner-overlay">
     <div class="spinner"></div>
 </div>
+
 <div id="layoutContainer"></div>
+
 <script>
     var myChart;
     let currentVideo = '<?php echo $videoPath; ?>';
@@ -195,7 +232,7 @@
                         type: 'row',
                         content: [{
                                 type: 'stack',
-                                width: 66,
+                                width: 80,
                                 content: [{
                                         type: 'component',
                                         componentName: 'Video Player',
@@ -256,49 +293,86 @@
         // Register CONTROLLS
         myLayout.registerComponent('Controls', function(container, componentState) {
             container.getElement().html(`
-            <div id="videoInfoContent">Video info will be displayed here</div>
-            <input type="range" id="brightnessSlider" min="0" max="200" value="100" style="position: absolute; z-index: 10; width: 150px;">
+                <div id="videoInfoContent">Video info will be displayed here</div>
             `);
         });
 
         myLayout.registerComponent('Video Player', function(container, componentState) {
             container.getElement().html(`
             <div id="player-container">
-            <video id="player" playsinline controls>
-                <source src="<?php echo 'videos/' . $date . '/allsky/' . $time . '.mp4'; ?>" />
-            </video>
-            <input type="range" id="brightnessSlider" min="0" max="200" value="100" style="position: absolute; z-index: 10; width: 150px; top: 55px; left: 10px;">
-            <input type="range" id="opacitySlider" min="0" max="100" value="30" style="position: absolute; z-index: 10; width: 150px; top: 20px; left: 10px;">
-            <div id="plyr-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none;">
-                <img id="bigHeatmapImage" src="" style="height: 100%; opacity: 0.3;">
-            </div></div>`);
+
+                <video id="player" playsinline controls>
+
+                    <source src="<?php echo 'videos/' . $date . '/allsky/' . $time . '.mp4'; ?>" />
+
+                </video>
+
+                <input type="range" id="brightnessSlider" title="Video Brightness" min="0" max="200" value="100" style="position: absolute; z-index: 10; width: 150px; top: 55px; left: 10px;">
+
+                <input type="range" id="opacitySlider" title="Heatmap Overlay Opacity" min="0" max="100" value="30" style="position: absolute; z-index: 10; width: 150px; top: 20px; left: 10px;">
+
+                <div id="plyr-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none;">
+
+                    <img id="bigHeatmapImage" src="" style="height: 100%; opacity: 0.3;">
+
+                </div>
+            </div>
+
+            <button id="fisheyeViewer" class="custom-control" title="Open in the Fisheye Viewer"><i class="fa-solid fa-expand" style="font-size: 21px;"></i></button>
+
+            <button id="goBackOneFrame" class="custom-control" title="Go Back One Frame"><i class="fa-solid fa-backward-step" style="font-size: 21px;"></i></button>
+
+            <button id="advanceOneFrame" class="custom-control" title="Advance One Frame"><i class="fa-solid fa-forward-step" style="font-size: 21px;"></i></button>
+
+            `);
 
             container.on('open', function() {
+
                 const video = document.getElementById('player');
+
                 const brightnessSlider = document.getElementById('brightnessSlider');
+
                 const opacitySlider = document.getElementById('opacitySlider');
+
                 const heatmapImage = document.getElementById('bigHeatmapImage');
 
+                // Brightness slider for the video
                 brightnessSlider.addEventListener('input', function() {
                     video.style.filter = `brightness(${this.value}%)`;
                 });
 
+                // Opacity slider for the heatmap overlay
                 opacitySlider.addEventListener('input', function() {
                     heatmapImage.style.opacity = `${this.value / 100}`;
                 });
+
+                // Custom controls - One frame back
+                document.getElementById('goBackOneFrame').addEventListener('click', () => {
+                    goBackOneFrame();
+                });
+
+                // Custom controls - One frame forward
+                document.getElementById('advanceOneFrame').addEventListener('click', () => {
+                    advanceOneFrame();
+                });
+
+                // Custom controls - One frame forward
+                document.getElementById('fisheyeViewer').addEventListener('click', () => {
+                    window.open('html/fisheye-video-viewer-v6.html?date=<?php echo $date; ?>&video=<?php echo $time; ?>', '_blank');
+                });
+
             });
         });
-
 
         // Register the Video List component
         myLayout.registerComponent('Recordings', function(container, componentState) {
             <?php if (is_dir($videoDirectory)): ?>
-            let htmlContent = "<div style='display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;'>";
+            let htmlContent = "<div class='divider-style' style='display: grid; grid-template-columns: 1fr; gap: 10px;'>";
             <?php foreach ($videos as $video): ?>
                 <?php $videoName = substr($video, 0, -4); ?>
-                htmlContent += "<div id='videoListContainer2' style='height: 100%;' class='horizontal-scroll'>";
+                htmlContent += "<div id='videoListContainer2' style='width: 100%;' class='horizontal-scroll'>";
                 htmlContent += "<a href='#' onclick='changeVideo(\"<?= 'videos/'. $date . '/allsky/' . $video ?>\")' title='<?= $videoName ?>'>";
-                htmlContent += '<img class="heatmap-thumbnail" src="videos/<?= $date ?>/heatmaps/<?= $videoName ?>.jpg" height="100" title="Video: <?= $videoName ?>">'; // Title added here
+                htmlContent += '<img class="heatmap-thumbnail" src="videos/<?= $date ?>/heatmaps/<?= $videoName ?>.jpg" style="width: 100%; height: auto;" title="Video: <?= $videoName ?>">'; // Adjusted image style here
                 htmlContent += "</a></div>";
             <?php endforeach; ?>
             htmlContent += "</div>";
@@ -358,9 +432,6 @@
                         <input type="number" id="frameRateInput" placeholder="Frame Rate" value="25">
                         <button onclick="setFrameRate(document.getElementById('frameRateInput').value)">Enter Frame Rate of Video</button>
                     </div></p>
-                    <p>(To calculate the recording's frame count)</p>
-                    <p><button onclick="goBackOneFrame()">Back 1 Frame</button>
-                    <button onclick="advanceOneFrame()">Forward 1 Frame</button></p>
                     </div>
                 `;
                 videoInfoComponent.container.getElement().html(content);
@@ -369,47 +440,34 @@
     });
 
         document.addEventListener('DOMContentLoaded', function() {
-
             <?php
-
                 $directory = $jsonDirectory;
                 $videos = [];
-                $logFilePath = 'logfile.txt'; // Specify the path to your log file
-
+                $logFilePath = 'logfile.txt';
                 function extractTimestampFromFilename($filename) {
                     return intval(pathinfo($filename, PATHINFO_FILENAME));
                 }
-
                 $earliestTimestamp = PHP_INT_MAX;
                 $latestTimestamp = 0;
-
                 if ($handle = opendir($directory)) {
-                    
                     while (false !== ($file = readdir($handle))) {
-                        
                         if (pathinfo($file, PATHINFO_EXTENSION) == 'json') {
-
                             $jsonFilePath = $directory . '/' . $file;
                             $jsonData = json_decode(file_get_contents($jsonFilePath), true);
                             if ($jsonData && count($jsonData) >= 3) {
-
                                 $timestamp = extractTimestampFromFilename($file);
                                 $startTimestamp = $jsonData[1]['time_ns'];
                                 $endTimestamp = $jsonData[count($jsonData) - 1]['time_ns'];
                                 $duration = ($endTimestamp - $startTimestamp) / 1e9;  // ns to s
-
                                 $videoName = str_replace('.json', '.mp4', $file);
-                            
                                 // Construct video data array
                                 $videos[] = [
                                     'name' => $videoName,
                                     'startTimestamp' => $timestamp,
                                     'duration' => $duration
                                 ];
-                       
                                 $earliestTimestamp = min($earliestTimestamp, $timestamp);
                                 $latestTimestamp = max($latestTimestamp, $timestamp + $duration);
-
                             } else {
                                 // Log error if JSON data doesn't match expected structure
                             }
@@ -417,15 +475,11 @@
                     }
                     closedir($handle);
                 } else {
-
                 }
-                
                 $adjustedStart = $earliestTimestamp - 60; // One minute before the first clip
-                $adjustedEnd = $latestTimestamp + 60; // One minute after the last clip      
-
+                $adjustedEnd = $latestTimestamp + 60; // One minute after the last clip
                 $adjustedStartMillis = round($adjustedStart * 1000);
                 $adjustedEndMillis = round($adjustedEnd * 1000);
-
                 echo 'var videoData = ' . json_encode($videos) . ';';
                 echo 'var adjustedStart = ' . $adjustedStartMillis . ';';
                 echo 'var adjustedEnd = ' . $adjustedEndMillis . ';';
@@ -471,7 +525,6 @@
                             ],
                             itemStyle: {
                                 color: 'rgba(0, 120, 178, 0.8)'
-
                             }
                         };
                     }),
@@ -508,20 +561,21 @@
         }
 
         // function to use ajax to get the json file needed for currentVideoStartTimestamp
-        function getcurrentVideoJsonData() {
+        function getCurrentVideoJsonData() {
             $.ajax({
                 url: 'videos/'
                 + date + '/json/' + currentVideoStartTimestamp + '.json',
                 dataType: 'json',
                 success: function(data) {
-                    //console.log(data);
                     jsonData = data;
                 }
             });
         }
 
         function advanceOneFrame() { player.currentTime += frameDuration; }
+
         function goBackOneFrame() { player.currentTime -= frameDuration; }
+
         function goToTime(timeInSeconds) { player.currentTime = timeInSeconds; }
 
         function unhighlightAllPoints() {
@@ -571,8 +625,9 @@
             videoElement.setAttribute('src', newSource);
             player.load();
             player.play();
-            getcurrentVideoJsonData();
+            getCurrentVideoJsonData();
             updateDownloadLink(newSource);
+            updateFisheyeViewerLink(heatmapName);
         }
 
         function updateDownloadLink(newSource) {
@@ -581,6 +636,22 @@
             if (downloadButton) {
                 downloadButton.setAttribute('href', newSource);
             }
+        }
+
+        function updateFisheyeViewerLink(heatmapName) {
+            let fisheyeViewerButton = document.getElementById('fisheyeViewer');
+            if (fisheyeViewerButton) {
+                // fisheyeViewerButton.setAttribute('href', 'html/fisheye-video-viewer-v6.html?date=<?php echo $date; ?>&video='+heatmapName);
+                // update addEventListener so that it opens the correct video
+                fisheyeViewerButton.addEventListener('click', function() {
+                    window.open('html/fisheye-video-viewer-v6.html?date=<?php echo $date; ?>&video='+heatmapName, '_blank');
+                });
+            }
+
+
+
+
+
         }
 
         function highlightPointByTimestamp(timestamp) {
