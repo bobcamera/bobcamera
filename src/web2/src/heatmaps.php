@@ -641,17 +641,15 @@
         function updateFisheyeViewerLink(heatmapName) {
             let fisheyeViewerButton = document.getElementById('fisheyeViewer');
             if (fisheyeViewerButton) {
-                // fisheyeViewerButton.setAttribute('href', 'html/fisheye-video-viewer-v6.html?date=<?php echo $date; ?>&video='+heatmapName);
+                // remove all event listeners
+                var new_element = fisheyeViewerButton.cloneNode(true);
+                fisheyeViewerButton.parentNode.replaceChild(new_element, fisheyeViewerButton);
+                fisheyeViewerButton = new_element;
                 // update addEventListener so that it opens the correct video
                 fisheyeViewerButton.addEventListener('click', function() {
                     window.open('html/fisheye-video-viewer-v6.html?date=<?php echo $date; ?>&video='+heatmapName, '_blank');
                 });
             }
-
-
-
-
-
         }
 
         function highlightPointByTimestamp(timestamp) {
