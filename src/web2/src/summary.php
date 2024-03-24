@@ -73,9 +73,11 @@ if ($handle = opendir($jsonDirectory)) {
                     foreach ($jsonData as $item) {
                         if (isset($item['detections'])) {
                             foreach ($item['detections'] as $detection) {
-                                if ($detection['state'] == 2 && isset($detection['bbox']['x']) && isset($detection['bbox']['y']) &&
+                                if (
+                                    $detection['state'] == 2 && isset($detection['bbox']['x']) && isset($detection['bbox']['y']) &&
                                     $detection['bbox']['x'] >= 0 && $detection['bbox']['x'] <= $cameraInfo['frame_width'] &&
-                                    $detection['bbox']['y'] >= 0 && $detection['bbox']['y'] <= $cameraInfo['frame_height']) {
+                                    $detection['bbox']['y'] >= 0 && $detection['bbox']['y'] <= $cameraInfo['frame_height']
+                                ) {
                                     $detectionPoints[] = ['x' => $detection['bbox']['x'], 'y' => $detection['bbox']['y']];
                                 }
                             }
@@ -137,7 +139,8 @@ $meanDuration = $totalEvents > 0 ? $totalDuration / $totalEvents : 0;
         .heatmap-image:hover {
             transform: scale(2.0);
             transition: transform 0.2s ease-in-out;
-            z-index: 1; /* Ensure the image is above other content */
+            z-index: 1;
+            /* Ensure the image is above other content */
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
@@ -218,7 +221,7 @@ $meanDuration = $totalEvents > 0 ? $totalDuration / $totalEvents : 0;
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($events as $event): ?>
+                    <?php foreach ($events as $event) : ?>
                         <?php
                         // Get the path to the heatmap image
                         $heatMapDirectory = 'videos/' . $date . '/heatmaps';
@@ -265,7 +268,7 @@ $meanDuration = $totalEvents > 0 ? $totalDuration / $totalEvents : 0;
             }
 
             // Load heatmap images dynamically when table redraws
-            $('#event-table').on('draw.dt', function () {
+            $('#event-table').on('draw.dt', function() {
                 loadHeatmapImages();
             });
 
@@ -297,60 +300,60 @@ $meanDuration = $totalEvents > 0 ? $totalDuration / $totalEvents : 0;
             const scatterCtx = document.getElementById('scatterChart').getContext('2d');
 
             const scatterChart = new Chart(scatterCtx, {
-    type: 'scatter',
-    data: {
-        datasets: [{
-            label: 'Active Track Detection Points',
-            data: <?php echo $detectionPoints; ?>,
-            borderColor: 'rgba(255, 99, 132, 1)', // Border color of points
-            borderWidth: 0.5,
-            pointRadius: 4, // Radius of points
-            pointBackgroundColor: 'transparent', // Set point fill color to transparent
-            indexAxis: 'x', // Set index axis to 'x'
-        }]
-    },
-    options: {
-        parsing: false, // Disable data parsing
-        plugins: {
-            decimation: {
-                enabled: true,
-                algorithm: 'lttb',
-                samples: 8,
-                threshold: 40
-            },
-            tooltip: {
-                enabled: false // Disable tooltip overview
-            }
-        },
-        elements: {
-            point: {
-                drawActiveElementsOnTop: false // Disable drawing active elements on top
-            }
-        },
-        scales: {
-            x: {
-                type: 'linear',
-                position: 'bottom',
-                min: 0,
-                max: <?php echo $frameWidth; ?>,
-                title: {
-                    display: true,
-                    text: 'Frame Width'
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Active Track Detection Points',
+                        data: <?php echo $detectionPoints; ?>,
+                        borderColor: 'rgba(255, 99, 132, 1)', // Border color of points
+                        borderWidth: 0.5,
+                        pointRadius: 4, // Radius of points
+                        pointBackgroundColor: 'transparent', // Set point fill color to transparent
+                        indexAxis: 'x', // Set index axis to 'x'
+                    }]
+                },
+                options: {
+                    parsing: false, // Disable data parsing
+                    plugins: {
+                        decimation: {
+                            enabled: true,
+                            algorithm: 'lttb',
+                            samples: 8,
+                            threshold: 40
+                        },
+                        tooltip: {
+                            enabled: false // Disable tooltip overview
+                        }
+                    },
+                    elements: {
+                        point: {
+                            drawActiveElementsOnTop: false // Disable drawing active elements on top
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            position: 'bottom',
+                            min: 0,
+                            max: <?php echo $frameWidth; ?>,
+                            title: {
+                                display: true,
+                                text: 'Frame Width'
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            position: 'left',
+                            min: 0,
+                            max: <?php echo $frameHeight; ?>,
+                            title: {
+                                display: true,
+                                text: 'Frame Height'
+                            }
+                        }
+                    }
                 }
-            },
-            y: {
-                type: 'linear',
-                position: 'left',
-                min: 0,
-                max: <?php echo $frameHeight; ?>,
-                title: {
-                    display: true,
-                    text: 'Frame Height'
-                }
-            }
-        }
-    }
-});
+            });
 
         <?php } ?>
 
@@ -376,7 +379,10 @@ $meanDuration = $totalEvents > 0 ? $totalDuration / $totalEvents : 0;
         // Extract labels and data for the histogram
         const labels = sortedEventCounts.map(([timestamp]) => {
             const date = new Date(parseInt(timestamp));
-            return date.toLocaleString('en-US', { hour: 'numeric', hour12: true });
+            return date.toLocaleString('en-US', {
+                hour: 'numeric',
+                hour12: true
+            });
         });
         const data = sortedEventCounts.map(([, count]) => count);
 
@@ -412,8 +418,35 @@ $meanDuration = $totalEvents > 0 ? $totalDuration / $totalEvents : 0;
                 }
             }
         });
-    </script>
 
+        document.addEventListener("DOMContentLoaded", () => {
+            const settings = JSON.parse(localStorage.getItem('settings')) || {
+                timezone: 'UTC'
+            };
+            const userTimezone = settings.timezone;
+            document.querySelectorAll('#event-table tbody tr').forEach(tr => {
+                // Assume the first <td> contains the Unix timestamp
+                const unixTimestamp = parseInt(tr.children[0].textContent.trim());
+                console.log("Unix Timestamp:", unixTimestamp); // Debugging
+                // Convert Unix timestamp (seconds since the epoch) to milliseconds and create a Date object
+                const eventDate = new Date(unixTimestamp * 1000);
+                // Format the date to the local time zone
+                const options = {
+                    timeZone: userTimezone,
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true // or false for 24-hour format
+                };
+                const localTime = new Intl.DateTimeFormat('en-US', options).format(eventDate);
+                // Update the second <td> with the formatted local time
+                tr.children[1].textContent = localTime;
+            });
+        });
+    </script>
 </body>
 
 </html>
