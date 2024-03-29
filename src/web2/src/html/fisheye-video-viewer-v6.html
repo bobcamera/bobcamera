@@ -117,6 +117,8 @@
             heatmapImageSrc = '../videos/'+date+'/heatmaps/'+video+'.jpg';
         }
 
+        var ros;
+
 //////////////////// GUI CONFIGURATION ////////////////////
 
     // Initialize guiConfig with default values or load from localStorage
@@ -277,6 +279,13 @@
             animate();
         });
 
+        window.onbeforeunload = function(event) {
+            console.log('disposing......');
+            if (ros) {
+                ros.close();
+            }
+        }
+
     // Input Form Event Listener
         document.getElementById('imageSourceInput').addEventListener('click', function() {
             this.focus();
@@ -344,10 +353,9 @@
                     break;
                 case 'ros2 topic':
                     console.log('Image source path: ros2 topic');
-                    var ros = new ROSLIB.Ros({ url: 'ws://localhost:9090' });
-                    ros.on('connection', function () { console.log('Connected to websocket server.'); });
-                    ros.on('error', function (error) { console.log('Error connecting to websocket server: ', error); });
-                    ros.on('close', function () { console.log('Connection to websocket server closed.'); });
+                    var websocketsURL = 'ws://' + window.location.hostname + ':9090';
+                    ros = new ROSLIB.Ros();
+                    rosConnect(ros, websocketsURL, true);
                     const urlParams = new URLSearchParams(window.location.search);
                     const sourceTopic = urlParams.get('source');
                     var listener = new ROSLIB.Topic({
@@ -567,6 +575,29 @@
             // increment the video by 1 frame forward
             videoElement.currentTime -= timePerFrame;
             console.log('videoElement.currentTime: ', videoElement.currentTime);
+        }
+
+        function rosConnect(ros, websocketsURL, retry=false){
+            if(ros) {
+                ros.connect(websocketsURL);
+            } else {
+                console.log('Creating new ros connection...');
+                var ros = new ROSLIB.Ros();
+                ros.connect(websocketsURL);
+            }
+            ros.on('connection', function(){
+                //console.log('Connected to websocket server.')
+            });
+            ros.on('error', function(){
+                //console.log('Error connecting to websocket server: ', error);
+            });
+            ros.on('close', function(){            
+                // Try to reconnect in 5 seconds
+                if (retry) {
+                    //console.log('Connection to websocket server closed, trying in 5 seconds.');
+                    setTimeout(function(){rosConnect(ros, websocketsURL)}, 5000);
+                }
+            });
         }
 
     // Add event listeners to the FABs

@@ -12,11 +12,12 @@
 
             #stream {
                 position: relative;
-                width: 75vw; /* Initial width */
+                width: 74vw; /* Initial width */
                 max-width: 100%; /* Ensure it doesn't exceed the viewport width */
                 height: auto;
                 margin: 0 auto; /* Center the container horizontally */
                 overflow: hidden; /* Prevent overflow content from protruding */
+                float: left;
             }
             
             #image-subscription {
@@ -43,9 +44,9 @@
                 z-index: 15;
             }
 
-            <!-- #image-subscription {
+            /*#image-subscription {
                 z-index: 1;
-            } -->
+            }*/
 
             .hidden {
                 display: none;
@@ -217,10 +218,10 @@
                 <label for="recording_state">Recording:</label>
                 <span id="recording_state_icon" class="fa-solid fa-circle default-red"></span>
             </div>
-            <div class="metric-readings">
+            <!--<div class="metric-readings">
                 <label for="max_blob_state">Max Blob:</label>
                 <i id="max_blob_state_icon" class="fa-solid fa-circle"></i>
-            </div>
+            </div>-->
             <br>
             <div class="metric-readings">
                 <label for="tracking_state_trackable">Trackable:</label>
@@ -279,7 +280,7 @@
 
     let tracking_state_icon = document.getElementById('tracking_state_icon');
     let recording_state_icon = document.getElementById('recording_state_icon');
-    let max_blob_state_icon = document.getElementById('max_blob_state_icon');    
+    //let max_blob_state_icon = document.getElementById('max_blob_state_icon');
 
     let tracking_state_trackable = document.getElementById('tracking_state_trackable');
     let tracking_state_alive = document.getElementById('tracking_state_alive');
@@ -366,7 +367,7 @@
             stateStream.subscribe(function (message) {
                 updateIconColor(tracking_state_icon, (message.alive > 0))
                 updateIconColor(recording_state_icon, message.recording)
-                updateIconColor(max_blob_state_icon, !message.max_blobs_reached)
+                //updateIconColor(max_blob_state_icon, !message.max_blobs_reached)
             
                 tracking_state_trackable.innerHTML = message.trackable;
                 tracking_state_alive.innerHTML = message.alive;
