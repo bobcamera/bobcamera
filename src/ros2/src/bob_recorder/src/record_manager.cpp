@@ -19,6 +19,7 @@
 #include "json_recorder.hpp"
 #include "video_recorder.hpp"
 
+#include <rclcpp/experimental/executors/events_executor/events_executor.hpp>
 
 class RecordManager : public ParameterNode {
 public:
@@ -394,7 +395,7 @@ private:
 int main(int argc, char **argv) 
 {
     rclcpp::init(argc, argv);
-    rclcpp::executors::StaticSingleThreadedExecutor executor;
+    rclcpp::experimental::executors::EventsExecutor executor;
     executor.add_node(std::make_shared<RecordManager>(rclcpp::NodeOptions()));
     executor.spin();
     rclcpp::shutdown();

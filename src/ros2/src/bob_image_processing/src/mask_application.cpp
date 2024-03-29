@@ -18,6 +18,8 @@
 #include "bob_interfaces/srv/mask_override_request.hpp"
 #include <sensor_msgs/msg/region_of_interest.hpp>
 
+#include <rclcpp/experimental/executors/events_executor/events_executor.hpp>
+
 class MaskApplication 
     : public ParameterNode
 {
@@ -303,7 +305,7 @@ private:
 int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
-    rclcpp::executors::StaticSingleThreadedExecutor executor;
+    rclcpp::experimental::executors::EventsExecutor executor;
     executor.add_node(std::make_shared<MaskApplication>(rclcpp::NodeOptions()));
     executor.spin();
     rclcpp::shutdown();

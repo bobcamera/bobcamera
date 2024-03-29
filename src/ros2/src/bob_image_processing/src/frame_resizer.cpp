@@ -17,6 +17,8 @@
 
 #include <visibility_control.h>
 
+#include <rclcpp/experimental/executors/events_executor/events_executor.hpp>
+
 class FrameResizer
     : public ParameterNode
 {
@@ -99,7 +101,7 @@ private:
 int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
-    rclcpp::executors::StaticSingleThreadedExecutor executor;
+    rclcpp::experimental::executors::EventsExecutor executor;
     executor.add_node(std::make_shared<FrameResizer>(rclcpp::NodeOptions()));
     executor.spin();
     rclcpp::shutdown();

@@ -1,9 +1,10 @@
 #include <opencv2/opencv.hpp>
+#include <json/json.h>
 
 #include <rclcpp/rclcpp.hpp>
 #include <cv_bridge/cv_bridge.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
-#include <json/json.h>
+#include <rclcpp/experimental/executors/events_executor/events_executor.hpp>
 
 #include <vision_msgs/msg/bounding_box2_d_array.hpp>
 
@@ -353,7 +354,7 @@ private:
 int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
-    rclcpp::executors::StaticSingleThreadedExecutor executor;
+    rclcpp::experimental::executors::EventsExecutor executor;
     executor.add_node(std::make_shared<BackgroundSubtractor>(rclcpp::NodeOptions()));
     executor.spin();
     rclcpp::shutdown();
