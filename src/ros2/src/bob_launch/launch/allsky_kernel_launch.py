@@ -179,6 +179,7 @@ def generate_launch_description():
                 package='bob_image_processing',
                 plugin='AnnotatedFrameProvider',
                 name='annotated_frame_provider_node',
+                parameters = [config],
                 extra_arguments=[{'use_intra_process_comms': True}]
             ),
             # Nodes for resizing the image in order to stick it on the network for display

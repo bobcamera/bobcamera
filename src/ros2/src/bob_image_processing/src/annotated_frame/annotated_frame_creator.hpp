@@ -46,7 +46,8 @@ public:
     cv::Mat create_frame(const cv::Mat& annotated_frame,
                          const bob_interfaces::msg::Tracking& msg_tracking,
                          int x_offset,
-                         int y_offset)
+                         int y_offset,
+                         bool enable_tracking_status)
     {
         int cropped_track_counter = 0;
         bool enable_cropped_tracks = true; // settings.at("visualiser_show_cropped_tracks");
@@ -70,8 +71,11 @@ public:
             fontScaleWidth = total_width;
         }
 
-        cv::putText(annotated_frame, status_message, cv::Point(25, 50), cv::FONT_HERSHEY_SIMPLEX,
-                    fontScale, font_colour, 2);
+        if (enable_tracking_status)
+        {
+            cv::putText(annotated_frame, status_message, cv::Point(25, 50), cv::FONT_HERSHEY_SIMPLEX,
+                        fontScale, font_colour, 2);
+        }
 
         for (const auto &detection : msg_tracking.detections)
         {
@@ -86,14 +90,14 @@ public:
             
                 cv::Scalar color = _color(tracking_state);
 
-                double orientation = detection.covariance_ellipse_orientation;
-                double semi_major_axis = detection.covariance_ellipse_semi_major_axis;
-                double semi_minor_axis = detection.covariance_ellipse_semi_minor_axis;
+                // double orientation = detection.covariance_ellipse_orientation;
+                // double semi_major_axis = detection.covariance_ellipse_semi_major_axis;
+                // double semi_minor_axis = detection.covariance_ellipse_semi_minor_axis;
 
-                cv::RotatedRect ellipse;
-                ellipse.center = cv::Point2f(bbox.x + bbox.width / 2 + x_offset, bbox.y + bbox.height / 2 + y_offset);
-                ellipse.size = cv::Size2f(semi_major_axis * 2, semi_minor_axis * 2);
-                ellipse.angle = orientation * 180 / M_PI;
+                // cv::RotatedRect ellipse;
+                // ellipse.center = cv::Point2f(bbox.x + bbox.width / 2 + x_offset, bbox.y + bbox.height / 2 + y_offset);
+                // ellipse.size = cv::Size2f(semi_major_axis * 2, semi_minor_axis * 2);
+                // ellipse.angle = orientation * 180 / M_PI;
 
 
                 if (enable_cropped_tracks)
@@ -135,7 +139,7 @@ public:
                 }
                 cv::rectangle(annotated_frame, p1, p2, color, bbox_line_thickness, 1);
                 cv::putText(annotated_frame, std::to_string(id), cv::Point(p1.x, p1.y - 4), cv::FONT_HERSHEY_SIMPLEX, fontScale, color, 1);
-                cv::ellipse(annotated_frame, ellipse, cv::Scalar(255, 0, 0), 1, cv::LINE_8);
+                // cv::ellipse(annotated_frame, ellipse, cv::Scalar(255, 0, 0), 1, cv::LINE_8);
             }
         }
 
@@ -148,10 +152,10 @@ public:
         //         if (previous_trajectory_point != nullptr)
         //         {
         //             cv::line(annotated_frame,
-        //                      cv::Point(static_cast<int>(previous_trajectory_point->center.x),
-        //                                static_cast<int>(previous_trajectory_point->center.y)),
-        //                      cv::Point(static_cast<int>(trajectory_point.center.x),
-        //                                static_cast<int>(trajectory_point.center.y)),
+        //                      cv::Point(static_cast<int>(previous_trajectory_point->center.x + x_offset),
+        //                                static_cast<int>(previous_trajectory_point->center.y + y_offset)),
+        //                      cv::Point(static_cast<int>(trajectory_point.center.x + x_offset),
+        //                                static_cast<int>(trajectory_point.center.y + y_offset)),
         //                      _color(TrackingStateEnum(trajectory_point.tracking_state)),
         //                      bbox_line_thickness);
         //         }
