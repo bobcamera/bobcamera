@@ -86,24 +86,24 @@ class TrackerMonitorNode(Node):
     if self.msg_tracking_state != None:
 
       try:
+        test = 0
+        # # what is the delta tracks for the last second
+        # delta = int(self.msg_tracking_state.started) - self.started
+        # self.started = int(self.msg_tracking_state.started)
 
-        # what is the delta tracks for the last second
-        delta = int(self.msg_tracking_state.started) - self.started
-        self.started = int(self.msg_tracking_state.started)
+        # self.avg_tracks[self.track_counter] = delta
+        # self.track_counter += 1
+        # if self.track_counter >= self.sample_set:
+        #   self.track_counter = 0
 
-        self.avg_tracks[self.track_counter] = delta
-        self.track_counter += 1
-        if self.track_counter >= self.sample_set:
-          self.track_counter = 0
+        # ma = numpy.sum(self.avg_tracks, dtype=numpy.int32) / self.sample_set
 
-        ma = numpy.sum(self.avg_tracks, dtype=numpy.int32) / self.sample_set
+        # #self.get_logger().info(f'{self.get_name()} BUSY ma: {ma}')
 
-        #self.get_logger().info(f'{self.get_name()} BUSY ma: {ma}')
-
-        if ma > self.tracking_profile_high_switch_threshold:
-          self.tracking_hint:TrackingHintEnum = TrackingHintEnum.LowerSensitivity
-          self.get_logger().warn(f'Tracker needs tuning to a LOWER sensitivity level as its breaching the threshold of: {self.tracking_profile_high_switch_threshold} - Moving Average: {ma}')
-          self.avg_tracks = [0]*self.sample_set # Reset the avg_tracks variable otherwise we might get several BUSY notifications
+        # if ma > self.tracking_profile_high_switch_threshold:
+        #   self.tracking_hint:TrackingHintEnum = TrackingHintEnum.LowerSensitivity
+        #   self.get_logger().warn(f'Tracker needs tuning to a LOWER sensitivity level as its breaching the threshold of: {self.tracking_profile_high_switch_threshold} - Moving Average: {ma}')
+        #   self.avg_tracks = [0]*self.sample_set # Reset the avg_tracks variable otherwise we might get several BUSY notifications
 
       except Exception as e:
         self.get_logger().error(f"Exception during alive track monitor. Error: {e}.")
@@ -111,27 +111,34 @@ class TrackerMonitorNode(Node):
   
   def tracking_idle_monitor(self):
 
-    if self.msg_tracking_state != None:
+    if self.msg_tracking_state != None and self.msg_cloud_estimation is not None:
 
       try:
-
+        test = 0
         # what is the delta tracks for the last second
-        delta = int(self.msg_tracking_state.started) - self.started
-        self.started = int(self.msg_tracking_state.started)
+        # delta = int(self.msg_tracking_state.started) - self.started
+        # self.started = int(self.msg_tracking_state.started)
 
-        self.avg_tracks[self.track_counter] = delta
-        self.track_counter += 1
-        if self.track_counter >= self.sample_set:
-          self.track_counter = 0
-          self.idle_enabled = True
+        # self.avg_tracks[self.track_counter] = delta
+        # self.track_counter += 1
+        # if self.track_counter >= self.sample_set:
+        #   self.track_counter = 0
+        #   self.idle_enabled = True
 
-        ma = numpy.sum(self.avg_tracks, dtype=numpy.int32) / self.sample_set
+        # ma = numpy.sum(self.avg_tracks, dtype=numpy.int32) / self.sample_set
 
-        #self.get_logger().info(f'{self.get_name()} IDLE ma: {ma}')
+        # #self.get_logger().info(f'{self.get_name()} IDLE ma: {ma}')
 
-        if self.idle_enabled and ma == 0:
+        # if self.idle_enabled and ma == 0:
+        #   self.tracking_hint:TrackingHintEnum = TrackingHintEnum.IncreaseSensitivity
+        #   self.get_logger().warn(f'Tracker should be tuned to a HIGHER sensitivity level if possible - Moving Average: {ma}')
+        
+        if self.msg_cloud_estimation.unimodal_cloud_cover == True:
           self.tracking_hint:TrackingHintEnum = TrackingHintEnum.IncreaseSensitivity
-          self.get_logger().warn(f'Tracker should be tuned to a HIGHER sensitivity level if possible - Moving Average: {ma}')
+        elif self.msg_cloud_estimation.unimodal_cloud_cover == False:
+          self.tracking_hint:TrackingHintEnum = TrackingHintEnum.LowerSensitivity
+        else:
+          self.tracking_hint:TrackingHintEnum = TrackingHintEnum.NoHint
 
       except Exception as e:
         self.get_logger().error(f"Exception during alive track monitor. Error: {e}.")
@@ -150,6 +157,7 @@ class TrackerMonitorNode(Node):
     monitoring_status_msg.day_night_enum = 0
     monitoring_status_msg.avg_brightness = 0
     monitoring_status_msg.percentage_cloud_cover = 0
+    monitoring_status_msg.unimodal_cloud_cover = None
 
     if self.msg_tracking_state is not None:
       monitoring_status_msg.trackable = self.msg_tracking_state.trackable
@@ -169,16 +177,26 @@ class TrackerMonitorNode(Node):
 
     if self.msg_cloud_estimation is not None:
       monitoring_status_msg.percentage_cloud_cover = self.msg_cloud_estimation.percentage_cloud_cover
+      monitoring_status_msg.unimodal_cloud_cover = self.msg_cloud_estimation.unimodal_cloud_cover
+
+    # monitoring_status_msg.tracking_hint = 'None'
+    # if self.tracking_hint == TrackingHintEnum.IncreaseSensitivity:
+    #   monitoring_status_msg.tracking_hint = 'Increase Sensitivity'
+    # elif self.tracking_hint == TrackingHintEnum.LowerSensitivity:
+    #   monitoring_status_msg.tracking_hint = 'Lower Sensitivity or Improve Detection Mask'
+    # else:
+    #   if monitoring_status_msg.max_blobs_reached:
+    #     monitoring_status_msg.tracking_hint = 'Lower Sensitivity or Improve Detection Mask'
 
     monitoring_status_msg.tracking_hint = 'None'
     if self.tracking_hint == TrackingHintEnum.IncreaseSensitivity:
-      monitoring_status_msg.tracking_hint = 'Increase Sensitivity'
+      monitoring_status_msg.tracking_hint = 'Stable conditions - set to medium or high sensitivity'
     elif self.tracking_hint == TrackingHintEnum.LowerSensitivity:
-      monitoring_status_msg.tracking_hint = 'Lower Sensitivity or Improve Detection Mask'
+      monitoring_status_msg.tracking_hint = 'Unstable conditions - set to low sensitivity'
     else:
       if monitoring_status_msg.max_blobs_reached:
-        monitoring_status_msg.tracking_hint = 'Lower Sensitivity or Improve Detection Mask'
-
+        monitoring_status_msg.tracking_hint = 'Max blobs reached - lower Sensitivity or check detection mask'
+    
     self.pub_aggregation_state.publish(monitoring_status_msg)
 
 def main(args=None):

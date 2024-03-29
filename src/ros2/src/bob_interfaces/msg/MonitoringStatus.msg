@@ -22,6 +22,9 @@ bool recording
 # The percentage cloud cover currently being determined
 float32 percentage_cloud_cover
 
+# Whether the distribution is unimodal or not
+bool unimodal_cloud_cover
+
 # Is it currently day or night
 int32 day_night_enum
 int32 avg_brightness
