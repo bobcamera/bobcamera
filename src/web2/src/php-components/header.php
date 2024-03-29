@@ -1,10 +1,10 @@
 <!-- START DARK/LIGHT MODE SELECT BOX -->
 <div class="dropdown position-fixed top-3 end-0 mb-2 me-3 bd-mode-toggle" style="display: flex; align-items: center;">
-    <button class="btn py-2 dropdown-toggle d-flex align-items-center" id="bd-theme" type="button" aria-expanded="false" data-bs-toggle="dropdown" aria-label="Toggle theme (auto)" style="color: #2470dc;">
+    <button class="btn py-2 dropdown-toggle d-flex align-items-center" id="#bd-theme" type="button" aria-expanded="false" data-bs-toggle="dropdown" aria-label="Toggle theme (auto)" style="color: #2470dc;">
         <i class="fas fa-adjust my-1 theme-icon-active" style="width: 1em; height: 1em;"></i>
         <span class="visually-hidden">Toggle theme</span>
     </button>
-    <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="bd-theme">
+    <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="#bd-theme">
         <li>
             <button type="button" class="dropdown-item d-flex align-items-center" data-bs-theme-value="light" aria-pressed="false">
                 <i class="fas fa-sun theme-icon me-2 opacity-50" style="width: 1em; height: 1em;"></i>
