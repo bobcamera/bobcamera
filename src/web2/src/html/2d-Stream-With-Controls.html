@@ -12,9 +12,17 @@
 
             #stream {
                 position: relative;
-                width: 75vw;
+                width: 75vw; /* Initial width */
+                max-width: 100%; /* Ensure it doesn't exceed the viewport width */
                 height: auto;
-                float: left
+                margin: 0 auto; /* Center the container horizontally */
+                overflow: hidden; /* Prevent overflow content from protruding */
+            }
+            
+            #image-subscription {
+                display: block; /* Ensure the image fills its container */
+                width: 100%; /* Make sure the image fills the container */
+                height: auto;
             }
 
             #image-subscription, #bufferingOverlay {
@@ -35,9 +43,9 @@
                 z-index: 15;
             }
 
-            #image-subscription {
+            <!-- #image-subscription {
                 z-index: 1;
-            }
+            } -->
 
             .hidden {
                 display: none;
@@ -75,13 +83,15 @@
                 position: relative;
                 display: flex;
                 flex-direction: column;
-                width: 23%;
-                float: right
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                padding: 20px;
+                width: 21%;
+                float: right;
             }
             .metric-header {
-                display: flex;
-                justify-content: center;
-                padding-bottom: 5px;
+                font-size: 18px;
+                font-weight: bold;
+                margin-top: 20px;
             }
             .metric-readings {
                 display: flex;
@@ -205,7 +215,7 @@
             </div>
             <div class="metric-readings">
                 <label for="recording_state">Recording:</label>
-                <i id="recording_state_icon" class="fa-solid fa-circle"></i>
+                <span id="recording_state_icon" class="fa-solid fa-circle default-red"></span>
             </div>
             <div class="metric-readings">
                 <label for="max_blob_state">Max Blob:</label>
@@ -232,8 +242,10 @@
             <div class="metric-header"> ----------- Observer Status ----------- </div><br>
             <div class="metric-readings">
                 <label for="day_night_classification">Day/Night:</label>
-                <span id="day_night_classification">0</span>
-            </div>
+                <i id="day_icon" class="fas fa-image" style="color: #ffe207; display: none;"></i>
+                <i id="night_icon" class="far fa-moon" style="color: blue; display: none;"></i> 
+                <i id="neutral_icon" style="display: none;">&#63;</i> 
+            </div>            
             <div class="metric-readings">
                 <label for="cloud_estimation">Cloud Cover:</label>
                 <span id="cloud_estimation">0</span>
@@ -355,24 +367,35 @@
                 updateIconColor(tracking_state_icon, (message.alive > 0))
                 updateIconColor(recording_state_icon, message.recording)
                 updateIconColor(max_blob_state_icon, !message.max_blobs_reached)
-
+            
                 tracking_state_trackable.innerHTML = message.trackable;
                 tracking_state_alive.innerHTML = message.alive;
                 tracking_state_started.innerHTML = message.started;
                 tracking_state_ended.innerHTML = message.ended;
-
+            
+                // Update day/night icon based on classification
+                var dayIcon = document.getElementById('day_icon');
+                var nightIcon = document.getElementById('night_icon');
+                var neutralIcon = document.getElementById('neutral_icon');
                 if (message.day_night_enum === 0) {
-                    day_night_classification.innerHTML = 'Unknown';
+                    dayIcon.style.display = 'none'; // Hide day icon
+                    nightIcon.style.display = 'none'; // Hide night icon
+                    neutralIcon.style.display = 'inline'; // Display neutral icon
                 } else if (message.day_night_enum === 1) {
-                    day_night_classification.innerHTML = 'Day'; //`Day - avg Brightness:${message.avg_brightness}`;
+                    dayIcon.style.display = 'inline'; // Display day icon
+                    nightIcon.style.display = 'none'; // Hide night icon
+                    neutralIcon.style.display = 'none'; // Hide neutral icon
                 } else if (message.day_night_enum === 2) {
-                    day_night_classification.innerHTML = 'Night'; //`Night - avg Brightness:${message.avg_brightness}`;
+                    dayIcon.style.display = 'none'; // Hide day icon
+                    nightIcon.style.display = 'inline'; // Display night icon
+                    neutralIcon.style.display = 'none'; // Hide neutral icon
                 }
-
+                
                 cloud_estimation.innerHTML = `${Math.trunc(message.percentage_cloud_cover)}%`;
-
+            
                 tracker_hint.innerHTML = message.tracking_hint;
             });
+            
 
             frameStream.subscribe(function (message) {
                 updateMessageRate();
@@ -469,19 +492,14 @@
         requestAnimationFrame(update);
     }
 
-    function updateDimensions() 
-    {
-        let newHeight = videoStream.offsetHeight;
-        let newWidth = videoStream.offsetWidth;
+    function updateDimensions() {
+        let newWidth = streamContainer.offsetWidth;
+        let newHeight = (newWidth / videoStream.naturalWidth) * videoStream.naturalHeight;
         streamContainer.style.height = `${newHeight}px`;
-        streamContainer.style.width = `${newWidth}px`;
-        streamContainer.height = newHeight * devicePixelRatio;
-        streamContainer.width = newWidth * devicePixelRatio;
-        bufferingOverlay.style.height = `${newHeight}px`;
         bufferingOverlay.style.width = `${newWidth}px`;
-        bufferingOverlay.width = newWidth * devicePixelRatio;
-        bufferingOverlay.height = newHeight * devicePixelRatio;
+        bufferingOverlay.style.height = `${newHeight}px`;
     }
+    
 
     // Listen for changes to the image's height
     const resizeObserver = new ResizeObserver(() => {
