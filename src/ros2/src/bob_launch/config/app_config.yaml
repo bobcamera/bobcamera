@@ -87,6 +87,7 @@ privacy_mask_application_node:
 
 low_background_subtractor_node:
   ros__parameters:
+    sensitivity: 'low'
     bgs: ''
     vibe_params: '{"threshold": 55, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8}'
     wmv_params: '{"enableWeight": true, "enableThreshold": true, "threshold": 45.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}'
@@ -95,6 +96,7 @@ low_background_subtractor_node:
 
 medium_background_subtractor_node:
   ros__parameters:
+    sensitivity: 'medium'
     bgs: ''
     vibe_params: '{"threshold": 40, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 4}'
     wmv_params: '{"enableWeight": true, "enableThreshold": true, "threshold": 30.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}'
@@ -103,6 +105,7 @@ medium_background_subtractor_node:
 
 high_background_subtractor_node:
   ros__parameters:
+    sensitivity: 'high'
     bgs: ''
     vibe_params: '{"threshold": 30, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4}'
     wmv_params: '{"enableWeight": true, "enableThreshold": true, "threshold": 15.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}'
@@ -111,6 +114,7 @@ high_background_subtractor_node:
 
 low_filter_background_subtractor_node:
   ros__parameters:
+    sensitivity: 'low_c'
     bgs: ''
     vibe_params: '{"threshold": 55, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8}'
     wmv_params: '{"enableWeight": true, "enableThreshold": true, "threshold": 45.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}'
@@ -119,6 +123,7 @@ low_filter_background_subtractor_node:
 
 medium_filter_background_subtractor_node:
   ros__parameters:
+    sensitivity: 'medium_c'
     bgs: ''
     vibe_params: '{"threshold": 40, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4}'
     wmv_params: '{"enableWeight": true, "enableThreshold": true, "threshold": 20.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}'
@@ -127,6 +132,7 @@ medium_filter_background_subtractor_node:
 
 high_filter_background_subtractor_node:
   ros__parameters:
+    sensitivity: 'high_c'
     bgs: ''
     vibe_params: '{"threshold": 25, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4}'
     wmv_params: '{"enableWeight": true, "enableThreshold": true, "threshold": 15.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}'

@@ -56,6 +56,7 @@ private:
     boblib::utils::Profiler profiler_;
     bool enable_profiling_;
     bool median_filter_;
+    std::string sensitivity_;
     
     rclcpp::QoS pub_qos_profile_;
     rclcpp::QoS sub_qos_profile_;
@@ -207,6 +208,11 @@ private:
                 rclcpp::Parameter("median_filter", false), 
                 [this](const rclcpp::Parameter& param) {median_filter_ = param.as_bool();}
             ),
+
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("sensitivity", "medium_c"), 
+                [this](const rclcpp::Parameter& param) {sensitivity_ = param.as_string();}
+            ),            
         };
         add_action_parameters(params);
     }
@@ -248,6 +254,7 @@ private:
 
             profile_start("Blob");
             bob_interfaces::msg::DetectorState state;
+            state.sensitivity = sensitivity_;
             vision_msgs::msg::BoundingBox2DArray bbox2D_array;
             bbox2D_array.header = img_msg->header;
             std::vector<cv::Rect> bboxes;

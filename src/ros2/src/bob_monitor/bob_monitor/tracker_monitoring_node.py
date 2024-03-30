@@ -152,6 +152,7 @@ class TrackerMonitorNode(Node):
     monitoring_status_msg.alive = 0
     monitoring_status_msg.started = 0
     monitoring_status_msg.ended = 0
+    monitoring_status_msg.sensitivity = ""
     monitoring_status_msg.max_blobs_reached = False
     monitoring_status_msg.recording = False    
     monitoring_status_msg.day_night_enum = 0
@@ -166,6 +167,7 @@ class TrackerMonitorNode(Node):
       monitoring_status_msg.ended = self.msg_tracking_state.ended
     
     if self.msg_detector_state is not None:
+      monitoring_status_msg.sensitivity = self.msg_detector_state.sensitivity
       monitoring_status_msg.max_blobs_reached = self.msg_detector_state.max_blobs_reached
     
     if self.msg_recording_state is not None:

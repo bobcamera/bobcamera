@@ -10,6 +10,9 @@ int32 started
 # The total number of blobs no longer bing tracked
 int32 ended
 
+# The configured sensitivity settings for the bgs
+string sensitivity
+
 # Any hints please set them here
 string tracking_hint
 

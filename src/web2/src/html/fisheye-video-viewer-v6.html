@@ -69,6 +69,7 @@
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" crossorigin="anonymous">
     <script src="https://cdn.jsdelivr.net/npm/dat.gui@0.7.9/build/dat.gui.min.js"></script>
+    <script src="../lib/bob.js"></script>
     <script src="../lib/three.min.js"></script>
     <script src="../lib/eventemitter2.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/roslibjs/1.1.0/roslib.min.js"></script>
@@ -353,7 +354,6 @@
                     break;
                 case 'ros2 topic':
                     console.log('Image source path: ros2 topic');
-                    var websocketsURL = 'ws://' + window.location.hostname + ':9090';
                     ros = new ROSLIB.Ros();
                     rosConnect(ros, websocketsURL, true);
                     const urlParams = new URLSearchParams(window.location.search);
@@ -575,29 +575,6 @@
             // increment the video by 1 frame forward
             videoElement.currentTime -= timePerFrame;
             console.log('videoElement.currentTime: ', videoElement.currentTime);
-        }
-
-        function rosConnect(ros, websocketsURL, retry=false){
-            if(ros) {
-                ros.connect(websocketsURL);
-            } else {
-                console.log('Creating new ros connection...');
-                var ros = new ROSLIB.Ros();
-                ros.connect(websocketsURL);
-            }
-            ros.on('connection', function(){
-                //console.log('Connected to websocket server.')
-            });
-            ros.on('error', function(){
-                //console.log('Error connecting to websocket server: ', error);
-            });
-            ros.on('close', function(){            
-                // Try to reconnect in 5 seconds
-                if (retry) {
-                    //console.log('Connection to websocket server closed, trying in 5 seconds.');
-                    setTimeout(function(){rosConnect(ros, websocketsURL)}, 5000);
-                }
-            });
         }
 
     // Add event listeners to the FABs
