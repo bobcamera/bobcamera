@@ -5,13 +5,12 @@ from rclpy.node import Node
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy, QoSHistoryPolicy
 from bob_shared.node_runner import NodeRunner
 from bob_interfaces.msg import Tracking, RecordingState, DetectorState, MonitoringStatus, ObserverDayNight, ObserverCloudEstimation
-from bob_interfaces.srv import BGSResetRequest
 from bob_shared.enumerations import TrackingHintEnum
 
-class TrackerMonitorNode(Node):
+class MonitoringStatusAggregatorNode(Node):
 
   def __init__(self, subscriber_qos_profile: QoSProfile, publisher_qos_profile: QoSProfile):
-    super().__init__('bob_tracker_monitor')
+    super().__init__('bob_monitoring_status_aggregator_node')
 
     self.declare_parameters(
       namespace='',
@@ -54,8 +53,6 @@ class TrackerMonitorNode(Node):
     self.sub_recording_state = self.create_subscription(ObserverCloudEstimation, 'bob/observer/cloud_estimation', 
       self.cloud_estimation_callback, subscriber_qos_profile)
 
-    self.bgs_reset_client = self.create_client(BGSResetRequest, 'bob/bgs/reset')
-
     self.pub_aggregation_state = self.create_publisher(MonitoringStatus, 'bob/monitoring/status', publisher_qos_profile)
 
     self.get_logger().info(f'{self.get_name()} node is up and running.')
@@ -71,9 +68,6 @@ class TrackerMonitorNode(Node):
     self.msg_detector_state = msg_detector_state
     if self.msg_detector_state.max_blobs_reached:
       self.get_logger().warn(f'Max blobs reached - please check detection mask or lower sensitivity level.')
-      #request = BGSResetRequest.Request()
-      #request.bgs_params = "test-service"
-      #self.bgs_reset_client.call(request)
 
   def day_night_callback(self, msg_day_night_classification:ObserverDayNight):
     self.msg_day_night_classification = msg_day_night_classification
@@ -215,7 +209,7 @@ def main(args=None):
   publisher_qos_profile.durability = QoSDurabilityPolicy.VOLATILE
   publisher_qos_profile.history = QoSHistoryPolicy.KEEP_LAST
 
-  node = TrackerMonitorNode(subscriber_qos_profile, publisher_qos_profile)
+  node = MonitoringStatusAggregatorNode(subscriber_qos_profile, publisher_qos_profile)
 
   runner = NodeRunner(node)
   runner.run()

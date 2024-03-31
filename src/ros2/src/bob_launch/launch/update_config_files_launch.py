@@ -220,6 +220,7 @@ def application_config(context):
     simulation_num_objects = int(LaunchConfiguration('simulation_num_objects_arg').perform(context))
 
     bgs_algo = str(LaunchConfiguration('bgs_algorithm_arg').perform(context))
+    tracking_sensitivity = str(LaunchConfiguration('tracking_sensitivity_arg').perform(context)).replace("'", "")
 
     tracking_mask_dir = 'assets/masks'
 
@@ -285,24 +286,13 @@ def application_config(context):
             yaml_output['privacy_mask_application_node']['ros__parameters']['image_width'] = image_width
             yaml_output['privacy_mask_application_node']['ros__parameters']['image_height'] = image_height            
 
-            # low_background_subtractor_node
-            yaml_output['low_background_subtractor_node']['ros__parameters']['bgs'] = bgs_algo
+            # background_subtractor_v2_node
+            yaml_output['background_subtractor_v2_node']['ros__parameters']['bgs'] = bgs_algo
+            yaml_output['background_subtractor_v2_node']['ros__parameters']['sensitivity'] = tracking_sensitivity
 
-            # medium_background_subtractor_node
-            yaml_output['medium_background_subtractor_node']['ros__parameters']['bgs'] = bgs_algo
+            # track_sensitivity_monitor_node
+            yaml_output['track_sensitivity_monitor_node']['ros__parameters']['sensitivity'] = tracking_sensitivity
 
-            # high_background_subtractor_node
-            yaml_output['high_background_subtractor_node']['ros__parameters']['bgs'] = bgs_algo
-            
-            # low_filter_background_subtractor_node
-            yaml_output['low_filter_background_subtractor_node']['ros__parameters']['bgs'] = bgs_algo
-
-            # medium_filter_background_subtractor_node
-            yaml_output['medium_filter_background_subtractor_node']['ros__parameters']['bgs'] = bgs_algo
-
-            # high_filter_background_subtractor_node
-            yaml_output['high_filter_background_subtractor_node']['ros__parameters']['bgs'] = bgs_algo
-            
             # Tracking status message on annotated frame
             yaml_output['annotated_frame_provider_node']['ros__parameters']['tracking_status_message'] = enable_visualiser
 

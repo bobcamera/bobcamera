@@ -1,14 +1,32 @@
 import os
 from launch import LaunchDescription
-from launch_ros.actions import Node
+from launch_ros.actions import Node, ComposableNodeContainer
+from launch_ros.descriptions import ComposableNode
 from launch.substitutions import PythonExpression, LaunchConfiguration 
 from launch.conditions import IfCondition
 from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
     
-    #config = os.path.join(get_package_share_directory('bob_launch'), 'config', 'app_config.yaml')
     config = 'assets/config/app_config.yaml'
+
+    sensitivity_monitor_container = ComposableNodeContainer(
+        name='sensitivity_monitor_container',
+        namespace='',
+        package='rclcpp_components',
+        executable='component_container',
+        composable_node_descriptions=[
+
+            ComposableNode(
+               package='bob_image_processing',
+               plugin='TrackSensitivityMonitor',
+               name='track_sensitivity_monitor_node',
+               parameters = [config],
+               extra_arguments=[{'use_intra_process_comms': True}],
+            )
+        ],
+        output='screen',
+    )
 
     day_night_classifier_node = Node(
         package='bob_observer',
@@ -32,11 +50,12 @@ def generate_launch_description():
             ('bob/observer_frame/source', 'bob/frames/allsky/masked/detection/resized')],        
     )
     
-    tracking_monitor_node = Node(
+    monitoring_status_aggregator_node = Node(
         package='bob_monitor',
         #namespace='bob',
-        executable='tracking_monitor',
-        name='tracking_monitor_node',
+        executable='monitoring_status_aggregator',
+        name='monitoring_status_aggregator_node',
+        #arguments=['--ros-args', '--log-level', 'DEBUG'],
         parameters = [config],
     )
 
@@ -79,9 +98,10 @@ def generate_launch_description():
     )    
 
     return LaunchDescription([
+        sensitivity_monitor_container,
         day_night_classifier_node,
         cloud_estimator_node,
-        tracking_monitor_node,
+        monitoring_status_aggregator_node,
         # prometheus_node,
         onvif_node,
         # ptz_manager_node

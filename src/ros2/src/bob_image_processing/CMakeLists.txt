@@ -47,6 +47,14 @@ ament_target_dependencies(background_subtractor_node PUBLIC rclcpp sensor_msgs v
 rclcpp_components_register_nodes(background_subtractor_node "BackgroundSubtractor")
 install(TARGETS background_subtractor_node DESTINATION lib)
 
+# Background Subtractor v2 Node
+add_library(background_subtractor2_node SHARED src/background_subtractor2.cpp)
+target_compile_definitions(background_subtractor2_node PRIVATE "COMPOSITION_BUILDING_DLL")
+target_link_libraries(background_subtractor2_node PUBLIC jsoncpp boblib)
+ament_target_dependencies(background_subtractor2_node PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge OpenCV rclcpp_components bob_camera bob_interfaces)
+rclcpp_components_register_nodes(background_subtractor2_node "BackgroundSubtractor2")
+install(TARGETS background_subtractor2_node DESTINATION lib)
+
 # Annotated Frame Provider Node
 add_library(annotated_frame_provider_node SHARED src/annotated_frame_provider.cpp)
 target_compile_definitions(annotated_frame_provider_node PRIVATE "COMPOSITION_BUILDING_DLL")
@@ -78,5 +86,13 @@ target_link_libraries(mask_application_node PUBLIC jsoncpp boblib)
 ament_target_dependencies(mask_application_node PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge OpenCV rclcpp_components bob_camera bob_interfaces)
 rclcpp_components_register_nodes(mask_application_node "MaskApplication")
 install(TARGETS mask_application_node DESTINATION lib)
+
+# Track Sensitivity Monitor Node
+add_library(track_sensitivity_monitor SHARED src/track_sensitivity_monitor.cpp)
+target_compile_definitions(track_sensitivity_monitor PRIVATE "COMPOSITION_BUILDING_DLL")
+target_link_libraries(track_sensitivity_monitor PUBLIC boblib)
+ament_target_dependencies(track_sensitivity_monitor PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge OpenCV rclcpp_components bob_camera bob_interfaces)
+rclcpp_components_register_nodes(track_sensitivity_monitor "TrackSensitivityMonitor")
+install(TARGETS track_sensitivity_monitor DESTINATION lib)
 
 ament_package()

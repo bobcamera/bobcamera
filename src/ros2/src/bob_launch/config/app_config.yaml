@@ -85,59 +85,102 @@ privacy_mask_application_node:
     image_width: 0
     image_height: 0    
 
-low_background_subtractor_node:
-  ros__parameters:
-    sensitivity: 'low'
-    bgs: ''
-    vibe_params: '{"threshold": 55, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8}'
-    wmv_params: '{"enableWeight": true, "enableThreshold": true, "threshold": 45.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}'
-    blob_params: '{"sizeThreshold": 8, "areaThreshold": 64, "minDistance": 64, "maxBlobs": 50}'
-    median_filter: False
-
-medium_background_subtractor_node:
-  ros__parameters:
-    sensitivity: 'medium'
-    bgs: ''
-    vibe_params: '{"threshold": 40, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 4}'
-    wmv_params: '{"enableWeight": true, "enableThreshold": true, "threshold": 30.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}'
-    blob_params: '{"sizeThreshold": 4, "areaThreshold": 16, "minDistance": 16, "maxBlobs": 50}'
-    median_filter: False
-
-high_background_subtractor_node:
-  ros__parameters:
-    sensitivity: 'high'
-    bgs: ''
-    vibe_params: '{"threshold": 30, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4}'
-    wmv_params: '{"enableWeight": true, "enableThreshold": true, "threshold": 15.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}'
-    blob_params: '{"sizeThreshold": 2, "areaThreshold": 4, "minDistance": 4, "maxBlobs": 50}'
-    median_filter: False
-
-low_filter_background_subtractor_node:
-  ros__parameters:
-    sensitivity: 'low_c'
-    bgs: ''
-    vibe_params: '{"threshold": 55, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8}'
-    wmv_params: '{"enableWeight": true, "enableThreshold": true, "threshold": 45.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}'
-    blob_params: '{"sizeThreshold": 8, "areaThreshold": 64, "minDistance": 64, "maxBlobs": 50}'
-    median_filter: True
-
-medium_filter_background_subtractor_node:
+background_subtractor_v2_node:
   ros__parameters:
     sensitivity: 'medium_c'
     bgs: ''
-    vibe_params: '{"threshold": 40, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4}'
-    wmv_params: '{"enableWeight": true, "enableThreshold": true, "threshold": 20.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}'
-    blob_params: '{"sizeThreshold": 2, "areaThreshold": 4, "minDistance": 4, "maxBlobs": 50}'
-    median_filter: True
-
-high_filter_background_subtractor_node:
-  ros__parameters:
-    sensitivity: 'high_c'
-    bgs: ''
-    vibe_params: '{"threshold": 25, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4}'
-    wmv_params: '{"enableWeight": true, "enableThreshold": true, "threshold": 15.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}'
-    blob_params: '{"sizeThreshold": 2, "areaThreshold": 4, "minDistance": 4, "maxBlobs": 50}'
-    median_filter: True
+    json_params: '[
+                    {
+                      "name": "low",
+                      "sensitivity": {
+                        "vibe": {
+                          "threshold": 55, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8
+                        }, 
+                        "wmv": {
+                          "enableWeight": true, "enableThreshold": true, "threshold": 45.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
+                        }, 
+                        "blob": {
+                          "sizeThreshold": 8, "areaThreshold": 64, "minDistance": 64, "maxBlobs": 50
+                        }, 
+                        "median_filter": false 
+                      }
+                    },
+                    {
+                      "name": "medium",
+                      "sensitivity": {
+                        "vibe": {
+                          "threshold": 40, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 4
+                        }, 
+                        "wmv": {
+                          "enableWeight": true, "enableThreshold": true, "threshold": 30.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
+                        }, 
+                        "blob": {
+                          "sizeThreshold": 4, "areaThreshold": 16, "minDistance": 16, "maxBlobs": 50
+                        }, 
+                        "median_filter": false 
+                      }
+                    },
+                    {
+                      "name": "high",
+                      "sensitivity": {
+                        "vibe": {
+                          "threshold": 30, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4
+                        }, 
+                        "wmv": {
+                          "enableWeight": true, "enableThreshold": true, "threshold": 15.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
+                        }, 
+                        "blob": {
+                          "sizeThreshold": 2, "areaThreshold": 4, "minDistance": 4, "maxBlobs": 50
+                        }, 
+                        "median_filter": false 
+                      }
+                    },    
+                    {
+                      "name": "low_c",
+                      "sensitivity": {
+                        "vibe": {
+                          "threshold": 55, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8
+                        }, 
+                        "wmv": {
+                          "enableWeight": true, "enableThreshold": true, "threshold": 45.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
+                        }, 
+                        "blob": {
+                          "sizeThreshold": 8, "areaThreshold": 64, "minDistance": 64, "maxBlobs": 50
+                        }, 
+                        "median_filter": true 
+                      }
+                    },
+                    {
+                      "name": "medium_c",
+                      "sensitivity": {
+                        "vibe": {
+                          "threshold": 40, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4
+                        }, 
+                        "wmv": {
+                          "enableWeight": true, "enableThreshold": true, "threshold": 20.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
+                        }, 
+                        "blob": {
+                          "sizeThreshold": 2, "areaThreshold": 4, "minDistance": 4, "maxBlobs": 50
+                        }, 
+                        "median_filter": true 
+                      }
+                    },
+                    {
+                      "name": "high_c",
+                      "sensitivity": {
+                        "vibe": {
+                          "threshold": 25, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4
+                        }, 
+                        "wmv": {
+                          "enableWeight": true, "enableThreshold": true, "threshold": 15.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
+                        }, 
+                        "blob": {
+                          "sizeThreshold": 2, "areaThreshold": 4, "minDistance": 4, "maxBlobs": 50
+                        }, 
+                        "median_filter": true 
+                      }
+                    }
+                  ]'
 
 track_provider_node:
   ros__parameters:
@@ -211,13 +254,17 @@ cloud_estimator_node:
   ros__parameters:
     observer_timer_interval: 90
 
-tracking_monitor_node:
+monitoring_status_aggregator_node:
   ros__parameters:
     observer_tracker_monitor_busy_interval: 5
     observer_tracker_monitor_idle_interval: 60
     observer_tracker_aggregation_interval: 1
     observer_tracking_profile_busy_switch_threshold: 5
     observer_tracker_sample_set: 5
+
+track_sensitivity_monitor_node:
+  ros__parameters:
+    sensitivity: 'medium_c'
 
 config_manager_node:
   ros__parameters:
