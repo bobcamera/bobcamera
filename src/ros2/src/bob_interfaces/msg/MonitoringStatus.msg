@@ -13,9 +13,6 @@ int32 ended
 # The configured sensitivity settings for the bgs
 string sensitivity
 
-# Any hints please set them here
-string tracking_hint
-
 # Has the max blob threshold been hit
 bool max_blobs_reached
 

@@ -10,7 +10,3 @@ class TrackingStateEnum(IntEnum):
     ActiveTarget = 2
     LostTarget = 3
 
-class TrackingHintEnum(IntEnum):
-    NoHint = 0
-    IncreaseSensitivity = 1
-    LowerSensitivity = 2

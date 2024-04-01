@@ -146,13 +146,13 @@
     </head>
     <body>
         <div class="metric-panel">
-            <div class="metric-header"> --------------- Controls --------------- </div>
+            <div class="metric-header"> ------------- Controls ------------- </div>
             <div style="padding: 0px 10px 20px 0px;">
                 <button id="pauseBtn" title="Pause"><i class="fas fa-pause"></i></button>
                 <button id="playBtn" title="Play"><i class="fas fa-play"></i></button>
                 <a href="2d-Stream-With-Controls.html"><button id="2dViewBtn" title="View Stream in 2D"><i class="far fa-square"></i></button></a>
             </div>
-            <div class="metric-header"> ------- Incoming ROS2 Messages ------- </div><br>
+            <div class="metric-header"> ----- Incoming ROS2 Messages ----- </div><br>
             <div hidden class="metric-readings">
                 <label>BOB Version:</label>
                 <span id="applicationVersion">0</span>
@@ -205,10 +205,6 @@
                 <span hidden id="total_avg_frame_rate">0</span>
             </div>
             <br>
-            <div class="metric-header"> ----------- Tuning Hint ----------- </div><br>
-            <div class="metric-readings">
-                <span id="tracker_hint">None</span>
-            </div>            
             <div class="metric-header"> ----------- Tracker Status ----------- </div><br>
             <div class="metric-readings">
                 <label for="sensitivity">Sensitivity:</label>
@@ -290,7 +286,6 @@
     let day_night_classification = document.getElementById('day_night_classification');
     let cloud_estimation = document.getElementById('cloud_estimation');
 
-    let tracker_hint = document.getElementById('tracker_hint');
     let sensitivity = document.getElementById('sensitivity');
 
     let devicePixelRatio = window.devicePixelRatio || 1;
@@ -367,8 +362,6 @@
                 }
                 
                 cloud_estimation.innerHTML = `${Math.trunc(message.percentage_cloud_cover)}%`;
-            
-                tracker_hint.innerHTML = message.tracking_hint;
             });
             
 
