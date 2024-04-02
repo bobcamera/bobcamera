@@ -264,6 +264,7 @@ monitoring_status_aggregator_node:
 
 track_sensitivity_monitor_node:
   ros__parameters:
+    check_interval: 30
     sensitivity: 'medium_c'
 
 config_manager_node:

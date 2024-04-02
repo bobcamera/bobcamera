@@ -19,5 +19,11 @@ def generate_launch_description():
             PythonLaunchDescriptionSource([
                 launch_package_dir, 
                 '/allsky_headless_kernel_launch.py'])
-        )
+        ),
+
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource([
+                launch_package_dir, 
+                '/monitoring_infrastructure_launch.py']),
+        )        
     ])

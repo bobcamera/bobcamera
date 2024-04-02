@@ -31,10 +31,14 @@ private:
         LowerSensitivity
     };
 
+    rclcpp::TimerBase::SharedPtr interval_check_timer_;
     rclcpp::Client<bob_interfaces::srv::SensitivityChangeRequest>::SharedPtr sensitivity_change_client_;
     rclcpp::Subscription<bob_interfaces::msg::MonitoringStatus>::SharedPtr monitoring_subscription_;
 
+    bob_interfaces::msg::MonitoringStatus::SharedPtr status_msg_;
+
     std::string sensitivity_;
+    int check_interval_;
     TrackingHintEnum tracking_hint_;
 
     rclcpp::QoS pub_qos_profile_;
@@ -51,14 +55,18 @@ private:
         pub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
 
         declare_node_parameters();
+
         tracking_hint_ = NoHint;
+
+        interval_check_timer_ = create_wall_timer(std::chrono::seconds(check_interval_), 
+            std::bind(&TrackSensitivityMonitor::interval_check_timer_callback, this));
 
         sensitivity_change_client_ = create_client<bob_interfaces::srv::SensitivityChangeRequest>("bob/bgs/sensitivity_update");
 
         monitoring_subscription_ = create_subscription<bob_interfaces::msg::MonitoringStatus>(
             "bob/monitoring/status", 
             sub_qos_profile_,
-            std::bind(&TrackSensitivityMonitor::statusCallback, this, std::placeholders::_1));
+            std::bind(&TrackSensitivityMonitor::status_callback, this, std::placeholders::_1));
     }
 
     void declare_node_parameters()
@@ -66,84 +74,122 @@ private:
         std::vector<ParameterNode::ActionParam> params = {
             ParameterNode::ActionParam(
                 rclcpp::Parameter("sensitivity", "medium_c"), 
-                [this](const rclcpp::Parameter& param) 
-                {
-                    RCLCPP_INFO(get_logger(), "Setting Sensitivity: %s", param.as_string().c_str());
-                    sensitivity_ = param.as_string();
-                }
+                [this](const rclcpp::Parameter& param) { sensitivity_ = param.as_string(); }
+            ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("check_interval", 30), 
+                [this](const rclcpp::Parameter& param) { check_interval_ = param.as_int(); }
             ),
         };
         add_action_parameters(params);
     }
 
-    void statusCallback(const bob_interfaces::msg::MonitoringStatus::SharedPtr status_msg)
+    void status_callback(const bob_interfaces::msg::MonitoringStatus::SharedPtr status_msg)
     {
-        if (status_msg->max_blobs_reached)
+        status_msg_ = status_msg;
+    }
+
+    void interval_check_timer_callback()
+    {
+        if (status_msg_)
         {
-            tracking_hint_ = LowerSensitivity;
-        }
-        else
-        {
-            if (status_msg->unimodal_cloud_cover)
+            if (status_msg_->max_blobs_reached)
             {
-                tracking_hint_ = IncreaseSensitivity;
-            }
-            else if (!status_msg->unimodal_cloud_cover)
-            {
-                if (status_msg->percentage_cloud_cover > 10 && status_msg->percentage_cloud_cover < 90)
-                {
-                    tracking_hint_ = LowerSensitivity;
-                }
+                tracking_hint_ = LowerSensitivity;
             }
             else
-                tracking_hint_ = NoHint;
-        }
-
-        std::string sensitivity = sensitivity_;
-
-        // MWG: This needs way more work
-        switch (tracking_hint_)
-        {
-            case IncreaseSensitivity:
-
-                if (sensitivity_ == "low")
-                    sensitivity_ = "medium";
-                else if (sensitivity_ == "medium")
-                    sensitivity_ = "high";
-                else if (sensitivity_ == "low_c")
-                    sensitivity_ = "medium_c";
-                else if (sensitivity_ == "medium_c")
-                    sensitivity_ = "high_c";
-
-                RCLCPP_INFO(get_logger(), "Tracking Hint: Stable conditions - set to medium or high sensitivity");
-                break;
-            case LowerSensitivity:
-
-                if (sensitivity_ == "medium")
-                    sensitivity_ = "low";
-                else if (sensitivity_ == "high")
-                    sensitivity_ = "medium";
-                else if (sensitivity_ == "medium_c")
-                    sensitivity_ = "low_c";
-                else if (sensitivity_ == "high_c")
-                    sensitivity_ = "medium_c";
-
-                RCLCPP_INFO(get_logger(), "Tracking Hint: Unstable conditions - set to low sensitivity");
-                break;
-            case NoHint:
-
-                RCLCPP_INFO(get_logger(), "Tracking Hint: None");
-                break;                
-        }
-
-        if (sensitivity != sensitivity_)
-        {
-            auto sensitivity_change_request = std::make_shared<bob_interfaces::srv::SensitivityChangeRequest::Request>();
-            sensitivity_change_request->sensitivity = sensitivity_;
-            if (sensitivity_change_client_->service_is_ready())
             {
-                auto result = sensitivity_change_client_->async_send_request(sensitivity_change_request, std::bind(&TrackSensitivityMonitor::sensitivity_change_request_callback, this, std::placeholders::_1));
-            }    
+                if (status_msg_->unimodal_cloud_cover)
+                {
+                    tracking_hint_ = IncreaseSensitivity;
+                }
+                else if (!status_msg_->unimodal_cloud_cover)
+                {
+                    if (status_msg_->percentage_cloud_cover > 10 && status_msg_->percentage_cloud_cover < 90)
+                    {
+                        tracking_hint_ = LowerSensitivity;
+                    }
+                }
+                else
+                    tracking_hint_ = NoHint;
+            }
+
+            // MWG: This needs way more work
+            bool updating = false;
+            switch (tracking_hint_)
+            {
+                case IncreaseSensitivity:
+
+                    if (sensitivity_ == "low")
+                    {
+                        sensitivity_ = "medium";
+                        updating = true;
+                    }
+                    else if (sensitivity_ == "medium")
+                    {
+                        sensitivity_ = "high";
+                        updating = true;
+                    }
+                    else if (sensitivity_ == "low_c")
+                    {
+                        sensitivity_ = "medium_c";
+                        updating = true;
+                    }
+                    else if (sensitivity_ == "medium_c")
+                    {
+                        sensitivity_ = "high_c";
+                        updating = true;
+                    }
+
+                    if (updating)
+                        RCLCPP_INFO(get_logger(), "Tracking Auto Tune: Stable conditions - increasing sensitivity");
+
+                    break;
+                case LowerSensitivity:
+
+                    if (sensitivity_ == "medium")
+                    {
+                        sensitivity_ = "low";
+                        updating = true;
+                    }
+                    else if (sensitivity_ == "high")
+                    {
+                        sensitivity_ = "medium";
+                        updating = true;
+                    }
+                    else if (sensitivity_ == "medium_c")
+                    {
+                        sensitivity_ = "low_c";
+                        updating = true;
+                    }
+                    else if (sensitivity_ == "high_c")
+                    {
+                        sensitivity_ = "medium_c";
+                        updating = true;
+                    }     
+
+                    if (updating)
+                        RCLCPP_INFO(get_logger(), "Tracking Auto Tune: Unstable conditions - lowering sensitivity");
+
+                    break;
+                case NoHint:
+
+                    //RCLCPP_INFO(get_logger(), "Tracking Hint: None");
+                    break;
+            }
+
+            if (updating)
+            {
+                auto sensitivity_change_request = std::make_shared<bob_interfaces::srv::SensitivityChangeRequest::Request>();
+                sensitivity_change_request->sensitivity = sensitivity_;
+                if (sensitivity_change_client_->service_is_ready())
+                {
+                    auto result = sensitivity_change_client_->async_send_request(sensitivity_change_request, 
+                        std::bind(&TrackSensitivityMonitor::sensitivity_change_request_callback, 
+                        this, 
+                        std::placeholders::_1));
+                }    
+            }
         }
     }
 
@@ -153,7 +199,7 @@ private:
         if(response->success)
             RCLCPP_INFO(get_logger(), "Sensitivity change completed, from %s to %s", response->sensitivity_from.c_str(), response->sensitivity_to.c_str());
         else
-            RCLCPP_INFO(get_logger(), "Sensitivity change failed");
+            RCLCPP_WARN(get_logger(), "Sensitivity change failed");
     }
 };
 

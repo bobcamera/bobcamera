@@ -363,6 +363,7 @@ private:
         {
             if (sensitivity_ == request->sensitivity)
             {
+                response->success = true;
                 RCLCPP_DEBUG(get_logger(), "Ignoring sensitivity request change");
             }
             else

@@ -4,6 +4,7 @@ from launch_ros.actions import Node, ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
 from launch.substitutions import PythonExpression, LaunchConfiguration 
 from launch.conditions import IfCondition
+from launch.actions import LogInfo
 from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
@@ -23,6 +24,7 @@ def generate_launch_description():
                name='track_sensitivity_monitor_node',
                parameters = [config],
                extra_arguments=[{'use_intra_process_comms': True}],
+               condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_autotune_arg'), " == True" ]))
             )
         ],
         output='screen',
@@ -95,15 +97,20 @@ def generate_launch_description():
         executable='config_manager',
         name='config_manager_node',
         parameters = [config],
-    )    
+    )
 
-    return LaunchDescription([
-        sensitivity_monitor_container,
+    return LaunchDescription([      
+
+        LogInfo(
+            condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_autotune_arg'), " == True" ])),
+            msg=['Tracking sensitivity AutoTune enabled.']),
+
         day_night_classifier_node,
         cloud_estimator_node,
         monitoring_status_aggregator_node,
+        sensitivity_monitor_container,
         # prometheus_node,
         onvif_node,
         # ptz_manager_node
-        config_manager_node,
+        # config_manager_node,
     ])
