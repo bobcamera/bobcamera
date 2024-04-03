@@ -42,6 +42,7 @@ public:
 
 private:
     enum class RecordingStateEnum {
+        Disabled,
         BeforeStart,
         BetweenEvents,
         AfterEnd
@@ -258,8 +259,8 @@ private:
 
             cv::Mat fg_img;
             ImageUtils::convert_image_msg(image_fg_msg, fg_img, false);
-
             Json::Value json_data;
+
             switch (current_state_) 
             {
             case RecordingStateEnum::BeforeStart:
@@ -347,6 +348,25 @@ private:
                 }
                 video_recorder_->add_to_pre_buffer(img);
                 break;
+
+            case RecordingStateEnum::Disabled:
+                if (recording_) 
+                {
+                    recording_ = false;
+                    RCLCPP_INFO(get_logger(), "Ending track recording...");
+                    std::string full_path = dated_directory_ + "/heatmaps/" + base_filename_ + ".jpg";
+                    img_recorder_->write_image(full_path);
+
+                    Json::Value json_camera_info = JsonRecorder::build_json_camera_info(camera_info_msg);
+                    json_recorder_->add_to_buffer(json_camera_info, true);
+                    
+                    std::string json_full_path = dated_directory_ + "/json/" + base_filename_ + ".json";
+                    json_recorder_->write_buffer_to_file(json_full_path);
+
+                    img_recorder_->reset();
+                    video_recorder_->close_video();
+                }
+                break;                
             }
 
             bob_interfaces::msg::RecordingState state;
@@ -362,18 +382,15 @@ private:
     void change_recording_enabled_request(const std::shared_ptr<bob_interfaces::srv::RecordingRequest::Request> request, 
         std::shared_ptr<bob_interfaces::srv::RecordingRequest::Response> response)
     {
-        response->success = false;
-        //MWG: Add a Disabled state to the RecordingStateEnum
-        if (request->disable_recording) 
+        if (request->disable_recording)
         {
-            response->success = true;
-            RCLCPP_INFO(get_logger(), "TODO: Need to DISABLE recording");
+            current_state_ = RecordingStateEnum::Disabled;
         }
         else
         {
-            response->success = true;
-            RCLCPP_INFO(get_logger(), "TODO: Need to ENABLE recording");
+            current_state_ = RecordingStateEnum::BeforeStart;
         }
+        response->success = true;
     }
 
     std::unique_ptr<ImageRecorder> img_recorder_;
