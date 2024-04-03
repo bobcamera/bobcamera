@@ -13,6 +13,7 @@
 #include "bob_camera/msg/camera_info.hpp"
 #include "bob_interfaces/msg/tracking.hpp"
 #include "bob_interfaces/msg/recording_state.hpp"
+#include "bob_interfaces/srv/recording_request.hpp"
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
 #include "image_recorder.hpp"
@@ -62,8 +63,14 @@ private:
         sub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
         sub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
         auto rmw_qos_profile = sub_qos_profile.get_rmw_qos_profile();
+        
+        recording_request_service_= create_service<bob_interfaces::srv::RecordingRequest>("bob/recording/update", 
+            std::bind(&RecordManager::change_recording_enabled_request, 
+            this, 
+            std::placeholders::_1, 
+            std::placeholders::_2));
 
-        state_publisher_ = create_publisher<bob_interfaces::msg::RecordingState>("bob/recording/recording_state", pub_qos_profile);
+        state_publisher_ = create_publisher<bob_interfaces::msg::RecordingState>("bob/recording/state", pub_qos_profile);
         sub_frame_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(shared_from_this(), img_topic_, rmw_qos_profile);
         sub_fg_frame_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(shared_from_this(), fg_img_topic_, rmw_qos_profile);
         sub_tracking_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::Tracking>>(shared_from_this(), tracking_topic_, rmw_qos_profile);
@@ -352,6 +359,23 @@ private:
         }
     };
 
+    void change_recording_enabled_request(const std::shared_ptr<bob_interfaces::srv::RecordingRequest::Request> request, 
+        std::shared_ptr<bob_interfaces::srv::RecordingRequest::Response> response)
+    {
+        response->success = false;
+        //MWG: Add a Disabled state to the RecordingStateEnum
+        if (request->disable_recording) 
+        {
+            response->success = true;
+            RCLCPP_INFO(get_logger(), "TODO: Need to DISABLE recording");
+        }
+        else
+        {
+            response->success = true;
+            RCLCPP_INFO(get_logger(), "TODO: Need to ENABLE recording");
+        }
+    }
+
     std::unique_ptr<ImageRecorder> img_recorder_;
     std::unique_ptr<VideoRecorder> video_recorder_;
     std::unique_ptr<JsonRecorder> json_recorder_;
@@ -371,6 +395,7 @@ private:
     std::string codec_str_;
     std::string pipeline_str_;
     std::string prefix_str_;
+    rclcpp::Service<bob_interfaces::srv::RecordingRequest>::SharedPtr recording_request_service_;
     rclcpp::Publisher<bob_interfaces::msg::RecordingState>::SharedPtr state_publisher_;    
     std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> sub_frame_;
     std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> sub_fg_frame_;

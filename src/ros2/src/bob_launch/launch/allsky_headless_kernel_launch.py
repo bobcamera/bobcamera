@@ -107,60 +107,15 @@ def generate_launch_description():
                     ('bob/mask/target', 'bob/frames/allsky/masked/privacy')],
                 extra_arguments=[{'use_intra_process_comms': True}],
             ),            
-            #Low sensitivity:
+            #The one Background Subtractor Node to rule them all:
             ComposableNode(
                 package='bob_image_processing',
-                plugin='BackgroundSubtractor',
-                name='low_background_subtractor_node',
+                plugin='BackgroundSubtractor2',
+                name='background_subtractor_v2_node',
+                #arguments=['--ros-args', '--log-level', 'DEBUG'],
                 parameters = [config],
-                extra_arguments=[{'use_intra_process_comms': True}],
-                condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'low'" ]))
+                extra_arguments=[{'use_intra_process_comms': True}]
             ),
-            #Medium sensitivity:
-            ComposableNode(
-                package='bob_image_processing',
-                plugin='BackgroundSubtractor',
-                name='medium_background_subtractor_node',
-                parameters = [config],
-                extra_arguments=[{'use_intra_process_comms': True}],
-                condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'medium'" ]))
-            ),
-            #High sensitivity:
-            ComposableNode(
-                package='bob_image_processing',
-                plugin='BackgroundSubtractor',
-                name='high_background_subtractor_node',
-                parameters = [config],
-                extra_arguments=[{'use_intra_process_comms': True}],
-                condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'high'" ]))
-            ), 
-            #Low sensitivity in partial cloud:
-            ComposableNode(
-                package='bob_image_processing',
-                plugin='BackgroundSubtractor',
-                name='low_filter_background_subtractor_node',
-                parameters = [config],
-                extra_arguments=[{'use_intra_process_comms': True}],
-                condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'low_c'" ]))
-            ),
-            #Medium sensitivity in partial cloud:
-            ComposableNode(
-                package='bob_image_processing',
-                plugin='BackgroundSubtractor',
-                name='medium_filter_background_subtractor_node',
-                parameters = [config],
-                extra_arguments=[{'use_intra_process_comms': True}],
-                condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'medium_c'" ]))
-            ),
-            #High sensitivity in partial cloud:
-            ComposableNode(
-                package='bob_image_processing',
-                plugin='BackgroundSubtractor',
-                name='high_filter_background_subtractor_node',
-                parameters = [config],
-                extra_arguments=[{'use_intra_process_comms': True}],
-                condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_arg'), " == 'high_c'" ]))
-            ),            
             ComposableNode(
                 package='bob_tracking',
                 plugin='TrackProvider',
@@ -174,7 +129,7 @@ def generate_launch_description():
                 parameters = [config],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('enable_recording_arg'), " == True"])),  
-            ),
+            ),            
         ],
         output='screen',
     )    

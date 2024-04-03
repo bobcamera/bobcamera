@@ -11,8 +11,8 @@ def generate_launch_description():
     
     config = 'assets/config/app_config.yaml'
 
-    sensitivity_monitor_container = ComposableNodeContainer(
-        name='sensitivity_monitor_container',
+    pipeline_monitor_container = ComposableNodeContainer(
+        name='pipeline_monitor_container',
         namespace='',
         package='rclcpp_components',
         executable='component_container',
@@ -25,7 +25,15 @@ def generate_launch_description():
                parameters = [config],
                extra_arguments=[{'use_intra_process_comms': True}],
                condition=IfCondition(PythonExpression([LaunchConfiguration('tracking_sensitivity_autotune_arg'), " == True" ]))
-            )
+            ),
+            ComposableNode(
+                package='bob_recorder',
+                plugin='RecordingMonitor',
+                name='allsky_recorder_monitoring_node',
+                parameters = [config],
+                extra_arguments=[{'use_intra_process_comms': True}],
+                condition=IfCondition(PythonExpression([LaunchConfiguration('enable_recording_arg'), " == True"])),  
+            ),               
         ],
         output='screen',
     )
@@ -108,7 +116,7 @@ def generate_launch_description():
         day_night_classifier_node,
         cloud_estimator_node,
         monitoring_status_aggregator_node,
-        sensitivity_monitor_container,
+        pipeline_monitor_container,
         # prometheus_node,
         onvif_node,
         # ptz_manager_node

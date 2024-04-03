@@ -91,7 +91,7 @@ install(TARGETS mask_application_node DESTINATION lib)
 add_library(track_sensitivity_monitor SHARED src/track_sensitivity_monitor.cpp)
 target_compile_definitions(track_sensitivity_monitor PRIVATE "COMPOSITION_BUILDING_DLL")
 target_link_libraries(track_sensitivity_monitor PUBLIC boblib)
-ament_target_dependencies(track_sensitivity_monitor PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge OpenCV rclcpp_components bob_camera bob_interfaces)
+ament_target_dependencies(track_sensitivity_monitor PUBLIC rclcpp sensor_msgs rclcpp_components bob_camera bob_interfaces)
 rclcpp_components_register_nodes(track_sensitivity_monitor "TrackSensitivityMonitor")
 install(TARGETS track_sensitivity_monitor DESTINATION lib)
 

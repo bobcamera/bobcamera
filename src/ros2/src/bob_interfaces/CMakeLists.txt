@@ -57,6 +57,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/MaskSvgUpdate.srv"
   "srv/CameraSettings.srv"
   "srv/SensitivityChangeRequest.srv"
+  "srv/RecordingRequest.srv"
   DEPENDENCIES std_msgs sensor_msgs vision_msgs geometry_msgs
 )
 

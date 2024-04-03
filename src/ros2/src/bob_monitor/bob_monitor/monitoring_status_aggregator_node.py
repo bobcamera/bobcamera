@@ -29,7 +29,7 @@ class MonitoringStatusAggregatorNode(Node):
     # setup services, publishers and subscribers    
     self.sub_detector_state = self.create_subscription(DetectorState, 'bob/detection/detector_state', self.detector_state_callback, subscriber_qos_profile)
     self.sub_tracking_state = self.create_subscription(Tracking, 'bob/tracker/tracking', self.tracking_state_callback, subscriber_qos_profile)
-    self.sub_recording_state = self.create_subscription(RecordingState, 'bob/recording/recording_state', self.recording_state_callback, subscriber_qos_profile)
+    self.sub_recording_state = self.create_subscription(RecordingState, 'bob/recording/state', self.recording_state_callback, subscriber_qos_profile)
 
     self.sub_environment_day_night = self.create_subscription(ObserverDayNight, 'bob/observer/day_night_classifier', 
       self.day_night_callback, subscriber_qos_profile)

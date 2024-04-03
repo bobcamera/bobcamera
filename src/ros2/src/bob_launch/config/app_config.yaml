@@ -267,6 +267,10 @@ track_sensitivity_monitor_node:
     check_interval: 30
     sensitivity: 'medium_c'
 
+allsky_recorder_monitoring_node:
+  ros__parameters:
+    check_interval: 30
+
 config_manager_node:
   ros__parameters:
     pass: True

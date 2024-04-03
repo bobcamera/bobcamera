@@ -65,4 +65,12 @@ target_link_libraries(record_manager PUBLIC jsoncpp)
 rclcpp_components_register_nodes(record_manager "RecordManager")
 install(TARGETS record_manager DESTINATION lib)
 
+# Recording Monitor Node
+add_library(recording_monitor_node SHARED src/recording_monitor.cpp)
+target_compile_definitions(recording_monitor_node PRIVATE "COMPOSITION_BUILDING_DLL")
+target_link_libraries(recording_monitor_node PUBLIC boblib)
+ament_target_dependencies(recording_monitor_node PUBLIC rclcpp sensor_msgs rclcpp_components bob_interfaces)
+rclcpp_components_register_nodes(recording_monitor_node "RecordingMonitor")
+install(TARGETS recording_monitor_node DESTINATION lib)
+
 ament_package()
