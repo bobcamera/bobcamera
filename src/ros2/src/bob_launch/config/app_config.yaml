@@ -269,7 +269,7 @@ track_sensitivity_monitor_node:
 
 allsky_recorder_monitoring_node:
   ros__parameters:
-    check_interval: 30
+    check_interval: 5
 
 config_manager_node:
   ros__parameters:

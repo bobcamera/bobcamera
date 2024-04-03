@@ -366,7 +366,7 @@ private:
                     img_recorder_->reset();
                     video_recorder_->close_video();
                 }
-                break;                
+                break;
             }
 
             bob_interfaces::msg::RecordingState state;

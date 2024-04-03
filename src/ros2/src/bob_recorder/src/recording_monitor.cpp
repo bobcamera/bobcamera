@@ -80,7 +80,7 @@ private:
         if (status_msg_)
         {
             // Testing the service call
-            auto recording_change_request = std::make_shared<bob_interfaces::srv::RecordingRequest::Request>();
+            /*auto recording_change_request = std::make_shared<bob_interfaces::srv::RecordingRequest::Request>();
             recording_change_request->disable_recording = recording_enabled_;
             if (recording_change_client_->service_is_ready())
             {
@@ -88,9 +88,9 @@ private:
                     std::bind(&RecordingMonitor::recording_change_request_callback, 
                     this, 
                     std::placeholders::_1));
-            }
+            }*/
 
-            /*if (status_msg_->max_blobs_reached)
+            if (status_msg_->max_blobs_reached)
             {
                 if (recording_enabled_)
                 {
@@ -119,7 +119,7 @@ private:
                             std::placeholders::_1));
                     }
                 }
-            }*/
+            }
         }
     }
 
