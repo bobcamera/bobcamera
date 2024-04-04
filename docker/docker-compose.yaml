@@ -1,7 +1,7 @@
 version: '3'
 services:
   web:
-    image: bobcamera/bob-web-prod:1.2.13
+    image: bobcamera/bob-web-prod:1.2.14
     #user: ${MY_UID}:${MY_GID}
     ports:
       - "8080:80"
@@ -11,7 +11,7 @@ services:
     depends_on:
       - bob
   bob:
-    image: bobcamera/bob-ros2-prod:1.2.13
+    image: bobcamera/bob-ros2-prod:1.2.14
     #user: ${MY_UID}:${MY_GID}
     extra_hosts:
       - "host.docker.internal:host-gateway"
