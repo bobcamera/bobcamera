@@ -39,6 +39,7 @@ def generate_launch_description():
     bgs_algorithm_value = EnvironmentVariable('BOB_BGS_ALGORITHM', default_value="vibe")    
     
     tracking_sensitivity_arg_value  = EnvironmentVariable('BOB_TRACKING_SENSITIVITY', default_value="'high'")
+    tracking_sensitivity_autotune_arg_value  = EnvironmentVariable('BOB_TRACKING_SENSITIVITY_AUTOTUNE', default_value="True")
 
     video_arg_value  = EnvironmentVariable('BOB_VIDEOS', default_value="")    
 
@@ -140,6 +141,12 @@ def generate_launch_description():
         description="Tracking sensitivity of the bgs and blob detector, it drives a set of parameters for the algos."
         )  
 
+    tracking_sensitivity_autotune_arg = DeclareLaunchArgument(
+        'tracking_sensitivity_autotune_arg',
+        default_value=tracking_sensitivity_autotune_arg_value,
+        description="Enable, disable tracking sensitivity auto tune."
+        )  
+
     video_arg = DeclareLaunchArgument(
         'video_arg',
         default_value=video_arg_value,
@@ -170,6 +177,7 @@ def generate_launch_description():
 
         bgs_algorithm_arg,
         tracking_sensitivity_arg,
+        tracking_sensitivity_autotune_arg,
 
         video_arg,
 

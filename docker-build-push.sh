@@ -65,6 +65,14 @@ else
     echo "Failed to update version number - ./docker/docker-compose.yaml."
 fi
 
+# Replace version number in docker-compose-rstudioless.yaml
+if sed -i "s/bobcamera\/bob-web-prod:$web_version/bobcamera\/bob-web-prod:$version_number/" ./docker/docker-compose-rstudioless.yaml && \
+   sed -i "s/bobcamera\/bob-ros2-prod:$bob_version/bobcamera\/bob-ros2-prod:$version_number/" ./docker/docker-compose-rstudioless.yaml; then
+    echo "Version number successfully updated - ./docker/docker-compose-rstudioless.yaml."
+else
+    echo "Failed to update version number - ./docker/docker-compose-rstudioless.yaml."
+fi
+
 # Replace version number in docker-compose-headless.yaml
 if sed -i "s/bobcamera\/bob-ros2-prod:$bob_version/bobcamera\/bob-ros2-prod:$version_number/" ./docker/docker-compose-headless.yaml; then
     echo "Version number successfully updated - ./docker/docker-compose-headless.yaml."

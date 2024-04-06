@@ -10,8 +10,8 @@ int32 started
 # The total number of blobs no longer bing tracked
 int32 ended
 
-# Any hints please set them here
-string tracking_hint
+# The configured sensitivity settings for the bgs
+string sensitivity
 
 # Has the max blob threshold been hit
 bool max_blobs_reached
@@ -21,6 +21,9 @@ bool recording
 
 # The percentage cloud cover currently being determined
 float32 percentage_cloud_cover
+
+# Whether the distribution is unimodal or not
+bool unimodal_cloud_cover
 
 # Is it currently day or night
 int32 day_night_enum

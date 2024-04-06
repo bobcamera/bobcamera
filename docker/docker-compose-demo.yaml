@@ -1,14 +1,14 @@
 version: '3'
 services:
   web:
-    image: bobcamera/bob-web-prod:1.2.13
+    image: bobcamera/bob-web-prod:1.2.14
     #user: ${MY_UID}:${MY_GID}
     ports:
       - "8080:80"
     depends_on:
       - bob
   bob:
-    image: bobcamera/bob-ros2-prod:1.2.13
+    image: bobcamera/bob-ros2-prod:1.2.14
     #user: ${MY_UID}:${MY_GID}
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -23,6 +23,7 @@ services:
       - BOB_ENABLE_RECORDING=False
       - BOB_BGS_ALGORITHM=vibe
       - BOB_TRACKING_SENSITIVITY='medium'
+      - BOB_TRACKING_SENSITIVITY_AUTOTUNE=False
       - BOB_VIDEOS=/workspaces/bobcamera/media/fisheye_videos/mike-drone.mp4;/workspaces/bobcamera/media/fisheye_videos/mikeg-30min.mp4
       - BOB_SIMULATION_NUM_OBJECTS=25
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp

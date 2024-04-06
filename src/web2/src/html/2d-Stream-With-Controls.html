@@ -12,9 +12,18 @@
 
             #stream {
                 position: relative;
-                width: 75vw;
+                width: 74vw; /* Initial width */
+                max-width: 100%; /* Ensure it doesn't exceed the viewport width */
                 height: auto;
-                float: left
+                margin: 0 auto; /* Center the container horizontally */
+                overflow: hidden; /* Prevent overflow content from protruding */
+                float: left;
+            }
+            
+            #image-subscription {
+                display: block; /* Ensure the image fills its container */
+                width: 100%; /* Make sure the image fills the container */
+                height: auto;
             }
 
             #image-subscription, #bufferingOverlay {
@@ -35,9 +44,9 @@
                 z-index: 15;
             }
 
-            #image-subscription {
+            /*#image-subscription {
                 z-index: 1;
-            }
+            }*/
 
             .hidden {
                 display: none;
@@ -75,13 +84,15 @@
                 position: relative;
                 display: flex;
                 flex-direction: column;
-                width: 23%;
-                float: right
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                padding: 20px;
+                width: 21%;
+                float: right;
             }
             .metric-header {
-                display: flex;
-                justify-content: center;
-                padding-bottom: 5px;
+                font-size: 18px;
+                font-weight: bold;
+                margin-top: 20px;
             }
             .metric-readings {
                 display: flex;
@@ -131,16 +142,17 @@
         <script src="https://cdnjs.cloudflare.com/ajax/libs/roslibjs/1.1.0/roslib.min.js"></script>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
         <link href="https://cdn.jsdelivr.net/npm/@mdi/font/css/materialdesignicons.min.css" rel="stylesheet">
+        <script src="../lib/bob.js"></script>
     </head>
     <body>
         <div class="metric-panel">
-            <div class="metric-header"> --------------- Controls --------------- </div>
+            <div class="metric-header"> ------------- Controls ------------- </div>
             <div style="padding: 0px 10px 20px 0px;">
                 <button id="pauseBtn" title="Pause"><i class="fas fa-pause"></i></button>
                 <button id="playBtn" title="Play"><i class="fas fa-play"></i></button>
                 <a href="2d-Stream-With-Controls.html"><button id="2dViewBtn" title="View Stream in 2D"><i class="far fa-square"></i></button></a>
             </div>
-            <div class="metric-header"> ------- Incoming ROS2 Messages ------- </div><br>
+            <div class="metric-header"> ----- Incoming ROS2 Messages ----- </div><br>
             <div hidden class="metric-readings">
                 <label>BOB Version:</label>
                 <span id="applicationVersion">0</span>
@@ -193,23 +205,19 @@
                 <span hidden id="total_avg_frame_rate">0</span>
             </div>
             <br>
-            <div class="metric-header"> ----------- Tuning Hint ----------- </div><br>
-            <div class="metric-readings">
-                <span id="tracker_hint">None</span>
-            </div>            
-            <br>
             <div class="metric-header"> ----------- Tracker Status ----------- </div><br>
+            <div class="metric-readings">
+                <label for="sensitivity">Sensitivity:</label>
+                <span id="sensitivity"></span>
+            </div>
+            <br>
             <div class="metric-readings">
                 <label for="tracking_state">Tracking:</label>
                 <i id="tracking_state_icon" class="fa-solid fa-circle"></i>
             </div>
             <div class="metric-readings">
                 <label for="recording_state">Recording:</label>
-                <i id="recording_state_icon" class="fa-solid fa-circle"></i>
-            </div>
-            <div class="metric-readings">
-                <label for="max_blob_state">Max Blob:</label>
-                <i id="max_blob_state_icon" class="fa-solid fa-circle"></i>
+                <span id="recording_state_icon" class="fa-solid fa-circle default-red"></span>
             </div>
             <br>
             <div class="metric-readings">
@@ -232,12 +240,14 @@
             <div class="metric-header"> ----------- Observer Status ----------- </div><br>
             <div class="metric-readings">
                 <label for="day_night_classification">Day/Night:</label>
-                <span id="day_night_classification">0</span>
-            </div>
+                <i id="day_icon" class="fas fa-image" style="color: #ffe207; display: none;"></i>
+                <i id="night_icon" class="far fa-moon" style="color: blue; display: none;"></i> 
+                <i id="neutral_icon" style="display: none;">&#63;</i> 
+            </div>            
             <div class="metric-readings">
                 <label for="cloud_estimation">Cloud Cover:</label>
                 <span id="cloud_estimation">0</span>
-            </div>            
+            </div>
         </div>
         <div id="stream" width="" height="">
             <img id="image-subscription" width="" height="" />
@@ -267,7 +277,6 @@
 
     let tracking_state_icon = document.getElementById('tracking_state_icon');
     let recording_state_icon = document.getElementById('recording_state_icon');
-    let max_blob_state_icon = document.getElementById('max_blob_state_icon');    
 
     let tracking_state_trackable = document.getElementById('tracking_state_trackable');
     let tracking_state_alive = document.getElementById('tracking_state_alive');
@@ -277,7 +286,7 @@
     let day_night_classification = document.getElementById('day_night_classification');
     let cloud_estimation = document.getElementById('cloud_estimation');
 
-    let tracker_hint = document.getElementById('tracker_hint');
+    let sensitivity = document.getElementById('sensitivity');
 
     let devicePixelRatio = window.devicePixelRatio || 1;
 
@@ -285,33 +294,6 @@
     let isPlaying = true;
     let firstImageReceived = false;
 
-    function rosConnect(ros, websocketsURL, retry=false){
-        if(ros) {
-            ros.connect(websocketsURL);
-        } else {
-            console.log('Creating new ros connection...');
-            var ros = new ROSLIB.Ros();
-            ros.connect(websocketsURL);
-        }
-        ros.on('connection', function(){
-            //console.log('Connected to websocket server.')
-        });
-        ros.on('error', function(){
-            //console.log('Error connecting to websocket server: ', error);
-        });
-        ros.on('close', function(){            
-            // Try to reconnect in 5 seconds
-            if (retry) {
-                //console.log('Connection to websocket server closed, trying in 5 seconds.');
-                setTimeout(function(){rosConnect(ros, websocketsURL)}, 5000);
-            }
-        });
-    }
-
-    // Set up the connection to the ROS2 environment using the roslib.js library
-
-    // Define the Websockets address of the ROS2 environment
-    var websocketsURL = 'ws://' + window.location.hostname + ':9090';
     var ros = new ROSLIB.Ros();
     rosConnect(ros, websocketsURL, true);
 
@@ -352,27 +334,36 @@
             });  
 
             stateStream.subscribe(function (message) {
-                updateIconColor(tracking_state_icon, (message.alive > 0))
-                updateIconColor(recording_state_icon, message.recording)
-                updateIconColor(max_blob_state_icon, !message.max_blobs_reached)
 
+                sensitivity.innerHTML = message.sensitivity;
+                updateIconColor(tracking_state_icon, (message.alive > 0))
+                updateIconColor(recording_state_icon, message.recording)            
                 tracking_state_trackable.innerHTML = message.trackable;
                 tracking_state_alive.innerHTML = message.alive;
                 tracking_state_started.innerHTML = message.started;
                 tracking_state_ended.innerHTML = message.ended;
-
+            
+                // Update day/night icon based on classification
+                var dayIcon = document.getElementById('day_icon');
+                var nightIcon = document.getElementById('night_icon');
+                var neutralIcon = document.getElementById('neutral_icon');
                 if (message.day_night_enum === 0) {
-                    day_night_classification.innerHTML = 'Unknown';
+                    dayIcon.style.display = 'none'; // Hide day icon
+                    nightIcon.style.display = 'none'; // Hide night icon
+                    neutralIcon.style.display = 'inline'; // Display neutral icon
                 } else if (message.day_night_enum === 1) {
-                    day_night_classification.innerHTML = 'Day'; //`Day - avg Brightness:${message.avg_brightness}`;
+                    dayIcon.style.display = 'inline'; // Display day icon
+                    nightIcon.style.display = 'none'; // Hide night icon
+                    neutralIcon.style.display = 'none'; // Hide neutral icon
                 } else if (message.day_night_enum === 2) {
-                    day_night_classification.innerHTML = 'Night'; //`Night - avg Brightness:${message.avg_brightness}`;
+                    dayIcon.style.display = 'none'; // Hide day icon
+                    nightIcon.style.display = 'inline'; // Display night icon
+                    neutralIcon.style.display = 'none'; // Hide neutral icon
                 }
-
+                
                 cloud_estimation.innerHTML = `${Math.trunc(message.percentage_cloud_cover)}%`;
-
-                tracker_hint.innerHTML = message.tracking_hint;
             });
+            
 
             frameStream.subscribe(function (message) {
                 updateMessageRate();
@@ -469,19 +460,14 @@
         requestAnimationFrame(update);
     }
 
-    function updateDimensions() 
-    {
-        let newHeight = videoStream.offsetHeight;
-        let newWidth = videoStream.offsetWidth;
+    function updateDimensions() {
+        let newWidth = streamContainer.offsetWidth;
+        let newHeight = (newWidth / videoStream.naturalWidth) * videoStream.naturalHeight;
         streamContainer.style.height = `${newHeight}px`;
-        streamContainer.style.width = `${newWidth}px`;
-        streamContainer.height = newHeight * devicePixelRatio;
-        streamContainer.width = newWidth * devicePixelRatio;
-        bufferingOverlay.style.height = `${newHeight}px`;
         bufferingOverlay.style.width = `${newWidth}px`;
-        bufferingOverlay.width = newWidth * devicePixelRatio;
-        bufferingOverlay.height = newHeight * devicePixelRatio;
+        bufferingOverlay.style.height = `${newHeight}px`;
     }
+    
 
     // Listen for changes to the image's height
     const resizeObserver = new ResizeObserver(() => {

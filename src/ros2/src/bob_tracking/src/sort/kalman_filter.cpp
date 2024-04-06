@@ -66,15 +66,15 @@ void SORT::KalmanFilter::Predict()
     x_ = x_predict_;
     P_ = P_predict_;
 
-    double deviations = 1.0;
-    auto newEllipse = covarianceEllipse(P_predict_, deviations);
+    // double deviations = 1.0;
+    // auto newEllipse = covarianceEllipse(P_predict_, deviations);
 
-    // Apply smoothing to the ellipse parameters
-    constexpr double smoothingFactor = 0.95;  // Adjust this value based on your requirements
+    // // Apply smoothing to the ellipse parameters
+    // constexpr double smoothingFactor = 0.95;  // Adjust this value based on your requirements
 
-    std::get<0>(ellipse_) = smoothingFactor * std::get<0>(ellipse_) + (1.0 - smoothingFactor) * std::get<0>(newEllipse);
-    std::get<1>(ellipse_) = smoothingFactor * std::get<1>(ellipse_) + (1.0 - smoothingFactor) * std::get<1>(newEllipse);
-    std::get<2>(ellipse_) = smoothingFactor * std::get<2>(ellipse_) + (1.0 - smoothingFactor) * std::get<2>(newEllipse);
+    // std::get<0>(ellipse_) = smoothingFactor * std::get<0>(ellipse_) + (1.0 - smoothingFactor) * std::get<0>(newEllipse);
+    // std::get<1>(ellipse_) = smoothingFactor * std::get<1>(ellipse_) + (1.0 - smoothingFactor) * std::get<1>(newEllipse);
+    // std::get<2>(ellipse_) = smoothingFactor * std::get<2>(ellipse_) + (1.0 - smoothingFactor) * std::get<2>(newEllipse);
 }
 
 Eigen::VectorXd SORT::KalmanFilter::PredictionToObservation(const Eigen::VectorXd &state) 

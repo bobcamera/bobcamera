@@ -20,6 +20,7 @@ export BOB_BGS_ALGORITHM=${BOB_BGS_ALGORITHM:-"vibe"}
 
 # Tracking sensitivity options: low, medium, high (use in blue sky or blanket cloud) or low_c, medium_c, high_c (broken cloud)
 export BOB_TRACKING_SENSITIVITY=${BOB_TRACKING_SENSITIVITY:-"'medium_c'"}
+export BOB_TRACKING_SENSITIVITY_AUTOTUNE=${BOB_TRACKING_SENSITIVITY_AUTOTUNE:-"True"}
 
 # Video files list separated by ';'
 export BOB_VIDEOS=${BOB_VIDEOS:-"/workspaces/bobcamera/media/fisheye_videos/mike-drone.mp4;/workspaces/bobcamera/media/fisheye_videos/mikeg-30min.mp4"}

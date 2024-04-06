@@ -1,1 +1,2 @@
 bool max_blobs_reached
+string sensitivity

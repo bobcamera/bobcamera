@@ -13,12 +13,14 @@
 #include "bob_camera/msg/camera_info.hpp"
 #include "bob_interfaces/msg/tracking.hpp"
 #include "bob_interfaces/msg/recording_state.hpp"
+#include "bob_interfaces/srv/recording_request.hpp"
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
 #include "image_recorder.hpp"
 #include "json_recorder.hpp"
 #include "video_recorder.hpp"
 
+#include <rclcpp/experimental/executors/events_executor/events_executor.hpp>
 
 class RecordManager : public ParameterNode {
 public:
@@ -40,6 +42,7 @@ public:
 
 private:
     enum class RecordingStateEnum {
+        Disabled,
         BeforeStart,
         BetweenEvents,
         AfterEnd
@@ -61,8 +64,14 @@ private:
         sub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
         sub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
         auto rmw_qos_profile = sub_qos_profile.get_rmw_qos_profile();
+        
+        recording_request_service_= create_service<bob_interfaces::srv::RecordingRequest>("bob/recording/update", 
+            std::bind(&RecordManager::change_recording_enabled_request, 
+            this, 
+            std::placeholders::_1, 
+            std::placeholders::_2));
 
-        state_publisher_ = create_publisher<bob_interfaces::msg::RecordingState>("bob/recording/recording_state", pub_qos_profile);
+        state_publisher_ = create_publisher<bob_interfaces::msg::RecordingState>("bob/recording/state", pub_qos_profile);
         sub_frame_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(shared_from_this(), img_topic_, rmw_qos_profile);
         sub_fg_frame_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(shared_from_this(), fg_img_topic_, rmw_qos_profile);
         sub_tracking_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::Tracking>>(shared_from_this(), tracking_topic_, rmw_qos_profile);
@@ -250,8 +259,8 @@ private:
 
             cv::Mat fg_img;
             ImageUtils::convert_image_msg(image_fg_msg, fg_img, false);
-
             Json::Value json_data;
+
             switch (current_state_) 
             {
             case RecordingStateEnum::BeforeStart:
@@ -339,6 +348,25 @@ private:
                 }
                 video_recorder_->add_to_pre_buffer(img);
                 break;
+
+            case RecordingStateEnum::Disabled:
+                if (recording_) 
+                {
+                    recording_ = false;
+                    RCLCPP_INFO(get_logger(), "Ending track recording...");
+                    std::string full_path = dated_directory_ + "/heatmaps/" + base_filename_ + ".jpg";
+                    img_recorder_->write_image(full_path);
+
+                    Json::Value json_camera_info = JsonRecorder::build_json_camera_info(camera_info_msg);
+                    json_recorder_->add_to_buffer(json_camera_info, true);
+                    
+                    std::string json_full_path = dated_directory_ + "/json/" + base_filename_ + ".json";
+                    json_recorder_->write_buffer_to_file(json_full_path);
+
+                    img_recorder_->reset();
+                    video_recorder_->close_video();
+                }
+                break;
             }
 
             bob_interfaces::msg::RecordingState state;
@@ -350,6 +378,20 @@ private:
             RCLCPP_ERROR(get_logger(), "exception: %s", e.what());
         }
     };
+
+    void change_recording_enabled_request(const std::shared_ptr<bob_interfaces::srv::RecordingRequest::Request> request, 
+        std::shared_ptr<bob_interfaces::srv::RecordingRequest::Response> response)
+    {
+        if (request->disable_recording)
+        {
+            current_state_ = RecordingStateEnum::Disabled;
+        }
+        else
+        {
+            current_state_ = RecordingStateEnum::BeforeStart;
+        }
+        response->success = true;
+    }
 
     std::unique_ptr<ImageRecorder> img_recorder_;
     std::unique_ptr<VideoRecorder> video_recorder_;
@@ -370,6 +412,7 @@ private:
     std::string codec_str_;
     std::string pipeline_str_;
     std::string prefix_str_;
+    rclcpp::Service<bob_interfaces::srv::RecordingRequest>::SharedPtr recording_request_service_;
     rclcpp::Publisher<bob_interfaces::msg::RecordingState>::SharedPtr state_publisher_;    
     std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> sub_frame_;
     std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> sub_fg_frame_;
@@ -394,7 +437,7 @@ private:
 int main(int argc, char **argv) 
 {
     rclcpp::init(argc, argv);
-    rclcpp::executors::StaticSingleThreadedExecutor executor;
+    rclcpp::experimental::executors::EventsExecutor executor;
     executor.add_node(std::make_shared<RecordManager>(rclcpp::NodeOptions()));
     executor.spin();
     rclcpp::shutdown();

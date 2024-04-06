@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Styled Table</title>
+    <title>Event Recordings By Date</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
     <style>
         body {
@@ -67,50 +67,38 @@
         }
     </style>
 </head>
-
 <body>
-
 <?php
 $videosDirectory = 'videos/';
 $videoDirs = array_diff(scandir($videosDirectory), array('..', '.'));
-
-echo "<h4>Select Heatmap Navigation or Recording Grid from the date list below</h4>";
+// Table Header
+echo "<h4>Event Recordings By Date | Navigate Event Recordings By Heatmap, Event Grid, or Event Table</h4>";
 echo "<table class='styled-table'>";
 echo "<thead>";
 echo "<tr>";
 echo "<th>Day</th>";
 echo "<th>Event Grid</th>";
-//echo "<th>Timelapse</th>";
-//echo "<th>Keogram</th>";
-//echo "<th>Startrails</th>";
 echo "<th>Event Player</th>";
 echo "<th>Event Table</th>";
 echo "<th>Action</th>";
 echo "</tr>";
 echo "</thead>";
-echo "<tbody>";
 
+// Loop through each Day's Recording Directory and display a row for each day
+echo "<tbody>";
 foreach ($videoDirs as $videoDir) {
     if (is_dir($videosDirectory . $videoDir)) {
-        // Format the date from YYYYMMDD to a more readable format if needed
         $formattedDate = DateTime::createFromFormat('Ymd', $videoDir)->format('Y-m-d');
-
         echo "<tr>";
         echo "<td>" . htmlspecialchars($formattedDate) . "</td>";
         echo "<td><a href='display-files-in-grid.php?date=" . urlencode($videoDir) . "'><i class='fas fa-images icon' style='color: #337AB7;'></i></a></td>";
-        //echo "<td><i class='fas fa-film icon' style='color: grey;'></i></td>";
-        //echo "<td><i class='fas fa-chart-bar icon' style='color: grey;'></i></td>";
-        //echo "<td><i class='fas fa-star icon' style='color: grey;'></i></td>";
         echo "<td><a href='heatmaps.php?date=" . urlencode($videoDir) . "'><i class='fas fa-play-circle icon' style='color: #337AB7;'></i></a></td>";
         echo "<td><a href='summary.php?date=" . urlencode($videoDir) . "'><i class='fas fa-table icon' style='color: #337AB7;'></i></a></td>";
-        //echo "<td><button class='delete-btn'><i class='fas fa-trash'></i> Delete</button></td>";
-
-        echo "<td><a href='delete-directory.php?date=" . urlencode($videoDir) . "' class='delete-btn' onclick=\"return confirm('Are you sure you want to delete this directory and all its contents?');\"><i class='fas fa-trash'></i> Delete</a></td>";
-        
+        echo "<td><a href='php-scripts/delete-directory.php?date=" . urlencode($videoDir) . "' class='delete-btn' onclick=\"return confirm('Are you sure you want to delete this directory and all its contents?');\">
+        <i class='fas fa-trash'></i> Delete</a></td>";
         echo "</tr>";
     }
 }
-
 echo "</tbody>";
 echo "</table>";
 ?>

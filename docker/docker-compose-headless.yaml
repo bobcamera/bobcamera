@@ -1,7 +1,7 @@
 version: '3'
 services:
   bob:
-    image: bobcamera/bob-ros2-prod:1.2.13
+    image: bobcamera/bob-ros2-prod:1.2.14
     #user: ${MY_UID}:${MY_GID}
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -16,6 +16,7 @@ services:
       - BOB_ENABLE_RECORDING=${BOB_ENABLE_RECORDING}
       - BOB_BGS_ALGORITHM=${BOB_BGS_ALGORITHM}
       - BOB_TRACKING_SENSITIVITY=${BOB_TRACKING_SENSITIVITY}
+      - BOB_TRACKING_SENSITIVITY_AUTOTUNE=${BOB_TRACKING_SENSITIVITY_AUTOTUNE}
       - BOB_VIDEOS=${BOB_VIDEOS}
       - BOB_SIMULATION_NUM_OBJECTS=${BOB_SIMULATION_NUM_OBJECTS}
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp

@@ -18,6 +18,8 @@
 
 #include <visibility_control.h>
 
+#include <rclcpp/experimental/executors/events_executor/events_executor.hpp>
+
 class TrackProvider
     : public ParameterNode
 {
@@ -140,13 +142,13 @@ private:
         detect_msg.state = (int)tracker.get_tracking_state();
         detect_msg.bbox = bbox_msg;
 
-        auto result = tracker.get_ellipse(); 
-        double semi_major_axis = std::get<0>(result);
-        double semi_minor_axis = std::get<1>(result);
-        double orientation = std::get<2>(result);
-        detect_msg.covariance_ellipse_semi_major_axis = semi_major_axis;
-        detect_msg.covariance_ellipse_semi_minor_axis = semi_minor_axis;
-        detect_msg.covariance_ellipse_orientation = orientation;
+        // auto result = tracker.get_ellipse(); 
+        // double semi_major_axis = std::get<0>(result);
+        // double semi_minor_axis = std::get<1>(result);
+        // double orientation = std::get<2>(result);
+        // detect_msg.covariance_ellipse_semi_major_axis = semi_major_axis;
+        // detect_msg.covariance_ellipse_semi_minor_axis = semi_minor_axis;
+        // detect_msg.covariance_ellipse_orientation = orientation;
 
         detection_array.push_back(detect_msg);
     }
@@ -188,7 +190,7 @@ private:
 int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
-    rclcpp::executors::StaticSingleThreadedExecutor executor;
+    rclcpp::experimental::executors::EventsExecutor executor;
     executor.add_node(std::make_shared<TrackProvider>(rclcpp::NodeOptions()));
     executor.spin();
     rclcpp::shutdown();

@@ -47,15 +47,16 @@ class CloudEstimatorNode(Node):
     if self.msg_image != None:
 
       estimation: float = None
+      distribution: bool = None
 
       try:
 
         match self.day_night:
           case DayNightEnum.Day:
-            estimation = self.day_cloud_estimator.estimate(self.br.imgmsg_to_cv2(self.msg_image))
+            estimation, distribution = self.day_cloud_estimator.estimate(self.br.imgmsg_to_cv2(self.msg_image))
             self.get_logger().info(f'{self.get_name()} Day time cloud estimation --> {estimation}')
           case DayNightEnum.Night:
-            estimation = self.night_cloud_estimator.estimate(self.br.imgmsg_to_cv2(self.msg_image))
+            estimation, _ = self.night_cloud_estimator.estimate(self.br.imgmsg_to_cv2(self.msg_image))
             self.get_logger().info(f'{self.get_name()} Night time cloud estimation --> {estimation}')
           case _:
             self.get_logger().info(f'{self.get_name()} Unknown Day/Night classifier, ignore for now')
@@ -64,6 +65,7 @@ class CloudEstimatorNode(Node):
         if estimation != None:
           cloud_estimation_msg = ObserverCloudEstimation()
           cloud_estimation_msg.percentage_cloud_cover = estimation
+          cloud_estimation_msg.unimodal_cloud_cover = distribution
           self.pub_environment_data.publish(cloud_estimation_msg)
 
       except Exception as e:

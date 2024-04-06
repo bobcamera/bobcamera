@@ -18,6 +18,8 @@
 #include "bob_interfaces/srv/mask_override_request.hpp"
 #include <sensor_msgs/msg/region_of_interest.hpp>
 
+#include <rclcpp/experimental/executors/events_executor/events_executor.hpp>
+
 class MaskApplication 
     : public ParameterNode
 {
@@ -60,7 +62,7 @@ public:
         image_subscription_ = create_subscription<sensor_msgs::msg::Image>("bob/mask/source", sub_qos_profile, 
             std::bind(&MaskApplication::callback, this, std::placeholders::_1));
 
-        timer_ = create_wall_timer(std::chrono::seconds(60), std::bind(&MaskApplication::timer_callback, this));
+        mask_check_timer_ = create_wall_timer(std::chrono::seconds(60), std::bind(&MaskApplication::mask_check_timer_callback, this));
 
         bgs_reset_client_ = create_client<bob_interfaces::srv::BGSResetRequest>("bob/bgs/reset");
 
@@ -71,7 +73,7 @@ public:
             std::placeholders::_1, 
             std::placeholders::_2));
 
-        timer_callback();
+        mask_check_timer_callback();
     }
 
     void declare_node_parameters()
@@ -147,7 +149,7 @@ private:
         }        
     }
 
-    void timer_callback()
+    void mask_check_timer_callback()
     {
         try
         {
@@ -290,7 +292,7 @@ private:
     bool mask_enabled_;
     bool mask_enable_override_;
     bool mask_enable_offset_correction_;
-    rclcpp::TimerBase::SharedPtr timer_;
+    rclcpp::TimerBase::SharedPtr mask_check_timer_;
     rclcpp::Client<bob_interfaces::srv::BGSResetRequest>::SharedPtr bgs_reset_client_;
     rclcpp::Service<bob_interfaces::srv::MaskOverrideRequest>::SharedPtr mask_override_service_;
     rclcpp::TimerBase::SharedPtr one_shot_timer_;
@@ -303,7 +305,7 @@ private:
 int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
-    rclcpp::executors::StaticSingleThreadedExecutor executor;
+    rclcpp::experimental::executors::EventsExecutor executor;
     executor.add_node(std::make_shared<MaskApplication>(rclcpp::NodeOptions()));
     executor.spin();
     rclcpp::shutdown();

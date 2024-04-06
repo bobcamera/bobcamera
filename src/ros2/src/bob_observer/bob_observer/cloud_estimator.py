@@ -4,6 +4,9 @@ import math
 import rclpy
 import rclpy.logging
 
+# Day and night algorithms based on:
+# Li, Qingyong & Lyu, Weitao & Yang, Jun. (2011). A Hybrid Thresholding Algorithm for Cloud Detection on Ground-Based Color Images. Journal of Atmospheric and Oceanic Technology. 28. 
+# Gao, B.; Ping, Y.; Lu, Y.; Zhang, C. (2022) Nighttime Cloud Cover Estimation Method at the Saishiteng 3850 m Site. Universe, 8, 538. 
 class CloudEstimator():
 
     @staticmethod
@@ -20,18 +23,10 @@ class CloudEstimator():
     # Method to estimate the cloudyness of the frame
     def estimate(self, frame):
         pass
+   
+    def find_threshold_mce(self, img, mask):
+        StArray = img[mask]
 
-    def br_norm(self, img, mask):
-        b, g, r = cv2.split(img)
-        r = np.where(r == 0, 1, r)
-        r = r.astype(np.float32)
-        b = b.astype(np.float32)
-        lambda_n = np.where(mask, (b - r) / (b + r), 0)
-        return lambda_n
-    
-    def find_threshold_mce(self, img):
-
-        StArray = img.ravel()
         x = np.linspace(-1,1,201)
         y, bins = np.histogram(StArray, bins=x)
 
@@ -112,13 +107,10 @@ class CloudEstimator():
         return ThresholdValue
 
     def get_mask(self, frame):
-        height, width, _ = frame.shape
-        x, y = np.ogrid[:height, :width]
-        center_x, center_y = width // 2, height // 2
-        radius = int(width * 0.315)
-        mask = (x - center_x)**2 + (y - center_y)**2 < radius**2
-        return mask        
-
+        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        _, mask = cv2.threshold(gray_frame, 1, 255, cv2.THRESH_BINARY)     
+        return mask
+    
 class DayTimeCloudEstimator(CloudEstimator):
 
     def __init__(self):
@@ -127,45 +119,64 @@ class DayTimeCloudEstimator(CloudEstimator):
     
     # Method to estimate the cloudyness of the frame
     def estimate(self, frame):
-
+        # logger = rclpy.logging.get_logger('cloud_estimator')
         mask = self.get_mask(frame)
+        
+        b, g, r = cv2.split(frame)
+        r = np.where(r == 0, 1, r)
+        r = r.astype(np.float32)
+        b = b.astype(np.float32)
+        lambda_n = np.where(mask, (b - r) / (b + r), 0)
 
-        lambda_n = self.br_norm(frame, mask)
-
-        std = np.std(lambda_n[mask])
-        if std > 0.03: # magic number
-            #print("Bimodal distribution")
-            threshold = self.find_threshold_mce(lambda_n)
+        std = np.std(lambda_n[mask == 255])
+        # logger.info(f'std: {std}')
+        if std > 0.03: # magic number, could maybe replace with Dip Test of modality
+            # logger.info('Bimodal distribution')
+            threshold = self.find_threshold_mce(lambda_n, mask)
             _, ratio_mask = cv2.threshold(lambda_n, threshold, 255, cv2.THRESH_BINARY)
+            distribution_type = False 
         else:
-            #print("Unimodal distribution")
-            _, ratio_mask = cv2.threshold(lambda_n, 0.25, 255, cv2.THRESH_BINARY)
-
+            # logger.info('Unimodal distribution')
+            _, ratio_mask = cv2.threshold(b-r, 30, 255, cv2.THRESH_BINARY)
+            distribution_type = True 
+            
         # Count the number of pixels in each part of the mask
-        N_Cloud = np.count_nonzero(ratio_mask[mask] == 0)
-        N_Sky = np.count_nonzero(ratio_mask[mask])
-
-        # Cloud cover ratio
-        ccr = (N_Cloud / (N_Cloud + N_Sky)) * 100
-        return round(ccr,2)
+        N_Cloud = np.count_nonzero(ratio_mask[mask == 255] == 0)
+        N_Sky = np.count_nonzero(ratio_mask[mask == 255] == 255)  
+        
+        ccr = (N_Cloud / (N_Cloud + N_Sky)) * 100        
+        return round(ccr, 2), distribution_type
 
 class NightTimeCloudEstimator(CloudEstimator):
 
     def __init__(self):
         super().__init__()
         pass
-    
+
+    def generate_cloud_feature_image(self, MI):
+        R = 1.164 * (MI - 16) + 1.596 * (MI - 128)
+        G = 1.164 * (MI - 16) - 0.392 * (MI - 128) - 0.813 * (MI - 128)
+        B = 1.164 * (MI - 16) + 2.017 * (MI - 128)
+        
+        max_val = np.maximum(R, np.maximum(G, B))
+        min_val = np.minimum(R, np.minimum(G, B))
+       
+        cloud_feature_image = (max_val - min_val) / max_val
+        cloud_feature_image_uint8 = (cloud_feature_image * 255).astype(np.uint8)
+
+        return cloud_feature_image_uint8
+
     # Method to estimate the cloudyness of the frame
     def estimate(self, frame):
 
         mask = self.get_mask(frame)
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-        otsu_threshold, image_result = cv2.threshold(frame, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU,)
-
+        frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        cloud_feature_image = self.generate_cloud_feature_image(frame_gray[mask == 255])
+        otsu_threshold, image_result = cv2.threshold(cloud_feature_image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        
         # Count the number of non zero pixels (white)
-        N_Cloud = np.count_nonzero(image_result[mask])
-        N_Sky = np.count_nonzero(image_result[mask] == 0)
+        N_Cloud = np.count_nonzero(image_result)
+        N_Sky = np.count_nonzero(image_result == 0)
     
         ccr = (N_Cloud / (N_Cloud + N_Sky)) * 100
-        return round(ccr,2)
+        return round(ccr, 2), True  

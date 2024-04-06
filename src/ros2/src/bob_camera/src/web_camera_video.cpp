@@ -2,19 +2,21 @@
 #include <string>
 
 #include <opencv2/opencv.hpp>
+#include <cv_bridge/cv_bridge.hpp>
 
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
-#include <cv_bridge/cv_bridge.hpp>
 #include <sensor_msgs/msg/image.hpp>
+#include <bob_camera/msg/image_info.hpp>
+#include <bob_camera/msg/camera_info.hpp>
+#include <bob_interfaces/srv/camera_settings.hpp>
+#include <bob_interfaces/srv/config_entry_update.hpp>
+#include <rclcpp/experimental/executors/events_executor/events_executor.hpp>
 
-#include "bob_camera/msg/image_info.hpp"
-#include "bob_camera/msg/camera_info.hpp"
 #include "parameter_node.hpp"
-#include "bob_interfaces/srv/camera_settings.hpp"
-#include "bob_interfaces/srv/config_entry_update.hpp"
-#include <boblib/api/utils/profiler.hpp>
+#include "boblib/api/utils/profiler.hpp"
 #include <visibility_control.h>
+
 
 enum class SourceType {
     USB_CAMERA,
@@ -393,7 +395,7 @@ private:
 int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
-    rclcpp::executors::StaticSingleThreadedExecutor executor;
+    rclcpp::experimental::executors::EventsExecutor executor;
     executor.add_node(std::make_shared<WebCameraVideo>(rclcpp::NodeOptions()));
     executor.spin();
     rclcpp::shutdown();
