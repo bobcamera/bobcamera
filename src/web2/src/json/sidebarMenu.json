@@ -112,6 +112,26 @@
                     "target": "_blank"
                 }
             ]
+        },
+        {
+            "title": "Social",
+            "key": "social",
+            "items": [
+                {
+                    "name": "Youtube",
+                    "key": "youtube",
+                    "url": "https://www.youtube.com/@BobUniversalObjectTracker",
+                    "icon": "bi-youtube",
+                    "target": "_blank"
+                },
+                {
+                    "name": "Facebook",
+                    "key": "facebook",
+                    "url": "https://www.facebook.com/groups/7533264616717176",
+                    "icon": "bi-facebook",
+                    "target": "_blank"
+                }
+            ]
         }
     ]
 }
