@@ -94,13 +94,13 @@ background_subtractor_v2_node:
                       "name": "low",
                       "sensitivity": {
                         "vibe": {
-                          "threshold": 55, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8
+                          "threshold": 65, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8
                         }, 
                         "wmv": {
-                          "enableWeight": true, "enableThreshold": true, "threshold": 45.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
+                          "enableWeight": true, "enableThreshold": true, "threshold": 50.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
                         }, 
                         "blob": {
-                          "sizeThreshold": 8, "areaThreshold": 64, "minDistance": 64, "maxBlobs": 50
+                          "sizeThreshold": 10, "areaThreshold": 100, "minDistance": 100, "maxBlobs": 25
                         }, 
                         "median_filter": false 
                       }
@@ -109,13 +109,13 @@ background_subtractor_v2_node:
                       "name": "medium",
                       "sensitivity": {
                         "vibe": {
-                          "threshold": 40, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 4
+                          "threshold": 45, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 4
                         }, 
                         "wmv": {
                           "enableWeight": true, "enableThreshold": true, "threshold": 30.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
                         }, 
                         "blob": {
-                          "sizeThreshold": 4, "areaThreshold": 16, "minDistance": 16, "maxBlobs": 50
+                          "sizeThreshold": 6, "areaThreshold": 36, "minDistance": 36, "maxBlobs": 25
                         }, 
                         "median_filter": false 
                       }
@@ -130,7 +130,7 @@ background_subtractor_v2_node:
                           "enableWeight": true, "enableThreshold": true, "threshold": 15.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
                         }, 
                         "blob": {
-                          "sizeThreshold": 2, "areaThreshold": 4, "minDistance": 4, "maxBlobs": 50
+                          "sizeThreshold": 4, "areaThreshold": 16, "minDistance": 16, "maxBlobs": 25
                         }, 
                         "median_filter": false 
                       }
@@ -139,13 +139,13 @@ background_subtractor_v2_node:
                       "name": "low_c",
                       "sensitivity": {
                         "vibe": {
-                          "threshold": 55, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8
+                          "threshold": 65, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8
                         }, 
                         "wmv": {
-                          "enableWeight": true, "enableThreshold": true, "threshold": 45.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
+                          "enableWeight": true, "enableThreshold": true, "threshold": 50.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
                         }, 
                         "blob": {
-                          "sizeThreshold": 8, "areaThreshold": 64, "minDistance": 64, "maxBlobs": 50
+                          "sizeThreshold": 10, "areaThreshold": 100, "minDistance": 100, "maxBlobs": 25
                         }, 
                         "median_filter": true 
                       }
@@ -154,13 +154,13 @@ background_subtractor_v2_node:
                       "name": "medium_c",
                       "sensitivity": {
                         "vibe": {
-                          "threshold": 40, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4
+                          "threshold": 45, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4
                         }, 
                         "wmv": {
-                          "enableWeight": true, "enableThreshold": true, "threshold": 20.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
+                          "enableWeight": true, "enableThreshold": true, "threshold": 25.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
                         }, 
                         "blob": {
-                          "sizeThreshold": 2, "areaThreshold": 4, "minDistance": 4, "maxBlobs": 50
+                          "sizeThreshold": 6, "areaThreshold": 36, "minDistance": 36, "maxBlobs": 25
                         }, 
                         "median_filter": true 
                       }
@@ -175,7 +175,7 @@ background_subtractor_v2_node:
                           "enableWeight": true, "enableThreshold": true, "threshold": 15.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
                         }, 
                         "blob": {
-                          "sizeThreshold": 2, "areaThreshold": 4, "minDistance": 4, "maxBlobs": 50
+                          "sizeThreshold": 4, "areaThreshold": 16, "minDistance": 16, "maxBlobs": 25
                         }, 
                         "median_filter": true 
                       }
