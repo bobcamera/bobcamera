@@ -43,6 +43,7 @@ private:
 
     int sensitivity_increase_count_threshold_;
     int sensitivity_increase_check_counter_;
+    std::string change_reason_;
 
     rclcpp::QoS pub_qos_profile_;
     rclcpp::QoS sub_qos_profile_;
@@ -115,23 +116,28 @@ private:
 
         if (status_msg_)
         {
+            change_reason_ = "";            
+
             // Rule 1
             if (status_msg_->day_night_enum > 0)
             {
                  // Rule 2
                 if (status_msg_->max_blobs_reached)
                 {
-                    sensitivity_change_action_ = LowerSensitivity;                
+                    change_reason_ = "Max Blobs";
+                    sensitivity_change_action_ = LowerSensitivity;
                 }
                  // Rule 3
                 else if (status_msg_->day_night_enum == 2 && (sensitivity_ == "high" || sensitivity_ == "high_c"))
                 {
+                    change_reason_ = "Day 2 Night";
                     sensitivity_change_action_ = LowerSensitivity;
                 }
                 else
                 {
                     if (status_msg_->unimodal_cloud_cover)
                     {
+                        change_reason_ = "Unimodal";
                         sensitivity_change_action_ = IncreaseSensitivity;
                     }
                     // Rule 4
@@ -139,6 +145,7 @@ private:
                     {
                         if (status_msg_->percentage_cloud_cover > 10 && status_msg_->percentage_cloud_cover < 90)
                         {
+                            change_reason_ = "Bimodal";
                             sensitivity_change_action_ = LowerSensitivity;
                         }
                     }
@@ -258,7 +265,8 @@ private:
         auto response = future.get();
         if(response->success)
         {            
-            RCLCPP_INFO(get_logger(), "Sensitivity change completed, from %s to %s", response->sensitivity_from.c_str(), response->sensitivity_to.c_str());
+            RCLCPP_INFO(get_logger(), "Sensitivity change completed, from %s to %s - reason: %s", 
+                response->sensitivity_from.c_str(), response->sensitivity_to.c_str(), change_reason_.c_str());
             
             // reset the counter
             sensitivity_increase_check_counter_ = 0;
