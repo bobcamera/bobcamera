@@ -265,7 +265,7 @@ monitoring_status_aggregator_node:
 track_sensitivity_monitor_node:
   ros__parameters:
     check_interval: 30
-    sensitivity_increase_count_threshold: 10
+    sensitivity_increase_count_threshold: 5
     sensitivity: 'medium_c'
 
 allsky_recorder_monitoring_node:

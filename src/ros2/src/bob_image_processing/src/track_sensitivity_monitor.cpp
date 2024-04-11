@@ -102,42 +102,70 @@ private:
 
     void interval_check_timer_callback()
     {
+        // Current Auto Tuning Rules
+        // --------------------------------
+        // 1. Wait for a day/night determination before we do anything
+        // 2. Lower sensitivity immediately if max blobs
+        // 3. Increase sensitivity past medium only during the day, if set to high and its night, lower to medium        
+        // 4. Lower sensitivity immediately if we have bimodal cloud cover and cloud cover is between 10% and 90%
+        // 5. Increase sensitivity after a number of iterations, currently set to 5
+        // ----------------------------------------------------------------
+        // Look into a rules engine e.g.: https://www.clipsrules.net/ 
+        // ----------------------------------------------------------------
+
         if (status_msg_)
         {
-            if (status_msg_->max_blobs_reached)
+            // Rule 1
+            if (status_msg_->day_night_enum > 0)
             {
-                sensitivity_change_action_ = LowerSensitivity;                
-            }
-            else
-            {
-                if (status_msg_->unimodal_cloud_cover)
+                 // Rule 2
+                if (status_msg_->max_blobs_reached)
                 {
-                    sensitivity_change_action_ = IncreaseSensitivity;
+                    sensitivity_change_action_ = LowerSensitivity;                
                 }
-                else if (!status_msg_->unimodal_cloud_cover)
+                 // Rule 3
+                else if (status_msg_->day_night_enum == 2 && (sensitivity_ == "high" || sensitivity_ == "high_c"))
                 {
-                    if (status_msg_->percentage_cloud_cover > 10 && status_msg_->percentage_cloud_cover < 90)
-                    {
-                        sensitivity_change_action_ = LowerSensitivity;
-                    }
+                    sensitivity_change_action_ = LowerSensitivity;
                 }
                 else
-                    sensitivity_change_action_ = Ignore;
-            }
-
-            // MWG: This needs way more work
-            bool updating = false;
-            switch (sensitivity_change_action_)
-            {
-                case IncreaseSensitivity:
-
-                    sensitivity_increase_check_counter_++;
-
-                    // MWG: We only increase the sensitivity after a configurable number of checks have been done.
-                    if(sensitivity_increase_check_counter_ >= sensitivity_increase_count_threshold_)
+                {
+                    if (status_msg_->unimodal_cloud_cover)
                     {
+                        sensitivity_change_action_ = IncreaseSensitivity;
+                    }
+                    // Rule 4
+                    else if (!status_msg_->unimodal_cloud_cover)
+                    {
+                        if (status_msg_->percentage_cloud_cover > 10 && status_msg_->percentage_cloud_cover < 90)
+                        {
+                            sensitivity_change_action_ = LowerSensitivity;
+                        }
+                    }
+                    else
+                        sensitivity_change_action_ = Ignore;
+                }
+
+                // Rule 5
+                if (sensitivity_change_action_ == IncreaseSensitivity)
+                {
+                    sensitivity_increase_check_counter_++;                        
+                    if(sensitivity_increase_check_counter_ < sensitivity_increase_count_threshold_)
+                    {
+                        sensitivity_change_action_ = Ignore;
+
+                        RCLCPP_DEBUG(get_logger(), "Tracking Auto Tune: IncreaseSensitivity triggered, counter %d of %d", 
+                            sensitivity_increase_check_counter_, sensitivity_increase_count_threshold_);
+                    }
+                }
+
+                bool updating = false;
+                switch (sensitivity_change_action_)
+                {                
+                    case IncreaseSensitivity:
+
                         // reset the counter
-                        sensitivity_increase_check_counter_ = 0;
+                        sensitivity_increase_check_counter_ = 0;                       
 
                         if (sensitivity_ == "low")
                         {
@@ -145,9 +173,13 @@ private:
                             updating = true;
                         }
                         else if (sensitivity_ == "medium")
-                        {
-                            sensitivity_ = "high";
-                            updating = true;
+                        {                          
+                            // Rule 3
+                            if (status_msg_->day_night_enum == 1)
+                            {
+                                sensitivity_ = "high";
+                                updating = true;
+                            }
                         }
                         else if (sensitivity_ == "low_c")
                         {
@@ -156,65 +188,66 @@ private:
                         }
                         else if (sensitivity_ == "medium_c")
                         {
-                            sensitivity_ = "high_c";
-                            updating = true;
+                            // Rule 2
+                            if (status_msg_->day_night_enum == 1)
+                            {
+                                sensitivity_ = "high_c";
+                                updating = true;
+                            }
                         }
 
                         if (updating)
                             RCLCPP_DEBUG(get_logger(), "Tracking Auto Tune: Stable conditions - increasing sensitivity");
-                    }
-                    else
-                    {
-                        RCLCPP_DEBUG(get_logger(), "Tracking Auto Tune: IncreaseSensitivity triggered, counter %d of %d", 
-                            sensitivity_increase_check_counter_, sensitivity_increase_count_threshold_);
-                    }
 
-                    break;
-                case LowerSensitivity:
+                        break;
 
-                    // reset the counter
-                    sensitivity_increase_check_counter_ = 0;
+                    case LowerSensitivity:
 
-                    if (sensitivity_ == "medium")
-                    {
-                        sensitivity_ = "low";
-                        updating = true;
-                    }
-                    else if (sensitivity_ == "high")
-                    {
-                        sensitivity_ = "medium";
-                        updating = true;
-                    }
-                    else if (sensitivity_ == "medium_c")
-                    {
-                        sensitivity_ = "low_c";
-                        updating = true;
-                    }
-                    else if (sensitivity_ == "high_c")
-                    {
-                        sensitivity_ = "medium_c";
-                        updating = true;
-                    }     
+                        // reset the counter
+                        sensitivity_increase_check_counter_ = 0;
 
-                    if (updating)
-                        RCLCPP_DEBUG(get_logger(), "Tracking Auto Tune: Unstable conditions - lowering sensitivity");
+                        if (sensitivity_ == "medium")
+                        {
+                            sensitivity_ = "low";
+                            updating = true;
+                        }
+                        else if (sensitivity_ == "high")
+                        {
+                            sensitivity_ = "medium";
+                            updating = true;
+                        }
+                        else if (sensitivity_ == "medium_c")
+                        {
+                            sensitivity_ = "low_c";
+                            updating = true;
+                        }
+                        else if (sensitivity_ == "high_c")
+                        {
+                            sensitivity_ = "medium_c";
+                            updating = true;
+                        }     
 
-                    break;
-                case Ignore:
-                    //RCLCPP_INFO(get_logger(), "Tracking Action: Ignore");
-                    break;
-            }
+                        if (updating)
+                            RCLCPP_DEBUG(get_logger(), "Tracking Auto Tune: Unstable conditions - lowering sensitivity");
 
-            if (updating)
-            {
-                auto sensitivity_change_request = std::make_shared<bob_interfaces::srv::SensitivityChangeRequest::Request>();
-                sensitivity_change_request->sensitivity = sensitivity_;
-                if (sensitivity_change_client_->service_is_ready())
+                        break;
+
+                    case Ignore:
+                        //RCLCPP_INFO(get_logger(), "Tracking Action: Ignore");
+                        break;
+                }
+
+                if (updating)
                 {
-                    auto result = sensitivity_change_client_->async_send_request(sensitivity_change_request, 
-                        std::bind(&TrackSensitivityMonitor::sensitivity_change_request_callback, 
-                        this, 
-                        std::placeholders::_1));
+                    auto sensitivity_change_request = std::make_shared<bob_interfaces::srv::SensitivityChangeRequest::Request>();
+                    sensitivity_change_request->sensitivity = sensitivity_;
+                    if (sensitivity_change_client_->service_is_ready())
+                    {
+                        auto result = sensitivity_change_client_->async_send_request(sensitivity_change_request, 
+                            std::bind(&TrackSensitivityMonitor::sensitivity_change_request_callback, 
+                            this, 
+                            std::placeholders::_1));
+                    }
                 }
             }
         }
