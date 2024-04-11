@@ -161,11 +161,11 @@ private:
                         }
 
                         if (updating)
-                            RCLCPP_INFO(get_logger(), "Tracking Auto Tune: Stable conditions - increasing sensitivity");
+                            RCLCPP_DEBUG(get_logger(), "Tracking Auto Tune: Stable conditions - increasing sensitivity");
                     }
                     else
                     {
-                        RCLCPP_INFO(get_logger(), "Tracking Auto Tune: IncreaseSensitivity triggered, counter %d of %d", 
+                        RCLCPP_DEBUG(get_logger(), "Tracking Auto Tune: IncreaseSensitivity triggered, counter %d of %d", 
                             sensitivity_increase_check_counter_, sensitivity_increase_count_threshold_);
                     }
 
@@ -197,7 +197,7 @@ private:
                     }     
 
                     if (updating)
-                        RCLCPP_INFO(get_logger(), "Tracking Auto Tune: Unstable conditions - lowering sensitivity");
+                        RCLCPP_DEBUG(get_logger(), "Tracking Auto Tune: Unstable conditions - lowering sensitivity");
 
                     break;
                 case Ignore:
