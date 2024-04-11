@@ -24,9 +24,9 @@ public:
     }
     
 private:
-    enum TrackingHintEnum
+    enum SensitivityChangeActionEnum
     {
-        NoHint,
+        Ignore,
         IncreaseSensitivity,
         LowerSensitivity
     };
@@ -39,7 +39,10 @@ private:
 
     std::string sensitivity_;
     int check_interval_;
-    TrackingHintEnum tracking_hint_;
+    SensitivityChangeActionEnum sensitivity_change_action_;
+
+    int sensitivity_increase_count_threshold_;
+    int sensitivity_increase_check_counter_;
 
     rclcpp::QoS pub_qos_profile_;
     rclcpp::QoS sub_qos_profile_;
@@ -56,7 +59,7 @@ private:
 
         declare_node_parameters();
 
-        tracking_hint_ = NoHint;
+        sensitivity_change_action_ = Ignore;
 
         interval_check_timer_ = create_wall_timer(std::chrono::seconds(check_interval_), 
             std::bind(&TrackSensitivityMonitor::interval_check_timer_callback, this));
@@ -80,6 +83,14 @@ private:
                 rclcpp::Parameter("check_interval", 30), 
                 [this](const rclcpp::Parameter& param) { check_interval_ = param.as_int(); }
             ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("sensitivity_increase_count_threshold", 5), 
+                [this](const rclcpp::Parameter& param) 
+                { 
+                    sensitivity_increase_count_threshold_ = param.as_int();
+                    sensitivity_increase_check_counter_ = 0;
+                }
+            ),
         };
         add_action_parameters(params);
     }
@@ -95,57 +106,74 @@ private:
         {
             if (status_msg_->max_blobs_reached)
             {
-                tracking_hint_ = LowerSensitivity;
+                sensitivity_change_action_ = LowerSensitivity;                
             }
             else
             {
                 if (status_msg_->unimodal_cloud_cover)
                 {
-                    tracking_hint_ = IncreaseSensitivity;
+                    sensitivity_change_action_ = IncreaseSensitivity;
                 }
                 else if (!status_msg_->unimodal_cloud_cover)
                 {
                     if (status_msg_->percentage_cloud_cover > 10 && status_msg_->percentage_cloud_cover < 90)
                     {
-                        tracking_hint_ = LowerSensitivity;
+                        sensitivity_change_action_ = LowerSensitivity;
                     }
                 }
                 else
-                    tracking_hint_ = NoHint;
+                    sensitivity_change_action_ = Ignore;
             }
 
             // MWG: This needs way more work
             bool updating = false;
-            switch (tracking_hint_)
+            switch (sensitivity_change_action_)
             {
                 case IncreaseSensitivity:
 
-                    if (sensitivity_ == "low")
-                    {
-                        sensitivity_ = "medium";
-                        updating = true;
-                    }
-                    else if (sensitivity_ == "medium")
-                    {
-                        sensitivity_ = "high";
-                        updating = true;
-                    }
-                    else if (sensitivity_ == "low_c")
-                    {
-                        sensitivity_ = "medium_c";
-                        updating = true;
-                    }
-                    else if (sensitivity_ == "medium_c")
-                    {
-                        sensitivity_ = "high_c";
-                        updating = true;
-                    }
+                    sensitivity_increase_check_counter_++;
 
-                    if (updating)
-                        RCLCPP_INFO(get_logger(), "Tracking Auto Tune: Stable conditions - increasing sensitivity");
+                    // MWG: We only increase the sensitivity after a configurable number of checks have been done.
+                    if(sensitivity_increase_check_counter_ >= sensitivity_increase_count_threshold_)
+                    {
+                        // reset the counter
+                        sensitivity_increase_check_counter_ = 0;
+
+                        if (sensitivity_ == "low")
+                        {
+                            sensitivity_ = "medium";
+                            updating = true;
+                        }
+                        else if (sensitivity_ == "medium")
+                        {
+                            sensitivity_ = "high";
+                            updating = true;
+                        }
+                        else if (sensitivity_ == "low_c")
+                        {
+                            sensitivity_ = "medium_c";
+                            updating = true;
+                        }
+                        else if (sensitivity_ == "medium_c")
+                        {
+                            sensitivity_ = "high_c";
+                            updating = true;
+                        }
+
+                        if (updating)
+                            RCLCPP_INFO(get_logger(), "Tracking Auto Tune: Stable conditions - increasing sensitivity");
+                    }
+                    else
+                    {
+                        RCLCPP_INFO(get_logger(), "Tracking Auto Tune: IncreaseSensitivity triggered, counter %d of %d", 
+                            sensitivity_increase_check_counter_, sensitivity_increase_count_threshold_);
+                    }
 
                     break;
                 case LowerSensitivity:
+
+                    // reset the counter
+                    sensitivity_increase_check_counter_ = 0;
 
                     if (sensitivity_ == "medium")
                     {
@@ -172,9 +200,8 @@ private:
                         RCLCPP_INFO(get_logger(), "Tracking Auto Tune: Unstable conditions - lowering sensitivity");
 
                     break;
-                case NoHint:
-
-                    //RCLCPP_INFO(get_logger(), "Tracking Hint: None");
+                case Ignore:
+                    //RCLCPP_INFO(get_logger(), "Tracking Action: Ignore");
                     break;
             }
 
@@ -188,7 +215,7 @@ private:
                         std::bind(&TrackSensitivityMonitor::sensitivity_change_request_callback, 
                         this, 
                         std::placeholders::_1));
-                }    
+                }
             }
         }
     }
@@ -197,7 +224,12 @@ private:
     {
         auto response = future.get();
         if(response->success)
+        {            
             RCLCPP_INFO(get_logger(), "Sensitivity change completed, from %s to %s", response->sensitivity_from.c_str(), response->sensitivity_to.c_str());
+            
+            // reset the counter
+            sensitivity_increase_check_counter_ = 0;
+        }
         else
             RCLCPP_WARN(get_logger(), "Sensitivity change failed");
     }
