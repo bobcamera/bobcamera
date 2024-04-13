@@ -20,7 +20,8 @@ setup(
     entry_points={
         'console_scripts': [
             'cloud_estimator = bob_observer.cloud_estimator_node:main',
-            'day_night_classifier = bob_observer.day_night_classifier_node:main',            
+            'day_night_classifier = bob_observer.day_night_classifier_node:main', 
+            'star_mask = bob_observer.star_mask_node:main',            
         ],
     },
 )

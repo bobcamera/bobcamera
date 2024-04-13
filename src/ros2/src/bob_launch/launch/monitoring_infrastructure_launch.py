@@ -60,6 +60,17 @@ def generate_launch_description():
             ('bob/observer_frame/source', 'bob/frames/allsky/masked/detection/resized')],        
     )
     
+    star_mask_node = Node(
+        package='bob_observer',
+        #namespace='bob',
+        executable='star_mask',
+        name='star_mask_node',
+        arguments=['--ros-args', '--log-level', 'INFO'],
+        parameters = [config],
+        remappings=[
+            ('bob/observer_frame/source', '/bob/frames/allsky/masked/privacy/resized')], # Probably need to change this    
+    )
+    
     monitoring_status_aggregator_node = Node(
         package='bob_monitor',
         #namespace='bob',
@@ -115,6 +126,7 @@ def generate_launch_description():
 
         day_night_classifier_node,
         cloud_estimator_node,
+        star_mask_node,
         monitoring_status_aggregator_node,
         pipeline_monitor_container,
         # prometheus_node,

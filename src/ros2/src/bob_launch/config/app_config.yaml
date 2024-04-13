@@ -87,7 +87,7 @@ privacy_mask_application_node:
 
 background_subtractor_v2_node:
   ros__parameters:
-    sensitivity: 'medium_c'
+    sensitivity: 'low_c'
     bgs: ''
     json_params: '[
                     {
@@ -253,6 +253,11 @@ day_night_classifier_node:
 cloud_estimator_node:
   ros__parameters:
     observer_timer_interval: 90
+
+star_mask_node:
+  ros__parameters:
+    observer_timer_interval: 90
+    observer_cross_correlation_threshold: 0.5
 
 monitoring_status_aggregator_node:
   ros__parameters:
