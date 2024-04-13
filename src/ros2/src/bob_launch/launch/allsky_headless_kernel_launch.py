@@ -129,7 +129,18 @@ def generate_launch_description():
                 parameters = [config],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('enable_recording_arg'), " == True"])),  
-            ),            
+            ),
+            # This is used for the star mask so needs to be included here
+            ComposableNode(
+                package='bob_image_processing',
+                plugin='FrameResizer',
+                name='original_frame_resizer_node',
+                remappings=[
+                    ('bob/resizer/source', 'bob/frames/allsky/original'),
+                    ('bob/resizer/target', 'bob/frames/allsky/original/resized')],
+                parameters = [config],
+                extra_arguments=[{'use_intra_process_comms': True}],
+            ),
         ],
         output='screen',
     )    

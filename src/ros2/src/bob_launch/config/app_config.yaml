@@ -72,7 +72,6 @@ simulation_overlay_provider_node:
 detection_mask_application_node:
   ros__parameters:
     mask_file: 'assets/masks/detection-mask.jpg'
-    mask_enable_override: True
     mask_enable_offset_correction: True
     image_width: 0
     image_height: 0    
@@ -80,7 +79,6 @@ detection_mask_application_node:
 privacy_mask_application_node:
   ros__parameters:
     mask_file: 'assets/masks/privacy-mask.jpg'
-    mask_enable_override: True
     mask_enable_offset_correction: False
     image_width: 0
     image_height: 0    
@@ -203,6 +201,10 @@ annotated_frame_provider_node:
   ros__parameters:
     tracking_status_message: False
 
+original_frame_resizer_node:
+  ros__parameters:
+    resize_height: 960
+
 detection_masked_frame_resizer_node:
   ros__parameters:
     resize_height: 960
@@ -256,6 +258,8 @@ cloud_estimator_node:
 
 star_mask_node:
   ros__parameters:
+    detection_mask_file: 'assets/masks/detection-mask.jpg'
+    detection_mask_backup_file: 'assets/masks/detection-mask-backup.jpg'
     observer_timer_interval: 90
     observer_cross_correlation_threshold: 0.5
 

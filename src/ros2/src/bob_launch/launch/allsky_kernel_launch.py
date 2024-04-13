@@ -141,6 +141,16 @@ def generate_launch_description():
             ComposableNode(
                 package='bob_image_processing',
                 plugin='FrameResizer',
+                name='original_frame_resizer_node',
+                remappings=[
+                    ('bob/resizer/source', 'bob/frames/allsky/original'),
+                    ('bob/resizer/target', 'bob/frames/allsky/original/resized')],
+                parameters = [config],
+                extra_arguments=[{'use_intra_process_comms': True}],
+            ),            
+            ComposableNode(
+                package='bob_image_processing',
+                plugin='FrameResizer',
                 name='detection_masked_frame_resizer_node',
                 remappings=[
                     ('bob/resizer/source', 'bob/frames/allsky/masked/detection'),

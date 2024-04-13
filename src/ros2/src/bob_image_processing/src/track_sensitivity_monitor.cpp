@@ -121,18 +121,18 @@ private:
             // Rule 1
             if (status_msg_->day_night_enum > 0)
             {
-                 // Rule 2
+                // Rule 2
                 if (status_msg_->max_blobs_reached)
                 {
                     change_reason_ = "Max Blobs";
                     sensitivity_change_action_ = LowerSensitivity;
                 }
-                 // Rule 3
-                else if (status_msg_->day_night_enum == 2 && (sensitivity_ == "high" || sensitivity_ == "high_c"))
-                {
-                    change_reason_ = "Day 2 Night";
-                    sensitivity_change_action_ = LowerSensitivity;
-                }
+                // Rule 3
+                //else if (status_msg_->day_night_enum == 2 && (sensitivity_ == "high" || sensitivity_ == "high_c"))
+                //{
+                //    change_reason_ = "Day 2 Night";
+                //    sensitivity_change_action_ = LowerSensitivity;
+                //}
                 else
                 {
                     if (status_msg_->unimodal_cloud_cover)
@@ -181,12 +181,8 @@ private:
                         }
                         else if (sensitivity_ == "medium")
                         {                          
-                            // Rule 3
-                            if (status_msg_->day_night_enum == 1)
-                            {
-                                sensitivity_ = "high";
-                                updating = true;
-                            }
+                            sensitivity_ = "high";
+                            updating = true;
                         }
                         else if (sensitivity_ == "low_c")
                         {
@@ -195,12 +191,8 @@ private:
                         }
                         else if (sensitivity_ == "medium_c")
                         {
-                            // Rule 2
-                            if (status_msg_->day_night_enum == 1)
-                            {
-                                sensitivity_ = "high_c";
-                                updating = true;
-                            }
+                            sensitivity_ = "high_c";
+                            updating = true;
                         }
 
                         if (updating)
@@ -270,6 +262,7 @@ private:
             
             // reset the counter
             sensitivity_increase_check_counter_ = 0;
+            sensitivity_change_action_ = Ignore;
         }
         else
             RCLCPP_WARN(get_logger(), "Sensitivity change failed");

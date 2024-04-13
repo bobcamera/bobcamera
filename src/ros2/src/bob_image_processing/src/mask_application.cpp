@@ -56,6 +56,7 @@ public:
         declare_node_parameters();
 
         roi_calc_complete_ = false;
+        mask_enable_override_ = true;
 
         image_publisher_ = create_publisher<sensor_msgs::msg::Image>("bob/mask/target", pub_qos_profile);
         roi_publisher_ = create_publisher<sensor_msgs::msg::RegionOfInterest>("bob/mask/roi", pub_qos_profile);
@@ -82,10 +83,6 @@ public:
             ParameterNode::ActionParam(
                 rclcpp::Parameter("mask_file", "mask.pgm"), 
                 [this](const rclcpp::Parameter& param) {mask_filename_ = param.as_string();}
-            ),
-            ParameterNode::ActionParam(
-                rclcpp::Parameter("mask_enable_override", true), 
-                [this](const rclcpp::Parameter& param) {mask_enable_override_ = param.as_bool();}
             ),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("mask_enable_offset_correction", true), 

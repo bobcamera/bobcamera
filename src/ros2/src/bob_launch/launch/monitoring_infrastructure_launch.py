@@ -68,7 +68,7 @@ def generate_launch_description():
         arguments=['--ros-args', '--log-level', 'INFO'],
         parameters = [config],
         remappings=[
-            ('bob/observer_frame/source', '/bob/frames/allsky/masked/privacy/resized')], # Probably need to change this    
+            ('bob/observer_frame/source', '/bob/frames/allsky/original/resized')],
     )
     
     monitoring_status_aggregator_node = Node(
