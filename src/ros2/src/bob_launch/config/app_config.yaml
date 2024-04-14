@@ -276,6 +276,7 @@ track_sensitivity_monitor_node:
     check_interval: 30
     sensitivity_increase_count_threshold: 5
     sensitivity: 'medium_c'
+    star_mask_enabled: True    
 
 allsky_recorder_monitoring_node:
   ros__parameters:

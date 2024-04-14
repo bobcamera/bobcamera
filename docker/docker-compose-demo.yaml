@@ -24,6 +24,7 @@ services:
       - BOB_BGS_ALGORITHM=vibe
       - BOB_TRACKING_SENSITIVITY='medium'
       - BOB_TRACKING_SENSITIVITY_AUTOTUNE=False
+      - BOB_ENABLE_STAR_MASK=${BOB_ENABLE_STAR_MASK:-False}
       - BOB_VIDEOS=/workspaces/bobcamera/media/fisheye_videos/mike-drone.mp4;/workspaces/bobcamera/media/fisheye_videos/mikeg-30min.mp4
       - BOB_SIMULATION_NUM_OBJECTS=25
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp

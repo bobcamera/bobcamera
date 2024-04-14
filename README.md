@@ -1,5 +1,7 @@
 # BOB the Universal Object Tracker
 
+# NoTE: These instructions will install the latest development release, we would highly recommend you rather install the latest stable release which can be found [here](https://github.com/bobcamera/bobinstall).
+
 Below are the installation instructions for installing BOB, your friendly Object (bird, insect, bat, uap) detector, tracker and recorder
 The application uses Docker and Docker Compose to run, at present we are still in a very early release phase so this the install process is not polished at all. We will endeavour to improve this over time so please bear with us.
 

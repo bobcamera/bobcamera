@@ -32,7 +32,7 @@ def generate_launch_description():
                 name='allsky_recorder_monitoring_node',
                 parameters = [config],
                 extra_arguments=[{'use_intra_process_comms': True}],
-                condition=IfCondition(PythonExpression([LaunchConfiguration('enable_recording_arg'), " == True"])),  
+                condition=IfCondition(PythonExpression([LaunchConfiguration('enable_recording_arg'), " == True"])),
             ),               
         ],
         output='screen',
@@ -69,6 +69,7 @@ def generate_launch_description():
         parameters = [config],
         remappings=[
             ('bob/observer_frame/source', '/bob/frames/allsky/original/resized')],
+        condition=IfCondition(PythonExpression([LaunchConfiguration('enable_star_mask_arg'), " == True"])),
     )
     
     monitoring_status_aggregator_node = Node(

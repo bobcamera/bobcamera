@@ -40,6 +40,7 @@ private:
     std::string sensitivity_;
     int check_interval_;
     SensitivityChangeActionEnum sensitivity_change_action_;
+    bool star_mask_enabled_;
 
     int sensitivity_increase_count_threshold_;
     int sensitivity_increase_check_counter_;
@@ -92,6 +93,10 @@ private:
                     sensitivity_increase_check_counter_ = 0;
                 }
             ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("star_mask_enabled", true), 
+                [this](const rclcpp::Parameter& param) { star_mask_enabled_ = param.as_bool(); }
+            ),            
         };
         add_action_parameters(params);
     }
@@ -107,7 +112,8 @@ private:
         // --------------------------------
         // 1. Wait for a day/night determination before we do anything
         // 2. Lower sensitivity immediately if max blobs
-        // 3. Increase sensitivity past medium only during the day, if set to high and its night, lower to medium        
+        // 3. Increase sensitivity past medium only during the day, if set to high and its night, lower to medium. 
+        //    If we have a star mask enabled then night sensitivity can be set to high or high_c as well.
         // 4. Lower sensitivity immediately if we have bimodal cloud cover and cloud cover is between 10% and 90%
         // 5. Increase sensitivity after a number of iterations, currently set to 5
         // ----------------------------------------------------------------
@@ -128,11 +134,11 @@ private:
                     sensitivity_change_action_ = LowerSensitivity;
                 }
                 // Rule 3
-                //else if (status_msg_->day_night_enum == 2 && (sensitivity_ == "high" || sensitivity_ == "high_c"))
-                //{
-                //    change_reason_ = "Day 2 Night";
-                //    sensitivity_change_action_ = LowerSensitivity;
-                //}
+                else if (!star_mask_enabled_ && status_msg_->day_night_enum == 2 && (sensitivity_ == "high" || sensitivity_ == "high_c"))
+                {
+                    change_reason_ = "Day 2 Night";
+                    sensitivity_change_action_ = LowerSensitivity;
+                }
                 else
                 {
                     if (status_msg_->unimodal_cloud_cover)
@@ -180,9 +186,13 @@ private:
                             updating = true;
                         }
                         else if (sensitivity_ == "medium")
-                        {                          
-                            sensitivity_ = "high";
-                            updating = true;
+                        {        
+                            // Rule 3
+                            if (status_msg_->day_night_enum == 1 || (star_mask_enabled_ && status_msg_->day_night_enum == 2))
+                            {
+                                sensitivity_ = "high";
+                                updating = true;
+                            }
                         }
                         else if (sensitivity_ == "low_c")
                         {
@@ -191,8 +201,12 @@ private:
                         }
                         else if (sensitivity_ == "medium_c")
                         {
-                            sensitivity_ = "high_c";
-                            updating = true;
+                            // Rule 3
+                            if (status_msg_->day_night_enum == 1 || (star_mask_enabled_ && status_msg_->day_night_enum == 2))
+                            {
+                                sensitivity_ = "high_c";
+                                updating = true;
+                            }
                         }
 
                         if (updating)
