@@ -328,9 +328,12 @@ CMD ["ros2", "launch", "bob_launch", "application_launch.py"]
 
 # Navigate to http://localhost:8080 or http://127.0.0.1:8080 to view web output
 # docker run -it -p 8080:80 bobcamera/bob-web-prod:1.2.7 bash
-# docker build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-web-prod:1.2.7 -t bobcamera/bob-web-prod:latest --target bob-web-prod
+# docker build --progress=plain --push --platform linux/amd64 -f ./docker/Dockerfile . -t bobcamera/bob-web-prod:1.2.16 -t bobcamera/bob-web-prod:latest --target bob-web-prod
 FROM php:8.3-apache AS bob-web-prod
 COPY src/web2/src /var/www/html/
+COPY src/web2/clear-cache.conf /etc/apache2/conf-available/
+RUN ln -s /etc/apache2/conf-available/clear-cache.conf /etc/apache2/conf-enabled/clear-cache.conf
+
 
 
 # ###################################################################
