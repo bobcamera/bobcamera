@@ -41,7 +41,7 @@ services:
       - BOB_VIDEOS=${BOB_VIDEOS}
       - BOB_SIMULATION_NUM_OBJECTS=${BOB_SIMULATION_NUM_OBJECTS}
       - BOB_LOGLEVEL=${BOB_LOGLEVEL:-"INFO"}
-      - BOB_DOMAIN_ID="1"
+      - ROS_DOMAIN_ID=1
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
       - FASTRTPS_DEFAULT_PROFILES_FILE=/workspaces/bobcamera/src/ros2/config/fastdds.xml
     volumes: 
@@ -69,7 +69,7 @@ services:
       - BOB_VIDEOS=${BOB_VIDEOS}
       - BOB_SIMULATION_NUM_OBJECTS=${BOB_SIMULATION_NUM_OBJECTS}
       - BOB_LOGLEVEL=${BOB_LOGLEVEL:-"INFO"}
-      - BOB_DOMAIN_ID="2"
+      - ROS_DOMAIN_ID=2
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
       - FASTRTPS_DEFAULT_PROFILES_FILE=/workspaces/bobcamera/src/ros2/config/fastdds.xml
     volumes: 

@@ -42,8 +42,5 @@ export BOB_OPERATION_MODE=${BOB_OPERATION_MODE:-"'standard'"}
 # Options: DEBUG, INFO, WARN, ERROR or FATAL
 export BOB_LOGLEVEL=${BOB_LOGLEVEL:-"INFO"}
 
-# Domain ID mainly used for network segregation
-export BOB_DOMAIN_ID=${BOB_DOMAIN_ID:-"1"}
-
 # Launch the application
 ./launcher.sh application_launch.py
