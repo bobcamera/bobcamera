@@ -38,5 +38,9 @@ export FASTRTPS_DEFAULT_PROFILES_FILE=${FASTRTPS_DEFAULT_PROFILES_FILE:-"/worksp
 # Operational mode options: standard, headless
 export BOB_OPERATION_MODE=${BOB_OPERATION_MODE:-"'standard'"}
 
+# Log level for Bob to help with debugging
+# Options: DEBUG, INFO, WARN, ERROR or FATAL
+export BOB_LOGLEVEL=${BOB_LOGLEVEL:-"INFO"}
+
 # Launch the application
 ./launcher.sh application_launch.py

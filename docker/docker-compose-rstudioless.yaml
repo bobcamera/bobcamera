@@ -30,6 +30,7 @@ services:
       - BOB_ENABLE_STAR_MASK=${BOB_ENABLE_STAR_MASK:-True}
       - BOB_VIDEOS=${BOB_VIDEOS}
       - BOB_SIMULATION_NUM_OBJECTS=${BOB_SIMULATION_NUM_OBJECTS}
+      - BOB_LOGLEVEL=${BOB_LOGLEVEL:-"INFO"}
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
       - FASTRTPS_DEFAULT_PROFILES_FILE=/workspaces/bobcamera/src/ros2/config/fastdds.xml
     volumes: 
