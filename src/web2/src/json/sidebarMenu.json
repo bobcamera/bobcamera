@@ -32,13 +32,13 @@
                     "name": "Privacy Mask",
                     "key": "privacyMask",
                     "url": "iframe.php?file=html/2D-full-width-stream-privacy-mask.html",
-                    "icon": "bi-camera"
+                    "icon": "bi-mask"
                 },
                 {
                     "name": "Detection Mask",
                     "key": "detectionMask",
                     "url": "iframe.php?file=html/2D-full-width-stream-detection-mask.html",
-                    "icon": "bi-camera"
+                    "icon": "bi-mask"
                 }
             ]
         },
@@ -83,6 +83,13 @@
                     "key": "facebook",
                     "url": "https://www.facebook.com/groups/7533264616717176",
                     "icon": "bi-facebook",
+                    "target": "_blank"
+                },
+                {
+                    "name": "Buy me a coffee",
+                    "key": "buymeacoffee",
+                    "url": "https://buymeacoffee.com/bobuot",
+                    "icon": "bi-cup-hot-fill",
                     "target": "_blank"
                 }
             ]

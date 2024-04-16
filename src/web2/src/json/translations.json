@@ -418,5 +418,26 @@
         "Urdu": "یوٹیوب",
         "Hindi": "यूट्यूब",
         "Serbian": "Youtube"
+    },
+    "buymeacoffee": {
+        "Spanish": "BuyMeACoffee",
+        "French": "BuyMeACoffee",
+        "German": "BuyMeACoffee",
+        "NorwegianBokmal": "BuyMeACoffee",
+        "NorwegianNynorsk": "BuyMeACoffee",
+        "Portuguese": "BuyMeACoffee",
+        "Bengali": "BuyMeACoffee",
+        "Indonesian": "BuyMeACoffee",
+        "Italian": "BuyMeACoffee",
+        "Japanese": "BuyMeACoffee",
+        "Korean": "BuyMeACoffee",
+        "Swahili": "BuyMeACoffee",
+        "Turkish": "BuyMeACoffee",
+        "Vietnamese": "BuyMeACoffee",
+        "Telugu": "BuyMeACoffee",
+        "Marathi": "BuyMeACoffee",
+        "Urdu": "BuyMeACoffee",
+        "Hindi": "BuyMeACoffee",
+        "Serbian": "BuyMeACoffee"
     }
 }
