@@ -5,20 +5,14 @@
             "key": "streaming",
             "items": [
                 {
-                    "name": "Live Stream",
-                    "key": "liveStream",
+                    "name": "Info Panel",
+                    "key": "infoPanel",
                     "url": "iframe.php?file=html/2d-Stream-With-Controls.html",
                     "icon": "bi-camera"
-                }
-            ]
-        },
-        {
-            "title": "Wide View",
-            "key": "wideView",
-            "items": [
+                },
                 {
-                    "name": "Annotated",
-                    "key": "annotated",
+                    "name": "Wide View",
+                    "key": "wideView",
                     "url": "iframe.php?file=html/2D-full-width-stream-annotated.html",
                     "icon": "bi-camera"
                 },
@@ -38,13 +32,13 @@
                     "name": "Privacy Mask",
                     "key": "privacyMask",
                     "url": "iframe.php?file=html/2D-full-width-stream-privacy-mask.html",
-                    "icon": "bi-camera"
+                    "icon": "bi-mask"
                 },
                 {
                     "name": "Detection Mask",
                     "key": "detectionMask",
                     "url": "iframe.php?file=html/2D-full-width-stream-detection-mask.html",
-                    "icon": "bi-camera"
+                    "icon": "bi-mask"
                 }
             ]
         },
@@ -74,47 +68,7 @@
             ]
         },
         {
-            "title": "Documentation",
-            "key": "documentation",
-            "items": [
-                {
-                    "name": "Documentation",
-                    "key": "documentation",
-                    "url": "https://bobcamera.github.io/",
-                    "icon": "bi-globe",
-                    "target": "_blank"
-                },
-                {
-                    "name": "Found a Bug",
-                    "key": "foundABug",
-                    "url": "https://github.com/bobcamera/bobcamera/issues/new/choose",
-                    "icon": "bi-github",
-                    "target": "_blank"
-                },
-                {
-                    "name": "Request Feature",
-                    "key": "requestFeature",
-                    "url": "https://github.com/bobcamera/bobcamera/issues/new/choose",
-                    "icon": "bi-github",
-                    "target": "_blank"
-                }
-            ]
-        },
-        {
-            "title": "Project",
-            "key": "project",
-            "items": [
-                {
-                    "name": "Github",
-                    "key": "github",
-                    "url": "https://github.com/bobcamera/bobcamera",
-                    "icon": "bi-github",
-                    "target": "_blank"
-                }
-            ]
-        },
-        {
-            "title": "Social",
+            "title": "Support",
             "key": "social",
             "items": [
                 {
@@ -129,6 +83,33 @@
                     "key": "facebook",
                     "url": "https://www.facebook.com/groups/7533264616717176",
                     "icon": "bi-facebook",
+                    "target": "_blank"
+                }
+            ]
+        },
+        {
+            "title": "Github",
+            "key": "documentation",
+            "items": [
+                {
+                    "name": "Code",
+                    "key": "github",
+                    "url": "https://github.com/bobcamera/bobcamera",
+                    "icon": "bi-github",
+                    "target": "_blank"
+                },
+                {
+                    "name": "Report Bug",
+                    "key": "foundABug",
+                    "url": "https://github.com/bobcamera/bobcamera/issues/new/choose",
+                    "icon": "bi-github",
+                    "target": "_blank"
+                },
+                {
+                    "name": "Request Feature",
+                    "key": "requestFeature",
+                    "url": "https://github.com/bobcamera/bobcamera/issues/new/choose",
+                    "icon": "bi-github",
                     "target": "_blank"
                 }
             ]

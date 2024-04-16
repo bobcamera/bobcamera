@@ -2,7 +2,7 @@
 
 if (isset($_GET['date'])) {
     $dirName = $_GET['date'];
-    $directoryPath = 'videos/' . basename($dirName);
+    $directoryPath = '../videos/' . basename($dirName);
 
     function deleteDirectory($dir) {
         if (!file_exists($dir)) {
@@ -27,12 +27,12 @@ if (isset($_GET['date'])) {
     }
 
     if (deleteDirectory($directoryPath)) {
-        $message = "Directory and all its contents have been deleted.";
+        $message = "Directory [$dirName] and all its contents have been deleted.";
     } else {
         $message = "Failed to delete directory.";
     }
 
-    header("Location: recordings.php?message=" . urlencode($message));
+    header("Location: ../recordings.php?message=" . urlencode($message));
     exit();
 }
 ?>

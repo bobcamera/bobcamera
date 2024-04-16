@@ -2,9 +2,9 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>bob_launch</name>
-  <version>0.0.0</version>
+  <version>1.2.16</version>
   <description>Launching package for BobCamera</description>
-  <maintainer email="fabio.c.barros@gmail.com">ros</maintainer>
+  <maintainer email="uapbob@gmail.com">Bob Universal Object Tracker</maintainer>
   <license>GPLv3</license>
   
   <depend>python3-opencv</depend>

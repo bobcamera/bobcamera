@@ -22,6 +22,9 @@ export BOB_BGS_ALGORITHM=${BOB_BGS_ALGORITHM:-"vibe"}
 export BOB_TRACKING_SENSITIVITY=${BOB_TRACKING_SENSITIVITY:-"'medium_c'"}
 export BOB_TRACKING_SENSITIVITY_AUTOTUNE=${BOB_TRACKING_SENSITIVITY_AUTOTUNE:-"True"}
 
+# Enabling or disabling of the star mask
+export BOB_ENABLE_STAR_MASK=${BOB_ENABLE_STAR_MASK:-"True"}
+
 # Video files list separated by ';'
 export BOB_VIDEOS=${BOB_VIDEOS:-"/workspaces/bobcamera/media/fisheye_videos/mike-drone.mp4;/workspaces/bobcamera/media/fisheye_videos/mikeg-30min.mp4"}
 
@@ -34,6 +37,10 @@ export FASTRTPS_DEFAULT_PROFILES_FILE=${FASTRTPS_DEFAULT_PROFILES_FILE:-"/worksp
 
 # Operational mode options: standard, headless
 export BOB_OPERATION_MODE=${BOB_OPERATION_MODE:-"'standard'"}
+
+# Log level for Bob to help with debugging
+# Options: DEBUG, INFO, WARN, ERROR or FATAL
+export BOB_LOGLEVEL=${BOB_LOGLEVEL:-"INFO"}
 
 # Launch the application
 ./launcher.sh application_launch.py

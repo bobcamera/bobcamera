@@ -2,9 +2,9 @@
 <?xml-model href="http://download.ros.org/schema/package_format2.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="2">
     <name>bob_image_processing</name>
-    <version>0.0.1</version>
+    <version>1.2.16</version>
     <description>ROS2 Node for getting images and publishing other images</description>
-    <maintainer email="you@example.com">Your Name</maintainer>
+    <maintainer email="uapbob@gmail.com">Bob Universal Object Tracker</maintainer>
     <license>GPLv3</license>
 
     <buildtool_depend>ament_cmake</buildtool_depend>

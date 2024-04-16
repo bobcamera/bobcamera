@@ -69,6 +69,7 @@
 </head>
 <body>
 <?php
+
 $videosDirectory = 'videos/';
 $videoDirs = array_diff(scandir($videosDirectory), array('..', '.'));
 // Table Header
@@ -101,6 +102,12 @@ foreach ($videoDirs as $videoDir) {
 }
 echo "</tbody>";
 echo "</table>";
+
+if (isset($_GET['message'])) {
+    $message = $_GET['message'];
+    echo "<script type='text/javascript'>alert('$message');</script>";
+}
+
 ?>
 </body>
 </html>

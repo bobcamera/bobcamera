@@ -3,7 +3,7 @@ import launch
 from launch.actions import LogInfo
 from launch_ros.actions import ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
-from launch.substitutions import PythonExpression, LaunchConfiguration 
+from launch.substitutions import PythonExpression, LaunchConfiguration, EnvironmentVariable 
 from launch.conditions import IfCondition
 from ament_index_python.packages import get_package_share_directory
 
@@ -12,10 +12,13 @@ def generate_launch_description():
     # Get the application config
     #config = os.path.join(get_package_share_directory('bob_launch'), 'config', 'app_config.yaml')
     config = 'assets/config/app_config.yaml'
+    namespace = EnvironmentVariable('BOB_NAMESPACE', default_value="")
+    loglevel = EnvironmentVariable('BOB_LOGLEVEL', default_value="INFO")
 
     kernel_container = ComposableNodeContainer(
         name='track_container',
-        namespace='',
+        namespace=namespace,
+        arguments=['--ros-args', '--log-level', loglevel],
         package='rclcpp_components',
         executable='component_container',
         composable_node_descriptions=[
@@ -24,6 +27,7 @@ def generate_launch_description():
                package='bob_camera',
                plugin='WebCameraVideo',
                name='rtsp_camera_node',
+               namespace=namespace,
                parameters = [config],
                extra_arguments=[{'use_intra_process_comms': True}],
                condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'rtsp'" ]))
@@ -32,6 +36,7 @@ def generate_launch_description():
                 package='bob_camera',
                 plugin='WebCameraVideo',
                 name='rtsp_overlay_camera_node',
+                namespace=namespace,
                 parameters = [config],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'rtsp_overlay'" ]))
@@ -40,6 +45,7 @@ def generate_launch_description():
                 package='bob_camera',
                 plugin='WebCameraVideo',
                 name='web_camera_video_node',
+                namespace=namespace,
                 parameters = [config],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'video'" ])),
@@ -48,6 +54,7 @@ def generate_launch_description():
                 package='bob_camera',
                 plugin='WebCameraVideo',
                 name='usb_camera_node',
+                namespace=namespace,
                 parameters = [config],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'usb'" ])),
@@ -55,7 +62,8 @@ def generate_launch_description():
             ComposableNode(
                 package='bob_simulator', 
                 plugin='MovingObjectsSimulation', 
-                name='simulated_frame_provider_node',  
+                name='simulated_frame_provider_node',
+                namespace=namespace,
                 parameters = [config],
                 remappings=[
                     ('bob/simulation/output_frame', 'bob/frames/allsky/original')
@@ -67,6 +75,7 @@ def generate_launch_description():
                 package='bob_camera',
                 plugin='WebCameraVideo',
                 name='web_camera_video_overlay_node',
+                namespace=namespace,
                 parameters = [config],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'video_overlay'" ])),
@@ -75,6 +84,7 @@ def generate_launch_description():
                 package='bob_simulator',
                 plugin='SimulationOverlayProviderNode',  
                 name='simulation_overlay_provider_node',
+                namespace=namespace,
                 parameters = [config],
                 remappings=[('bob/simulation/output_frame', 'bob/frames/allsky/original')],
                 extra_arguments=[{'use_intra_process_comms': True}],
@@ -89,6 +99,7 @@ def generate_launch_description():
                 package='bob_image_processing',  
                 plugin='MaskApplication',  
                 name='detection_mask_application_node',
+                namespace=namespace,
                 parameters = [config],
                 remappings=[
                     ('bob/mask/override', 'bob/mask/detection/override'),
@@ -100,6 +111,7 @@ def generate_launch_description():
                 package='bob_image_processing',  
                 plugin='MaskApplication',  
                 name='privacy_mask_application_node',
+                namespace=namespace,
                 parameters = [config],
                 remappings=[
                     ('bob/mask/override', 'bob/mask/privacy/override'),
@@ -112,7 +124,7 @@ def generate_launch_description():
                 package='bob_image_processing',
                 plugin='BackgroundSubtractor2',
                 name='background_subtractor_v2_node',
-                #arguments=['--ros-args', '--log-level', 'DEBUG'],
+                namespace=namespace,
                 parameters = [config],
                 extra_arguments=[{'use_intra_process_comms': True}]
             ),
@@ -120,16 +132,30 @@ def generate_launch_description():
                 package='bob_tracking',
                 plugin='TrackProvider',
                 name='track_provider_node',
+                namespace=namespace,
                 extra_arguments=[{'use_intra_process_comms': True}]
             ),
             ComposableNode(
                 package='bob_recorder',
                 plugin='RecordManager',
                 name='allsky_recorder_node',
+                namespace=namespace,
                 parameters = [config],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('enable_recording_arg'), " == True"])),  
-            ),            
+            ),
+            # This is used for the star mask so needs to be included here
+            ComposableNode(
+                package='bob_image_processing',
+                plugin='FrameResizer',
+                name='original_frame_resizer_node',
+                namespace=namespace,
+                remappings=[
+                    ('bob/resizer/source', 'bob/frames/allsky/original'),
+                    ('bob/resizer/target', 'bob/frames/allsky/original/resized')],
+                parameters = [config],
+                extra_arguments=[{'use_intra_process_comms': True}],
+            ),
         ],
         output='screen',
     )    

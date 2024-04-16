@@ -90,7 +90,13 @@
             #clearMaskBtn {
                 display: none; /* Initially hide Clear Mask, Save Mask, and Cancel buttons */
             }
-            
+            .mask-tips {
+                margin-top: 10px;
+                padding: 5px;
+                background-color: #f8f8f8;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+            }            
         </style>
 
         <title>Detection Mask Image Stream (Wide View)</title>
@@ -125,11 +131,23 @@
             <button id="cancelMaskBtn" title="Cancel" style="display: none;"><i class="fas fa-times"></i></button>
             <button id="sendMaskSVGBtn" title="Save Mask" style="background-color: lightgreen;"><i class="fa-solid fa-floppy-disk"></i></button>
             <button id="clearMaskBtn" title="Clear Mask" style="background-color: rosybrown;"><i class="fas fa-trash"></i></button>
+            <div class="mask-tips">
+                Mask drawing tips
+                <ul>
+                    <li>Click Edit then use the polygon drawing tool to outline sky tracking area.</li>
+                    <li>Single-click to add points, double-click to finish drawing.</li>
+                    <li>Avoid inlcuding moving objects like branches in detection area.</li>
+                    <li>Allow margin for movement by trees, bushes etc due to wind or other factors.</li> 
+                    <li>Save your selection once satisfied.</li>
+                    <li>Use Delete button to reset if needed.</li>
+                </ul>
+            </div>
         </div>
         <div id="stream" width="" height="">
             <img id="image-subscription" width="" height="" />
             <canvas id="maskCanvas" width="" height=""></canvas>
         </div>
+
         <script type="text/javascript" type="text/javascript">
 
             // Create a topicStream for subscription

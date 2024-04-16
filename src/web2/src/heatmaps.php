@@ -165,23 +165,33 @@
             width: 100%; /* Adjust width as needed */
             height: 600px; /* Adjust height as needed */
         }
-        #fisheyeViewer{
+
+        #contolContainer{
             position: absolute;
-            top: 100px;
+            top: 5px;
             left: 18px;
             z-index: 10;
+            color: rgba(255, 255, 255, 1);
+            font-family: Arial, sans-serif;
+            font-size: 13px;
+            font-variant-numeric: tabular-nums;
+            font-weight: 300;
+            text-shadow: none;
         }
-        #goBackOneFrame{
+
+         #fisheyeViewer{
             position: absolute;
-            top: 150px;
-            left: 18px;
+            top: 20px;
+            right: 18px;
             z-index: 10;
         }
-        #advanceOneFrame{
-            position: absolute;
-            top: 150px;
-            left: 48px;
-            z-index: 10;
+
+        .plyr__control {
+            color: white;
+            background: none;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
         }
         .custom-control {
             background: none; /* Removes the background */
@@ -199,6 +209,26 @@
             border-left: 2px solid darkgrey; /* Adjust the width and color as needed */
             padding-left: 10px; /* Adds some space between the border and the content */
         }
+
+        #player-container {
+            position: relative;
+            width: 100%; /* Adjust width as needed */
+            height: 600px; /* Adjust height as needed */
+            font-family: Arial, sans-serif; /* Ensures text is legible */
+        }
+
+        #video-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.5); /* Semi-transparent black for text visibility */
+            color: white;
+            font-size: 14px;
+            z-index: 20; /* Above the video but below interactive elements */
+        }
+
     </style>
 </head>
 <body>
@@ -299,33 +329,134 @@
 
         myLayout.registerComponent('Video Player', function(container, componentState) {
             container.getElement().html(`
-            <div id="player-container">
 
-                <video id="player" playsinline controls>
+                <div id="player-container">
 
-                    <source src="<?php echo 'videos/' . $date . '/allsky/' . $time . '.mp4'; ?>" />
+                    <video
+                        id="player"
+                        playsinline controls>
+                            <source
+                            src="<?php echo 'videos/' . $date . '/allsky/' . $time . '.mp4'; ?>" />
+                    </video>
+                    <canvas id="screenshot-canvas" style="display:none;"></canvas>
 
-                </video>
+                    <div
+                        id="video-overlay"
+                        style="
+                            position: absolute;
+                            top: 0;
+                            left: 0;
+                            width: 100%;
+                            padding: 10px;
+                            background: rgba(0, 0, 0, 0.5);
+                            color: white;
+                            font-size: 14px;
+                            z-index: 10;"
+                        >
+                    </div>
+                    <div
+                        id="plyr-overlay"
+                        style="
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        z-index: 1;
+                        pointer-events: none;
+                        ">
+                            <img
+                            id="bigHeatmapImage"
+                            src=""
+                            style="height: 100%;
+                            opacity: 0.3;">
+                        </div>
 
-                <input type="range" id="brightnessSlider" title="Video Brightness" min="0" max="200" value="100" style="position: absolute; z-index: 10; width: 150px; top: 55px; left: 10px;">
+                        <div id="contolContainer">
 
-                <input type="range" id="opacitySlider" title="Heatmap Overlay Opacity" min="0" max="100" value="30" style="position: absolute; z-index: 10; width: 150px; top: 20px; left: 10px;">
+                            <br>
+                            <!-- Path: <?php echo 'videos/' . $date . '/allsky/' . $date . '/'; ?><br> -->
+                            File: <?php echo $time; ?>.mp4<br>
+                            Recording Time: <?php
+                            function getValuesFromJsonFile($filePath, $keys) {
+                                if (!file_exists($filePath)) {
+                                    return array_fill_keys($keys, null);
+                                }
+                                $jsonString = file_get_contents($filePath);
+                                $jsonData = json_decode($jsonString);
+                                $results = [];
+                                foreach ($keys as $key) {
+                                    $results[$key] = isset($jsonData->$key) ? $jsonData->$key : null;
+                                }
+                                return $results;
+                            }
+                            $filePath = 'json/stationSettings.json';
+                            $keys = ['timezone', 'lat', 'long'];
+                            $data = getValuesFromJsonFile($filePath, $keys);
+                            $timezone = $data['timezone'] ?? 'America/New_York';
+                            $latitude = $data['lat'] ?? '0.0000';
+                            $longitude = $data['long'] ?? '0.0000';
+                            $dateTimeStamp = new DateTime('@' . $time);
+                            $dateTimeStamp->setTimezone(new DateTimeZone($timezone));
+                            echo "Time: " . $dateTimeStamp->format('h:i:s A') . "<br>";
+                            ?>
+                            Recording Date: <?php echo date('Y-m-d', strtotime($date)); ?><br>
+                            <div style="margin-bottom: 9px;">
+                            TimeZone: <?php echo $timezone . "<br>"; ?>
+                            <?php echo "Latitude: " . $latitude . "<br>"; ?>
+                            <?php echo "Longitude: " . $longitude . "<br>"; ?>
+                            </div>
 
-                <div id="plyr-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none;">
+                            Opacity:
+                            <br>
+                            <input
+                            type="range"
+                            id="opacitySlider"
+                            title="Heatmap Overlay Opacity"
+                            min="0"
+                            max="100"
+                            value="30"
+                            style="
+                                z-index: 10;
+                                width: 140px;
+                                margin-left: 0px;
+                                margin-bottom: 9px;"
+                            >
+                            <br>
+                            Brightness:
+                            <br>
+                            <input
+                            type="range"
+                            id="brightnessSlider"
+                            title="Video Brightness"
+                            min="0"
+                            max="200"
+                            value="100"
+                            style="
+                                z-index: 10;
+                                width: 140px;
+                                margin-bottom: 8px;
+                                margin-left: 0px;"
+                            >
+                            <br>
 
-                    <img id="bigHeatmapImage" src="" style="height: 100%; opacity: 0.3;">
+                        </div>
 
-                </div>
+                        <button
+                        id="fisheyeViewer"
+                        class="custom-control"
+                        title="Open in the Fisheye Viewer">
+                            <i
+                            class="fa-solid fa-expand"
+                            style="font-size: 20px;
+                            background-color: rgba(255, 255, 255, 0.15);
+                            margin: 5px;
+                            padding: 5px;
+                            border-radius: 4px;"
+                            ></i>
+                        </button>
             </div>
-
-            <button id="fisheyeViewer" class="custom-control" title="Open in the Fisheye Viewer"><i class="fa-solid fa-expand" style="font-size: 21px;"></i></button>
-
-            <button id="goBackOneFrame" class="custom-control" title="Go Back One Frame"><i class="fa-solid fa-backward-step" style="font-size: 21px;"></i></button>
-
-            <button id="advanceOneFrame" class="custom-control" title="Advance One Frame"><i class="fa-solid fa-forward-step" style="font-size: 21px;"></i></button>
-
             `);
-
             container.on('open', function() {
 
                 const video = document.getElementById('player');
@@ -346,19 +477,22 @@
                     heatmapImage.style.opacity = `${this.value / 100}`;
                 });
 
-                // Custom controls - One frame back
-                document.getElementById('goBackOneFrame').addEventListener('click', () => {
-                    goBackOneFrame();
-                });
+                // after page load
+                document.addEventListener('DOMContentLoaded', function() {
+                    // Custom controls - One frame back
+                    document.getElementById('goBackOneFrame').addEventListener('click', () => {
+                        goBackOneFrame();
+                    });
 
-                // Custom controls - One frame forward
-                document.getElementById('advanceOneFrame').addEventListener('click', () => {
-                    advanceOneFrame();
-                });
+                    // Custom controls - One frame forward
+                    document.getElementById('advanceOneFrame').addEventListener('click', () => {
+                        advanceOneFrame();
+                    });
 
-                // Custom controls - One frame forward
-                document.getElementById('fisheyeViewer').addEventListener('click', () => {
-                    window.open('html/fisheye-video-viewer-v6.html?date=<?php echo $date; ?>&video=<?php echo $time; ?>', '_blank');
+                    // Custom controls - One frame forward
+                    document.getElementById('fisheyeViewer').addEventListener('click', () => {
+                        window.open('html/fisheye-video-viewer-v6.html?date=<?php echo $date; ?>&video=<?php echo $time; ?>', '_blank');
+                    });
                 });
 
             });
@@ -400,7 +534,7 @@
                 'pip', // Picture-in-picture (currently Safari only)
                 'airplay', // Airplay (currently Safari only)
                 'download', // Show a download button with a link
-                'fullscreen' // Toggle fullscreen
+                // 'fullscreen' // Toggle fullscreen
             ]
         });
 
@@ -692,7 +826,6 @@
             }
         }
 
-
         function highlightPoint(seriesIndex, dataIndex) {
             myChart.dispatchAction({
                 type: 'highlight',
@@ -706,6 +839,96 @@
             return Math.floor(currentTime * frameRate);
         }
 
+        // Adding Custom Control Buttons to the Video Player
+        document.addEventListener('DOMContentLoaded', function() {
+            addCustomPlyrButton('fa fa-camera', takeScreenshot, 'Download Video Frame', 'screenshot-btn');
+            // addCustomPlyrButton('fa fa-video-camera', downloadVideo, 'Download Video', 'video-btn');
+            addCustomPlyrButton('fa fa-thermometer-full', downloadHeatmap, 'Download Heatmap', 'heatmap-btn');
+            addCustomPlyrButton('fas fa-step-forward', advanceOneFrame, 'Advance 1 Frame', 'advanceOneFrame');
+            addCustomPlyrButton('fas fa-step-backward', goBackOneFrame, 'Back 1 Frame', 'goBackOneFrame');
+        });
+
+        // use plyr to download the video
+        function downloadVideo() {
+            const video = document.querySelector('#player source');
+            const videoUrl = video.getAttribute('src');
+            const downloadLink = document.createElement('a');
+            downloadLink.href = videoUrl;
+            downloadLink.download = videoUrl.split('/').pop();
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        }
+
+        // download heatmap function
+        function downloadHeatmap() {
+            const heatmap = document.getElementById('bigHeatmapImage');
+            const heatmapUrl = heatmap.src;
+            const downloadLink = document.createElement('a');
+            downloadLink.href = heatmapUrl;
+            downloadLink.download = 'heatmap.jpg';
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        }
+
+        function takeScreenshot() {
+            const video = document.querySelector('#player html5');  // Ensure this selector targets your Plyr video element correctly
+            const canvas = document.getElementById('screenshot-canvas');
+            const context = canvas.getContext('2d');
+            if (video.readyState >= 2) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const img = document.getElementById('screenshot-img');
+                img.src = canvas.toDataURL('image/png');
+                img.style.display = 'block';
+            } else {
+                alert('Video is not ready for screenshots.');
+            }
+        }
+
+        function addCustomPlyrButton(faIconClass, actionFunction, buttonLabel, elementId) {
+            const plyrControls = document.querySelector('.plyr__controls');
+            if (plyrControls) {
+                const button = document.createElement('button');
+                button.className = 'plyr__controls__item plyr__control';
+                button.type = 'button';
+                button.id = elementId;
+                button.style = 'margin-top: 2px; margin-bottom: 2px;'; // Adjust as needed
+                button.innerHTML = `<i class="${faIconClass}" aria-hidden="true"></i><span class="plyr__sr-only">${buttonLabel}</span>`;
+                button.onclick = actionFunction;
+                plyrControls.insertBefore(button, plyrControls.firstChild);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const video = document.getElementById('player');
+            const canvas = document.getElementById('screenshot-canvas');
+            video.addEventListener('loadeddata', function() {
+                if (video.readyState >= 2) {
+                    document.getElementById('screenshot-btn').addEventListener('click', function() {
+                        captureAndDownloadScreenshot();
+                    });
+                }
+            });
+            function captureAndDownloadScreenshot() {
+                if (canvas && video) {
+                    const context = canvas.getContext('2d');
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    const imageUrl = canvas.toDataURL('image/png');
+                    const downloadLink = document.createElement('a');
+                    downloadLink.href = imageUrl;
+                    downloadLink.download = 'screenshot.png';
+                    document.body.appendChild(downloadLink);
+                    downloadLink.click();
+                    document.body.removeChild(downloadLink);
+                }
+            }
+        });
+
 </script>
 
 <script>
@@ -716,3 +939,4 @@
     </script>
 </body>
 </html>
+<!-- icon-screenshot -->

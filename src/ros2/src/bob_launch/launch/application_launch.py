@@ -30,7 +30,7 @@ def generate_launch_description():
     enable_visualiser_arg_value = EnvironmentVariable('BOB_ENABLE_VISUALISER', default_value="True")
     
     enable_rosbridge_arg_value = EnvironmentVariable('BOB_ENABLE_ROSBRIDGE', default_value="True")
-    enable_recording_arg_value = EnvironmentVariable('BOB_ENABLE_RECORDING', default_value="False")    
+    enable_recording_arg_value = EnvironmentVariable('BOB_ENABLE_RECORDING', default_value="False")
     
     simulation_width_arg_value = EnvironmentVariable('BOB_SIMULATION_WIDTH', default_value="0")
     simulation_height_arg_value = EnvironmentVariable('BOB_SIMULATION_HEIGHT', default_value="0")
@@ -42,6 +42,8 @@ def generate_launch_description():
     tracking_sensitivity_autotune_arg_value  = EnvironmentVariable('BOB_TRACKING_SENSITIVITY_AUTOTUNE', default_value="True")
 
     video_arg_value  = EnvironmentVariable('BOB_VIDEOS', default_value="")    
+
+    enable_star_mask_arg_value  = EnvironmentVariable('BOB_ENABLE_STAR_MASK', default_value="True")    
 
     #print(f'Generating launch description....')
 
@@ -151,7 +153,13 @@ def generate_launch_description():
         'video_arg',
         default_value=video_arg_value,
         description="Videos to use as playback."
-        )  
+        )
+    
+    enable_star_mask_arg = DeclareLaunchArgument(
+        'enable_star_mask_arg',
+        default_value=enable_star_mask_arg_value,
+        description="Enable/disable star mask."
+        )      
 
     return LaunchDescription([
 
@@ -180,6 +188,8 @@ def generate_launch_description():
         tracking_sensitivity_autotune_arg,
 
         video_arg,
+
+        enable_star_mask_arg,
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([

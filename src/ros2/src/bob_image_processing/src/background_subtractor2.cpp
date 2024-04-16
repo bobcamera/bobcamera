@@ -283,13 +283,14 @@ private:
                 cv::Mat mask;
                 bgsPtr->apply(gray_img, mask);
 
+                auto image_msg = cv_bridge::CvImage(img_msg->header, sensor_msgs::image_encodings::MONO8, mask).toImageMsg();
+                image_publisher_->publish(*image_msg);
+
                 if(median_filter_)
                 {
                     cv::medianBlur(mask, mask, 3);
                 }
-
-                auto image_msg = cv_bridge::CvImage(img_msg->header, sensor_msgs::image_encodings::MONO8, mask).toImageMsg();
-                image_publisher_->publish(*image_msg);
+                
                 profile_stop("BGS");
 
                 profile_start("Blob");

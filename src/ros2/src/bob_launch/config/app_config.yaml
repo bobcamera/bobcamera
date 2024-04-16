@@ -72,7 +72,6 @@ simulation_overlay_provider_node:
 detection_mask_application_node:
   ros__parameters:
     mask_file: 'assets/masks/detection-mask.jpg'
-    mask_enable_override: True
     mask_enable_offset_correction: True
     image_width: 0
     image_height: 0    
@@ -80,27 +79,26 @@ detection_mask_application_node:
 privacy_mask_application_node:
   ros__parameters:
     mask_file: 'assets/masks/privacy-mask.jpg'
-    mask_enable_override: True
     mask_enable_offset_correction: False
     image_width: 0
     image_height: 0    
 
 background_subtractor_v2_node:
   ros__parameters:
-    sensitivity: 'medium_c'
+    sensitivity: 'low_c'
     bgs: ''
     json_params: '[
                     {
                       "name": "low",
                       "sensitivity": {
                         "vibe": {
-                          "threshold": 55, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8
+                          "threshold": 65, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8
                         }, 
                         "wmv": {
-                          "enableWeight": true, "enableThreshold": true, "threshold": 45.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
+                          "enableWeight": true, "enableThreshold": true, "threshold": 50.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
                         }, 
                         "blob": {
-                          "sizeThreshold": 8, "areaThreshold": 64, "minDistance": 64, "maxBlobs": 50
+                          "sizeThreshold": 10, "areaThreshold": 100, "minDistance": 100, "maxBlobs": 25
                         }, 
                         "median_filter": false 
                       }
@@ -109,13 +107,13 @@ background_subtractor_v2_node:
                       "name": "medium",
                       "sensitivity": {
                         "vibe": {
-                          "threshold": 40, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 4
+                          "threshold": 45, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 4
                         }, 
                         "wmv": {
                           "enableWeight": true, "enableThreshold": true, "threshold": 30.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
                         }, 
                         "blob": {
-                          "sizeThreshold": 4, "areaThreshold": 16, "minDistance": 16, "maxBlobs": 50
+                          "sizeThreshold": 6, "areaThreshold": 36, "minDistance": 36, "maxBlobs": 25
                         }, 
                         "median_filter": false 
                       }
@@ -130,7 +128,7 @@ background_subtractor_v2_node:
                           "enableWeight": true, "enableThreshold": true, "threshold": 15.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
                         }, 
                         "blob": {
-                          "sizeThreshold": 2, "areaThreshold": 4, "minDistance": 4, "maxBlobs": 50
+                          "sizeThreshold": 4, "areaThreshold": 16, "minDistance": 16, "maxBlobs": 25
                         }, 
                         "median_filter": false 
                       }
@@ -139,13 +137,13 @@ background_subtractor_v2_node:
                       "name": "low_c",
                       "sensitivity": {
                         "vibe": {
-                          "threshold": 55, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8
+                          "threshold": 65, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8
                         }, 
                         "wmv": {
-                          "enableWeight": true, "enableThreshold": true, "threshold": 45.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
+                          "enableWeight": true, "enableThreshold": true, "threshold": 50.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
                         }, 
                         "blob": {
-                          "sizeThreshold": 8, "areaThreshold": 64, "minDistance": 64, "maxBlobs": 50
+                          "sizeThreshold": 10, "areaThreshold": 100, "minDistance": 100, "maxBlobs": 25
                         }, 
                         "median_filter": true 
                       }
@@ -154,13 +152,13 @@ background_subtractor_v2_node:
                       "name": "medium_c",
                       "sensitivity": {
                         "vibe": {
-                          "threshold": 40, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4
+                          "threshold": 45, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4
                         }, 
                         "wmv": {
-                          "enableWeight": true, "enableThreshold": true, "threshold": 20.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
+                          "enableWeight": true, "enableThreshold": true, "threshold": 25.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
                         }, 
                         "blob": {
-                          "sizeThreshold": 2, "areaThreshold": 4, "minDistance": 4, "maxBlobs": 50
+                          "sizeThreshold": 6, "areaThreshold": 36, "minDistance": 36, "maxBlobs": 25
                         }, 
                         "median_filter": true 
                       }
@@ -175,7 +173,7 @@ background_subtractor_v2_node:
                           "enableWeight": true, "enableThreshold": true, "threshold": 15.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
                         }, 
                         "blob": {
-                          "sizeThreshold": 2, "areaThreshold": 4, "minDistance": 4, "maxBlobs": 50
+                          "sizeThreshold": 4, "areaThreshold": 16, "minDistance": 16, "maxBlobs": 25
                         }, 
                         "median_filter": true 
                       }
@@ -202,6 +200,10 @@ allsky_recorder_node:
 annotated_frame_provider_node:
   ros__parameters:
     tracking_status_message: False
+
+original_frame_resizer_node:
+  ros__parameters:
+    resize_height: 960
 
 detection_masked_frame_resizer_node:
   ros__parameters:
@@ -254,6 +256,13 @@ cloud_estimator_node:
   ros__parameters:
     observer_timer_interval: 90
 
+star_mask_node:
+  ros__parameters:
+    detection_mask_file: 'assets/masks/detection-mask.jpg'
+    detection_mask_backup_file: 'assets/masks/detection-mask-backup.jpg'
+    observer_timer_interval: 90
+    observer_cross_correlation_threshold: 0.5
+
 monitoring_status_aggregator_node:
   ros__parameters:
     observer_tracker_monitor_busy_interval: 5
@@ -265,7 +274,9 @@ monitoring_status_aggregator_node:
 track_sensitivity_monitor_node:
   ros__parameters:
     check_interval: 30
+    sensitivity_increase_count_threshold: 5
     sensitivity: 'medium_c'
+    star_mask_enabled: True    
 
 allsky_recorder_monitoring_node:
   ros__parameters:
@@ -286,7 +297,7 @@ onvif_service_node:
 # Web infrastructure
 info_webapi_node:
   ros__parameters:
-    application_version: '1.2.15'
+    application_version: '1.2.16'
     frame_width: 0
     frame_height: 0
     video_fps: 15.0

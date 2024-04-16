@@ -209,7 +209,7 @@ def application_config(context):
     camera_id = int(LaunchConfiguration('camera_id_arg').perform(context))
     videos = str(LaunchConfiguration('video_arg').perform(context))
     
-    enable_visualiser = LaunchConfiguration('enable_visualiser_arg').perform(context) in ('True', 'true')  
+    enable_visualiser = LaunchConfiguration('enable_visualiser_arg').perform(context) in ('True', 'true')
 
     image_width = int(LaunchConfiguration('rtsp_width_arg').perform(context))
     image_height = int(LaunchConfiguration('rtsp_height_arg').perform(context))
@@ -221,6 +221,8 @@ def application_config(context):
 
     bgs_algo = str(LaunchConfiguration('bgs_algorithm_arg').perform(context))
     tracking_sensitivity = str(LaunchConfiguration('tracking_sensitivity_arg').perform(context)).replace("'", "")
+
+    enable_star_mask = LaunchConfiguration('enable_star_mask_arg').perform(context) in ('True', 'true')
 
     tracking_mask_dir = 'assets/masks'
 
@@ -292,6 +294,7 @@ def application_config(context):
 
             # track_sensitivity_monitor_node
             yaml_output['track_sensitivity_monitor_node']['ros__parameters']['sensitivity'] = tracking_sensitivity
+            yaml_output['track_sensitivity_monitor_node']['ros__parameters']['star_mask_enabled'] = enable_star_mask
 
             # Tracking status message on annotated frame
             yaml_output['annotated_frame_provider_node']['ros__parameters']['tracking_status_message'] = enable_visualiser
