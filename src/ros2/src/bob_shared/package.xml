@@ -2,10 +2,10 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>bob_shared</name>
-  <version>0.0.0</version>
+  <version>1.2.16</version>
   <description>TODO: Package description</description>
-  <maintainer email="michael.groenewald@gmail.com">ros</maintainer>
-  <license>TODO: License declaration</license>
+  <maintainer email="uapbob@gmail.com">Bob Universal Object Tracker</maintainer>
+  <license>GPLv3</license>
 
   <depend>rclpy</depend>
   <depend>image_transport</depend>
