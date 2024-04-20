@@ -19,7 +19,7 @@
                 overflow: hidden; /* Prevent overflow content from protruding */
                 float: left;
             }
-            
+
             #image-subscription {
                 display: block; /* Ensure the image fills its container */
                 width: 100%; /* Make sure the image fills the container */
@@ -130,7 +130,7 @@
 
             .fa-green {
                 color: green;
-            }    
+            }
             .fa-red {
                 color: red;
             }
@@ -140,7 +140,7 @@
         <meta charset="utf-8" />
         <script src="https://cdn.jsdelivr.net/npm/eventemitter2@6.4.9/lib/eventemitter2.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/roslibjs/1.1.0/roslib.min.js"></script>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
         <link href="https://cdn.jsdelivr.net/npm/@mdi/font/css/materialdesignicons.min.css" rel="stylesheet">
         <script src="../lib/bob.js"></script>
     </head>
@@ -241,9 +241,9 @@
             <div class="metric-readings">
                 <label for="day_night_classification">Day/Night:</label>
                 <i id="day_icon" class="fas fa-image" style="color: #ffe207; display: none;"></i>
-                <i id="night_icon" class="far fa-moon" style="color: blue; display: none;"></i> 
-                <i id="neutral_icon" style="display: none;">&#63;</i> 
-            </div>            
+                <i id="night_icon" class="far fa-moon" style="color: blue; display: none;"></i>
+                <i id="neutral_icon" style="display: none;">&#63;</i>
+            </div>
             <div class="metric-readings">
                 <label for="cloud_estimation">Cloud Cover:</label>
                 <span id="cloud_estimation">0</span>
@@ -273,7 +273,7 @@
 
     let videoStream = document.getElementById('image-subscription');
     let streamContainer = document.getElementById('stream');
-    let bufferingOverlay = document.getElementById('bufferingOverlay');    
+    let bufferingOverlay = document.getElementById('bufferingOverlay');
 
     let tracking_state_icon = document.getElementById('tracking_state_icon');
     let recording_state_icon = document.getElementById('recording_state_icon');
@@ -294,8 +294,11 @@
     let isPlaying = true;
     let firstImageReceived = false;
 
-    var ros = new ROSLIB.Ros();
-    rosConnect(ros, websocketsURL, true);
+    // var ros = new ROSLIB.Ros();
+    // rosConnect(ros, websocketsURL, true);
+
+    // Connect to the ROS2 environment
+    ros = rosConnect(websocketsURL, true);
 
     var ros2ImageTopic1 = '/bob/camera/all_sky/bayer/resized/compressed'; // define the ROS2 Subscription Topic 1
     var ros2ImageTopic2 = '/bob/frames/annotated/resized/compressed'; // define the ROS2 Subscription Topic 2
@@ -315,8 +318,8 @@
     });
 
     var versionService = new ROSLIB.Service({
-        ros : ros, 
-        name : '/bob/webapi/application/info', 
+        ros : ros,
+        name : '/bob/webapi/application/info',
         serviceType : 'bob_interfaces/srv/ApplicationInfo'
     });
 
@@ -329,20 +332,20 @@
                 document.getElementById('applicationVersion').innerText = result.version;
                 console.log(`Bob-ROS2 Frame Size: w=${result.frame_width}  h=${result.frame_height}`);
                 console.log(`Bob-ROS2 FPS: ${result.video_fps}`);
-                
-                document.getElementById('frame_rate').value = result.video_fps;                
-            });  
+
+                document.getElementById('frame_rate').value = result.video_fps;
+            });
 
             stateStream.subscribe(function (message) {
 
                 sensitivity.innerHTML = message.sensitivity;
                 updateIconColor(tracking_state_icon, (message.alive > 0))
-                updateIconColor(recording_state_icon, message.recording)            
+                updateIconColor(recording_state_icon, message.recording)
                 tracking_state_trackable.innerHTML = message.trackable;
                 tracking_state_alive.innerHTML = message.alive;
                 tracking_state_started.innerHTML = message.started;
                 tracking_state_ended.innerHTML = message.ended;
-            
+
                 // Update day/night icon based on classification
                 var dayIcon = document.getElementById('day_icon');
                 var nightIcon = document.getElementById('night_icon');
@@ -360,10 +363,10 @@
                     nightIcon.style.display = 'inline'; // Display night icon
                     neutralIcon.style.display = 'none'; // Hide neutral icon
                 }
-                
+
                 cloud_estimation.innerHTML = `${Math.trunc(message.percentage_cloud_cover)}%`;
             });
-            
+
 
             frameStream.subscribe(function (message) {
                 updateMessageRate();
@@ -385,7 +388,7 @@
                 } else {
                     videoStream.src = "data:image/jpeg;base64," + message.data;
                 }
-            });            
+            });
 
             // Call displayImage for the first time
             displayImage();
@@ -402,9 +405,9 @@
     function updateIconColor(icon, color) {
         icon.classList.remove('fa-green', 'fa-red');
         if (color) {
-            icon.classList.add('fa-green'); 
+            icon.classList.add('fa-green');
         } else {
-            icon.classList.add('fa-red'); 
+            icon.classList.add('fa-red');
         }
     }
 
@@ -467,7 +470,7 @@
         bufferingOverlay.style.width = `${newWidth}px`;
         bufferingOverlay.style.height = `${newHeight}px`;
     }
-    
+
 
     // Listen for changes to the image's height
     const resizeObserver = new ResizeObserver(() => {
@@ -477,9 +480,27 @@
     resizeObserver.observe(videoStream);
 
     window.onload = init();
+
     window.onbeforeunload = function(event) {
-        console.log('disposing......');
-        ros.close();
+
+        console.log('Cleaning up resources...');
+
+        // Unsubscribe from the topic
+        if (frameStream) {
+            frameStream.unsubscribe();
+            console.log('Unsubscribed from topic.');
+        }
+        // Unsubscribe from the topic
+        if (stateStream) {
+            stateStream.unsubscribe();
+            console.log('Unsubscribed from topic.');
+        }
+        // Close the ROS2 connection
+        // ros.close();
+        // console.log('ROS connection closed.');
+
+        // Close the ROS2 connection
+        disconnectRos(ros);
     }
 
     // Start the animation loop
