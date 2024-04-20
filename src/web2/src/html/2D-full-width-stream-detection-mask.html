@@ -55,7 +55,7 @@
                 justify-content: space-between;
                 padding-bottom: 5px;
                 font-size: 14px;
-            }            
+            }
 
             button {
                 background-color: #fff;
@@ -84,7 +84,7 @@
             button.stop-edit:hover {
                 background-color: rgb(82, 241, 117);
             }
-            
+
             #sendMaskSVGBtn,
             #cancelMaskBtn,
             #clearMaskBtn {
@@ -96,7 +96,7 @@
                 background-color: #f8f8f8;
                 border: 1px solid #ccc;
                 border-radius: 4px;
-            }            
+            }
         </style>
 
         <title>Detection Mask Image Stream (Wide View)</title>
@@ -111,11 +111,11 @@
         <link href="https://cdn.jsdelivr.net/npm/@mdi/font/css/materialdesignicons.min.css" rel="stylesheet">
         <script src="../lib/bob.js"></script>
 
-        <script>
+        <!-- <script>
             // Set up the connection to the ROS2 environment using the roslib.js library
-            var ros = new ROSLIB.Ros();
-            rosConnect(ros, websocketsURL, true);
-        </script>
+            // var ros = new ROSLIB.Ros();
+            // rosConnect(ros, websocketsURL, true);
+        </script> -->
 
     </head>
 
@@ -125,7 +125,7 @@
             <div id="mask-controls-header-dev" class="metric-header">Detection Mask Controls</div>
             <div class="metric-text">
                 Draw the area you want to track in.
-            </div>            
+            </div>
             <button id="editMaskBtn" title="Edit Mask"><i class="fa-solid fa-pen-to-square"></i></button>
             <button id="deleteMaskBtn" title="Delete Mask"><i class="fas fa-trash"></i></i></button>
             <button id="cancelMaskBtn" title="Cancel" style="display: none;"><i class="fas fa-times"></i></button>
@@ -137,7 +137,7 @@
                     <li>Click Edit then use the polygon drawing tool to outline sky tracking area.</li>
                     <li>Single-click to add points, double-click to finish drawing.</li>
                     <li>Avoid inlcuding moving objects like branches in detection area.</li>
-                    <li>Allow margin for movement by trees, bushes etc due to wind or other factors.</li> 
+                    <li>Allow margin for movement by trees, bushes etc due to wind or other factors.</li>
                     <li>Save your selection once satisfied.</li>
                     <li>Use Delete button to reset if needed.</li>
                 </ul>
@@ -150,10 +150,13 @@
 
         <script type="text/javascript" type="text/javascript">
 
+            // Connect to the ROS2 environment
+            ros = rosConnect(websocketsURL, true);
+
             // Create a topicStream for subscription
             var topicStream = new ROSLIB.Topic({
-                ros: ros, 
-                name: '/bob/frames/allsky/masked/detection/resized/compressed', 
+                ros: ros,
+                name: '/bob/frames/allsky/masked/detection/resized/compressed',
                 messageType: 'sensor_msgs/msg/CompressedImage'
             });
 
@@ -184,11 +187,11 @@
                     maskControlsHeaderDiv.innerText = 'Editing Mask';
                     svcOverrideMask(false);
                     // Clear any existing polygons if starting a new edit session
-                    polygons = [[]];            
+                    polygons = [[]];
                 } else {
                     maskControlsHeaderDiv.innerText = 'Detection Mask Controls';
                     svcOverrideMask(true);
-                    redrawCanvas();            
+                    redrawCanvas();
                 }
             }
 
@@ -203,7 +206,7 @@
                 sendMaskSVGBtn.style.display = editMode ? 'inline-block' : 'none';
                 editMaskBtn.style.display = editMode ? 'none' : 'inline-block';
                 deleteMaskBtn.style.display = editMode ? 'none' : 'inline-block';
-            }              
+            }
 
             function drawPolygon(polygon, fillStyle, drawBorder) {
                 //console.log("drawPolygon");
@@ -224,7 +227,7 @@
                     maskCanvasCtx.lineDashOffset = 0;
                 }
                 //console.log(polygon);
-            }            
+            }
 
             function redrawCanvas() {
                 //console.log('redrawCanvas');
@@ -233,8 +236,8 @@
                     const isCurrentPolygon = index === polygons.length - 1;
                     drawPolygon(polygon, editMode && isCurrentPolygon ? 'rgba(0, 0, 0, 0.1)' : 'rgba(0, 0, 0, 1)', editMode && isCurrentPolygon);
                 });
-                //console.log(polygons);                
-            }            
+                //console.log(polygons);
+            }
 
             function updateCanvasDimensions() {
                 maskCanvas.width = streamContainer.clientWidth;
@@ -253,8 +256,8 @@
                 maskCanvas.width = maskCanvas.clientWidth * devicePixelRatio;
                 maskCanvas.height = maskCanvas.clientHeight * devicePixelRatio;
                 maskCanvasCtx.scale(devicePixelRatio, devicePixelRatio);
-                updateCanvasDimensions(); 
-            }            
+                updateCanvasDimensions();
+            }
 
             // EVENT LISTENERS
             // Add event listener for changes in the size of the video stream container
@@ -265,7 +268,7 @@
                 maskCanvas.height = videoStream.offsetHeight;
             });
 
-            maskCanvas.addEventListener('mousedown', (e) => {                
+            maskCanvas.addEventListener('mousedown', (e) => {
                 //console.log('maskCanvas.mousedown');
                 if (!editMode || e.button === 2) return;
                 if (e.detail > 1) {
@@ -295,7 +298,7 @@
                 }
                 redrawCanvas();
             });
-            
+
             maskCanvas.addEventListener('mousemove', (e) => {
                 //console.log('maskCanvas.mousemove');
                 if (!drawing || !editMode) return;
@@ -305,17 +308,17 @@
                 const currentPolygon = polygons[polygons.length - 1];
                 currentPolygon.push({ x, y });
                 redrawCanvas();
-                if (editMode) { 
-                    drawPolygon(currentPolygon, 'rgba(0, 0, 0, 0.1)', true); 
+                if (editMode) {
+                    drawPolygon(currentPolygon, 'rgba(0, 0, 0, 0.1)', true);
                 }
                 currentPolygon.pop();
             });
 
-            editMaskBtn.addEventListener('click', () => {        
-                maskBtnClick();    
+            editMaskBtn.addEventListener('click', () => {
+                maskBtnClick();
             });
 
-            deleteMaskBtn.addEventListener('click', () => {                     
+            deleteMaskBtn.addEventListener('click', () => {
                 if (confirm("Are you sure you want to delete your mask?") == true) {
                     svcDeleteMask();
                 }
@@ -323,7 +326,7 @@
 
             cancelMaskBtn.addEventListener('click', () => {
                 maskBtnClick();
-            });    
+            });
 
             clearMaskBtn.addEventListener('click', () => {
                 clearMask();
@@ -344,12 +347,13 @@
             // SERVICE FUNCTIONS
             function svcSendMaskSVG() {
 
-                let rosCon = new ROSLIB.Ros();
-                rosConnect(rosCon, websocketsURL);
+                // let rosCon = new ROSLIB.Ros();
+                // rosConnect(rosCon, websocketsURL);
 
                 let updateSvgMaskService = new ROSLIB.Service({
-                    ros : rosCon, 
-                    name : '/bob/webapi/mask/update/svg', 
+                    // ros : rosCon,
+                    ros : ros,
+                    name : '/bob/webapi/mask/update/svg',
                     serviceType : 'bob_interfaces/srv/MaskSvgUpdate'
                 });
 
@@ -394,21 +398,22 @@
                         console.error("Failed to send mask:", result.message);
                     }
 
-                    rosCon.close();
-                });                
+                    // rosCon.close();
+                });
             }
 
             function svcOverrideMask(enable) {
                 //console.log(`Override mask - setting: ${enable}`);
 
-                let rosCon = new ROSLIB.Ros();
-                rosConnect(rosCon, websocketsURL);                
+                // let rosCon = new ROSLIB.Ros();
+                // rosConnect(rosCon, websocketsURL);
 
                 let maskOverrideService = new ROSLIB.Service({
-                    ros : rosCon, 
-                    name : '/bob/mask/detection/override', 
+                    // ros : rosCon,
+                    ros : ros,
+                    name : '/bob/mask/detection/override',
                     serviceType : 'bob_interfaces/srv/MaskOverrideRequest'
-                });  
+                });
 
                 let request = new ROSLIB.ServiceRequest({
                     mask_enabled: enable
@@ -421,21 +426,22 @@
                         console.error("Failed to send mask override:", result.message);
                     }
 
-                    rosCon.close();                    
-                });                
-            }            
+                    // rosCon.close();
+                });
+            }
 
             function svcDeleteMask() {
                 //console.log("Delete mask.");
 
-                let rosCon = new ROSLIB.Ros();
-                rosConnect(rosCon, websocketsURL);   
+                // let rosCon = new ROSLIB.Ros();
+                // rosConnect(rosCon, websocketsURL);
 
                 let deleteMaskService = new ROSLIB.Service({
-                    ros : rosCon, 
-                    name : '/bob/webapi/mask/delete/svg', 
+                    // ros : rosCon,
+                    ros : ros,
+                    name : '/bob/webapi/mask/delete/svg',
                     serviceType : 'bob_interfaces/srv/MaskSvgDelete'
-                });                     
+                });
 
                 let request = new ROSLIB.ServiceRequest({
                     file_name: maskFilename,
@@ -449,8 +455,8 @@
                         console.error("Failed to delete mask:", result.message);
                     }
 
-                    rosCon.close();
-                });               
+                    // rosCon.close();
+                });
             }
 
             function init() {
@@ -472,8 +478,17 @@
 
             window.onload = init();
             window.onbeforeunload = function(event) {
-                console.log('disposing......');
-                ros.close();
+                // console.log('disposing......');
+                // ros.close();
+
+                // Unsubscribe from the topic
+                if (topicStream) {
+                    topicStream.unsubscribe();
+                    console.log('Unsubscribed from topic.');
+                }
+
+                // Close the ROS2 connection
+                disconnectRos(ros);
             }
         </script>
 
