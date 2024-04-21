@@ -159,11 +159,11 @@
     <div class="left-side">
         <label for="modelSelect">OpenAI Model:</label>
         <select id="modelSelect">
-            <option value="gpt-3.5-turbo">gpt-3.5-turbo 4K</option>
+            <!-- <option value="gpt-3.5-turbo">gpt-3.5-turbo 4K</option>
             <option value="gpt-3.5-turbo-16k">gpt-3.5-turbo-16k</option>
             <option value="gpt-4">gpt-4 8K</option>
-            <option value="gpt-4-1106-preview">gpt-4-1106-preview 128K</option>
-            <option value="gpt-4-vision-preview">gpt-4-vision-preview</option>
+            <option value="gpt-4-1106-preview">gpt-4-1106-preview 128K</option> -->
+            <option value="gpt-4-vision-preview" selected>gpt-4-vision-preview</option>
             <!-- <option value="gpt-4-32k">gpt-4-32k 32K</option> -->
             <!-- <option value="gpt-4-32k-0613">gpt-4-32k-0613 32K Function Calling</option> -->
         </select>
@@ -171,7 +171,7 @@
         <input id="maxTokensSelect" type="number" value="4091" min="1" max="4096" hidden>
         <br><br>
         <label for="systemMessage">Vision Prompt:</label><textarea id="systemMessage"></textarea>
-        <label for="prompt">Enter Prompt:</label><textarea id="prompt"></textarea>
+        <label for="prompt">Choose Images To Discuss:</label><textarea id="prompt"></textarea>
         <div id="imageDisplayArea"></div>
         <br>
         <input type="file" id="imageInput" multiple>
