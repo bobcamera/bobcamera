@@ -69,3 +69,5 @@ or
 ./setup.sh
 ```
 and select "No" in the prompt. 
+
+## [Acknowledgements, credits and references](REFERENCES.md)
