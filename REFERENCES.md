@@ -6,3 +6,4 @@
 - Cloud estimation algorithms for day and night based on:
   - Li, Qingyong & Lyu, Weitao & Yang, Jun. (2011). A Hybrid Thresholding Algorithm for Cloud Detection on Ground-Based Color Images. Journal of Atmospheric and Oceanic Technology. 28.
   - Gao, B.; Ping, Y.; Lu, Y.; Zhang, C. (2022) Nighttime Cloud Cover Estimation Method at the Saishiteng 3850 m Site. Universe, 8, 538. 
+- Initial day/night classifier is based upon https://github.com/arunnthevapalan/day-night-classifier/blob/master/classifier.ipynb
