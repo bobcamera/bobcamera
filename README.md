@@ -70,4 +70,6 @@ or
 ```
 and select "No" in the prompt. 
 
-## [Acknowledgements, credits and references](REFERENCES.md)
+-----
+
+[Acknowledgements, credits and references](REFERENCES.md)
