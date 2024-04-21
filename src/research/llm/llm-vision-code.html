@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConversationGPT</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+        }
+        /* dark mode */
+        body.dark {
+            background-color: #222;
+            color: #fff;
+        }
+        body.dark .left-side, body.dark .right-side {
+            border-color: #fff;
+        }
+        /* dark text area styling
+         */
+        body.dark textarea {
+            background-color: #333;
+            color: #fff;
+        }
+        /* dark button styling */
+        body.dark button {
+            background-color: #333;
+            color: #fff;
+            border-color: #fff;
+        }
+        /* dark button hover styling */
+        body.dark button:hover {
+            background-color: #fff;
+            color: #333;
+        }
+        /* dark button active styling */
+        body.dark button:active {
+            background-color: #fff;
+            color: #333;
+        }
+        /* dark button focus styling */
+        body.dark button:focus {
+            background-color: #fff;
+            color: #333;
+        }
+        /* dark button disabled styling */
+        body.dark button:disabled {
+            background-color: #333;
+            color: #fff;
+        }
+        /* dark conversation div styling */
+        body.dark #response {
+            background-color: #333;
+            color: #fff;
+        }
+        /* dark styling from dropdowns and inputs */
+        body.dark select, body.dark input {
+            background-color: #333;
+            color: #fff;
+            border-color: #fff;
+        }
+        /* dark styling for choose files button */
+        body.dark input[type="file"] {
+            background-color: #333;
+            color: #fff;
+            border-color: #fff;
+        }
+        /* dark styling for the Choose file button in its default state
+         */
+        body.dark input[type="file"]::file-selector-button {
+            background-color: #333;
+            color: #fff;
+            border-color: #fff;
+        }
+        /* dark styling for choose files button hover */
+        body.dark input[type="file"]:hover {
+            background-color: #fff;
+            color: #333;
+        }
+        /* dark styling for choose files button active */
+        body.dark input[type="file"]:active {
+            background-color: #fff;
+            color: #333;
+        }
+        /* dark styling for choose files button focus */
+        body.dark input[type="file"]:focus {
+            background-color: #fff;
+            color: #333;
+        }
+
+        /* All borders on page should be more grey not white
+         */
+        body.dark * {
+            border-color: #ccc;
+        }
+        .left-side {
+            flex: 1;
+            padding: 20px;
+            border: 1px solid #ccc;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            height: 95%;
+            overflow: auto;
+        }
+        .right-side {
+            flex: 1;
+            padding: 20px;
+            border: 1px solid #ccc;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            height: 95%;
+            overflow: auto;
+        }
+
+        textarea {
+            width: 100%;
+            height: calc(100% - 120px);
+            resize: none;
+        }
+        #systemMessage {
+            width: 100%;
+            height: calc(10%);
+            resize: none;
+        }
+        #prompt {
+            width: 100%;
+            height: calc(90% - 120px);
+            resize: none;
+            /* hide this */
+            display: none;
+        }
+        #response {
+            width: 98%;
+            height: calc(100% - 120px);
+            resize: none;
+            white-space: pre-wrap;
+            border: 1px solid #ccc;
+            margin: 10px 10px 10px 10px;
+            overflow-y: auto;
+            font-size: 14px;
+        }
+        button {
+            margin-top: 10px;
+            padding: 10px 15px;
+        }
+        /* green Get response button */
+        #get-response {
+            background-color: #4CAF50;
+            color: rgb(54, 52, 52);
+            border-color: #4CAF50;
+        }
+    </style>
+</head>
+<!-- Set default to dark mode -->
+<body class="dark">
+
+    <div class="left-side">
+        <label for="modelSelect">OpenAI Model:</label>
+        <select id="modelSelect">
+            <option value="gpt-3.5-turbo">gpt-3.5-turbo 4K</option>
+            <option value="gpt-3.5-turbo-16k">gpt-3.5-turbo-16k</option>
+            <option value="gpt-4">gpt-4 8K</option>
+            <option value="gpt-4-1106-preview">gpt-4-1106-preview 128K</option>
+            <option value="gpt-4-vision-preview">gpt-4-vision-preview</option>
+            <!-- <option value="gpt-4-32k">gpt-4-32k 32K</option> -->
+            <!-- <option value="gpt-4-32k-0613">gpt-4-32k-0613 32K Function Calling</option> -->
+        </select>
+        <!-- <label for="maxTokensSelect">Max Output Tokens:</label> -->
+        <input id="maxTokensSelect" type="number" value="4091" min="1" max="4096" hidden>
+        <br><br>
+        <label for="systemMessage">Vision Prompt:</label><textarea id="systemMessage"></textarea>
+        <label for="prompt">Enter Prompt:</label><textarea id="prompt"></textarea>
+        <div id="imageDisplayArea"></div>
+        <br>
+        <input type="file" id="imageInput" multiple>
+        <br><br>
+        <button id="get-response" onclick="getOpenAIResponse()">Get Response</button>
+        <button onclick="resetForm()">Reset Conversation</button>
+    </div>
+    <div class="right-side">
+        <label for="response">Conversation:</label><div id="response"></div>
+        <div id="tokenUsage"></div>
+    </div>
+
+    <script>
+        var messages = [];
+
+
+
+        ////////////////////// REPLACE THIS WITH YOUR OPENAI API KEY //////////////////////
+        var openAI_API_Key = "Bearer sk-XXXXXXXXXXXXXXXXXXXXXXXX";
+
+
+
+        var openAI_Default_LLM_Model = "gpt-4-vision-preview";
+        var openAI_Default_Endpoint = "https://api.openai.com/v1/chat/completions";
+        var default_MaxTokens = 32000;
+        var defaultSystemMessage = "Tell me about these images.";
+
+        document.addEventListener("DOMContentLoaded", function() {
+            let modelSelect = document.getElementById("modelSelect");
+            if (localStorage.getItem("selectedModel")) { modelSelect.value = localStorage.getItem("selectedModel"); }
+            modelSelect.addEventListener("change", function() {
+                localStorage.setItem("selectedModel", this.value); });
+
+            let maxTokensSelect = document.getElementById("maxTokensSelect");
+            if (localStorage.getItem("maxTokens")) { maxTokensSelect.value = localStorage.getItem("maxTokens"); }
+            maxTokensSelect.addEventListener("change", function() {
+                localStorage.setItem("maxTokens", this.value); });
+
+            let systemMessageArea = document.getElementById("systemMessage");
+            if (localStorage.getItem("systemMessage")) {
+                systemMessageArea.value = localStorage.getItem("systemMessage"); }
+            systemMessageArea.addEventListener("input", function() {
+                localStorage.setItem("systemMessage", this.value); });
+
+            let promptArea = document.getElementById("prompt");
+            if (localStorage.getItem("prompt")) { promptArea.value = localStorage.getItem("prompt"); }
+            promptArea.addEventListener("input", function() {
+                localStorage.setItem("prompt", this.value); });
+
+            if (localStorage.getItem("messages")) {
+                messages = JSON.parse(localStorage.getItem("messages"));
+                let responseDiv = document.getElementById("response");
+                responseDiv.innerText = "";
+                messages.forEach(message => {
+                    if (message.role === "assistant") {
+                        responseDiv.innerText += "Assistant: " + message.content + "\n\n";
+                    } else {
+                        if (message.role === "user") {
+                            responseDiv.innerText += "User: " + message.content + "\n\n";
+                        }
+                    }
+                });
+                console.log("Past Messages: ");
+                console.log(messages);
+            } else {
+                console.log("No messages");
+            }
+        });
+
+        // Function to encode the image
+        async function encodeImage(file) {
+            console.log('Image being encoded...');
+            console.log(file);
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    let encoded = reader.result.replace(/^data:(.*;base64,)?/, '');
+                    if ((encoded.length % 4) > 0) {
+                    encoded += '='.repeat(4 - (encoded.length % 4));
+                    }
+                    resolve(encoded);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Function to encode an array of image files
+        async function encodeImages(imageFiles) {
+            console.log('Encoding Images...');
+            return Promise.all(imageFiles.map(file => encodeImage(file)));
+        }
+
+        // Returns the content array
+        async function getContentArray(imageFiles) {
+            return encodeImages(imageFiles).then(base64Images => {
+                // let prompt = document.getElementById('prompt').value;
+                // console.log('prompt: ' + prompt);
+                let content = [];
+                base64Images.forEach(base64Image => {
+                    content.push({ type: "image_url", image_url: {
+                        url: `data:image/jpeg;base64,${base64Image}` } });
+                });
+                return content;
+            });
+        }
+        // listen for the file input change and display the images
+        document.getElementById('imageInput').addEventListener('change', function() {
+            let imageDisplayArea = document.getElementById('imageDisplayArea');
+            imageDisplayArea.innerHTML = '';
+            // localStorage.removeItem('visionFiles');
+            let files = Array.from(this.files);
+            console.log('files: ' + files);
+            files.forEach(file => {
+                let reader = new FileReader();
+                // resizes the image to fit the display area in a row.  add a slight rounded corner to images
+                reader.onloadend = function() {
+                    let img = document.createElement('img');
+                    img.src = this.result;
+                    img.style = "width: 200px; height: 200px; border-radius: 5px; margin: 5px;";
+                    imageDisplayArea.appendChild(img);
+                }
+                reader.readAsDataURL(file);
+            });
+        });
+
+        async function getOpenAIVisionResponse(
+            systemMessage = defaultSystemMessage,
+            prompt,
+            model = openAI_Default_LLM_Model,
+            maxTokens = default_MaxTokens){
+            console.log('getOpenAIVisionResponse');
+            console.log('System Message: ' + systemMessage);
+            console.log('Prompt: ' + prompt);
+            console.log('Model: ' + model);
+            console.log('Max Tokens: ' + maxTokens);
+
+            let messages = [];
+            let systemMessageLine = { "role": "system", "content": systemMessage };
+            messages.push(systemMessageLine);
+            let promptLine = { "role": "user", "content": prompt };
+            messages.push(promptLine);
+            let content = await getContentArray(Array.from(document.getElementById('imageInput').files));
+            console.log('content: ' + content);
+            // content = JSON.stringify(content);
+            let imageMessage = { role: "user", content: content };
+            // console.log('content: ' + content);
+            messages.push(imageMessage);
+            try {
+                document.getElementById("response").innerText = "Getting response from OpenAI...";
+                console.log('Getting response from OpenAI...');
+                const response = await fetch(openAI_Default_Endpoint, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": openAI_API_Key,
+                    },
+                    body: JSON.stringify({
+                        model: model,
+                        messages: messages,
+                        max_tokens: maxTokens,
+                    }),
+                    temperature: 1,
+                    n: 1,
+                    top_p: 1,
+                    frequency_penalty: 0,
+                    presence_penalty: 0,
+                });
+                const data = await response.json();
+                console.log(data);
+                if (!response.ok) { throw new Error(data.error.message || 'Unknown API error'); }
+                // Add the response to the messages array
+                messages.push(data.choices[0].message);
+                return data.choices[0].message.content;
+            } catch (error) {
+                console.error("Error:", error);
+            }
+        }
+
+        async function getOpenAIResponse() {
+            let responseDiv = document.getElementById("response");
+            responseDiv.innerText = "Waiting for model's response...";
+            const tokenUsageDiv = document.getElementById("tokenUsage");
+            tokenUsageDiv.innerText = "";
+            const systemMessageText = document.getElementById("systemMessage").value;
+            const promptText = document.getElementById("prompt").value;
+            const modelChoice = document.getElementById("modelSelect").value;
+            const maxTokensChoice = document.getElementById("maxTokensSelect").value;
+            try {
+                const inputTokens = systemMessageText.split(" ").length
+                + promptText.split(" ").length; // count the number of words in the prompt
+                const result =
+                await getOpenAIVisionResponse(systemMessageText, promptText, modelChoice, maxTokensChoice);
+                console.log('Open AI Vision Response: ' + result);
+                responseDiv.innerText = result; // display the response from OpenAI
+                if (!result || result === "") {
+                    responseDiv.innerText = "Response is undefined or empty.";
+                    return;
+                } else {
+                    const outputTokens = result.split(" ").length; // count the number of words in the result
+                    const totalTokens = inputTokens + outputTokens; // count the total number of words
+                    tokenUsageDiv.innerText =
+                    `Input tokens: ${inputTokens} | Output tokens: ${outputTokens} | Total tokens: ${totalTokens}`;
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                responseDiv.innerText = "Error: " + error.message;
+            }
+        }
+
+        // Form reset function
+        function resetForm() {
+            document.getElementById("systemMessage").value = defaultSystemMessage;
+            // document.getElementById("prompt").value = "";
+            document.getElementById("response").innerText = "";
+            document.getElementById("tokenUsage").innerText = "";
+            localStorage.setItem("systemMessage", defaultSystemMessage);
+            localStorage.setItem("prompt", "");
+            messages = [];
+            localStorage.setItem("messages", JSON.stringify(messages));
+        }
+
+    </script>
+</body>
+</html>
