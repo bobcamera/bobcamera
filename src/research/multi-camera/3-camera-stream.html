@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Streamed Image Display</title>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/three@0.133.1/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dat.gui/build/dat.gui.min.js"></script>
+<script>
+    let scene, camera, renderer, controls;
+    let texture1, material1, mesh1;
+    let texture2, material2, mesh2;
+    let texture3, material3, mesh3;
+    let gui;
+    let curvature = { value: 0.2046 }; // This now represents the parabolic factor
+    let opacity = { value: 1 };
+    let y_rotation = 0.7;
+
+    function init() {
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.z = 15;
+        renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.25;
+
+        const vertexShader = `
+            varying vec2 vUv;
+            uniform float curvature;
+            void main() {
+                vUv = uv;
+                vec3 pos = position;
+                // Parabolic curvature
+                pos.z = curvature * (pos.x * pos.x + pos.y * pos.y);
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+            }
+        `;
+
+        const fragmentShader = `
+            varying vec2 vUv;
+            uniform sampler2D map;
+            uniform float opacity;
+            void main() {
+                vec4 textureColor = texture2D(map, vUv);
+                gl_FragColor = vec4(textureColor.rgb, textureColor.a * opacity);
+            }
+        `;
+
+        // Feed 1
+        texture1 = new THREE.Texture();
+        material1 = new THREE.ShaderMaterial({
+            uniforms: {
+                curvature: { value: curvature.value },
+                map: { value: texture1 },
+                opacity: { value: opacity.value }
+            },
+            vertexShader,
+            fragmentShader,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+        const geometry1 = new THREE.PlaneGeometry(4, 3, 64, 48);
+        mesh1 = new THREE.Mesh(geometry1, material1);
+        mesh1.position.set(-2.05, 0, 0);
+        mesh1.rotation.z = 0;
+        mesh1.rotation.y = y_rotation;
+        scene.add(mesh1);
+        // GUI Folder 1
+        gui = new dat.GUI();
+        const folder1 = gui.addFolder('Camera 1');
+        folder1.add(mesh1.position, 'x', -7, 7, 0.01).name('Position X');
+        folder1.add(mesh1.position, 'y', -7, 7, 0.01).name('Position Y');
+        folder1.add(mesh1.position, 'z', -7, 7, 0.01).name('Position Z');
+        folder1.add(mesh1.rotation, 'y', -Math.PI, Math.PI, 0.001).name('Rotation Y');
+        folder1.open();
+
+        // Feed 2
+        texture2 = new THREE.Texture();
+        material2 = new THREE.ShaderMaterial({
+            uniforms: {
+                curvature: { value: curvature.value },
+                map: { value: texture2 },
+                opacity: { value: opacity.value }
+            },
+            vertexShader,
+            fragmentShader,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+        const geometry2 = new THREE.PlaneGeometry(4, 3, 64, 48);
+        mesh2 = new THREE.Mesh(geometry2, material2);
+        mesh2.position.set(2.05, 0, 0);
+        mesh2.rotation.z = 0;
+        mesh2.rotation.y = -y_rotation;
+        scene.add(mesh2);
+        // GUI Folder 2
+        const folder2 = gui.addFolder('Camera 2');
+        folder2.add(mesh2.position, 'x', -7, 7, 0.01).name('Position X');
+        folder2.add(mesh2.position, 'y', -7, 7, 0.01).name('Position Y');
+        folder2.add(mesh2.position, 'z', -7, 7, 0.01).name('Position Z');
+        folder2.add(mesh2.rotation, 'y', -Math.PI, Math.PI, 0.001).name('Rotation Y');
+        folder2.open();
+
+        // Feed 3
+        texture3 = new THREE.Texture();
+        material3 = new THREE.ShaderMaterial({
+            uniforms: {
+                curvature: { value: curvature.value },
+                map: { value: texture3 },
+                opacity: { value: opacity.value }
+            },
+            vertexShader,
+            fragmentShader,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+        const geometry3 = new THREE.PlaneGeometry(4, 3, 64, 48);
+        mesh3 = new THREE.Mesh(geometry3, material3);
+        mesh3.position.set(2.94, 0, 4);
+        mesh3.rotation.z = 0;
+        mesh3.rotation.y = -2;
+        scene.add(mesh3);
+        // GUI Folder 3
+        const folder3 = gui.addFolder('Camera 3');
+        folder3.add(mesh3.position, 'x', -7, 7, 0.01).name('Position X');
+        folder3.add(mesh3.position, 'y', -7, 7, 0.01).name('Position Y');
+        folder3.add(mesh3.position, 'z', -7, 7, 0.01).name('Position Z');
+        folder3.add(mesh3.rotation, 'y', -Math.PI, Math.PI, 0.001).name('Rotation Y');
+        folder3.open();
+
+
+
+
+
+
+        // Other Folder
+        const otherFolder = gui.addFolder('Shared Controls');
+        gui.add(curvature, 'value', 0.001, 0.3, 0.0001).name('Curvature').onChange(function(newValue) {
+            material1.uniforms.curvature.value = newValue;
+            material2.uniforms.curvature.value = newValue;
+            material3.uniforms.curvature.value = newValue;
+        });
+        otherFolder.add(opacity, 'value', 0.0, 1.0, 0.001).name('Opacity').onChange(function(newValue) {
+            material1.uniforms.opacity.value = newValue;
+            material2.uniforms.opacity.value = newValue;
+            material3.uniforms.opacity.value = newValue;
+        });
+        otherFolder.open();
+
+        animate();
+    }
+
+    function calculateCurvature(fov) {
+        return 1 / Math.tan((fov * Math.PI / 180) / 2);
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+    }
+
+    window.onload = init;
+
+    // WebSocket for the first feed
+    const socket1 = new WebSocket('ws://192.168.1.214:8765');
+    socket1.binaryType = 'blob';
+    socket1.onmessage = function (event) {
+        const url = URL.createObjectURL(event.data);
+        const img = new Image();
+        img.onload = function () {
+            texture1.image = img;
+            texture1.needsUpdate = true;
+            URL.revokeObjectURL(url);
+        };
+        img.src = url;
+    };
+
+    // WebSocket for the second feed
+    const socket2 = new WebSocket('ws://192.168.1.213:8766');
+    socket2.binaryType = 'blob';
+    socket2.onmessage = function (event) {
+        const url = URL.createObjectURL(event.data);
+        const img = new Image();
+        img.onload = function () {
+            texture2.image = img;
+            texture2.needsUpdate = true;
+            URL.revokeObjectURL(url);
+        };
+        img.src = url;
+    };
+
+    // WebSocket for the second feed
+    const socket3 = new WebSocket('ws://192.168.1.166:8767');
+    socket3.binaryType = 'blob';
+    socket3.onmessage = function (event) {
+        const url = URL.createObjectURL(event.data);
+        const img = new Image();
+        img.onload = function () {
+            texture3.image = img;
+            texture3.needsUpdate = true;
+            URL.revokeObjectURL(url);
+        };
+        img.src = url;
+    };
+
+// folder1.add(mesh1.rotation, 'x', -Math.PI, Math.PI, 0.001).name('Rotation X');
+// folder1.add(mesh1.rotation, 'z', -Math.PI, Math.PI, 0.001).name('Rotation Z');
+// folder1.add(opacity1, 'value', 0.0, 1.0, 0.001).name('Opacity').onChange(function(newValue) {
+//     material1.uniforms.opacity.value = newValue;
+// });
+
+</script>
+</body>
+</html>
