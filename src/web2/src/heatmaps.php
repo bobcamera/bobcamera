@@ -375,8 +375,7 @@
                         <div id="contolContainer">
 
                             <br>
-                            <!-- Path: <?php echo 'videos/' . $date . '/allsky/' . $date . '/'; ?><br> -->
-                            File: <?php echo $time; ?>.mp4<br>
+                            File: <span id="displayFileName"><?php echo $time; ?>.mp4</span><br>
                             Recording Time: <?php
                             function getValuesFromJsonFile($filePath, $keys) {
                                 if (!file_exists($filePath)) {
@@ -398,9 +397,9 @@
                             $longitude = $data['long'] ?? '0.0000';
                             $dateTimeStamp = new DateTime('@' . $time);
                             $dateTimeStamp->setTimezone(new DateTimeZone($timezone));
-                            echo "Time: " . $dateTimeStamp->format('h:i:s A') . "<br>";
+                            echo "Time: <span id='displayRecordingTime'>" . $dateTimeStamp->format('h:i:s A') . "</span><br>";
                             ?>
-                            Recording Date: <?php echo date('Y-m-d', strtotime($date)); ?><br>
+                            Recording Date: <span id='displayRecordingDate'><?php echo date('Y-m-d', strtotime($date)); ?></span><br>
                             <div style="margin-bottom: 9px;">
                             TimeZone: <?php echo $timezone . "<br>"; ?>
                             <?php echo "Latitude: " . $latitude . "<br>"; ?>
@@ -647,7 +646,7 @@
                     name: 'Videos',
                     type: 'scatter',
                     symbolSize: function (data) {
-                        return 10; // Adjust the size of the symbol if needed
+                        return 10;
                     },
                     data: videoData.map(function (item) {
                         return {
@@ -665,11 +664,11 @@
                     emphasis: {
                         itemStyle: {
                             color: 'greenyellow',
-                            borderColor: '#000', // Optional: border color on hover
-                            borderWidth: 1 // Optional: border width on hover
+                            borderColor: '#000',
+                            borderWidth: 1
                         },
                         label: {
-                            show: true // Optional: show label on hover
+                            show: true
                         }
                     }
                 }]
@@ -694,7 +693,6 @@
             player.currentTime = newTime;
         }
 
-        // function to use ajax to get the json file needed for currentVideoStartTimestamp
         function getCurrentVideoJsonData() {
             $.ajax({
                 url: 'videos/'
@@ -704,6 +702,10 @@
                     jsonData = data;
                 }
             });
+        }
+
+        function getCurrentVideoName(text) {
+            return currentVideoStartTimestamp;
         }
 
         function advanceOneFrame() { player.currentTime += frameDuration; }
@@ -724,62 +726,69 @@
 
         function updateHeatmapSrc(newSrc) {
             $('#heatmap').attr('src', newSrc);
-            //  max width of the heatmap is 100% of the container
             $('#heatmap').css('max-width', '100%');
-            // max height of the heatmap is 100% of the container
             $('#heatmap').css('max-height', '100%');
             var heatmapImg = document.getElementById('bigHeatmapImage');
             heatmapImg.src = newSrc;
-            heatmapImg.style.opacity = '0.3'; // Set the opacity to 50%
+            heatmapImg.style.opacity = '0.3';
         }
 
         function changeVideo(videoName) {
-            // update the heatmap
             heatmapName = videoName.split(".")[0];
             heatmapName = heatmapName.split("/").pop();
             let heatmapPath = 'videos/<?php echo $date; ?>/heatmaps/' + heatmapName + '.jpg';
             updateHeatmapSrc(heatmapPath);
-            // Remove highlight from all thumbnails
-            // $('.thumbnail-container img').removeClass('highlighted');
-            // Add highlight to the clicked thumbnail
             var heatmapName = videoName.split(".")[0].split("/").pop();
             $('img').removeClass('highlighted');
             var selector = ".heatmap-thumbnail[src*='" + heatmapName + "']";
             $(selector).addClass('highlighted');
-            // Highlight the corresponding point
             unhighlightAllPoints();
             var specificTimestamp = heatmapName;
             currentVideoStartTimestamp = specificTimestamp;
-            // highlightPointByTimestamp(specificTimestamp);
             highlightPointByTimestamp1(specificTimestamp);
-            // update the video player
             let newSource = videoName;
-            //console.log(newSource);
             let videoElement = document.querySelector('#player source');
             videoElement.setAttribute('src', newSource);
             player.load();
             player.play();
             getCurrentVideoJsonData();
-            updateDownloadLink(newSource);
+            updateDownloadLinks(newSource);
             updateFisheyeViewerLink(heatmapName);
+            updateRecordingInformationInOverlay();
         }
 
-        function updateDownloadLink(newSource) {
-            // Find the download button in the Plyr controls
+        function updateRecordingInformationInOverlay() {
+            let displayFileNameElement = document.getElementById('displayFileName');
+            let fileName = currentVideoStartTimestamp + '.mp4';
+            displayFileNameElement.textContent = fileName;
+            let displayRecordingTimeElement = document.getElementById('displayRecordingTime');
+            let videoTimeStamp = currentVideoStartTimestamp;
+            let displayTimeElement = document.getElementById('displayTime');
+            let displayRecordingDateElement = document.getElementById('displayRecordingDate');
+            let convertedDate = new Date(videoTimeStamp * 1000);
+            let date = convertedDate.toDateString();
+            let time = convertedDate.toLocaleTimeString();
+            displayRecordingTimeElement.textContent = time;
+            displayRecordingDateElement.textContent = date;
+            displayTimeElement.textContent = time;
+        }
+
+        function updateDownloadLinks(newSource) {
             let downloadButton = document.querySelector('.plyr__controls [data-plyr="download"]');
-            if (downloadButton) {
-                downloadButton.setAttribute('href', newSource);
-            }
+            if (downloadButton) {downloadButton.setAttribute('href', newSource);}
+            let heatmapDownloadButton = document.getElementById('heatmap-btn');
+            heatmapDownloadButton.setAttribute('href', 'heatmap-' + newSource + '.jpg');
+            let screenshotDownloadButton = document.getElementById('screenshot-btn');
+            let screenShotTime = getCurrentTime();
+            screenshotDownloadButton.setAttribute('href', 'screenshot-' + screenShotTime + '-' +  '.png');
         }
 
         function updateFisheyeViewerLink(heatmapName) {
             let fisheyeViewerButton = document.getElementById('fisheyeViewer');
             if (fisheyeViewerButton) {
-                // remove all event listeners
                 var new_element = fisheyeViewerButton.cloneNode(true);
                 fisheyeViewerButton.parentNode.replaceChild(new_element, fisheyeViewerButton);
                 fisheyeViewerButton = new_element;
-                // update addEventListener so that it opens the correct video
                 fisheyeViewerButton.addEventListener('click', function() {
                     window.open('html/fisheye-video-viewer-v6.html?date=<?php echo $date; ?>&video='+heatmapName, '_blank');
                 });
@@ -789,7 +798,6 @@
         function highlightPointByTimestamp(timestamp) {
             var seriesIndex = 0;
             var dataIndex = -1;
-            // Loop through the data to find the matching timestamp
             var seriesData = myChart.getOption().series[seriesIndex].data;
             for (var i = 0; i < seriesData.length; i++) {
                 if (seriesData[i].value[0] === timestamp) {
@@ -842,7 +850,6 @@
         // Adding Custom Control Buttons to the Video Player
         document.addEventListener('DOMContentLoaded', function() {
             addCustomPlyrButton('fa fa-camera', takeScreenshot, 'Download Video Frame', 'screenshot-btn');
-            // addCustomPlyrButton('fa fa-video-camera', downloadVideo, 'Download Video', 'video-btn');
             addCustomPlyrButton('fa fa-thermometer-full', downloadHeatmap, 'Download Heatmap', 'heatmap-btn');
             addCustomPlyrButton('fas fa-step-forward', advanceOneFrame, 'Advance 1 Frame', 'advanceOneFrame');
             addCustomPlyrButton('fas fa-step-backward', goBackOneFrame, 'Back 1 Frame', 'goBackOneFrame');
@@ -866,14 +873,14 @@
             const heatmapUrl = heatmap.src;
             const downloadLink = document.createElement('a');
             downloadLink.href = heatmapUrl;
-            downloadLink.download = 'heatmap.jpg';
+            downloadLink.download = 'heatmap-'+ currentVideoStartTimestamp +'.jpg';
             document.body.appendChild(downloadLink);
             downloadLink.click();
             document.body.removeChild(downloadLink);
         }
 
         function takeScreenshot() {
-            const video = document.querySelector('#player html5');  // Ensure this selector targets your Plyr video element correctly
+            const video = document.querySelector('#player html5');
             const canvas = document.getElementById('screenshot-canvas');
             const context = canvas.getContext('2d');
             if (video.readyState >= 2) {
@@ -902,18 +909,29 @@
             }
         }
 
+        function getCurrentTime() {
+            if (!player) {
+                return 0;
+            } else {
+                return player.currentTime;
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             const video = document.getElementById('player');
             const canvas = document.getElementById('screenshot-canvas');
-            video.addEventListener('loadeddata', function() {
-                if (video.readyState >= 2) {
-                    document.getElementById('screenshot-btn').addEventListener('click', function() {
-                        captureAndDownloadScreenshot();
-                    });
-                }
-            });
+            const screenshotButton = document.getElementById('screenshot-btn');
+            if (!screenshotButton.clicked) {
+                screenshotButton.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    captureAndDownloadScreenshot();
+                });
+                screenshotButton.clicked = true;
+            }
+
             function captureAndDownloadScreenshot() {
-                if (canvas && video) {
+                if (canvas && video.readyState >= 2) {
+                    if (!video.paused) video.pause();
                     const context = canvas.getContext('2d');
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
@@ -921,10 +939,14 @@
                     const imageUrl = canvas.toDataURL('image/png');
                     const downloadLink = document.createElement('a');
                     downloadLink.href = imageUrl;
-                    downloadLink.download = 'screenshot.png';
+                    secondsIntoVideo = getCurrentTime();
+                    let seconds = currentVideoStartTimestamp + secondsIntoVideo;
+                    downloadLink.download = 'screenshot-' + seconds + '.png';
                     document.body.appendChild(downloadLink);
                     downloadLink.click();
                     document.body.removeChild(downloadLink);
+                } else {
+                    alert('Video is not ready for screenshots.');
                 }
             }
         });
@@ -932,11 +954,9 @@
 </script>
 
 <script>
-        // Hide loading spinner overlay once the page content is fully loaded
         window.addEventListener('load', function () {
             document.querySelector('.spinner-overlay').style.display = 'none';
         });
-    </script>
+</script>
 </body>
 </html>
-<!-- icon-screenshot -->
