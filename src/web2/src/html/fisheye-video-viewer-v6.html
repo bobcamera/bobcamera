@@ -69,10 +69,10 @@
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" crossorigin="anonymous">
     <script src="https://cdn.jsdelivr.net/npm/dat.gui@0.7.9/build/dat.gui.min.js"></script>
-    <script src="../lib/bob.js"></script>
     <script src="../lib/three.min.js"></script>
     <script src="../lib/eventemitter2.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/roslibjs/1.1.0/roslib.min.js"></script>
+    <script src="../lib/bob.js"></script>
 
 </head>
 <body>
@@ -91,7 +91,9 @@
         <!-- <button id="resetLocalStorage" class="fab"><i class="fas fa-reset"></i></button> -->
     </div>
 
-<script type="text/javascript">
+    <script type="text/javascript">
+        // Connect to the ROS2 environment
+        // rosConnect(websocketsURL, true);
 
     // Declare variables
         // let imageSourcePath = '../videos/20240118/heatmap/1705569685.jpg';
@@ -118,7 +120,7 @@
             heatmapImageSrc = '../videos/'+date+'/heatmaps/'+video+'.jpg';
         }
 
-        var ros;
+        // var ros;
 
 //////////////////// GUI CONFIGURATION ////////////////////
 
@@ -280,12 +282,6 @@
             animate();
         });
 
-        window.onbeforeunload = function(event) {
-            console.log('disposing......');
-            if (ros) {
-                ros.close();
-            }
-        }
 
     // Input Form Event Listener
         document.getElementById('imageSourceInput').addEventListener('click', function() {
@@ -354,8 +350,10 @@
                     break;
                 case 'ros2 topic':
                     console.log('Image source path: ros2 topic');
-                    ros = new ROSLIB.Ros();
-                    rosConnect(ros, websocketsURL, true);
+                    // Connect to the ROS2 environment
+                    ros = rosConnect(websocketsURL, true);
+                    // ros = new ROSLIB.Ros();
+                    // rosConnect(ros, websocketsURL, true);
                     const urlParams = new URLSearchParams(window.location.search);
                     const sourceTopic = urlParams.get('source');
                     var listener = new ROSLIB.Topic({
@@ -373,6 +371,17 @@
                         };
                         image.src = "data:image/jpeg;base64," + message.data;
                     });
+
+                    window.onbeforeunload = function(event) {
+                       // Unsubscribe from the topic
+                        if (listener) {
+                            listener.unsubscribe();
+                            console.log('Unsubscribed from topic.');
+                        }
+                        // Close the ROS2 connection
+                        disconnectRos(ros);
+                    }
+
                     return;
                     break;
                 default:

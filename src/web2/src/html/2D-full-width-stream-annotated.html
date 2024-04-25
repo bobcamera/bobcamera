@@ -13,23 +13,25 @@
         <!-- JS Library Needed for Connecting to the ROS2 Environment -->
         <script src="https://cdnjs.cloudflare.com/ajax/libs/roslibjs/1.1.0/roslib.min.js"></script>
 
+        <script src="../lib/bob.js"></script>
+
         <script>
             // Set up the connection to the ROS2 environment using the roslib.js library
 
-            // Define the Websockets address of the ROS2 environment
-            var websocketsURL = 'ws://localhost:9090';
+            // // Define the Websockets address of the ROS2 environment
+            // var websocketsURL = 'ws://localhost:9090';
 
-            // Create a ROSLIB.Ros object which will connect to the ROS2 environment via websockets
-            var ros = new ROSLIB.Ros({url: websocketsURL});
+            // // Create a ROSLIB.Ros object which will connect to the ROS2 environment via websockets
+            // var ros = new ROSLIB.Ros({url: websocketsURL});
 
-            // Define callbacks for connection events
-            ros.on('connection', function () {console.log('Connected to websocket server.');});
+            // // Define callbacks for connection events
+            // ros.on('connection', function () {console.log('Connected to websocket server.');});
 
-            // Define callbacks for error events
-            ros.on('error', function (error) {console.log('Error connecting to websocket server: ', error);});
+            // // Define callbacks for error events
+            // ros.on('error', function (error) {console.log('Error connecting to websocket server: ', error);});
 
-            // Define callbacks for close events
-            ros.on('close', function () {console.log('Connection to websocket server closed.');});
+            // // Define callbacks for close events
+            // ros.on('close', function () {console.log('Connection to websocket server closed.');});
 
         </script>
 
@@ -40,6 +42,9 @@
         <img id="imageDisplayWindow" style="width: 100%"/>
 
         <script type="text/javascript" type="text/javascript">
+
+            // Connect to the ROS2 environment
+            ros = rosConnect(websocketsURL, true);
 
             // Define the ROS2 Subscription Topic
             var ros2topic = '/bob/frames/annotated/resized/compressed';
@@ -62,8 +67,23 @@
             }
 
             window.onbeforeunload = function(event) {
-                console.log('disposing......');
-                ros.close();
+
+                console.log('Cleaning up resources...');
+
+                // Unsubscribe from the topic
+                if (topicStream) {
+                    topicStream.unsubscribe();
+                    console.log('Unsubscribed from topic.');
+                }
+
+                // Close the ROS2 connection
+                // ros.close();
+
+                // console.log('ROS connection closed.');
+
+                // Close the ROS2 connection
+                disconnectRos(ros);
+
             }
 
         </script>

@@ -62,9 +62,16 @@
             }
 
             window.onbeforeunload = function(event) {
-                console.log('disposing......');
-                ros.close();
-            }         
+                // console.log('disposing......');
+                // ros.close();
+                // Unsubscribe from the topic
+                if (topicStream) {
+                    topicStream.unsubscribe();
+                    console.log('Unsubscribed from topic.');
+                }
+                // Close the ROS2 connection
+                disconnectRos(ros);
+            }
 
         </script>
 
