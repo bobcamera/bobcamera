@@ -5,6 +5,7 @@
 #include <cv_bridge/cv_bridge.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
 #include <rclcpp/experimental/executors/events_executor/events_executor.hpp>
+#include <rcpputils/endian.hpp>
 
 #include <vision_msgs/msg/bounding_box2_d_array.hpp>
 
@@ -22,7 +23,8 @@
 #include "bob_interfaces/srv/sensitivity_change_request.hpp"
 #include "bob_interfaces/msg/detector_state.hpp"
 
-class Sensitivity {
+class Sensitivity 
+{
 public:
     int vibe_threshold;
     int vibe_bgSamples;
@@ -41,28 +43,33 @@ public:
     bool median_filter;
 };
 
-class SensitivityConfig {
+class SensitivityConfig
+{
 public:
     std::string name;
     Sensitivity sensitivity;
 };
 
-class SensitivityConfigCollection {
+class SensitivityConfigCollection
+{
 public:
     std::vector<SensitivityConfig> configs;
 
     // Method to parse JSON string into SensitivityConfigCollection object
-    static SensitivityConfigCollection fromJsonString(const std::string& jsonString) {
+    static SensitivityConfigCollection fromJsonString(const std::string& jsonString) 
+    {
         SensitivityConfigCollection collection;
         Json::Value root;
         Json::Reader reader;
 
-        if (!reader.parse(jsonString, root)) {
+        if (!reader.parse(jsonString, root)) 
+        {
             // Handle parse error
             throw std::invalid_argument("Failed to parse JSON");
         }
 
-        if (!root.isArray()) {
+        if (!root.isArray()) 
+        {
             // Handle invalid JSON format
             throw std::invalid_argument("JSON is not an array");
         }
@@ -238,7 +245,8 @@ private:
             }
         }
 
-        if(!found_config) {
+        if (!found_config) 
+        {
             RCLCPP_ERROR(get_logger(), "Unknown config specified: %s", sensitivity.c_str());
             throw std::invalid_argument("Unknown config");
         }
@@ -255,6 +263,22 @@ private:
         ready_ = true;
     }
 
+    sensor_msgs::msg::Image::SharedPtr CreateImageMsg(const cv::Size & image_size, size_t elem_size, const std_msgs::msg::Header & header, const std::string & encoding) const
+    {
+        sensor_msgs::msg::Image::SharedPtr ros_image_ptr = std::make_shared<sensor_msgs::msg::Image>();
+
+        ros_image_ptr->header = header;
+        ros_image_ptr->height = image_size.height;
+        ros_image_ptr->width = image_size.width;
+        ros_image_ptr->encoding = encoding;
+        ros_image_ptr->is_bigendian = (rcpputils::endian::native == rcpputils::endian::big);
+        ros_image_ptr->step = image_size.width * elem_size;
+        const size_t size = ros_image_ptr->step * image_size.height;
+        ros_image_ptr->data.resize(size);
+        
+        return ros_image_ptr;
+    }
+
     void imageCallback(const sensor_msgs::msg::Image::SharedPtr img_msg)
     {
         if (ready_)
@@ -265,9 +289,6 @@ private:
 
                 cv::Mat img;
                 ImageUtils::convert_image_msg(img_msg, img, false);
-
-                // msg->encoding = msg->encoding != sensor_msgs::image_encodings::BGR8 ? sensor_msgs::image_encodings::MONO8 : sensor_msgs::image_encodings::BGR8;
-                // auto bayer_img_bridge = cv_bridge::toCvShare(msg);
 
                 cv::Mat gray_img;
                 if (img.channels() == 1)
@@ -280,13 +301,15 @@ private:
                 }
 
                 profile_start("BGS");
-                cv::Mat mask;
+                auto image_msg = CreateImageMsg(gray_img.size(), gray_img.elemSize(), img_msg->header, sensor_msgs::image_encodings::MONO8);
+                cv::Mat mask(gray_img.size(), gray_img.type(), reinterpret_cast<void *>(&image_msg->data[0]));
+                //cv::Mat mask;
                 bgsPtr->apply(gray_img, mask);
 
-                auto image_msg = cv_bridge::CvImage(img_msg->header, sensor_msgs::image_encodings::MONO8, mask).toImageMsg();
+                //auto image_msg = cv_bridge::CvImage(img_msg->header, sensor_msgs::image_encodings::MONO8, mask).toImageMsg();
                 image_publisher_->publish(*image_msg);
 
-                if(median_filter_)
+                if (median_filter_)
                 {
                     cv::medianBlur(mask, mask, 3);
                 }

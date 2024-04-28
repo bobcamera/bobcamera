@@ -15,15 +15,14 @@
 
 #include "parameter_node.hpp"
 #include "boblib/api/utils/profiler.hpp"
+#include "image_utils.hpp"
 #include <visibility_control.h>
-
 
 enum class SourceType {
     USB_CAMERA,
     VIDEO_FILE,
     RTSP_STREAM
 };
-
 
 class WebCameraVideo
     : public ParameterNode
@@ -73,7 +72,6 @@ private:
     rclcpp::TimerBase::SharedPtr one_shot_timer_;
     SourceType source_type_;
     std::string rtsp_uri_;
-
     std::string onvif_host_;
     int onvif_port_;
     std::string onvif_user_;
@@ -89,43 +87,34 @@ private:
         fps_update_client_ = this->create_client<bob_interfaces::srv::ConfigEntryUpdate>("bob/config/update/fps");
         declare_node_parameters();    
         open_camera();
-        create_camera_info_msg();
         start_capture();
     }
 
     void captureLoop()
     {
         rclcpp::WallRate loop_rate(fps_);
-        cv::Mat image;
 
+        std::unique_ptr<RosCvImageMsg> roscv_image_msg_ptr = RosCvImageMsg::create(video_capture_);
+        
         while (run_)
         {
-            if (!video_capture_.read(image))
+            if (!video_capture_.read(*roscv_image_msg_ptr->image_ptr))
             {
                 current_video_idx_ = current_video_idx_ >= (videos_.size() - 1) ? 0 : current_video_idx_ + 1;
                 open_camera();
-                video_capture_.read(image);
+                roscv_image_msg_ptr = RosCvImageMsg::create(video_capture_);
+                video_capture_.read(*roscv_image_msg_ptr->image_ptr);
             }
 
-            if (resize_height_ > 0)
-            {
-                const double aspect_ratio = (double)image.size().width / (double)image.size().height;
-                const int frame_height = resize_height_;
-                const int frame_width = static_cast<int>(aspect_ratio * (double)frame_height);
-                cv::resize(image, image, cv::Size(frame_width, frame_height));
-            }
+            roscv_image_msg_ptr->get_header().stamp = now();
+            roscv_image_msg_ptr->get_header().frame_id = generate_uuid();
 
-            std_msgs::msg::Header header;
-            header.stamp = now();
-            header.frame_id = generate_uuid();
+            image_publisher_->publish(*roscv_image_msg_ptr->msg_ptr);
 
-            auto image_msg = cv_bridge::CvImage(header, image.channels() == 1 ? sensor_msgs::image_encodings::MONO8 : sensor_msgs::image_encodings::BGR8, image).toImageMsg();
-            image_publisher_->publish(*image_msg);
-
-            auto image_info_msg = generate_image_info(header, image);
+            auto image_info_msg = generate_image_info(roscv_image_msg_ptr->get_header(), *roscv_image_msg_ptr->image_ptr);
             image_info_publisher_->publish(image_info_msg);
 
-            camera_info_msg_.header = header;
+            camera_info_msg_.header = roscv_image_msg_ptr->get_header();
             camera_info_publisher_->publish(camera_info_msg_);
 
             loop_rate.sleep();  
@@ -170,10 +159,6 @@ private:
                     camera_info_publish_topic_ = param.as_string(); 
                     camera_info_publisher_ = create_publisher<bob_camera::msg::CameraInfo>(camera_info_publish_topic_, qos_profile_);
                 }
-            ),
-            ParameterNode::ActionParam(
-                rclcpp::Parameter("resize_height", 0), 
-                [this](const rclcpp::Parameter& param) {resize_height_ = param.as_int();}
             ),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("source_type", "USB_CAMERA"), 
@@ -251,7 +236,9 @@ private:
         auto response_received_callback = [this, user_callback](rclcpp::Client<bob_interfaces::srv::ConfigEntryUpdate>::SharedFuture future) {
             auto response = future.get();
             if(response->success)
-                user_callback(response);  
+            {
+                user_callback(response);
+            }
         };
 
         // Send the request
@@ -292,15 +279,7 @@ private:
             fps_ = video_capture_.get(cv::CAP_PROP_FPS);
             RCLCPP_INFO(get_logger(), "fps: %f", fps_);
 
-            /*auto update_fps = [this](const bob_interfaces::srv::ConfigEntryUpdate::Response::SharedPtr& response) 
-            {
-                if (response->success)
-                {
-                    RCLCPP_INFO(get_logger(), "FPS Updated Successfully");
-                }
-            };
-
-            request_update_fps(fps_, update_fps);*/
+            create_camera_info_msg();
         }
     }
 
@@ -368,7 +347,8 @@ private:
 
     inline void create_camera_info_msg()
     {
-        if (source_type_ == SourceType::RTSP_STREAM) {
+        if (source_type_ == SourceType::RTSP_STREAM)
+        {
             auto update_camera_info = [this](const bob_interfaces::srv::CameraSettings::Response::SharedPtr& response) 
             {
                 camera_info_msg_.id = response->hardware_id;
@@ -384,9 +364,13 @@ private:
                 // ... other fields ... 
             };
             request_camera_settings(onvif_host_, onvif_port_, onvif_user_, onvif_password_, update_camera_info);
-        } else if (source_type_ == SourceType::USB_CAMERA) {
+        } 
+        else if (source_type_ == SourceType::USB_CAMERA) 
+        {
             camera_info_msg_.model = "USB Camera";
-        } else if (source_type_ == SourceType::VIDEO_FILE) {
+        } 
+        else if (source_type_ == SourceType::VIDEO_FILE) 
+        {
             camera_info_msg_.model = "Video File";
         }
     }

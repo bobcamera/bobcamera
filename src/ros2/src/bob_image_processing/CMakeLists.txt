@@ -71,6 +71,14 @@ ament_target_dependencies(frame_resizer PUBLIC rclcpp sensor_msgs vision_msgs cv
 rclcpp_components_register_nodes(frame_resizer "FrameResizer")
 install(TARGETS frame_resizer DESTINATION lib)
 
+# Frame Output
+add_library(frame_output SHARED src/frame_output.cpp)
+target_compile_definitions(frame_output PRIVATE "COMPOSITION_BUILDING_DLL")
+target_link_libraries(frame_output PUBLIC boblib)
+ament_target_dependencies(frame_output PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV rclcpp_components bob_interfaces)
+rclcpp_components_register_nodes(frame_output "FrameOutput")
+install(TARGETS frame_output DESTINATION lib)
+
 # Frame Compressor
 add_library(frame_compressor SHARED src/frame_compressor.cpp)
 target_compile_definitions(frame_compressor PRIVATE "COMPOSITION_BUILDING_DLL")
