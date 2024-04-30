@@ -43,7 +43,9 @@ def generate_launch_description():
 
     video_arg_value  = EnvironmentVariable('BOB_VIDEOS', default_value="")    
 
-    enable_star_mask_arg_value  = EnvironmentVariable('BOB_ENABLE_STAR_MASK', default_value="True")    
+    enable_star_mask_arg_value  = EnvironmentVariable('BOB_ENABLE_STAR_MASK', default_value="True")
+
+    ros_bridge_port_arg_value  = EnvironmentVariable('BOB_ROS_BRIDGE_PORT', default_value="9090")
 
     #print(f'Generating launch description....')
 
@@ -159,7 +161,13 @@ def generate_launch_description():
         'enable_star_mask_arg',
         default_value=enable_star_mask_arg_value,
         description="Enable/disable star mask."
-        )      
+        )
+    
+    ros_bridge_port_arg = DeclareLaunchArgument(
+        'ros_bridge_port_arg',
+        default_value=ros_bridge_port_arg_value,
+        description="Port for Ros Bridge, default is 9090."
+        )
 
     return LaunchDescription([
 
@@ -190,6 +198,8 @@ def generate_launch_description():
         video_arg,
 
         enable_star_mask_arg,
+
+        ros_bridge_port_arg,
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([

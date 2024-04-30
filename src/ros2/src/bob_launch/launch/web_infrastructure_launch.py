@@ -1,7 +1,7 @@
 import os
 from launch_ros.actions import Node
 from launch import LaunchDescription
-from launch.substitutions import EnvironmentVariable 
+from launch.substitutions import EnvironmentVariable, LaunchConfiguration
 from launch.actions import IncludeLaunchDescription
 from launch.launch_description_sources import FrontendLaunchDescriptionSource
 from ament_index_python.packages import get_package_share_directory
@@ -15,6 +15,7 @@ def generate_launch_description():
     loglevel = EnvironmentVariable('BOB_LOGLEVEL', default_value="INFO")
 
     ros_bridge_package_dir = get_package_share_directory('rosbridge_server')
+    ros_bridge_launch_file = os.path.join(ros_bridge_package_dir, 'launch/rosbridge_websocket_launch.xml')
 
     info_webapi_node = Node(
         package='bob_webapi',
@@ -37,15 +38,15 @@ def generate_launch_description():
         ],
     )
 
+    ros_bridge = IncludeLaunchDescription(
+        FrontendLaunchDescriptionSource(ros_bridge_launch_file),
+        launch_arguments = {'port': LaunchConfiguration('ros_bridge_port_arg')}.items()
+    )
+
     return LaunchDescription([
 
         info_webapi_node,
         mask_webapi_node,
 
-        IncludeLaunchDescription(
-            FrontendLaunchDescriptionSource(
-                os.path.join(
-                    ros_bridge_package_dir,
-                    'launch/rosbridge_websocket_launch.xml'))
-        )
+        ros_bridge
     ])

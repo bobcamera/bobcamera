@@ -1,5 +1,6 @@
 // Define the Websockets address of the ROS2 environment
-var websocketsURL = 'ws://' + window.location.hostname + ':9090';
+var rosBridgePort = 9090; //"<?= $_SERVER["BOB_ROS_BRIDGE_PORT"];?>";
+var websocketsURL = `ws://${window.location.hostname}:${rosBridgePort}`;
 var ros; // Global ROS connection
 var subscribedTopics = [];
 
@@ -26,6 +27,10 @@ var subscribedTopics = [];
 //         }
 //     });
 // }
+
+function set_rosBridgePort(port) {
+    rosBridgePort = port;
+}
 
 function rosConnect(websocketsURL, retry = false) {
     var retryLimit = 5; // Hard-coded retry limit
