@@ -77,11 +77,8 @@ private:
 
         declare_node_parameters();
 
-        image_subscription_ = create_subscription<sensor_msgs::msg::Image>(
-            "bob/frames/allsky/masked/detection", 
-            sub_qos_profile_,
-            std::bind(&BackgroundSubtractor::imageCallback, this, std::placeholders::_1)
-        );
+        image_subscription_ = create_subscription<sensor_msgs::msg::Image>("bob/frames/allsky/original", sub_qos_profile_,
+            std::bind(&BackgroundSubtractor::imageCallback, this, std::placeholders::_1));
         image_publisher_ = create_publisher<sensor_msgs::msg::Image>("bob/frames/foreground_mask", pub_qos_profile_);
         detection_publisher_ = create_publisher<vision_msgs::msg::BoundingBox2DArray>("bob/detection/allsky/boundingboxes", pub_qos_profile_);
         state_publisher_ = create_publisher<bob_interfaces::msg::DetectorState>("bob/detection/detector_state", pub_qos_profile_);

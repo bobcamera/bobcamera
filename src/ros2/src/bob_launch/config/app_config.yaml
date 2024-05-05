@@ -36,7 +36,10 @@ web_camera_video_node:
     camera_info_publish_topic: 'bob/camera/all_sky/camera_info'
     source_type: 'VIDEO_FILE'
     videos:
-    resize_height: 0
+    mask_file: 'assets/masks/detection-mask.jpg'
+    mask_enable_offset_correction: False
+    image_width: 0
+    image_height: 0    
 
 usb_camera_node:
   ros__parameters:
@@ -45,7 +48,10 @@ usb_camera_node:
     camera_info_publish_topic: 'bob/camera/all_sky/camera_info'
     source_type: 'USB_CAMERA'
     camera_id: 0
-    resize_height: 0
+    mask_file: 'assets/masks/detection-mask.jpg'
+    mask_enable_offset_correction: False
+    image_width: 0
+    image_height: 0    
 
 simulated_frame_provider_node:
   ros__parameters:
@@ -60,7 +66,10 @@ web_camera_video_overlay_node:
     camera_info_publish_topic: 'bob/camera/all_sky/camera_info'
     source_type: 'VIDEO_FILE'
     videos:
-    resize_height: 0
+    mask_file: 'assets/masks/detection-mask.jpg'
+    mask_enable_offset_correction: False
+    image_width: 0
+    image_height: 0    
 
 simulation_overlay_provider_node:
   ros__parameters:
@@ -187,7 +196,7 @@ track_provider_node:
 allsky_recorder_node:
   ros__parameters:
     recordings_directory: 'assets/recordings'
-    img_topic: 'bob/frames/allsky/masked/privacy'
+    img_topic: 'bob/frames/allsky/original'
     fg_img_topic: 'bob/frames/foreground_mask'
     tracking_topic: 'bob/tracker/tracking'
     camera_info_topic: bob/camera/all_sky/camera_info
@@ -226,9 +235,9 @@ multi_frame_viewer_node:
   ros__parameters:
     topics: 
       - 'bob/frames/annotated/resized'
+      - 'bob/simulation/input_frame'
       - 'bob/frames/foreground_mask/resized'
-      - 'bob/frames/allsky/masked/detection/resized'
-      - 'bob/frames/allsky/masked/privacy/resized'
+      - 'bob/frames/allsky/original'
 
 annotated_frame_compressor_node:
   ros__parameters:

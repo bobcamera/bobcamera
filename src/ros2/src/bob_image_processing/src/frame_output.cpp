@@ -26,6 +26,10 @@ public:
     COMPOSITION_PUBLIC
     explicit FrameOutput(const rclcpp::NodeOptions & options) 
         : ParameterNode("frame_output_node", options)
+        , resize_height_(960)
+        , compression_quality_(0)
+        , topic_("bob/frames/annotated")
+        , running_(true)
     {
         declare_node_parameters();
         init();
@@ -33,19 +37,72 @@ public:
 
 private:
     rclcpp::QoS sub_qos_profile_{10};
+    rclcpp::QoS pub_qos_profile_{10};
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscription_;
-    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_resized_frame_;
+    rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr pub_output_compressed_frame_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_output_uncompressed_frame_;
     boblib::utils::Profiler profiler_;
     int resize_height_;
+    int compression_quality_;
+    std::string topic_;
+    bool running_;
 
     friend std::shared_ptr<FrameOutput> std::make_shared<FrameOutput>();
+
+    void create_pub_sub()
+    {
+        if (compression_quality_ > 0)
+        {
+            pub_output_compressed_frame_ = create_publisher<sensor_msgs::msg::CompressedImage>("bob/output/target", pub_qos_profile_);
+        }
+        else
+        {
+            pub_output_uncompressed_frame_ = create_publisher<sensor_msgs::msg::Image>("bob/output/target", pub_qos_profile_);
+        }
+        image_subscription_ = create_subscription<sensor_msgs::msg::Image>(topic_, sub_qos_profile_,
+                    std::bind(&FrameOutput::imageCallback, this, std::placeholders::_1));        
+    }
 
     void declare_node_parameters()
     {
         std::vector<ParameterNode::ActionParam> params = {
             ParameterNode::ActionParam(
-                rclcpp::Parameter("resize_height", 960), 
+                rclcpp::Parameter("resize_height", resize_height_), 
                 [this](const rclcpp::Parameter& param) {resize_height_ = param.as_int();}
+            ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("compression_quality", compression_quality_), 
+                [this](const rclcpp::Parameter& param) {
+                    compression_quality_ = param.as_int();
+                    if (running_)
+                    {
+                        create_pub_sub();
+                    }
+                }
+            ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("topic", topic_), 
+                [this](const rclcpp::Parameter& param) {
+                    topic_ = param.as_string(); 
+                    image_subscription_ = create_subscription<sensor_msgs::msg::Image>(topic_, sub_qos_profile_,
+                                std::bind(&FrameOutput::imageCallback, this, std::placeholders::_1));
+                }
+            ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("on", running_), 
+                [this](const rclcpp::Parameter& param) {
+                    running_ = param.as_bool();
+                    if (running_)
+                    {
+                        create_pub_sub();
+                    }
+                    else
+                    {
+                        pub_output_compressed_frame_ = nullptr;
+                        pub_output_uncompressed_frame_ = nullptr;
+                        image_subscription_ = nullptr;
+                    }
+                }
             ),
         };
         add_action_parameters(params);
@@ -53,20 +110,13 @@ private:
     
     void init()
     {
-        rclcpp::QoS sub_qos_profile{10};
         sub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
         sub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
         sub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
 
-        rclcpp::QoS pub_qos_profile{10};
-        pub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
-        pub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
-        pub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
-
-        image_subscription_ = create_subscription<sensor_msgs::msg::Image>("bob/output/source", sub_qos_profile_,
-            std::bind(&FrameOutput::imageCallback, this, std::placeholders::_1));
-
-        pub_resized_frame_ = create_publisher<sensor_msgs::msg::Image>("bob/output/target", pub_qos_profile);
+        pub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
+        pub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
+        pub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
     }
 
     void imageCallback(const sensor_msgs::msg::Image::SharedPtr image_msg)
@@ -84,8 +134,27 @@ private:
                 cv::resize(image, image, cv::Size(frame_width, frame_height));
             }
 
-            auto resized_frame_msg = cv_bridge::CvImage(image_msg->header, image_msg->encoding, image).toImageMsg();
-            pub_resized_frame_->publish(*resized_frame_msg);
+            if (compression_quality_ > 0)
+            {
+                std::vector<int> compression_params;
+                compression_params.push_back(cv::IMWRITE_JPEG_QUALITY);
+                compression_params.push_back(compression_quality_);  // Compression quality
+
+                std::vector<uchar> compressed_image;
+                cv::imencode(".jpg", image, compressed_image, compression_params);            
+
+                sensor_msgs::msg::CompressedImage compressed_image_msg;
+                compressed_image_msg.header = image_msg->header;
+                compressed_image_msg.format = "jpeg";
+                compressed_image_msg.data = compressed_image;
+
+                pub_output_compressed_frame_->publish(compressed_image_msg);
+            }
+            else
+            {
+                auto resized_frame_msg = cv_bridge::CvImage(image_msg->header, image_msg->encoding, image).toImageMsg();
+                pub_output_uncompressed_frame_->publish(*resized_frame_msg);                
+            }
         }
         catch (cv_bridge::Exception &e)
         {

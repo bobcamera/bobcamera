@@ -1,5 +1,6 @@
 #include <chrono>
 #include <string>
+#include <filesystem>
 
 #include <opencv2/opencv.hpp>
 #include <cv_bridge/cv_bridge.hpp>
@@ -12,6 +13,9 @@
 #include <bob_interfaces/srv/camera_settings.hpp>
 #include <bob_interfaces/srv/config_entry_update.hpp>
 #include <rclcpp/experimental/executors/events_executor/events_executor.hpp>
+#include <sensor_msgs/msg/region_of_interest.hpp>
+#include <bob_interfaces/srv/bgs_reset_request.hpp>
+#include <bob_interfaces/srv/mask_override_request.hpp>
 
 #include "parameter_node.hpp"
 #include "boblib/api/utils/profiler.hpp"
@@ -34,18 +38,15 @@ public:
         , current_video_idx_(0)
         , run_(false)
         , fps_(25.0)
+        , mask_enable_override_(true)
+        , mask_enabled_(false)
+        , mask_enable_roi_(false)
     {
         qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
         qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
         qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
 
-        one_shot_timer_ = this->create_wall_timer(
-            std::chrono::seconds(2), 
-            [this]() {
-                this->init(); 
-                this->one_shot_timer_.reset();  
-            }
-        );
+        one_shot_timer_ = create_wall_timer(std::chrono::seconds(2), std::bind(&WebCameraVideo::init, this));
     }
 
     ~WebCameraVideo()
@@ -81,10 +82,32 @@ private:
     bool run_;
     double fps_;
 
+    rclcpp::TimerBase::SharedPtr mask_timer_;
+    bool mask_enable_override_;
+    bool mask_enabled_;
+    bool mask_enable_roi_;
+    std::string mask_filename_;
+    std::optional<std::filesystem::file_time_type> mask_last_modified_time_;
+    rclcpp::Publisher<sensor_msgs::msg::RegionOfInterest>::SharedPtr roi_publisher_;
+    rclcpp::Service<bob_interfaces::srv::MaskOverrideRequest>::SharedPtr mask_override_service_;
+    cv::Mat grey_mask_;
+    cv::Rect bounding_box_;
+    int image_height_;
+    int image_width_;
+
     void init()
     {
-        camera_settings_client_ = this->create_client<bob_interfaces::srv::CameraSettings>("bob/camera/settings");
-        fps_update_client_ = this->create_client<bob_interfaces::srv::ConfigEntryUpdate>("bob/config/update/fps");
+        one_shot_timer_->cancel();
+        one_shot_timer_.reset();
+
+        camera_settings_client_ = create_client<bob_interfaces::srv::CameraSettings>("bob/camera/settings");
+        fps_update_client_ = create_client<bob_interfaces::srv::ConfigEntryUpdate>("bob/config/update/fps");
+        roi_publisher_ = create_publisher<sensor_msgs::msg::RegionOfInterest>("bob/mask/roi", qos_profile_);
+        mask_override_service_ = create_service<bob_interfaces::srv::MaskOverrideRequest>("bob/mask/override", 
+            std::bind(&WebCameraVideo::mask_override_request, this, std::placeholders::_1, std::placeholders::_2));
+        mask_timer_ = create_wall_timer(std::chrono::seconds(60), std::bind(&WebCameraVideo::mask_timer_callback, this));
+        mask_timer_callback(); // Calling it the first time
+
         declare_node_parameters();    
         open_camera();
         start_capture();
@@ -106,6 +129,8 @@ private:
                 video_capture_.read(*roscv_image_msg_ptr->image_ptr);
             }
 
+            apply_mask(*roscv_image_msg_ptr->image_ptr);
+
             roscv_image_msg_ptr->get_header().stamp = now();
             roscv_image_msg_ptr->get_header().frame_id = generate_uuid();
 
@@ -119,6 +144,33 @@ private:
 
             loop_rate.sleep();  
         }
+    }
+
+    inline void apply_mask(const cv::Mat & img)
+    {
+        if (!mask_enabled_ || !mask_enable_override_)
+        {
+            return;
+        }
+        RCLCPP_INFO(this->get_logger(), "Applying mask");
+        if (img.size() != grey_mask_.size())
+        {
+            RCLCPP_WARN(this->get_logger(), "Frame and mask dimensions do not match. Attempting resize.");
+            RCLCPP_WARN(this->get_logger(), "Note: Please ensure your mask has not gone stale, you might want to recreate it.");
+            cv::resize(grey_mask_, grey_mask_, img.size());
+        }
+        if (mask_enable_roi_)
+        {
+            cv::Mat image_roi = img(bounding_box_);
+            cv::Mat mask_roi = grey_mask_(bounding_box_);
+            cv::Mat result_roi;
+            cv::bitwise_and(image_roi, image_roi, result_roi, mask_roi);
+            result_roi.copyTo(img(bounding_box_));
+        }
+        else
+        {
+            cv::bitwise_and(img, img, img, grey_mask_);
+        }        
     }
 
     void start_capture()
@@ -203,6 +255,23 @@ private:
                 rclcpp::Parameter("onvif_password", "default_password"),
                 [this](const rclcpp::Parameter& param) { onvif_password_ = param.as_string(); }
             ),
+            // MASK parameters
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("mask_file", "mask.pgm"), 
+                [this](const rclcpp::Parameter& param) {mask_filename_ = param.as_string();}
+            ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("mask_enable_offset_correction", true), 
+                [this](const rclcpp::Parameter& param) {mask_enable_roi_ = param.as_bool();}
+            ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("image_width", 0), 
+                [this](const rclcpp::Parameter& param) {image_width_ = param.as_int();}
+            ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("image_height", 0), 
+                [this](const rclcpp::Parameter& param) {image_height_ = param.as_int();}
+            ),                        
         };
         add_action_parameters(params);
     }
@@ -373,6 +442,108 @@ private:
         {
             camera_info_msg_.model = "Video File";
         }
+    }
+
+    void mask_timer_callback()
+    {
+        mask_timer_->cancel();
+        try
+        {
+            if (!std::filesystem::exists(mask_filename_))
+            {
+                if (mask_enabled_)
+                {
+                    RCLCPP_INFO(get_logger(), "Mask Disabled.");
+                }
+                mask_enabled_ = false;
+                mask_timer_->reset();
+                return;
+            }
+
+            auto current_modified_time = std::filesystem::last_write_time(mask_filename_);
+            if (mask_last_modified_time_ == current_modified_time) 
+            {
+                mask_timer_->reset();
+                return;
+            }
+            mask_last_modified_time_ = current_modified_time;
+
+            cv::Mat mask(cv::imread(mask_filename_, cv::IMREAD_UNCHANGED));
+            if (mask.empty())
+            {
+                if (mask_enabled_)
+                {
+                    RCLCPP_INFO(get_logger(), "Mask Disabled.");
+                }
+                mask_enabled_ = false;
+                mask_timer_->reset();
+                return;             
+            }
+
+            grey_mask_= mask;
+
+            if (mask_enable_roi_)
+            {
+                sensor_msgs::msg::RegionOfInterest roi_msg;
+                if(mask.empty())
+                {
+                    roi_msg.x_offset = 0;
+                    roi_msg.y_offset = 0;
+                    roi_msg.width = image_width_;
+                    roi_msg.height = image_height_;
+                }
+                else
+                {
+                    bounding_box_ = cv::Rect(grey_mask_.cols, grey_mask_.rows, 0, 0);                                
+                    for (int y = 0; y < grey_mask_.rows; ++y) 
+                    {
+                        for (int x = 0; x < grey_mask_.cols; ++x) 
+                        {
+                            if (grey_mask_.at<uchar>(y, x) == 255) 
+                            { 
+                                bounding_box_.x = std::min(bounding_box_.x, x);
+                                bounding_box_.y = std::min(bounding_box_.y, y);
+                                bounding_box_.width = std::max(bounding_box_.width, x - bounding_box_.x);
+                                bounding_box_.height = std::max(bounding_box_.height, y - bounding_box_.y);
+                            }
+                        }
+                    }
+
+                    roi_msg.x_offset = bounding_box_.x;
+                    roi_msg.y_offset = bounding_box_.y;
+                    roi_msg.width = bounding_box_.width;
+                    roi_msg.height = bounding_box_.height;
+                }
+
+                roi_publisher_->publish(roi_msg);
+
+                RCLCPP_INFO(get_logger(), "Detection frame size determined from mask: %d x %d", roi_msg.width, roi_msg.height);
+            }
+
+            mask_enabled_ = true;
+            RCLCPP_INFO(get_logger(), "Mask Enabled.");
+        }
+        catch (cv::Exception &cve)
+        {
+            RCLCPP_ERROR(get_logger(), "Open CV exception on timer callback: %s", cve.what());
+        }
+        
+        mask_timer_->reset();
+    }
+
+    void mask_override_request(const std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Request> request, 
+        std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Response> response)
+    {
+        mask_enable_override_ = request->mask_enabled;
+        if (request->mask_enabled)
+        {
+            RCLCPP_DEBUG(get_logger(), "Mask Override set to: True");
+        }
+        else
+        {
+            RCLCPP_DEBUG(get_logger(), "Mask Override set to: False");
+        }
+        response->success = true;        
     }
 };
 

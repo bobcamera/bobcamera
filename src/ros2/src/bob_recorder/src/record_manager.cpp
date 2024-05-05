@@ -182,7 +182,7 @@ private:
                 }
             ),
             ParameterNode::ActionParam(
-                rclcpp::Parameter("img_topic", "bob/frames/allsky/masked/privacy"), 
+                rclcpp::Parameter("img_topic", "bob/frames/allsky/original"), 
                 [this](const rclcpp::Parameter& param) {img_topic_ = param.as_string();}
             ),
             ParameterNode::ActionParam(
