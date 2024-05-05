@@ -115,6 +115,9 @@ public:
         , median_filter_(false)
         , pub_qos_profile_(10)
         , sub_qos_profile_(10)
+        , mask_enable_override_(true)
+        , mask_enabled_(false)
+        , mask_enable_roi_(false)        
     {
         init();
     }
