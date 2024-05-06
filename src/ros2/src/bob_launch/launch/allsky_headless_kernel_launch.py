@@ -118,7 +118,7 @@ def generate_launch_description():
             #         ('bob/mask/source', 'bob/frames/allsky/original'),
             #         ('bob/mask/target', 'bob/frames/allsky/masked/privacy')],
             #     extra_arguments=[{'use_intra_process_comms': True}],
-            ),            
+            # ),            
             #The one Background Subtractor Node to rule them all:
             ComposableNode(
                 package='bob_image_processing',

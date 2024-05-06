@@ -144,13 +144,13 @@ class ConfigDiscoverer():
     def _get_onvif_config(self, rtsp_url):
 
         try:
-            credstr = rtsp_url[rtsp_url.index("//"):rtsp_url.index("@")]
+            credstr = rtsp_url[rtsp_url.index("//"):rtsp_url.rfind("@")]
             if credstr.startswith("//"):
                 credstr = credstr.replace("//", "")
 
             cred_array = credstr.split(":")
 
-            hoststr = rtsp_url[rtsp_url.index("@"):]
+            hoststr = rtsp_url[rtsp_url.rfind("@"):]
 
             hoststr = hoststr[:hoststr.index("/"):]
             if hoststr.startswith("@"):
@@ -162,6 +162,8 @@ class ConfigDiscoverer():
             password = cred_array[1]
             host = host_array[0]
             port = int(host_array[1])
+
+            # print(f"User: {user}, Password: {password}, Host: {host}, Port: {port}")
 
             fall_back_ports = [80, 443, 554]
             onvif_connection_test_result = self._test_onvif_connection(host, port, user, password)
