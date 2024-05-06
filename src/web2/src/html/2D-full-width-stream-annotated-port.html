@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+
+<html>
+
+    <head>
+        <title>Port | Annotated Image Stream (Wide View)</title>
+
+        <meta charset="utf-8" />
+
+        <!-- JS Library Needed for Connecting to the ROS2 Environment -->
+        <script src="https://cdn.jsdelivr.net/npm/eventemitter2@6.4.9/lib/eventemitter2.min.js"></script>
+
+        <!-- JS Library Needed for Connecting to the ROS2 Environment -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/roslibjs/1.1.0/roslib.min.js"></script>
+
+        <script>
+            // get a variable from the url query string (wsPort)
+            var wsPort = new URLSearchParams(window.location.search).get('wsPort') || 9090;
+
+            var websocketsURL = 'ws://' + window.location.hostname + ':' + wsPort;
+
+            var ros;
+
+            var subscribedTopics = [];
+
+        </script>
+
+    </head>
+
+    <body>
+
+        <img id="imageDisplayWindow" style="width: 100%"/>
+
+        <script type="text/javascript" type="text/javascript">
+
+            // Connect to the ROS2 environment
+            ros = rosConnect(websocketsURL, true);
+
+            // Define the ROS2 Subscription Topic
+            var ros2topic = '/bob/frames/annotated/resized/compressed';
+
+            // Define the Message Type of the ROS2 Subscription Topic
+            var ros2messageType = 'sensor_msgs/msg/CompressedImage';
+
+            // Create a topicStream for subscription
+            var topicStream = new ROSLIB.Topic({ros: ros, name: ros2topic, messageType: ros2messageType});
+
+            // Stream Messages Published From a ROS2 Topic (On each new message arrival, the function is called)
+            topicStream.subscribe(function (message) {
+                // Display Image In imageDisplayWindow element
+                displayImage(message);
+            });
+
+            // Declare a function to display the image in the imageDisplayWindow element
+            function displayImage(message) {
+                document.getElementById('imageDisplayWindow').src = "data:image/jpeg;base64," + message.data;
+            }
+
+            window.onbeforeunload = function(event) {
+
+                console.log('Cleaning up resources...');
+
+                // Unsubscribe from the topic
+                if (topicStream) {
+                    topicStream.unsubscribe();
+                    console.log('Unsubscribed from topic.');
+                }
+
+                disconnectRos(ros);
+
+            }
+
+
+
+            function rosConnect(websocketsURL, retry = false) {
+
+                var retryLimit = 5; // Hard-coded retry limit
+
+                var retryCount = 0; // Initialize retry count
+
+                if (!ros) {
+                    console.log('Creating new ros connection...');
+                    ros = new ROSLIB.Ros();
+                    ros.hasListeners = false;
+                    ros.isConnected = false;
+                }
+
+                if (ros.isConnected) {
+                    console.log('Already connected to websocket server.');
+                    return ros;
+                }
+
+                if (!ros.hasListeners) { // Ensure listeners are only set once
+                    ros.on('connection', function() {
+                        console.log('Connected to websocket server.');
+                        ros.isConnected = true;
+                        retryCount = 0; // Reset retry count on successful connection
+                    });
+
+                    ros.on('error', function(error) {
+                        console.log('Error connecting to websocket server:', error);
+                        ros.isConnected = false;
+                    });
+
+                    ros.on('close', function() {
+                        console.log('Connection to websocket server closed.');
+                        ros.isConnected = false;
+                        if (retry && retryCount < retryLimit) {
+                            retryCount++;
+                            console.log(`Connection lost, attempting to reconnect... (Attempt ${retryCount} of ${retryLimit})`);
+                            setTimeout(() => rosConnect(websocketsURL, retry), 5000);
+                        } else if (retry) {
+                            console.log('Retry limit reached, not attempting further reconnections.');
+                        }
+                    });
+
+                    ros.hasListeners = true;
+                }
+
+                ros.connect(websocketsURL);
+                return ros;
+            }
+
+            // Close the ROS2 connection
+            function disconnectRos(ros) {
+            if (ros && ros.isConnected) {
+                ros.close();
+                console.log('Disconnected from ROS.');
+                ros.isConnected = false; // Ensure the state is updated
+            } else {
+                console.log('No active ROS connection to disconnect.');
+            }
+            }
+
+            function unsubscribeTopics(subscribedTopics) {
+            subscribedTopics.forEach(topic => {
+                topic.unsubscribe();
+                console.log('Unsubscribed from ' + topic.name);
+            });
+            subscribedTopics = [];
+            }
+
+        </script>
+
+    </body>
+
+</html>
