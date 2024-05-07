@@ -73,6 +73,11 @@ private:
     {
         try
         {
+            if (count_subscribers(pub_resized_frame_->get_topic_name()) <= 0)
+            {
+                return;
+            }
+
             cv::Mat image;
             ImageUtils::convert_image_msg(image_msg, image, true);
 

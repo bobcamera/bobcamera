@@ -68,17 +68,16 @@ public:
 
         if (!reader.parse(jsonString, root)) 
         {
-            // Handle parse error
             throw std::invalid_argument("Failed to parse JSON");
         }
 
         if (!root.isArray()) 
         {
-            // Handle invalid JSON format
             throw std::invalid_argument("JSON is not an array");
         }
 
-        for (const auto& item : root) {
+        for (const auto& item : root) 
+        {
             SensitivityConfig config;
             config.name = item["name"].asString();
             config.sensitivity.vibe_threshold = item["sensitivity"]["vibe"]["threshold"].asInt();

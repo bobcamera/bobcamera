@@ -99,30 +99,6 @@ def generate_launch_description():
                     LaunchConfiguration('source_arg'), 
                     " == 'video_overlay'"]))
             ),
-            # ComposableNode(
-            #     package='bob_image_processing',  
-            #     plugin='MaskApplication',  
-            #     name='detection_mask_application_node',
-            #     namespace=namespace,
-            #     parameters = [config],
-            #     remappings=[
-            #         ('bob/mask/override', 'bob/mask/detection/override'),
-            #         ('bob/mask/source', 'bob/simulation/input_frame'), #'bob/frames/allsky/original'),
-            #         ('bob/mask/target', 'bob/frames/allsky/masked/detection')],
-            #     extra_arguments=[{'use_intra_process_comms': True}],
-            # ),
-            # ComposableNode(
-            #     package='bob_image_processing',  
-            #     plugin='MaskApplication',  
-            #     name='privacy_mask_application_node',
-            #     namespace=namespace,
-            #     parameters = [config],
-            #     remappings=[
-            #         ('bob/mask/override', 'bob/mask/privacy/override'),
-            #         ('bob/mask/source', 'bob/frames/allsky/original'),
-            #         ('bob/mask/target', 'bob/frames/allsky/masked/privacy')],
-            #     extra_arguments=[{'use_intra_process_comms': True}],
-            # ),            
             #The one Background Subtractor Node to rule them all:
             ComposableNode(
                 package='bob_image_processing',
@@ -157,17 +133,17 @@ def generate_launch_description():
                 extra_arguments=[{'use_intra_process_comms': True}]
             ),
             # Nodes for resizing the image in order to stick it on the network for display
-            ComposableNode(
-                package='bob_image_processing',
-                plugin='FrameResizer',
-                name='original_frame_resizer_node',
-                namespace=namespace,
-                remappings=[
-                    ('bob/resizer/source', 'bob/frames/allsky/original'),
-                    ('bob/resizer/target', 'bob/frames/allsky/original/resized')],
-                parameters = [config],
-                extra_arguments=[{'use_intra_process_comms': True}],
-            ),            
+            # ComposableNode(
+            #     package='bob_image_processing',
+            #     plugin='FrameResizer',
+            #     name='original_frame_resizer_node',
+            #     namespace=namespace,
+            #     remappings=[
+            #         ('bob/resizer/source', 'bob/frames/allsky/original'),
+            #         ('bob/resizer/target', 'bob/frames/allsky/original/resized')],
+            #     parameters = [config],
+            #     extra_arguments=[{'use_intra_process_comms': True}],
+            # ),            
             # ComposableNode(
             #     package='bob_image_processing',
             #     plugin='FrameResizer',
@@ -190,17 +166,17 @@ def generate_launch_description():
             #     parameters = [config],
             #     extra_arguments=[{'use_intra_process_comms': True}],
             # ),              
-            ComposableNode(
-                package='bob_image_processing',
-                plugin='FrameResizer',
-                name='foreground_mask_frame_resizer_node',
-                namespace=namespace,
-                remappings=[
-                    ('bob/resizer/source', 'bob/frames/foreground_mask'),
-                    ('bob/resizer/target', 'bob/frames/foreground_mask/resized')],
-                parameters = [config],
-                extra_arguments=[{'use_intra_process_comms': True}],
-            ),
+            # ComposableNode(
+            #     package='bob_image_processing',
+            #     plugin='FrameResizer',
+            #     name='foreground_mask_frame_resizer_node',
+            #     namespace=namespace,
+            #     remappings=[
+            #         ('bob/resizer/source', 'bob/frames/foreground_mask'),
+            #         ('bob/resizer/target', 'bob/frames/foreground_mask/resized')],
+            #     parameters = [config],
+            #     extra_arguments=[{'use_intra_process_comms': True}],
+            # ),
             ComposableNode(
                 package='bob_image_processing',
                 plugin='FrameResizer',

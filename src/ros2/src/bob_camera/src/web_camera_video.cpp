@@ -60,16 +60,20 @@ private:
     rclcpp::QoS qos_profile_{10}; 
     cv::VideoCapture video_capture_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_resized_publisher_;
     rclcpp::Publisher<bob_camera::msg::ImageInfo>::SharedPtr image_info_publisher_;
     rclcpp::Publisher<bob_camera::msg::CameraInfo>::SharedPtr camera_info_publisher_;
     bob_camera::msg::CameraInfo camera_info_msg_;
     int camera_id_;
     int resize_height_;
+    std::unique_ptr<RosCvImageMsg> roscv_image_resize_msg_ptr;
     std::vector<std::string> videos_;
     uint32_t current_video_idx_;
     std::string image_publish_topic_;
     std::string image_info_publish_topic_;
     std::string camera_info_publish_topic_;
+    std::string image_resized_publish_topic_;
+    
     rclcpp::TimerBase::SharedPtr one_shot_timer_;
     SourceType source_type_;
     std::string rtsp_uri_;
@@ -102,9 +106,10 @@ private:
 
         camera_settings_client_ = create_client<bob_interfaces::srv::CameraSettings>("bob/camera/settings");
         fps_update_client_ = create_client<bob_interfaces::srv::ConfigEntryUpdate>("bob/config/update/fps");
-        roi_publisher_ = create_publisher<sensor_msgs::msg::RegionOfInterest>("bob/mask/roi", qos_profile_);
         mask_override_service_ = create_service<bob_interfaces::srv::MaskOverrideRequest>("bob/mask/override", 
             std::bind(&WebCameraVideo::mask_override_request, this, std::placeholders::_1, std::placeholders::_2));
+
+        roi_publisher_ = create_publisher<sensor_msgs::msg::RegionOfInterest>("bob/mask/roi", qos_profile_);
         mask_timer_ = create_wall_timer(std::chrono::seconds(60), std::bind(&WebCameraVideo::mask_timer_callback, this));
         mask_timer_callback(); // Calling it the first time
 
@@ -135,6 +140,8 @@ private:
             roscv_image_msg_ptr->get_header().frame_id = generate_uuid();
 
             image_publisher_->publish(*roscv_image_msg_ptr->msg_ptr);
+
+            publish_resized_frame(*roscv_image_msg_ptr);
 
             auto image_info_msg = generate_image_info(roscv_image_msg_ptr->get_header(), *roscv_image_msg_ptr->image_ptr);
             image_info_publisher_->publish(image_info_msg);
@@ -171,6 +178,30 @@ private:
         {
             cv::bitwise_and(img, img, img, grey_mask_);
         }        
+    }
+
+    inline void publish_resized_frame(const RosCvImageMsg & image_msg)
+    {
+        if ((count_subscribers(image_resized_publish_topic_) <= 0) || !image_resized_publisher_)
+        {
+            return;
+        }
+        // TODO: Think about replacing the resized_img by the RosCvImageMsg, has to take into consideration the resizing of the resize_height and the image
+        cv::Mat resized_img;
+        if (resize_height_ > 0)
+        {
+            const double aspect_ratio = (double)image_msg.image_ptr->size().width / (double)image_msg.image_ptr->size().height;
+            const int frame_height = resize_height_;
+            const int frame_width = (int)(aspect_ratio * (double)frame_height);
+            cv::resize(*image_msg.image_ptr, resized_img, cv::Size(frame_width, frame_height));
+        }
+        else
+        {
+            resized_img = *image_msg.image_ptr;
+        }
+
+        auto resized_frame_msg = cv_bridge::CvImage(image_msg.msg_ptr->header, image_msg.msg_ptr->encoding, resized_img).toImageMsg();
+        image_resized_publisher_->publish(*resized_frame_msg);            
     }
 
     void start_capture()
@@ -210,6 +241,21 @@ private:
                 [this](const rclcpp::Parameter& param) {
                     camera_info_publish_topic_ = param.as_string(); 
                     camera_info_publisher_ = create_publisher<bob_camera::msg::CameraInfo>(camera_info_publish_topic_, qos_profile_);
+                }
+            ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("image_resized_publish_topic", "bob/frames/allsky/original/resized"), 
+                [this](const rclcpp::Parameter& param) {
+                    image_resized_publish_topic_ = param.as_string();
+                    if (!image_resized_publish_topic_.empty())
+                    {
+                        image_resized_publisher_ = create_publisher<sensor_msgs::msg::Image>(image_resized_publish_topic_, qos_profile_);
+                    }
+                    else
+                    {
+                        image_resized_publisher_.reset();
+                        RCLCPP_INFO(get_logger(), "Resizer topic disabled");
+                    }
                 }
             ),
             ParameterNode::ActionParam(
@@ -254,6 +300,13 @@ private:
             ParameterNode::ActionParam(
                 rclcpp::Parameter("onvif_password", "default_password"),
                 [this](const rclcpp::Parameter& param) {onvif_password_ = param.as_string(); }
+            ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("resize_height", 960), 
+                [this](const rclcpp::Parameter& param) {
+                    resize_height_ = param.as_int();
+                    
+                }
             ),
             // MASK parameters
             ParameterNode::ActionParam(

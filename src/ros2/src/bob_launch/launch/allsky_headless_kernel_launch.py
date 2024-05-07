@@ -95,30 +95,6 @@ def generate_launch_description():
                     LaunchConfiguration('source_arg'), 
                     " == 'video_overlay'"]))
             ),
-            # ComposableNode(
-            #     package='bob_image_processing',  
-            #     plugin='MaskApplication',  
-            #     name='detection_mask_application_node',
-            #     namespace=namespace,
-            #     parameters = [config],
-            #     remappings=[
-            #         ('bob/mask/override', 'bob/mask/detection/override'),
-            #         ('bob/mask/source', 'bob/frames/allsky/original'),
-            #         ('bob/mask/target', 'bob/frames/allsky/masked/detection')],
-            #     extra_arguments=[{'use_intra_process_comms': True}],
-            # ),
-            # ComposableNode(
-            #     package='bob_image_processing',  
-            #     plugin='MaskApplication',  
-            #     name='privacy_mask_application_node',
-            #     namespace=namespace,
-            #     parameters = [config],
-            #     remappings=[
-            #         ('bob/mask/override', 'bob/mask/privacy/override'),
-            #         ('bob/mask/source', 'bob/frames/allsky/original'),
-            #         ('bob/mask/target', 'bob/frames/allsky/masked/privacy')],
-            #     extra_arguments=[{'use_intra_process_comms': True}],
-            # ),            
             #The one Background Subtractor Node to rule them all:
             ComposableNode(
                 package='bob_image_processing',
@@ -144,18 +120,18 @@ def generate_launch_description():
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('enable_recording_arg'), " == True"])),  
             ),
-            # This is used for the star mask so needs to be included here
-            ComposableNode(
-                package='bob_image_processing',
-                plugin='FrameResizer',
-                name='original_frame_resizer_node',
-                namespace=namespace,
-                remappings=[
-                    ('bob/resizer/source', 'bob/frames/allsky/original'),
-                    ('bob/resizer/target', 'bob/frames/allsky/original/resized')],
-                parameters = [config],
-                extra_arguments=[{'use_intra_process_comms': True}],
-            ),
+            # # This is used for the star mask so needs to be included here
+            # ComposableNode(
+            #     package='bob_image_processing',
+            #     plugin='FrameResizer',
+            #     name='original_frame_resizer_node',
+            #     namespace=namespace,
+            #     remappings=[
+            #         ('bob/resizer/source', 'bob/frames/allsky/original'),
+            #         ('bob/resizer/target', 'bob/frames/allsky/original/resized')],
+            #     parameters = [config],
+            #     extra_arguments=[{'use_intra_process_comms': True}],
+            # ),
         ],
         output='screen',
     )    
