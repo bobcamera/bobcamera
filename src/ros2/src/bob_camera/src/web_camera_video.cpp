@@ -237,23 +237,23 @@ private:
             ),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("rtsp_uri", ""), 
-                [this](const rclcpp::Parameter& param) { rtsp_uri_ = param.as_string();}
+                [this](const rclcpp::Parameter& param) {rtsp_uri_ = param.as_string();}
             ),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("onvif_host", "192.168.1.20"),
-                [this](const rclcpp::Parameter& param) { onvif_host_ = param.as_string(); }
+                [this](const rclcpp::Parameter& param) {onvif_host_ = param.as_string(); }
             ),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("onvif_port", 80),
-                [this](const rclcpp::Parameter& param) { onvif_port_ = param.as_int(); }
+                [this](const rclcpp::Parameter& param) {onvif_port_ = param.as_int(); }
             ),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("onvif_user", "default_user"),
-                [this](const rclcpp::Parameter& param) { onvif_user_ = param.as_string(); }
+                [this](const rclcpp::Parameter& param) {onvif_user_ = param.as_string(); }
             ),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("onvif_password", "default_password"),
-                [this](const rclcpp::Parameter& param) { onvif_password_ = param.as_string(); }
+                [this](const rclcpp::Parameter& param) {onvif_password_ = param.as_string(); }
             ),
             // MASK parameters
             ParameterNode::ActionParam(
@@ -261,7 +261,7 @@ private:
                 [this](const rclcpp::Parameter& param) {mask_filename_ = param.as_string();}
             ),
             ParameterNode::ActionParam(
-                rclcpp::Parameter("mask_enable_offset_correction", true), 
+                rclcpp::Parameter("mask_enable_offset_correction", false), 
                 [this](const rclcpp::Parameter& param) {mask_enable_roi_ = param.as_bool();}
             ),
             ParameterNode::ActionParam(

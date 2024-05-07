@@ -92,7 +92,7 @@ privacy_mask_application_node:
     image_width: 0
     image_height: 0    
 
-background_subtractor_v2_node:
+background_subtractor_node:
   ros__parameters:
     sensitivity: 'low_c'
     bgs: ''

@@ -122,8 +122,8 @@ def generate_launch_description():
             #The one Background Subtractor Node to rule them all:
             ComposableNode(
                 package='bob_image_processing',
-                plugin='BackgroundSubtractor2',
-                name='background_subtractor_v2_node',
+                plugin='BackgroundSubtractor',
+                name='background_subtractor_node',
                 namespace=namespace,
                 parameters = [config],
                 extra_arguments=[{'use_intra_process_comms': True}]

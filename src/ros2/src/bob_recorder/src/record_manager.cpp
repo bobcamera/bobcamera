@@ -22,7 +22,9 @@
 
 #include <rclcpp/experimental/executors/events_executor/events_executor.hpp>
 
-class RecordManager : public ParameterNode {
+class RecordManager 
+    : public ParameterNode 
+{
 public:
     COMPOSITION_PUBLIC
     explicit RecordManager(const rclcpp::NodeOptions& options)

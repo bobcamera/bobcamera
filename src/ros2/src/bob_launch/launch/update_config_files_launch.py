@@ -290,9 +290,9 @@ def application_config(context):
             yaml_output['privacy_mask_application_node']['ros__parameters']['image_width'] = image_width
             yaml_output['privacy_mask_application_node']['ros__parameters']['image_height'] = image_height            
 
-            # background_subtractor_v2_node
-            yaml_output['background_subtractor_v2_node']['ros__parameters']['bgs'] = bgs_algo
-            yaml_output['background_subtractor_v2_node']['ros__parameters']['sensitivity'] = tracking_sensitivity
+            # background_subtractor_node
+            yaml_output['background_subtractor_node']['ros__parameters']['bgs'] = bgs_algo
+            yaml_output['background_subtractor_node']['ros__parameters']['sensitivity'] = tracking_sensitivity
 
             # track_sensitivity_monitor_node
             yaml_output['track_sensitivity_monitor_node']['ros__parameters']['sensitivity'] = tracking_sensitivity
