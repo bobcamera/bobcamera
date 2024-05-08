@@ -96,8 +96,6 @@ private:
     rclcpp::Service<bob_interfaces::srv::MaskOverrideRequest>::SharedPtr mask_override_service_;
     cv::Mat grey_mask_;
     cv::Rect bounding_box_;
-    int image_height_;
-    int image_width_;
 
     void init()
     {
@@ -165,6 +163,7 @@ private:
             RCLCPP_WARN(this->get_logger(), "Frame and mask dimensions do not match. Attempting resize.");
             RCLCPP_WARN(this->get_logger(), "Note: Please ensure your mask has not gone stale, you might want to recreate it.");
             cv::resize(grey_mask_, grey_mask_, img.size());
+            roi_calculation();
         }
         if (mask_enable_roi_)
         {
@@ -317,14 +316,6 @@ private:
                 rclcpp::Parameter("mask_enable_offset_correction", false), 
                 [this](const rclcpp::Parameter& param) {mask_enable_roi_ = param.as_bool();}
             ),
-            ParameterNode::ActionParam(
-                rclcpp::Parameter("image_width", 0), 
-                [this](const rclcpp::Parameter& param) {image_width_ = param.as_int();}
-            ),
-            ParameterNode::ActionParam(
-                rclcpp::Parameter("image_height", 0), 
-                [this](const rclcpp::Parameter& param) {image_height_ = param.as_int();}
-            ),                        
         };
         add_action_parameters(params);
     }
@@ -409,8 +400,8 @@ private:
     inline bool setHighestResolution(cv::VideoCapture &cap)
     {
         std::vector<std::pair<int, int>> resolutions = {
-            //{3840, 2160},  // 4K UHD
-            //{2560, 1440}, // QHD, WQHD, 2K
+            {3840, 2160},  // 4K UHD
+            {2560, 1440}, // QHD, WQHD, 2K
             {1920, 1080}, // Full HD
             {1600, 900},  // HD+
             {1280, 720},  // HD
@@ -497,6 +488,47 @@ private:
         }
     }
 
+    inline void roi_calculation()
+    {
+        if (mask_enable_roi_ && mask_enabled_)
+        {
+            sensor_msgs::msg::RegionOfInterest roi_msg;
+            if(grey_mask_.empty())
+            {
+                roi_msg.x_offset = 0;
+                roi_msg.y_offset = 0;
+                roi_msg.width = grey_mask_.size().width;
+                roi_msg.height = grey_mask_.size().height;
+            }
+            else
+            {
+                bounding_box_ = cv::Rect(grey_mask_.cols, grey_mask_.rows, 0, 0);                                
+                for (int y = 0; y < grey_mask_.rows; ++y) 
+                {
+                    for (int x = 0; x < grey_mask_.cols; ++x) 
+                    {
+                        if (grey_mask_.at<uchar>(y, x) == 255) 
+                        { 
+                            bounding_box_.x = std::min(bounding_box_.x, x);
+                            bounding_box_.y = std::min(bounding_box_.y, y);
+                            bounding_box_.width = std::max(bounding_box_.width, x - bounding_box_.x);
+                            bounding_box_.height = std::max(bounding_box_.height, y - bounding_box_.y);
+                        }
+                    }
+                }
+
+                roi_msg.x_offset = bounding_box_.x;
+                roi_msg.y_offset = bounding_box_.y;
+                roi_msg.width = bounding_box_.width;
+                roi_msg.height = bounding_box_.height;
+            }
+
+            roi_publisher_->publish(roi_msg);
+
+            RCLCPP_INFO(get_logger(), "Detection frame size determined from mask: %d x %d", roi_msg.width, roi_msg.height);
+        }
+    }
+
     void mask_timer_callback()
     {
         mask_timer_->cancel();
@@ -521,60 +553,17 @@ private:
             }
             mask_last_modified_time_ = current_modified_time;
 
-            cv::Mat mask(cv::imread(mask_filename_, cv::IMREAD_UNCHANGED));
-            if (mask.empty())
+            grey_mask_= cv::imread(mask_filename_, cv::IMREAD_UNCHANGED);
+            mask_enabled_ = !grey_mask_.empty();
+            if (grey_mask_.empty())
             {
-                if (mask_enabled_)
-                {
-                    RCLCPP_INFO(get_logger(), "Mask Disabled.");
-                }
-                mask_enabled_ = false;
-                mask_timer_->reset();
-                return;             
+                RCLCPP_INFO(get_logger(), "Mask Disabled, mask image was empty");
             }
-
-            grey_mask_= mask;
-
-            if (mask_enable_roi_)
+            else
             {
-                sensor_msgs::msg::RegionOfInterest roi_msg;
-                if(mask.empty())
-                {
-                    roi_msg.x_offset = 0;
-                    roi_msg.y_offset = 0;
-                    roi_msg.width = image_width_;
-                    roi_msg.height = image_height_;
-                }
-                else
-                {
-                    bounding_box_ = cv::Rect(grey_mask_.cols, grey_mask_.rows, 0, 0);                                
-                    for (int y = 0; y < grey_mask_.rows; ++y) 
-                    {
-                        for (int x = 0; x < grey_mask_.cols; ++x) 
-                        {
-                            if (grey_mask_.at<uchar>(y, x) == 255) 
-                            { 
-                                bounding_box_.x = std::min(bounding_box_.x, x);
-                                bounding_box_.y = std::min(bounding_box_.y, y);
-                                bounding_box_.width = std::max(bounding_box_.width, x - bounding_box_.x);
-                                bounding_box_.height = std::max(bounding_box_.height, y - bounding_box_.y);
-                            }
-                        }
-                    }
-
-                    roi_msg.x_offset = bounding_box_.x;
-                    roi_msg.y_offset = bounding_box_.y;
-                    roi_msg.width = bounding_box_.width;
-                    roi_msg.height = bounding_box_.height;
-                }
-
-                roi_publisher_->publish(roi_msg);
-
-                RCLCPP_INFO(get_logger(), "Detection frame size determined from mask: %d x %d", roi_msg.width, roi_msg.height);
+                RCLCPP_INFO(get_logger(), "Mask Enabled.");
             }
-
-            mask_enabled_ = true;
-            RCLCPP_INFO(get_logger(), "Mask Enabled.");
+            roi_calculation();
         }
         catch (cv::Exception &cve)
         {

@@ -144,6 +144,7 @@ private:
     bool median_filter_;
     std::string sensitivity_;
     bool ready_;
+    std::string image_resized_publish_topic_;
 
     SensitivityConfigCollection sensitivityConfigCollection_;
     
@@ -164,11 +165,11 @@ private:
     std::optional<std::filesystem::file_time_type> mask_last_modified_time_;
     rclcpp::Client<bob_interfaces::srv::BGSResetRequest>::SharedPtr bgs_reset_client_;
     rclcpp::Publisher<sensor_msgs::msg::RegionOfInterest>::SharedPtr roi_publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_resized_publisher_;
     rclcpp::Service<bob_interfaces::srv::MaskOverrideRequest>::SharedPtr mask_override_service_;
     cv::Mat grey_mask_;
     cv::Rect bounding_box_;
-    int image_height_;
-    int image_width_;
+    int resize_height_;
 
     void init()
     {
@@ -249,14 +250,28 @@ private:
                 rclcpp::Parameter("mask_enable_offset_correction", true), 
                 [this](const rclcpp::Parameter& param) {mask_enable_roi_ = param.as_bool();}
             ),
+            // Image resizing
             ParameterNode::ActionParam(
-                rclcpp::Parameter("image_width", 0), 
-                [this](const rclcpp::Parameter& param) {image_width_ = param.as_int();}
+                rclcpp::Parameter("image_resized_publish_topic", "bob/frames/foreground_mask/resized"), 
+                [this](const rclcpp::Parameter& param) {
+                    image_resized_publish_topic_ = param.as_string();
+                    if (!image_resized_publish_topic_.empty())
+                    {
+                        image_resized_publisher_ = create_publisher<sensor_msgs::msg::Image>(image_resized_publish_topic_, pub_qos_profile_);
+                    }
+                    else
+                    {
+                        image_resized_publisher_.reset();
+                        RCLCPP_INFO(get_logger(), "Resizer topic disabled");
+                    }
+                }
             ),
             ParameterNode::ActionParam(
-                rclcpp::Parameter("image_height", 0), 
-                [this](const rclcpp::Parameter& param) {image_height_ = param.as_int();}
-            ),                        
+                rclcpp::Parameter("resize_height", 960), 
+                [this](const rclcpp::Parameter& param) {
+                    resize_height_ = param.as_int();
+                }
+            ),        
         };
         add_action_parameters(params);
     }
@@ -327,6 +342,8 @@ private:
                 bgsPtr->apply(gray_img, *ros_cv_foreground_mask_->image_ptr);
 
                 image_publisher_->publish(*ros_cv_foreground_mask_->msg_ptr);
+
+                publish_resized_frame(*ros_cv_foreground_mask_);
 
                 if (median_filter_)
                 {
@@ -432,6 +449,47 @@ private:
         }
     }
 
+    inline void roi_calculation()
+    {
+        if (mask_enable_roi_ && mask_enabled_)
+        {
+            sensor_msgs::msg::RegionOfInterest roi_msg;
+            if(grey_mask_.empty())
+            {
+                roi_msg.x_offset = 0;
+                roi_msg.y_offset = 0;
+                roi_msg.width = grey_mask_.size().width;
+                roi_msg.height = grey_mask_.size().height;
+            }
+            else
+            {
+                bounding_box_ = cv::Rect(grey_mask_.cols, grey_mask_.rows, 0, 0);                                
+                for (int y = 0; y < grey_mask_.rows; ++y) 
+                {
+                    for (int x = 0; x < grey_mask_.cols; ++x) 
+                    {
+                        if (grey_mask_.at<uchar>(y, x) == 255) 
+                        { 
+                            bounding_box_.x = std::min(bounding_box_.x, x);
+                            bounding_box_.y = std::min(bounding_box_.y, y);
+                            bounding_box_.width = std::max(bounding_box_.width, x - bounding_box_.x);
+                            bounding_box_.height = std::max(bounding_box_.height, y - bounding_box_.y);
+                        }
+                    }
+                }
+
+                roi_msg.x_offset = bounding_box_.x;
+                roi_msg.y_offset = bounding_box_.y;
+                roi_msg.width = bounding_box_.width;
+                roi_msg.height = bounding_box_.height;
+            }
+
+            roi_publisher_->publish(roi_msg);
+
+            RCLCPP_INFO(get_logger(), "Detection frame size determined from mask: %d x %d", roi_msg.width, roi_msg.height);
+        }
+    }
+
     inline void apply_mask(const cv::Mat & img)
     {
         if (!mask_enabled_ || !mask_enable_override_)
@@ -483,60 +541,17 @@ private:
             }
             mask_last_modified_time_ = current_modified_time;
 
-            cv::Mat mask(cv::imread(mask_filename_, cv::IMREAD_UNCHANGED));
-            if (mask.empty())
+            grey_mask_= cv::imread(mask_filename_, cv::IMREAD_UNCHANGED);
+            mask_enabled_ = !grey_mask_.empty();
+            if (grey_mask_.empty())
             {
-                if (mask_enabled_)
-                {
-                    RCLCPP_INFO(get_logger(), "Mask Disabled.");
-                }
-                mask_enabled_ = false;
-                mask_timer_->reset();
-                return;             
+                RCLCPP_INFO(get_logger(), "Mask Disabled, mask image was empty");
             }
-
-            grey_mask_= mask;
-
-            if (mask_enable_roi_)
+            else
             {
-                sensor_msgs::msg::RegionOfInterest roi_msg;
-                if(mask.empty())
-                {
-                    roi_msg.x_offset = 0;
-                    roi_msg.y_offset = 0;
-                    roi_msg.width = image_width_;
-                    roi_msg.height = image_height_;
-                }
-                else
-                {
-                    bounding_box_ = cv::Rect(grey_mask_.cols, grey_mask_.rows, 0, 0);                                
-                    for (int y = 0; y < grey_mask_.rows; ++y) 
-                    {
-                        for (int x = 0; x < grey_mask_.cols; ++x) 
-                        {
-                            if (grey_mask_.at<uchar>(y, x) == 255) 
-                            { 
-                                bounding_box_.x = std::min(bounding_box_.x, x);
-                                bounding_box_.y = std::min(bounding_box_.y, y);
-                                bounding_box_.width = std::max(bounding_box_.width, x - bounding_box_.x);
-                                bounding_box_.height = std::max(bounding_box_.height, y - bounding_box_.y);
-                            }
-                        }
-                    }
-
-                    roi_msg.x_offset = bounding_box_.x;
-                    roi_msg.y_offset = bounding_box_.y;
-                    roi_msg.width = bounding_box_.width;
-                    roi_msg.height = bounding_box_.height;
-                }
-
-                roi_publisher_->publish(roi_msg);
-
-                RCLCPP_INFO(get_logger(), "Detection frame size determined from mask: %d x %d", roi_msg.width, roi_msg.height);
+                RCLCPP_INFO(get_logger(), "Mask Enabled.");
             }
-
-            mask_enabled_ = true;
-            RCLCPP_INFO(get_logger(), "Mask Enabled.");
+            roi_calculation();
         }
         catch (cv::Exception &cve)
         {
@@ -561,6 +576,30 @@ private:
         response->success = true;        
     }
 
+    inline void publish_resized_frame(const RosCvImageMsg & image_msg)
+    {
+        if ((count_subscribers(image_resized_publish_topic_) <= 0) || !image_resized_publisher_)
+        {
+            return;
+        }
+        // TODO: Think about replacing the resized_img by the RosCvImageMsg, has to take into consideration the resizing of the resize_height and the image
+        cv::Mat resized_img;
+        if (resize_height_ > 0)
+        {
+            const double aspect_ratio = (double)image_msg.image_ptr->size().width / (double)image_msg.image_ptr->size().height;
+            const int frame_height = resize_height_;
+            const int frame_width = (int)(aspect_ratio * (double)frame_height);
+            cv::resize(*image_msg.image_ptr, resized_img, cv::Size(frame_width, frame_height));
+        }
+        else
+        {
+            resized_img = *image_msg.image_ptr;
+        }
+
+        auto resized_frame_msg = cv_bridge::CvImage(image_msg.msg_ptr->header, image_msg.msg_ptr->encoding, resized_img).toImageMsg();
+        image_resized_publisher_->publish(*resized_frame_msg);            
+    }
+    
     inline void profile_start(const std::string& region)
     {
         if (enable_profiling_)
