@@ -248,11 +248,11 @@ annotated_frame_resizer_node:
 multi_frame_viewer_node:
   ros__parameters:
     topics: 
-      - 'bob/frames/annotated/resized'
-      - 'bob/frames/allsky/original'
-      - 'bob/frames/allsky/original/resized'
-      - 'bob/frames/foreground_mask/resized'
-      - 'bob/frames/allsky/original'
+      - '/bob/frames/annotated/resized/compressed'
+      - '/bob/frames/allsky/original'
+      - '/bob/frames/allsky/original/resized'
+      - '/bob/frames/foreground_mask/resized'
+      - '/bob/frames/allsky/original'
 
 annotated_frame_compressor_node:
   ros__parameters:
