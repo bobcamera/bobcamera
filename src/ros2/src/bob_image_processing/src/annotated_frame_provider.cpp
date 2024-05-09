@@ -46,6 +46,8 @@ private:
     rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr pub_annotated_frame_compressed_;
 
+    std::unique_ptr<RosCvImageMsg> ros_cv_annotated_frame_;
+
     int x_offset_;
     int y_offset_;
     bool enable_tracking_status_;
@@ -105,14 +107,15 @@ private:
             cv::Mat img;
             ImageUtils::convert_image_msg(image_msg, img, true);
 
-            auto annotated_frame = annotated_frame_creator_.create_frame(img, *tracking, x_offset_, y_offset_, enable_tracking_status_);
+            // if (!ros_cv_annotated_frame_ || (img.size() != ros_cv_annotated_frame_->image_ptr->size()))
+            // {
+            //     ros_cv_annotated_frame_ = std::make_unique<RosCvImageMsg>(img, sensor_msgs::image_encodings::BGR8, false);
+            // }
 
-            auto annotated_frame_msg = cv_bridge::CvImage(image_msg->header, sensor_msgs::image_encodings::BGR8, annotated_frame).toImageMsg();
+            annotated_frame_creator_.create_frame(img, *tracking, x_offset_, y_offset_, enable_tracking_status_);
+
+            auto annotated_frame_msg = cv_bridge::CvImage(image_msg->header, sensor_msgs::image_encodings::BGR8, img).toImageMsg();
             pub_annotated_frame_->publish(*annotated_frame_msg);            
-        }
-        catch (cv_bridge::Exception &e)
-        {
-            RCLCPP_ERROR(get_logger(), "CV bridge exception: %s", e.what());
         }
         catch (cv::Exception &cve)
         {
