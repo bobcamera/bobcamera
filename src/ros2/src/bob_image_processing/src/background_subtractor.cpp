@@ -11,8 +11,6 @@
 #include <bob_interfaces/srv/bgs_reset_request.hpp>
 #include <bob_interfaces/srv/mask_override_request.hpp>
 
-#include <vision_msgs/msg/bounding_box2_d_array.hpp>
-
 #include <boblib/api/bgs/bgs.hpp>
 #include <boblib/api/bgs/WeightedMovingVariance/WeightedMovingVarianceUtils.hpp>
 #include <boblib/api/blobs/connectedBlobDetection.hpp>
@@ -23,9 +21,10 @@
 
 #include <visibility_control.h>
 
-#include "bob_interfaces/srv/bgs_reset_request.hpp"
-#include "bob_interfaces/srv/sensitivity_change_request.hpp"
-#include "bob_interfaces/msg/detector_state.hpp"
+#include <bob_interfaces/srv/bgs_reset_request.hpp>
+#include <bob_interfaces/srv/sensitivity_change_request.hpp>
+#include <bob_interfaces/msg/detector_state.hpp>
+#include <bob_interfaces/msg/detector_b_box_array.hpp>
 
 class Sensitivity 
 {
@@ -131,7 +130,7 @@ private:
 
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscription_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
-    rclcpp::Publisher<vision_msgs::msg::BoundingBox2DArray>::SharedPtr detection_publisher_;
+    rclcpp::Publisher<bob_interfaces::msg::DetectorBBoxArray>::SharedPtr detection_publisher_;
     rclcpp::Publisher<bob_interfaces::msg::DetectorState>::SharedPtr state_publisher_;
     rclcpp::Service<bob_interfaces::srv::BGSResetRequest>::SharedPtr bgs_reset_service_;
     rclcpp::Service<bob_interfaces::srv::SensitivityChangeRequest>::SharedPtr sensitivity_change_service_;
@@ -187,7 +186,7 @@ private:
         image_subscription_ = create_subscription<sensor_msgs::msg::Image>("bob/frames/allsky/original", sub_qos_profile_,
             std::bind(&BackgroundSubtractor::imageCallback, this, std::placeholders::_1));
         image_publisher_ = create_publisher<sensor_msgs::msg::Image>("bob/frames/foreground_mask", pub_qos_profile_);
-        detection_publisher_ = create_publisher<vision_msgs::msg::BoundingBox2DArray>("bob/detection/allsky/boundingboxes", pub_qos_profile_);
+        detection_publisher_ = create_publisher<bob_interfaces::msg::DetectorBBoxArray>("bob/detection/allsky/boundingboxes", pub_qos_profile_);        
         state_publisher_ = create_publisher<bob_interfaces::msg::DetectorState>("bob/detection/detector_state", pub_qos_profile_);
 
         sensitivity_change_service_ = create_service<bob_interfaces::srv::SensitivityChangeRequest>("bob/bgs/sensitivity_update", 
@@ -354,8 +353,10 @@ private:
                 profile_start("Blob");
                 bob_interfaces::msg::DetectorState state;
                 state.sensitivity = sensitivity_;
-                vision_msgs::msg::BoundingBox2DArray bbox2D_array;
+                bob_interfaces::msg::DetectorBBoxArray bbox2D_array;
                 bbox2D_array.header = img_msg->header;
+                bbox2D_array.image_width = gray_img.size().width;
+                bbox2D_array.image_height = gray_img.size().height;
                 std::vector<cv::Rect> bboxes;
 
                 boblib::blobs::DetectionResult det_result = blob_detector_ptr_->detect(*ros_cv_foreground_mask_->image_ptr, bboxes);
@@ -389,16 +390,16 @@ private:
         }
     }
 
-    void add_bboxes(vision_msgs::msg::BoundingBox2DArray &bbox2D_array, const std::vector<cv::Rect> &bboxes)
+    void add_bboxes(bob_interfaces::msg::DetectorBBoxArray &bbox2D_array, const std::vector<cv::Rect> &bboxes)
     {
         for (const auto &bbox : bboxes)
         {
-            vision_msgs::msg::BoundingBox2D bbox2D;
-            bbox2D.center.position.x = bbox.x + bbox.width / 2.0;
-            bbox2D.center.position.y = bbox.y + bbox.height / 2.0;
-            bbox2D.size_x = bbox.width;
-            bbox2D.size_y = bbox.height;
-            bbox2D_array.boxes.push_back(bbox2D);
+            bob_interfaces::msg::DetectorBBox bbox_msg;
+            bbox_msg.x = bbox.x;
+            bbox_msg.y = bbox.y;
+            bbox_msg.width = bbox.width;
+            bbox_msg.height = bbox.height;
+            bbox2D_array.detections.push_back(bbox_msg);
         }
     }
 
@@ -578,7 +579,7 @@ private:
 
     inline void publish_resized_frame(const RosCvImageMsg & image_msg)
     {
-        if ((count_subscribers(image_resized_publish_topic_) <= 0) || !image_resized_publisher_)
+        if (!image_resized_publisher_ || (count_subscribers(image_resized_publish_topic_) <= 0))
         {
             return;
         }

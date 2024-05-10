@@ -135,7 +135,7 @@ void SORT::Tracker::AssociateDetectionsToTrackers(const std::vector<cv::Rect>& d
     }
 }
 
-void SORT::Tracker::update_trackers(const std::vector<cv::Rect> &detections, const cv::Mat &/*frame*/)
+void SORT::Tracker::update_trackers(const std::vector<cv::Rect> &detections)
 {
     /*** Predict internal tracks from previous frame ***/
     std::vector<std::thread> predict_threads;
@@ -186,7 +186,7 @@ void SORT::Tracker::update_trackers(const std::vector<cv::Rect> &detections, con
             tracker.set_id(total_trackers_started_);
             tracks_[total_trackers_started_] = tracker;
         } else {
-                RCLCPP_WARN(logger_, "Reached max number of trackers: %zu", tracker_max_active_trackers_);
+            RCLCPP_WARN(logger_, "Reached max number of trackers: %zu", tracker_max_active_trackers_);
             break;
         }
     }
@@ -223,7 +223,8 @@ const std::vector<Track> SORT::Tracker::get_live_trackers() const
 {
     std::vector<Track> live_trackers;
     
-    for (const auto& pair : tracks_) {
+    for (const auto& pair : tracks_) 
+    {
         live_trackers.push_back(pair.second);
     }
 

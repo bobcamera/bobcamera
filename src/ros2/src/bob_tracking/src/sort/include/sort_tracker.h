@@ -39,7 +39,7 @@ namespace SORT
 
         const std::vector<Track> get_active_trackers() const;
         const std::vector<Track> get_live_trackers() const;
-        void update_trackers(const std::vector<cv::Rect> &detections, const cv::Mat &/*frame*/);
+        void update_trackers(const std::vector<cv::Rect> &detections);
         size_t get_total_trackable_trackers() const;
         size_t get_total_live_trackers() const;
         std::map<int, Track> GetTracks() const;

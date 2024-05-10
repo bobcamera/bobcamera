@@ -91,14 +91,12 @@ private:
     {
         try
         {
-            // RCLCPP_INFO(get_logger(), "Imagecallback");
-
             cv::Mat image;
             ImageUtils::convert_image_msg(image_msg, image, true);            
 
             std::vector<int> compression_params;
             compression_params.push_back(cv::IMWRITE_JPEG_QUALITY);
-            compression_params.push_back(compression_quality_);  // Compression quality
+            compression_params.push_back(compression_quality_);
 
             std::vector<uchar> compressed_image;
             cv::imencode(".jpg", image, compressed_image, compression_params);            

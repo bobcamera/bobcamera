@@ -70,13 +70,14 @@ simulated_frame_provider_node:
     height: 0
     width: 0
     num_objects: 0
+    image_resized_publish_topic: 'bob/frames/allsky/original/resized'
 
 web_camera_video_overlay_node:
   ros__parameters:
     image_publish_topic: 'bob/simulation/input_frame'
     image_info_publish_topic: 'bob/camera/all_sky/image_info'
     camera_info_publish_topic: 'bob/camera/all_sky/camera_info'
-    image_resized_publish_topic: 'bob/frames/allsky/original/resized'
+    image_resized_publish_topic: ''
     source_type: 'VIDEO_FILE'
     videos:
     mask_file: 'assets/masks/privacy-mask.jpg'
@@ -91,6 +92,8 @@ simulation_overlay_provider_node:
     width: 0
     num_objects: 0
     video_fps: 10.0
+    image_resized_publish_topic: 'bob/frames/allsky/original/resized'
+    resize_height: 960
 
 detection_mask_application_node:
   ros__parameters:

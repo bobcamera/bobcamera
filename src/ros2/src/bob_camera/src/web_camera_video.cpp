@@ -181,7 +181,7 @@ private:
 
     inline void publish_resized_frame(const RosCvImageMsg & image_msg)
     {
-        if ((count_subscribers(image_resized_publish_topic_) <= 0) || !image_resized_publisher_)
+        if (!image_resized_publisher_ || (count_subscribers(image_resized_publish_topic_) <= 0))
         {
             return;
         }
