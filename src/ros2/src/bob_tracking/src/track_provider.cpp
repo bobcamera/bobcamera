@@ -39,16 +39,17 @@ public:
     }
 
 private:
-    using Clock = std::chrono::high_resolution_clock;
-    using TimePoint = std::chrono::time_point<Clock>;
+    // using Clock = std::chrono::high_resolution_clock;
+    // using TimePoint = std::chrono::time_point<Clock>;
 
-    std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> masked_frame_subscription_;
-    std::shared_ptr<message_filters::Subscriber<vision_msgs::msg::BoundingBox2DArray>> detector_bounding_boxes_subscription_;
-    std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, vision_msgs::msg::BoundingBox2DArray>> time_synchronizer_;
+    // std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> masked_frame_subscription_;
+    // std::shared_ptr<message_filters::Subscriber<vision_msgs::msg::BoundingBox2DArray>> detector_bounding_boxes_subscription_;
+    // std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, vision_msgs::msg::BoundingBox2DArray>> time_synchronizer_;
     rclcpp::Publisher<bob_interfaces::msg::Tracking>::SharedPtr pub_tracker_tracking_;
     rclcpp::TimerBase::SharedPtr one_shot_timer_;
     SORT::Tracker video_tracker_;
-    double fps_;
+    // double fps_;
+    rclcpp::Subscription<vision_msgs::msg::BoundingBox2DArray>::SharedPtr detector_bounding_boxes_subscription_;
 
     friend std::shared_ptr<TrackProvider> std::make_shared<TrackProvider>();
 
@@ -67,25 +68,30 @@ private:
         sub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
         sub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
         sub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
-        auto rmw_qos_profile = sub_qos_profile.get_rmw_qos_profile();
 
-        masked_frame_subscription_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(shared_from_this(), "bob/frames/allsky/original", rmw_qos_profile);
-        detector_bounding_boxes_subscription_ = std::make_shared<message_filters::Subscriber<vision_msgs::msg::BoundingBox2DArray>>(shared_from_this(), "bob/detection/allsky/boundingboxes", rmw_qos_profile);
+        detector_bounding_boxes_subscription_ = create_subscription<vision_msgs::msg::BoundingBox2DArray>("bob/detection/allsky/boundingboxes", sub_qos_profile,
+            std::bind(&TrackProvider::callback, this, std::placeholders::_1));
 
-        time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, vision_msgs::msg::BoundingBox2DArray>>(*masked_frame_subscription_, *detector_bounding_boxes_subscription_, 10);
-        time_synchronizer_->registerCallback(&TrackProvider::callback, this);
+        // auto rmw_qos_profile = sub_qos_profile.get_rmw_qos_profile();
+        // masked_frame_subscription_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(shared_from_this(), "bob/frames/allsky/original", rmw_qos_profile);
+        // detector_bounding_boxes_subscription_ = std::make_shared<message_filters::Subscriber<vision_msgs::msg::BoundingBox2DArray>>(shared_from_this(), "bob/detection/allsky/boundingboxes", rmw_qos_profile);
+
+        // time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, vision_msgs::msg::BoundingBox2DArray>>(*masked_frame_subscription_, *detector_bounding_boxes_subscription_, 10);
+        // time_synchronizer_->registerCallback(&TrackProvider::callback, this);
 
         pub_tracker_tracking_ = create_publisher<bob_interfaces::msg::Tracking>("bob/tracker/tracking", pub_qos_profile);
     }
 
-    void declare_node_parameters() {
-        std::vector<ParameterNode::ActionParam> params = {
-            ParameterNode::ActionParam(rclcpp::Parameter("video_fps", 30.0), [this](const rclcpp::Parameter& param) {fps_ = param.as_double();}),
-        };
-        add_action_parameters(params);
+    void declare_node_parameters() 
+    {
+        // std::vector<ParameterNode::ActionParam> params = {
+        //     ParameterNode::ActionParam(rclcpp::Parameter("video_fps", 30.0), [this](const rclcpp::Parameter& param) {fps_ = param.as_double();}),
+        // };
+        // add_action_parameters(params);
     }
 
-    void callback(const sensor_msgs::msg::Image::SharedPtr &image_msg, const vision_msgs::msg::BoundingBox2DArray::SharedPtr &bounding_boxes_msg)
+    // void callback(const sensor_msgs::msg::Image::SharedPtr &image_msg, const vision_msgs::msg::BoundingBox2DArray::SharedPtr &bounding_boxes_msg)
+    void callback(const vision_msgs::msg::BoundingBox2DArray::SharedPtr bounding_boxes_msg)
     {
         try
         {
@@ -98,11 +104,7 @@ private:
 
             video_tracker_.update_trackers(bboxes, img);
 
-            publish_tracking(image_msg->header);
-        }
-        catch (cv_bridge::Exception &e)
-        {
-            RCLCPP_ERROR(get_logger(), "CV bridge exception: %s", e.what());
+            publish_tracking(bounding_boxes_msg->header);
         }
         catch (cv::Exception &cve)
         {
