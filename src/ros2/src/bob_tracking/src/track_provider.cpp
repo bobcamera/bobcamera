@@ -126,14 +126,8 @@ private:
         }
 
         float adjust = (float)resize_height_ / (float)image_height;
-        //float adjust_x = (float)image_width * adjust_y;
 
         bob_interfaces::msg::Tracking tracking_msg_resized(tracking_msg);
-        // tracking_msg_resized.header = tracking_msg.header;
-        // tracking_msg_resized.state.trackable = tracking_msg.state.trackable;
-        // tracking_msg_resized.state.alive = tracking_msg.state.alive;
-        // tracking_msg_resized.state.started = tracking_msg.state.started;
-        // tracking_msg_resized.state.ended = tracking_msg.state.ended;
         for (auto & detect : tracking_msg_resized.detections)
         {
             detect.bbox.center.position.x *= adjust;

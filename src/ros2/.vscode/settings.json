@@ -75,7 +75,8 @@
         "typeindex": "cpp",
         "typeinfo": "cpp",
         "variant": "cpp",
-        "*.ipp": "cpp"
+        "*.ipp": "cpp",
+        "filesystem": "cpp"
     },
     "cSpell.words": [
         "rclcpp"

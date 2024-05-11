@@ -1,5 +1,4 @@
 #include <opencv2/opencv.hpp>
-#include <json/json.h>
 #include <filesystem>
 
 #include <rclcpp/rclcpp.hpp>
@@ -18,6 +17,7 @@
 
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
+#include "background_subtractor_companion.hpp"
 
 #include <visibility_control.h>
 
@@ -26,81 +26,6 @@
 #include <bob_interfaces/msg/detector_state.hpp>
 #include <bob_interfaces/msg/detector_b_box_array.hpp>
 
-class Sensitivity 
-{
-public:
-    int vibe_threshold;
-    int vibe_bgSamples;
-    int vibe_requiredBGSamples;
-    int vibe_learningRate;
-    bool wmv_enableWeight;
-    bool wmv_enableThreshold;
-    double wmv_threshold;
-    double wmv_weight1;
-    double wmv_weight2;
-    double wmv_weight3;
-    int blob_sizeThreshold;
-    int blob_areaThreshold;
-    int blob_minDistance;
-    int blob_maxBlobs;
-    bool median_filter;
-};
-
-class SensitivityConfig
-{
-public:
-    std::string name;
-    Sensitivity sensitivity;
-};
-
-class SensitivityConfigCollection
-{
-public:
-    std::vector<SensitivityConfig> configs;
-
-    // Method to parse JSON string into SensitivityConfigCollection object
-    static SensitivityConfigCollection fromJsonString(const std::string& jsonString) 
-    {
-        SensitivityConfigCollection collection;
-        Json::Value root;
-        Json::Reader reader;
-
-        if (!reader.parse(jsonString, root)) 
-        {
-            throw std::invalid_argument("Failed to parse JSON");
-        }
-
-        if (!root.isArray()) 
-        {
-            throw std::invalid_argument("JSON is not an array");
-        }
-
-        for (const auto& item : root) 
-        {
-            SensitivityConfig config;
-            config.name = item["name"].asString();
-            config.sensitivity.vibe_threshold = item["sensitivity"]["vibe"]["threshold"].asInt();
-            config.sensitivity.vibe_bgSamples = item["sensitivity"]["vibe"]["bgSamples"].asInt();
-            config.sensitivity.vibe_requiredBGSamples = item["sensitivity"]["vibe"]["requiredBGSamples"].asInt();
-            config.sensitivity.vibe_learningRate = item["sensitivity"]["vibe"]["learningRate"].asInt();
-            config.sensitivity.wmv_enableWeight = item["sensitivity"]["wmv"]["enableWeight"].asBool();
-            config.sensitivity.wmv_enableThreshold = item["sensitivity"]["wmv"]["enableThreshold"].asBool();
-            config.sensitivity.wmv_threshold = item["sensitivity"]["vibe"]["threshold"].asDouble();
-            config.sensitivity.wmv_weight1 = item["sensitivity"]["wmv"]["weight1"].asDouble();
-            config.sensitivity.wmv_weight2 = item["sensitivity"]["wmv"]["weight2"].asDouble();
-            config.sensitivity.wmv_weight3 = item["sensitivity"]["wmv"]["weight3"].asDouble();
-            config.sensitivity.blob_sizeThreshold = item["sensitivity"]["blob"]["sizeThreshold"].asInt();
-            config.sensitivity.blob_areaThreshold = item["sensitivity"]["blob"]["areaThreshold"].asInt();
-            config.sensitivity.blob_minDistance = item["sensitivity"]["blob"]["minDistance"].asInt();
-            config.sensitivity.blob_maxBlobs = item["sensitivity"]["blob"]["maxBlobs"].asInt();
-            config.sensitivity.median_filter = item["sensitivity"]["median_filter"].asBool();
-
-            collection.configs.push_back(config);
-        }
-
-        return collection;
-    }
-};
 
 class BackgroundSubtractor
     : public ParameterNode
@@ -275,27 +200,22 @@ private:
         add_action_parameters(params);
     }
 
-    void init_sensitivity(const std::string sensitivity)
+    void init_sensitivity(const std::string & sensitivity)
     {
-        ready_ = false;
-        bool found_config = false;
-        SensitivityConfig config;
-        for (const auto& _config : sensitivityConfigCollection_.configs) 
+        if (sensitivity.empty() || (sensitivity.length() == 0))
         {
-            if (_config.name == sensitivity)
-            {
-                RCLCPP_DEBUG(get_logger(), "Config found: %s", _config.name.c_str());
-                config = _config;
-                found_config = true;
-                break;
-            }
+            RCLCPP_DEBUG(get_logger(), "Ignoring sensitivity request change");
+            return;
         }
-
-        if (!found_config) 
+        if (!sensitivityConfigCollection_.configs.contains(sensitivity))
         {
             RCLCPP_ERROR(get_logger(), "Unknown config specified: %s", sensitivity.c_str());
-            throw std::invalid_argument("Unknown config");
+            return;
         }
+
+        ready_ = false;
+
+        const SensitivityConfig & config = sensitivityConfigCollection_.configs.at(sensitivity);
 
         wmv_params_ = std::make_unique<boblib::bgs::WMVParams>(config.sensitivity.wmv_enableWeight, config.sensitivity.wmv_enableThreshold, config.sensitivity.wmv_threshold, config.sensitivity.wmv_weight1, config.sensitivity.wmv_weight2, config.sensitivity.wmv_weight3);
         vibe_params_ = std::make_unique<boblib::bgs::VibeParams>(config.sensitivity.vibe_threshold, config.sensitivity.vibe_bgSamples, config.sensitivity.vibe_requiredBGSamples, config.sensitivity.vibe_learningRate);
@@ -306,6 +226,7 @@ private:
         blob_detector_ptr_ = std::make_unique<boblib::blobs::ConnectedBlobDetection>(*blob_params_);
 
         median_filter_ = config.sensitivity.median_filter;
+        sensitivity_ = sensitivity;
         ready_ = true;
     }
 
