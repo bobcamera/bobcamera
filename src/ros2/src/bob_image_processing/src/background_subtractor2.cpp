@@ -1,19 +1,6 @@
 #include <opencv2/opencv.hpp>
-#include <filesystem>
 
-#include <rclcpp/rclcpp.hpp>
-#include <cv_bridge/cv_bridge.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
-#include <rclcpp/experimental/executors/events_executor/events_executor.hpp>
-#include <rcpputils/endian.hpp>
-#include <sensor_msgs/msg/region_of_interest.hpp>
-#include <bob_interfaces/srv/bgs_reset_request.hpp>
-#include <bob_interfaces/srv/mask_override_request.hpp>
-
-#include <boblib/api/bgs/bgs.hpp>
-#include <boblib/api/bgs/WeightedMovingVariance/WeightedMovingVarianceUtils.hpp>
-#include <boblib/api/blobs/connectedBlobDetection.hpp>
-#include <boblib/api/utils/profiler.hpp>
 
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
@@ -21,8 +8,9 @@
 
 #include <visibility_control.h>
 
+#include <sensor_msgs/msg/region_of_interest.hpp>
 #include <bob_interfaces/srv/bgs_reset_request.hpp>
-#include <bob_interfaces/srv/sensitivity_change_request.hpp>
+#include <bob_interfaces/srv/mask_override_request.hpp>
 #include <bob_interfaces/msg/detector_state.hpp>
 #include <bob_interfaces/msg/detector_b_box_array.hpp>
 
@@ -46,22 +34,13 @@ private:
 
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscription_;
 
-    // rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
-    // rclcpp::Publisher<bob_interfaces::msg::DetectorBBoxArray>::SharedPtr detection_publisher_;
-    // rclcpp::Publisher<bob_interfaces::msg::DetectorState>::SharedPtr state_publisher_;
-    // rclcpp::Publisher<sensor_msgs::msg::RegionOfInterest>::SharedPtr roi_publisher_;
-    // rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_resized_publisher_;
-
     rclcpp::Service<bob_interfaces::srv::BGSResetRequest>::SharedPtr bgs_reset_service_;
-    rclcpp::Service<bob_interfaces::srv::SensitivityChangeRequest>::SharedPtr sensitivity_change_service_;
     rclcpp::Service<bob_interfaces::srv::MaskOverrideRequest>::SharedPtr mask_override_service_;
 
     rclcpp::Client<bob_interfaces::srv::BGSResetRequest>::SharedPtr bgs_reset_client_;
 
     std::string image_resized_publish_topic_;
 
-    SensitivityConfigCollection sensitivityConfigCollection_;
-    
     rclcpp::QoS pub_qos_profile_;
     rclcpp::QoS sub_qos_profile_;
 
@@ -81,21 +60,15 @@ private:
 
         bgs_worker_ptr_ = std::make_unique<BackgroundSubtractorWorker>(*this, params_);
 
-        declare_node_parameters();
-
         bgs_worker_ptr_->init();
+
+        declare_node_parameters();
 
         image_subscription_ = create_subscription<sensor_msgs::msg::Image>("bob/frames/allsky/original", sub_qos_profile_,
             std::bind(&BackgroundSubtractor2::imageCallback, this, std::placeholders::_1));
         params_.image_publisher = create_publisher<sensor_msgs::msg::Image>("bob/frames/foreground_mask", pub_qos_profile_);
         params_.detection_publisher = create_publisher<bob_interfaces::msg::DetectorBBoxArray>("bob/detection/allsky/boundingboxes", pub_qos_profile_);        
         params_.state_publisher = create_publisher<bob_interfaces::msg::DetectorState>("bob/detection/detector_state", pub_qos_profile_);
-
-        sensitivity_change_service_ = create_service<bob_interfaces::srv::SensitivityChangeRequest>("bob/bgs/sensitivity_update", 
-            std::bind(&BackgroundSubtractor2::change_sensitivity_request, 
-            this, 
-            std::placeholders::_1, 
-            std::placeholders::_2));
     }
 
     void declare_node_parameters()
@@ -107,12 +80,20 @@ private:
                 {
                     try 
                     {
-                        sensitivityConfigCollection_ = SensitivityConfigCollection::fromJsonString(param.as_string());
+                        params_.sensitivity_collection = SensitivityConfigCollection::fromJsonString(param.as_string());
                     }
                     catch (const std::exception& e) 
                     {
                         RCLCPP_ERROR(get_logger(), "Failed to parse the JSON data: %s", e.what());
                     }
+                }
+            ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("sensitivity", "medium_c"), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    RCLCPP_INFO(get_logger(), "Setting Sensitivity: %s", param.as_string().c_str());
+                    bgs_worker_ptr_->init_sensitivity(param.as_string());
                 }
             ),
             ParameterNode::ActionParam(
@@ -123,14 +104,6 @@ private:
                     bgs_worker_ptr_->init_bgs(param.as_string());
                 }
             ),            
-            ParameterNode::ActionParam(
-                rclcpp::Parameter("sensitivity", "medium_c"), 
-                [this](const rclcpp::Parameter& param) 
-                {
-                    RCLCPP_INFO(get_logger(), "Setting Sensitivity: %s", param.as_string().c_str());
-                    bgs_worker_ptr_->init_sensitivity(param.as_string());
-                }
-            ),
             // MASK parameters
             ParameterNode::ActionParam(
                 rclcpp::Parameter("mask_file", "mask.pgm"), 
@@ -190,18 +163,6 @@ private:
         }
         bgs_worker_ptr_->restart();
         response->success = true;
-    }
-
-    void change_sensitivity_request(const std::shared_ptr<bob_interfaces::srv::SensitivityChangeRequest::Request> request, 
-        std::shared_ptr<bob_interfaces::srv::SensitivityChangeRequest::Response> response)
-    {
-        response->success = true;
-        std::string old_sensitivity = params_.sensitivity;
-        if (bgs_worker_ptr_->init_sensitivity(request->sensitivity))
-        {
-            response->sensitivity_from = old_sensitivity;
-            response->sensitivity_to = request->sensitivity;
-        }
     }
 
     void mask_override_request(const std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Request> request, 

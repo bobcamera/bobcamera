@@ -58,7 +58,6 @@ private:
     rclcpp::Publisher<bob_interfaces::msg::DetectorBBoxArray>::SharedPtr detection_publisher_;
     rclcpp::Publisher<bob_interfaces::msg::DetectorState>::SharedPtr state_publisher_;
     rclcpp::Service<bob_interfaces::srv::BGSResetRequest>::SharedPtr bgs_reset_service_;
-    rclcpp::Service<bob_interfaces::srv::SensitivityChangeRequest>::SharedPtr sensitivity_change_service_;
 
     BGSType bgs_type_;
     std::unique_ptr<boblib::bgs::CoreBgs> bgsPtr{nullptr};
@@ -113,12 +112,6 @@ private:
         image_publisher_ = create_publisher<sensor_msgs::msg::Image>("bob/frames/foreground_mask", pub_qos_profile_);
         detection_publisher_ = create_publisher<bob_interfaces::msg::DetectorBBoxArray>("bob/detection/allsky/boundingboxes", pub_qos_profile_);        
         state_publisher_ = create_publisher<bob_interfaces::msg::DetectorState>("bob/detection/detector_state", pub_qos_profile_);
-
-        sensitivity_change_service_ = create_service<bob_interfaces::srv::SensitivityChangeRequest>("bob/bgs/sensitivity_update", 
-            std::bind(&BackgroundSubtractor::change_sensitivity_request, 
-            this, 
-            std::placeholders::_1, 
-            std::placeholders::_2));
 
         mask_timer_ = create_wall_timer(std::chrono::seconds(60), std::bind(&BackgroundSubtractor::mask_timer_callback, this));
         mask_timer_callback(); // Calling it the first time
@@ -334,28 +327,6 @@ private:
         bgsPtr->restart();
         response->success = true;
         //RCLCPP_INFO(get_logger(), "Restarting BGS: SUCCESS");
-    }
-
-    void change_sensitivity_request(const std::shared_ptr<bob_interfaces::srv::SensitivityChangeRequest::Request> request, 
-        std::shared_ptr<bob_interfaces::srv::SensitivityChangeRequest::Response> response)
-    {
-        response->success = false;
-        if (!request->sensitivity.empty() && request->sensitivity.length() > 0) 
-        {
-            if (sensitivity_ == request->sensitivity)
-            {
-                response->success = true;
-                RCLCPP_DEBUG(get_logger(), "Ignoring sensitivity request change");
-            }
-            else
-            {
-                response->sensitivity_from = sensitivity_;
-                init_sensitivity(request->sensitivity);
-                sensitivity_ = request->sensitivity;   
-                response->sensitivity_to = sensitivity_;
-                response->success = true;
-            }
-        }
     }
 
     std::unique_ptr<boblib::bgs::CoreBgs> createBGS(BGSType _type)

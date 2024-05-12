@@ -36,6 +36,8 @@ public:
     }
 
 private:
+    rclcpp::QoS pub_qos_profile_{10};
+
     std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> sub_masked_frame_;
     std::shared_ptr<rclcpp::Subscription<sensor_msgs::msg::RegionOfInterest>> roi_subscription_;
     std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::Tracking>> sub_tracking_;
@@ -52,16 +54,20 @@ private:
     int y_offset_;
     bool enable_tracking_status_;
 
+    std::unique_ptr<RosCvImageMsg> roscv_image_resize_msg_ptr;
+    int resize_height_;
+    std::string image_resized_publish_topic_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_resized_publisher_;
+
     void init()
     {
         RCLCPP_INFO(get_logger(), "Initializing AnnotatedFrameProvider");
 
         timer_->cancel();
 
-        rclcpp::QoS pub_qos_profile{10};
-        pub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
-        pub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
-        pub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
+        pub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
+        pub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
+        pub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
 
         rclcpp::QoS sub_qos_profile{10};
         sub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
@@ -73,13 +79,11 @@ private:
 
         sub_masked_frame_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(shared_from_this(), "bob/frames/allsky/original/resized", rmw_qos_profile);
         sub_tracking_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::Tracking>>(shared_from_this(), "bob/tracker/tracking/resized", rmw_qos_profile);
-        pub_annotated_frame_ = create_publisher<sensor_msgs::msg::Image>("bob/frames/annotated", pub_qos_profile);
+        pub_annotated_frame_ = create_publisher<sensor_msgs::msg::Image>("bob/frames/annotated", pub_qos_profile_);
         time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::Tracking>>(*sub_masked_frame_, *sub_tracking_, 10);
         time_synchronizer_->registerCallback(&AnnotatedFrameProvider::callback, this);
 
-        roi_subscription_ = create_subscription<sensor_msgs::msg::RegionOfInterest>(
-            "bob/mask/roi", sub_qos_profile,
-            std::bind(&AnnotatedFrameProvider::roi_callback, this, std::placeholders::_1));
+        roi_subscription_ = create_subscription<sensor_msgs::msg::RegionOfInterest>("bob/mask/roi", sub_qos_profile, std::bind(&AnnotatedFrameProvider::roi_callback, this, std::placeholders::_1));
     }
 
     void declare_node_parameters()
@@ -89,6 +93,21 @@ private:
                 rclcpp::Parameter("tracking_status_message", false), 
                 [this](const rclcpp::Parameter& param) {enable_tracking_status_ = param.as_bool();}
             ),                     
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("image_resized_publish_topic", "bob/frames/allsky/original/resized"), 
+                [this](const rclcpp::Parameter& param) {
+                    image_resized_publish_topic_ = param.as_string();
+                    if (!image_resized_publish_topic_.empty())
+                    {
+                        image_resized_publisher_ = create_publisher<sensor_msgs::msg::Image>(image_resized_publish_topic_, pub_qos_profile_);
+                    }
+                    else
+                    {
+                        image_resized_publisher_.reset();
+                        RCLCPP_INFO(get_logger(), "Resizer topic disabled");
+                    }
+                }
+            ),
         };
         add_action_parameters(params);
     }
@@ -121,6 +140,30 @@ private:
         {
             RCLCPP_ERROR(get_logger(), "Open CV exception: %s", cve.what());
         }        
+    }
+
+    inline void publish_resized_frame(const RosCvImageMsg & image_msg)
+    {
+        if (!image_resized_publisher_ || (count_subscribers(image_resized_publish_topic_) <= 0))
+        {
+            return;
+        }
+        // TODO: Think about replacing the resized_img by the RosCvImageMsg, has to take into consideration the resizing of the resize_height and the image
+        cv::Mat resized_img;
+        if ((resize_height_ > 0) && (resize_height_ != image_msg.image_ptr->size().height))
+        {
+            const double aspect_ratio = (double)image_msg.image_ptr->size().width / (double)image_msg.image_ptr->size().height;
+            const int frame_height = resize_height_;
+            const int frame_width = (int)(aspect_ratio * (double)frame_height);
+            cv::resize(*image_msg.image_ptr, resized_img, cv::Size(frame_width, frame_height));
+        }
+        else
+        {
+            resized_img = *image_msg.image_ptr;
+        }
+
+        auto resized_frame_msg = cv_bridge::CvImage(image_msg.msg_ptr->header, image_msg.msg_ptr->encoding, resized_img).toImageMsg();
+        image_resized_publisher_->publish(*resized_frame_msg);            
     }
 };
 

@@ -55,8 +55,6 @@ public:
 
     void init()
     {
-        //init_sensitivity(sensitivity_);
-
         mask_timer_ = node_.create_wall_timer(std::chrono::seconds(60), std::bind(&BackgroundSubtractorWorker::mask_timer_callback, this));
         mask_timer_callback(); // Calling it the first time
     }
@@ -72,7 +70,10 @@ public:
         {
             params_.bgs_type = BackgroundSubtractorWorkerParams::BGSType::WMV;
         }
-        bgsPtr = createBGS(params_.bgs_type);
+        if (!params_.sensitivity.empty())
+        {
+            bgsPtr = createBGS(params_.bgs_type);
+        }
         ready_ = true;
     }
 
@@ -160,10 +161,9 @@ public:
                     state.max_blobs_reached = false;
                     add_bboxes(bbox2D_array, bboxes);
                 }
-                else if(det_result == boblib::blobs::DetectionResult::MaxBlobsReached)
+                else if (det_result == boblib::blobs::DetectionResult::MaxBlobsReached)
                 {
                     state.max_blobs_reached = true;
-                    //RCLCPP_WARN(get_logger(), "Maximum blobs reached - please check detection mask");
                 }
                 
                 params_.state_publisher->publish(state);
@@ -171,7 +171,7 @@ public:
             }
             catch (std::exception &cve)
             {
-                RCLCPP_ERROR(node_.get_logger(), "Open CV exception: %s", cve.what());
+                RCLCPP_ERROR(node_.get_logger(), "Exception: %s", cve.what());
             }
         }
     }
@@ -180,19 +180,6 @@ private:
     ParameterNode & node_;
 
     BackgroundSubtractorWorkerParams & params_;
-
-    // rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
-    // rclcpp::Publisher<bob_interfaces::msg::DetectorBBoxArray>::SharedPtr detection_publisher_;
-    // rclcpp::Publisher<bob_interfaces::msg::DetectorState>::SharedPtr state_publisher_;
-    // rclcpp::Publisher<sensor_msgs::msg::RegionOfInterest>::SharedPtr roi_publisher_;
-    // rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_resized_publisher_;
-
-    // BGSType bgs_type_;
-    // bool median_filter_;
-    // bool mask_enable_override_;
-    // bool mask_enable_roi_;
-    // std::string mask_filename_;
-    // int resize_height_;
 
     bool ready_;
     bool mask_enabled_;

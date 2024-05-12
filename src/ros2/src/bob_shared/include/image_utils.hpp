@@ -3,6 +3,7 @@
 #define __IMAGE_UTILS_H__
 
 #include <opencv2/opencv.hpp>
+#include <cv_bridge/cv_bridge.hpp>
 
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/image_encodings.hpp>
@@ -15,13 +16,11 @@ public:
     {
         if (!copy)
         {
-            auto img = cv_bridge::toCvShare(image_msg)->image;
-            debayer_image(img, _image_out, image_msg->encoding, debayer);
+            debayer_image(cv_bridge::toCvShare(image_msg)->image, _image_out, image_msg->encoding, debayer);
         }
         else
         {
-            auto img = cv_bridge::toCvCopy(image_msg)->image;
-            debayer_image(img, _image_out, image_msg->encoding, debayer);
+            debayer_image(cv_bridge::toCvCopy(image_msg)->image, _image_out, image_msg->encoding, debayer);
         }
     }
 

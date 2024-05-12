@@ -66,7 +66,6 @@ private:
     bob_camera::msg::CameraInfo camera_info_msg_;
     int camera_id_;
     int resize_height_;
-    std::unique_ptr<RosCvImageMsg> roscv_image_resize_msg_ptr;
     std::vector<std::string> videos_;
     uint32_t current_video_idx_;
     std::string image_publish_topic_;

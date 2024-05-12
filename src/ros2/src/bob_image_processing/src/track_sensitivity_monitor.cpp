@@ -32,8 +32,9 @@ private:
     };
 
     rclcpp::TimerBase::SharedPtr interval_check_timer_;
-    rclcpp::Client<bob_interfaces::srv::SensitivityChangeRequest>::SharedPtr sensitivity_change_client_;
     rclcpp::Subscription<bob_interfaces::msg::MonitoringStatus>::SharedPtr monitoring_subscription_;
+
+    rclcpp::AsyncParametersClient::SharedPtr sensitivity_param_client_;
 
     bob_interfaces::msg::MonitoringStatus::SharedPtr status_msg_;
 
@@ -66,7 +67,7 @@ private:
         interval_check_timer_ = create_wall_timer(std::chrono::seconds(check_interval_), 
             std::bind(&TrackSensitivityMonitor::interval_check_timer_callback, this));
 
-        sensitivity_change_client_ = create_client<bob_interfaces::srv::SensitivityChangeRequest>("bob/bgs/sensitivity_update");
+        sensitivity_param_client_ = std::make_shared<rclcpp::AsyncParametersClient>(this, "background_subtractor_node");
 
         monitoring_subscription_ = create_subscription<bob_interfaces::msg::MonitoringStatus>(
             "bob/monitoring/status", 
@@ -252,34 +253,48 @@ private:
 
                 if (updating)
                 {
-                    auto sensitivity_change_request = std::make_shared<bob_interfaces::srv::SensitivityChangeRequest::Request>();
-                    sensitivity_change_request->sensitivity = sensitivity_;
-                    if (sensitivity_change_client_->service_is_ready())
-                    {
-                        auto result = sensitivity_change_client_->async_send_request(sensitivity_change_request, 
-                            std::bind(&TrackSensitivityMonitor::sensitivity_change_request_callback, 
-                            this, 
-                            std::placeholders::_1));
-                    }
+                    change_parameter_async("sensitivity", sensitivity_);
                 }
             }
         }
     }
 
-    void sensitivity_change_request_callback(rclcpp::Client<bob_interfaces::srv::SensitivityChangeRequest>::SharedFuture future)
+    void change_parameter_async(const std::string &param_name, const std::string &param_value) 
     {
-        auto response = future.get();
-        if(response->success)
+        if (!sensitivity_param_client_->service_is_ready()) 
+        {
+            RCLCPP_INFO(this->get_logger(), "Parameter service not ready, waiting...");
+            return;
+        }
+
+        auto parameters = std::vector<rclcpp::Parameter>{rclcpp::Parameter(param_name, param_value)};
+        auto result_future = sensitivity_param_client_->set_parameters(parameters, 
+            std::bind(&TrackSensitivityMonitor::async_sensitivity_change_request_callback, this, std::placeholders::_1));
+    }
+
+    void async_sensitivity_change_request_callback(std::shared_future<std::vector<rcl_interfaces::msg::SetParametersResult>> future) 
+    {
+        bool param_result = true;
+        for (const auto& result : future.get()) 
+        {
+            if (!result.successful)
+            {
+                param_result = false;
+                break;
+            }
+        }
+        if (param_result)
         {            
-            RCLCPP_INFO(get_logger(), "Sensitivity change completed, from %s to %s - reason: %s", 
-                response->sensitivity_from.c_str(), response->sensitivity_to.c_str(), change_reason_.c_str());
+            RCLCPP_INFO(get_logger(), "Sensitivity change completed");
             
             // reset the counter
             sensitivity_increase_check_counter_ = 0;
             sensitivity_change_action_ = Ignore;
         }
         else
+        {
             RCLCPP_WARN(get_logger(), "Sensitivity change failed");
+        }
     }
 };
 
