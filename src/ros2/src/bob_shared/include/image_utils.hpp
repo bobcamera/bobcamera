@@ -16,7 +16,9 @@ public:
     {
         if (!copy)
         {
+            // debayer_image(cv_bridge::toCvShare(image_msg)->image, _image_out, image_msg->encoding, debayer);
             debayer_image(cv_bridge::toCvShare(image_msg)->image, _image_out, image_msg->encoding, debayer);
+            cv::Mat(image.size(), image.type(), reinterpret_cast<void *>(&image_msg->data[0]))
         }
         else
         {
@@ -45,7 +47,7 @@ public:
         return cv::COLOR_BayerGR2BGR;
     }
 
-    static void debayer_image(const cv::Mat &_image_in, cv::Mat &_image_out, const std::string& _bayerFormatStr, bool debayer)
+    static void debayer_image(const cv::Mat & _image_in, cv::Mat & _image_out, const std::string & _bayerFormatStr, bool debayer)
     {
         if (debayer 
             &&_bayerFormatStr != sensor_msgs::image_encodings::BGR8 
@@ -87,7 +89,7 @@ public:
     }
 
 private:
-    void CreateImageMsg(const cv::Mat & image, const std::string & encoding, bool copy_img)
+    inline void CreateImageMsg(const cv::Mat & image, const std::string & encoding, bool copy_img)
     {
         msg_ptr = std::make_shared<sensor_msgs::msg::Image>();
 

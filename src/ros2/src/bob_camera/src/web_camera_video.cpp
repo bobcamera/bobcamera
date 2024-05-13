@@ -22,7 +22,8 @@
 #include "image_utils.hpp"
 #include <visibility_control.h>
 
-enum class SourceType {
+enum class SourceType 
+{
     USB_CAMERA,
     VIDEO_FILE,
     RTSP_STREAM
@@ -35,79 +36,85 @@ public:
     COMPOSITION_PUBLIC
     explicit WebCameraVideo(const rclcpp::NodeOptions & options)
         : ParameterNode("web_camera_video_node", options)
+        , mask_enable_override_(true)
+        , mask_enable_roi_(false)
         , current_video_idx_(0)
         , run_(false)
         , fps_(25.0)
-        , mask_enable_override_(true)
         , mask_enabled_(false)
-        , mask_enable_roi_(false)
     {
         qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
         qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
         qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
 
-        one_shot_timer_ = create_wall_timer(std::chrono::seconds(2), std::bind(&WebCameraVideo::init, this));
+        one_shot_timer_ = create_wall_timer(std::chrono::seconds(2), [this](){init();});
     }
 
-    ~WebCameraVideo()
+    virtual ~WebCameraVideo()
     {
         stop_capture();
     }
 
 private:
-    rclcpp::Client<bob_interfaces::srv::CameraSettings>::SharedPtr camera_settings_client_;
-    rclcpp::Client<bob_interfaces::srv::ConfigEntryUpdate>::SharedPtr fps_update_client_;
-    rclcpp::QoS qos_profile_{10}; 
-    cv::VideoCapture video_capture_;
+    // Configurable params
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_resized_publisher_;
     rclcpp::Publisher<bob_camera::msg::ImageInfo>::SharedPtr image_info_publisher_;
     rclcpp::Publisher<bob_camera::msg::CameraInfo>::SharedPtr camera_info_publisher_;
-    bob_camera::msg::CameraInfo camera_info_msg_;
+    rclcpp::Publisher<sensor_msgs::msg::RegionOfInterest>::SharedPtr roi_publisher_;
+
     int camera_id_;
     int resize_height_;
     std::vector<std::string> videos_;
-    uint32_t current_video_idx_;
     std::string image_publish_topic_;
     std::string image_info_publish_topic_;
     std::string camera_info_publish_topic_;
     std::string image_resized_publish_topic_;
-    
-    rclcpp::TimerBase::SharedPtr one_shot_timer_;
     SourceType source_type_;
     std::string rtsp_uri_;
     std::string onvif_host_;
     int onvif_port_;
     std::string onvif_user_;
     std::string onvif_password_;
-    
-    std::thread capture_thread_;
-    bool run_;
-    double fps_;
-
-    rclcpp::TimerBase::SharedPtr mask_timer_;
     bool mask_enable_override_;
-    bool mask_enabled_;
     bool mask_enable_roi_;
     std::string mask_filename_;
-    std::optional<std::filesystem::file_time_type> mask_last_modified_time_;
-    rclcpp::Publisher<sensor_msgs::msg::RegionOfInterest>::SharedPtr roi_publisher_;
+    
+    // Node params
+    rclcpp::QoS qos_profile_{10}; 
+
+    rclcpp::Client<bob_interfaces::srv::CameraSettings>::SharedPtr camera_settings_client_;
+    rclcpp::Client<bob_interfaces::srv::ConfigEntryUpdate>::SharedPtr fps_update_client_;
     rclcpp::Service<bob_interfaces::srv::MaskOverrideRequest>::SharedPtr mask_override_service_;
+    rclcpp::TimerBase::SharedPtr one_shot_timer_;
+
+    // WebCam Params
+    cv::VideoCapture video_capture_;
+    bob_camera::msg::CameraInfo camera_info_msg_;
+    rclcpp::TimerBase::SharedPtr mask_timer_;
+    std::jthread capture_thread_;
+    uint32_t current_video_idx_;
+    bool run_;
+    double fps_;
+    bool mask_enabled_;
+    std::optional<std::filesystem::file_time_type> mask_last_modified_time_;
     cv::Mat grey_mask_;
     cv::Rect bounding_box_;
 
     void init()
     {
-        one_shot_timer_->cancel();
         one_shot_timer_.reset();
 
         camera_settings_client_ = create_client<bob_interfaces::srv::CameraSettings>("bob/camera/settings");
         fps_update_client_ = create_client<bob_interfaces::srv::ConfigEntryUpdate>("bob/config/update/fps");
-        mask_override_service_ = create_service<bob_interfaces::srv::MaskOverrideRequest>("bob/mask/override", 
-            std::bind(&WebCameraVideo::mask_override_request, this, std::placeholders::_1, std::placeholders::_2));
+        mask_override_service_ = create_service<bob_interfaces::srv::MaskOverrideRequest>("bob/mask/override",
+            [this](const std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Request> request, 
+                    std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Response> response) {
+                        mask_override_request(request, response);
+                    });
 
         roi_publisher_ = create_publisher<sensor_msgs::msg::RegionOfInterest>("bob/mask/roi", qos_profile_);
-        mask_timer_ = create_wall_timer(std::chrono::seconds(60), std::bind(&WebCameraVideo::mask_timer_callback, this));
+        mask_timer_ = create_wall_timer(std::chrono::seconds(60), [this](){mask_timer_callback();});
         mask_timer_callback(); // Calling it the first time
 
         declare_node_parameters();    
@@ -178,20 +185,18 @@ private:
         }        
     }
 
-    inline void publish_resized_frame(const RosCvImageMsg & image_msg)
+    inline void publish_resized_frame(const RosCvImageMsg & image_msg) const
     {
         if (!image_resized_publisher_ || (count_subscribers(image_resized_publish_topic_) <= 0))
         {
             return;
         }
-        // TODO: Think about replacing the resized_img by the RosCvImageMsg, has to take into consideration the resizing of the resize_height and the image
         cv::Mat resized_img;
         if (resize_height_ > 0)
         {
             const double aspect_ratio = (double)image_msg.image_ptr->size().width / (double)image_msg.image_ptr->size().height;
-            const int frame_height = resize_height_;
-            const int frame_width = (int)(aspect_ratio * (double)frame_height);
-            cv::resize(*image_msg.image_ptr, resized_img, cv::Size(frame_width, frame_height));
+            const auto frame_width = (int)(aspect_ratio * (double)resize_height_);
+            cv::resize(*image_msg.image_ptr, resized_img, cv::Size(frame_width, resize_height_));
         }
         else
         {
@@ -205,7 +210,7 @@ private:
     void start_capture()
 	{
 		run_ = true;
-		capture_thread_ = std::thread(&WebCameraVideo::captureLoop, this);
+		capture_thread_ = std::jthread(&WebCameraVideo::captureLoop, this);
 	}
 
 	void stop_capture()
@@ -259,21 +264,29 @@ private:
             ParameterNode::ActionParam(
                 rclcpp::Parameter("source_type", "USB_CAMERA"), 
                 [this](const rclcpp::Parameter& param) {
+                    using enum SourceType;
                     std::string type = param.as_string();
-                    if (type == "USB_CAMERA") {
-                        source_type_ = SourceType::USB_CAMERA;
-                    } else if (type == "VIDEO_FILE") {
-                        source_type_ = SourceType::VIDEO_FILE;
-                    } else if (type == "RTSP_STREAM") {
-                        source_type_ = SourceType::RTSP_STREAM;
-                    } else {
+                    if (type == "USB_CAMERA") 
+                    {
+                        source_type_ = USB_CAMERA;
+                    } 
+                    else if (type == "VIDEO_FILE") 
+                    {
+                        source_type_ = VIDEO_FILE;
+                    } 
+                    else if (type == "RTSP_STREAM") 
+                    {
+                        source_type_ = RTSP_STREAM;
+                    } 
+                    else
+                    {
                         RCLCPP_ERROR(get_logger(), "Invalid source type: %s", type.c_str());
                     }
                 }
             ),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("camera_id", 0), 
-                [this](const rclcpp::Parameter& param) {camera_id_ = param.as_int();}
+                [this](const rclcpp::Parameter& param) {camera_id_ = static_cast<int>(param.as_int());}
             ),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("videos", std::vector<std::string>({""})), 
@@ -285,25 +298,24 @@ private:
             ),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("onvif_host", "192.168.1.20"),
-                [this](const rclcpp::Parameter& param) {onvif_host_ = param.as_string(); }
+                [this](const rclcpp::Parameter& param) {onvif_host_ = param.as_string();}
             ),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("onvif_port", 80),
-                [this](const rclcpp::Parameter& param) {onvif_port_ = param.as_int(); }
+                [this](const rclcpp::Parameter& param) {onvif_port_ = static_cast<int>(param.as_int());}
             ),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("onvif_user", "default_user"),
-                [this](const rclcpp::Parameter& param) {onvif_user_ = param.as_string(); }
+                [this](const rclcpp::Parameter& param) {onvif_user_ = param.as_string();}
             ),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("onvif_password", "default_password"),
-                [this](const rclcpp::Parameter& param) {onvif_password_ = param.as_string(); }
+                [this](const rclcpp::Parameter& param) {onvif_password_ = param.as_string();}
             ),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("resize_height", 960), 
                 [this](const rclcpp::Parameter& param) {
-                    resize_height_ = param.as_int();
-                    
+                    resize_height_ = static_cast<int>(param.as_int());
                 }
             ),
             // MASK parameters
@@ -319,8 +331,8 @@ private:
         add_action_parameters(params);
     }
 
-    void request_camera_settings(const std::string& host, int port, const std::string& user, const std::string& password,
-                                std::function<void(const bob_interfaces::srv::CameraSettings::Response::SharedPtr&)> user_callback)
+    void request_camera_settings(const std::string_view & host, int port, const std::string_view& user, const std::string_view& password,
+                                const std::function<void(const bob_interfaces::srv::CameraSettings::Response::SharedPtr&)> & user_callback) const
     {
         auto request = std::make_shared<bob_interfaces::srv::CameraSettings::Request>();
         request->host = host;
@@ -328,9 +340,10 @@ private:
         request->user = user;
         request->password = password;
 
-        auto response_received_callback = [this, user_callback](rclcpp::Client<bob_interfaces::srv::CameraSettings>::SharedFuture future) {
+        auto response_received_callback = [user_callback](rclcpp::Client<bob_interfaces::srv::CameraSettings>::SharedFuture future) 
+        {
             auto response = future.get();
-            if(response->success)
+            if (response->success)
                 user_callback(response);  
         };
 
@@ -338,16 +351,18 @@ private:
         auto result = camera_settings_client_->async_send_request(request, response_received_callback);
     }
 
-    void request_update_fps(const float fps, std::function<void(const bob_interfaces::srv::ConfigEntryUpdate::Response::SharedPtr&)> user_callback)
+    void request_update_fps(const float fps, 
+            const std::function<void(const bob_interfaces::srv::ConfigEntryUpdate::Response::SharedPtr&)> & user_callback) const
     {
         auto request = std::make_shared<bob_interfaces::srv::ConfigEntryUpdate::Request>();
         request->key = "fps";
         request->type = "double";
         request->value = std::to_string(fps);
 
-        auto response_received_callback = [this, user_callback](rclcpp::Client<bob_interfaces::srv::ConfigEntryUpdate>::SharedFuture future) {
+        auto response_received_callback = [user_callback](rclcpp::Client<bob_interfaces::srv::ConfigEntryUpdate>::SharedFuture future) 
+        {
             auto response = future.get();
-            if(response->success)
+            if (response->success)
             {
                 user_callback(response);
             }
@@ -363,10 +378,10 @@ private:
         {
             case SourceType::USB_CAMERA:
             {
-                camera_id_ = get_parameter("camera_id").get_value<rclcpp::ParameterType::PARAMETER_INTEGER>();
+                camera_id_ = static_cast<int>(get_parameter("camera_id").get_value<rclcpp::ParameterType::PARAMETER_INTEGER>());
                 RCLCPP_INFO(get_logger(), "Camera %d opening", camera_id_);
                 video_capture_.open(camera_id_);
-                setHighestResolution(video_capture_);
+                set_highest_resolution(video_capture_);
             }
             break;
 
@@ -395,10 +410,10 @@ private:
         }
     }
 
-
-    inline bool setHighestResolution(cv::VideoCapture &cap)
+    inline bool set_highest_resolution(cv::VideoCapture & cap) const
     {
-        std::vector<std::pair<int, int>> resolutions = {
+        static const std::vector<std::pair<int, int>> resolutions = 
+        {
             {3840, 2160},  // 4K UHD
             {2560, 1440}, // QHD, WQHD, 2K
             {1920, 1080}, // Full HD
@@ -410,16 +425,15 @@ private:
             {320, 240}   // QVGA
         };
 
-        std::vector<std::pair<int, int>> supportedResolutions;
-        for (const auto &resolution : resolutions)
+        for (const auto & [width, height] : resolutions)
         {
-            cap.set(cv::CAP_PROP_FRAME_WIDTH, resolution.first);
-            cap.set(cv::CAP_PROP_FRAME_HEIGHT, resolution.second);
+            cap.set(cv::CAP_PROP_FRAME_WIDTH, width);
+            cap.set(cv::CAP_PROP_FRAME_HEIGHT, height);
 
-            if (cap.get(cv::CAP_PROP_FRAME_WIDTH) == resolution.first &&
-                cap.get(cv::CAP_PROP_FRAME_HEIGHT) == resolution.second)
+            if ((cap.get(cv::CAP_PROP_FRAME_WIDTH) == width) &&
+                (cap.get(cv::CAP_PROP_FRAME_HEIGHT) == height))
             {
-                RCLCPP_INFO(get_logger(), "Setting resolution for %d x %d", resolution.first, resolution.second);
+                RCLCPP_INFO(get_logger(), "Setting resolution for %d x %d", width, height);
                 return true;
             }
         }
@@ -427,7 +441,7 @@ private:
         return false;
     }
 
-    inline bob_camera::msg::ImageInfo generate_image_info(std_msgs::msg::Header &header, const cv::Mat& image)
+    inline bob_camera::msg::ImageInfo generate_image_info(const std_msgs::msg::Header & header, const cv::Mat & image) const
     {
         bob_camera::msg::ImageInfo image_info_msg;
         image_info_msg.header = header;
@@ -437,7 +451,6 @@ private:
         image_info_msg.roi.width = image.size().width;
         image_info_msg.roi.height = image.size().height;
         image_info_msg.bpp = image.elemSize1() == 1 ? 8 : 16;
-        // image_info_msg.bayer_format = image.channels() == 1 ? boblib::camera::QhyCamera::BayerFormat::Mono : boblib::camera::QhyCamera::BayerFormat::Color;
         image_info_msg.exposure = 0;
         image_info_msg.gain = 0;
         image_info_msg.offset = 0;
@@ -530,6 +543,7 @@ private:
 
     void mask_timer_callback()
     {
+        RCLCPP_INFO(this->get_logger(), "mask_timer_callback");
         mask_timer_->cancel();
         try
         {

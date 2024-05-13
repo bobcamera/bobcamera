@@ -46,7 +46,6 @@ private:
 
     bool mask_enable_override_;
     std::string mask_filename_;
-    int resize_height_;
 
     void init()
     {
@@ -59,13 +58,12 @@ private:
         pub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
 
         bgs_worker_ptr_ = std::make_unique<BackgroundSubtractorWorker>(*this, params_);
-
         bgs_worker_ptr_->init();
 
         declare_node_parameters();
 
         image_subscription_ = create_subscription<sensor_msgs::msg::Image>("bob/frames/allsky/original", sub_qos_profile_,
-            std::bind(&BackgroundSubtractor2::imageCallback, this, std::placeholders::_1));
+            [this](const sensor_msgs::msg::Image::SharedPtr img_msg){imageCallback(img_msg);});
         params_.image_publisher = create_publisher<sensor_msgs::msg::Image>("bob/frames/foreground_mask", pub_qos_profile_);
         params_.detection_publisher = create_publisher<bob_interfaces::msg::DetectorBBoxArray>("bob/detection/allsky/boundingboxes", pub_qos_profile_);        
         params_.state_publisher = create_publisher<bob_interfaces::msg::DetectorState>("bob/detection/detector_state", pub_qos_profile_);
@@ -139,7 +137,7 @@ private:
                 rclcpp::Parameter("resize_height", 960), 
                 [this](const rclcpp::Parameter& param) 
                 {
-                    params_.resize_height = param.as_int();
+                    params_.resize_height = static_cast<int>(param.as_int());
                 }
             ),        
         };

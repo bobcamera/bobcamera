@@ -81,5 +81,6 @@
     "cSpell.words": [
         "rclcpp"
     ],
-    "cmake.configureOnOpen": false
+    "cmake.configureOnOpen": false,
+    "sonarlint.pathToCompileCommands": "${workspaceFolder}/build/compile_commands.json"
 }

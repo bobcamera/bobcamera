@@ -23,15 +23,21 @@ public:
         {}
     };
 
-    ParameterNode(const std::string &node_name)
+    explicit ParameterNode(const std::string &node_name)
         : ParameterNode(node_name, *default_options())
     {
     }
 
-    ParameterNode(const std::string &node_name, const rclcpp::NodeOptions & options)
+    explicit ParameterNode(const std::string &node_name, const rclcpp::NodeOptions & options)
         : Node(node_name, options)
     {
         parameters_callback_handle_ = add_on_set_parameters_callback(std::bind(&ParameterNode::param_change_callback_method, this, std::placeholders::_1));
+    }
+
+    static std::string generate_uuid()
+    {
+        boost::uuids::random_generator uuid_generator;
+        return boost::uuids::to_string(uuid_generator());
     }
 
 protected:
@@ -51,12 +57,6 @@ protected:
         {
             it->second.action(_param);
         }
-    }
-
-    static std::string generate_uuid()
-    {
-        boost::uuids::random_generator uuid_generator;
-        return boost::uuids::to_string(uuid_generator());
     }
 
 private:
