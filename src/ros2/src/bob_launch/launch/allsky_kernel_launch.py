@@ -77,7 +77,7 @@ def generate_launch_description():
             ) , 
             ComposableNode(
                 package='bob_camera',
-                plugin='WebCameraVideo',
+                plugin='WebCameraVideo2',
                 name='web_camera_video_overlay_node',
                 namespace=namespace,
                 parameters = [config],

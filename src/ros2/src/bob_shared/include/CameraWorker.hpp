@@ -108,7 +108,7 @@ private:
         rclcpp::WallRate loop_rate(fps_);
 
         std::unique_ptr<RosCvImageMsg> roscv_image_msg_ptr = RosCvImageMsg::create(video_capture_);
-        
+
         while (run_)
         {
             if (!video_capture_.read(*roscv_image_msg_ptr->image_ptr))

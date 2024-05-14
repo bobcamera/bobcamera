@@ -16,9 +16,7 @@ public:
     {
         if (!copy)
         {
-            // debayer_image(cv_bridge::toCvShare(image_msg)->image, _image_out, image_msg->encoding, debayer);
             debayer_image(cv_bridge::toCvShare(image_msg)->image, _image_out, image_msg->encoding, debayer);
-            cv::Mat(image.size(), image.type(), reinterpret_cast<void *>(&image_msg->data[0]))
         }
         else
         {
