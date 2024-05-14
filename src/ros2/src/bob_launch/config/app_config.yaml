@@ -226,6 +226,7 @@ allsky_recorder_node:
 annotated_frame_provider_node:
   ros__parameters:
     tracking_status_message: False
+    image_resized_publish_topic: '/bob/frames/annotated/resized'
 
 original_frame_resizer_node:
   ros__parameters:

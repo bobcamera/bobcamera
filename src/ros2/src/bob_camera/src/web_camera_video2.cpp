@@ -1,24 +1,14 @@
 #include <chrono>
 #include <string>
-#include <filesystem>
 
 #include <opencv2/opencv.hpp>
-#include <cv_bridge/cv_bridge.hpp>
 
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
-#include <sensor_msgs/msg/image.hpp>
-#include <bob_camera/msg/image_info.hpp>
-#include <bob_camera/msg/camera_info.hpp>
-#include <bob_interfaces/srv/camera_settings.hpp>
-#include <bob_interfaces/srv/config_entry_update.hpp>
-#include <rclcpp/experimental/executors/events_executor/events_executor.hpp>
-#include <sensor_msgs/msg/region_of_interest.hpp>
-#include <bob_interfaces/srv/bgs_reset_request.hpp>
 #include <bob_interfaces/srv/mask_override_request.hpp>
+#include <sensor_msgs/msg/region_of_interest.hpp>
 
 #include "parameter_node.hpp"
-#include "boblib/api/utils/profiler.hpp"
 #include "image_utils.hpp"
 #include <visibility_control.h>
 
@@ -43,9 +33,7 @@ private:
     CameraWorkerParams params_;
     std::unique_ptr<CameraWorker> camera_worker_ptr_;
 
-    // Node params
     rclcpp::QoS qos_profile_{10}; 
-
     rclcpp::Service<bob_interfaces::srv::MaskOverrideRequest>::SharedPtr mask_override_service_;
     rclcpp::TimerBase::SharedPtr one_shot_timer_;
 

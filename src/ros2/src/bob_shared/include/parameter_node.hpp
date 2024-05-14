@@ -40,6 +40,16 @@ public:
         return boost::uuids::to_string(uuid_generator());
     }
 
+    template <class T>
+    inline void publish_if_subscriber(rclcpp::Publisher<T>::SharedPtr publisher, T message) const
+    {
+        if (!publisher || (count_subscribers(publisher->get_topic_name()) <= 0))
+        {
+            return;
+        }
+        publisher->publish(message);
+    }
+
 protected:
     void add_action_parameters(const std::vector<ActionParam>& action_params)
     {

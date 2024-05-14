@@ -21,18 +21,19 @@
 
 #include <rclcpp/experimental/executors/events_executor/events_executor.hpp>
 
-class AnnotatedFrameProvider : public ParameterNode
+class AnnotatedFrameProvider 
+    : public ParameterNode
 {
 public:
     COMPOSITION_PUBLIC
     explicit AnnotatedFrameProvider(const rclcpp::NodeOptions & options)
-        : ParameterNode("annotated_frame_provider_node", options),
-          annotated_frame_creator_(std::map<std::string, std::string>()),
-        x_offset_(0),
-        y_offset_(0),
-        enable_tracking_status_(true)
+        : ParameterNode("annotated_frame_provider_node", options)
+        ,  annotated_frame_creator_(std::map<std::string, std::string>())
+        , x_offset_(0)
+        , y_offset_(0)
+        , enable_tracking_status_(true)
     {
-        timer_ = create_wall_timer(std::chrono::seconds(1), std::bind(&AnnotatedFrameProvider::init, this));
+        timer_ = create_wall_timer(std::chrono::seconds(1), [this](){ init(); });
     }
 
 private:
@@ -46,7 +47,6 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_annotated_frame_;
     AnnotatedFrameCreator annotated_frame_creator_;
     rclcpp::TimerBase::SharedPtr timer_;
-    rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr pub_annotated_frame_compressed_;
 
     std::unique_ptr<RosCvImageMsg> ros_cv_annotated_frame_;
 
@@ -83,7 +83,7 @@ private:
         time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::Tracking>>(*sub_masked_frame_, *sub_tracking_, 10);
         time_synchronizer_->registerCallback(&AnnotatedFrameProvider::callback, this);
 
-        roi_subscription_ = create_subscription<sensor_msgs::msg::RegionOfInterest>("bob/mask/roi", sub_qos_profile, std::bind(&AnnotatedFrameProvider::roi_callback, this, std::placeholders::_1));
+        roi_subscription_ = create_subscription<sensor_msgs::msg::RegionOfInterest>("bob/mask/roi", sub_qos_profile, [this](const sensor_msgs::msg::RegionOfInterest::SharedPtr roi_msg) { roi_callback(roi_msg); });
     }
 
     void declare_node_parameters()
@@ -108,6 +108,13 @@ private:
                     }
                 }
             ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("resize_height", 960), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    resize_height_ = static_cast<int>(param.as_int());
+                }
+            ),
         };
         add_action_parameters(params);
     }
@@ -126,15 +133,12 @@ private:
             cv::Mat img;
             ImageUtils::convert_image_msg(image_msg, img, true);
 
-            // if (!ros_cv_annotated_frame_ || (img.size() != ros_cv_annotated_frame_->image_ptr->size()))
-            // {
-            //     ros_cv_annotated_frame_ = std::make_unique<RosCvImageMsg>(img, sensor_msgs::image_encodings::BGR8, false);
-            // }
-
             annotated_frame_creator_.create_frame(img, *tracking, x_offset_, y_offset_, enable_tracking_status_);
 
             auto annotated_frame_msg = cv_bridge::CvImage(image_msg->header, sensor_msgs::image_encodings::BGR8, img).toImageMsg();
-            pub_annotated_frame_->publish(*annotated_frame_msg);            
+            pub_annotated_frame_->publish(*annotated_frame_msg);
+
+            publish_resized_frame(annotated_frame_msg, img);
         }
         catch (cv::Exception &cve)
         {
@@ -142,28 +146,26 @@ private:
         }        
     }
 
-    inline void publish_resized_frame(const RosCvImageMsg & image_msg)
+    inline void publish_resized_frame(const std::shared_ptr<sensor_msgs::msg::Image> & annotated_frame_msg, const cv::Mat & img) const
     {
         if (!image_resized_publisher_ || (count_subscribers(image_resized_publish_topic_) <= 0))
         {
             return;
         }
-        // TODO: Think about replacing the resized_img by the RosCvImageMsg, has to take into consideration the resizing of the resize_height and the image
-        cv::Mat resized_img;
-        if ((resize_height_ > 0) && (resize_height_ != image_msg.image_ptr->size().height))
+        if ((resize_height_ > 0) && (resize_height_ != img.size().height))
         {
-            const double aspect_ratio = (double)image_msg.image_ptr->size().width / (double)image_msg.image_ptr->size().height;
-            const int frame_height = resize_height_;
-            const int frame_width = (int)(aspect_ratio * (double)frame_height);
-            cv::resize(*image_msg.image_ptr, resized_img, cv::Size(frame_width, frame_height));
+            cv::Mat resized_img;
+            const double aspect_ratio = (double)img.size().width / (double)img.size().height;
+            const auto frame_width = (int)(aspect_ratio * (double)resize_height_);
+            cv::resize(img, resized_img, cv::Size(frame_width, resize_height_));
+
+            auto resized_frame_msg = cv_bridge::CvImage(annotated_frame_msg->header, annotated_frame_msg->encoding, resized_img).toImageMsg();
+            image_resized_publisher_->publish(*resized_frame_msg);
         }
         else
         {
-            resized_img = *image_msg.image_ptr;
+            image_resized_publisher_->publish(*annotated_frame_msg);
         }
-
-        auto resized_frame_msg = cv_bridge::CvImage(image_msg.msg_ptr->header, image_msg.msg_ptr->encoding, resized_img).toImageMsg();
-        image_resized_publisher_->publish(*resized_frame_msg);            
     }
 };
 

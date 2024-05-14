@@ -57,37 +57,35 @@ struct CameraWorkerParams
 class CameraWorker
 {
 public:
-    explicit CameraWorker(ParameterNode & node, CameraWorkerParams & params)
+    explicit CameraWorker(ParameterNode & node, CameraWorkerParams & params, const std::function<void(const cv::Mat &)> & user_callback = nullptr)
         : node_(node)
         , params_(params)
-        , current_video_idx_(0)
-        , run_(false)
-        , fps_(25.0)
-        , mask_enabled_(false)
+        , user_callback_(user_callback)
     {
     }
 
     void init()
     {
+        current_video_idx_ = 0;
+        run_ = false;
+        fps_ = 25.0;
+        mask_enabled_ = false;
+
         camera_settings_client_ = node_.create_client<bob_interfaces::srv::CameraSettings>("bob/camera/settings");
         fps_update_client_ = node_.create_client<bob_interfaces::srv::ConfigEntryUpdate>("bob/config/update/fps");
 
-        mask_timer_ = node_.create_wall_timer(std::chrono::seconds(60), [this](){mask_timer_callback();});
+        mask_timer_ = node_.create_wall_timer(std::chrono::seconds(30), [this](){mask_timer_callback();});
         mask_timer_callback(); // Calling it the first time
         open_camera();
         start_capture();
     }
 
-    ~CameraWorker()
-    {
-        stop_capture();
-    }
-
 private:
     ParameterNode & node_;
     CameraWorkerParams & params_;
+
+    std::function<void(const cv::Mat &)> user_callback_;
     
-    // WebCam Params
     rclcpp::Client<bob_interfaces::srv::CameraSettings>::SharedPtr camera_settings_client_;
     rclcpp::Client<bob_interfaces::srv::ConfigEntryUpdate>::SharedPtr fps_update_client_;
 
@@ -128,11 +126,14 @@ private:
 
             publish_resized_frame(*roscv_image_msg_ptr);
 
-            auto image_info_msg = generate_image_info(roscv_image_msg_ptr->get_header(), *roscv_image_msg_ptr->image_ptr);
-            params_.image_info_publisher->publish(image_info_msg);
+            publish_image_info(roscv_image_msg_ptr->get_header(), *roscv_image_msg_ptr->image_ptr);
 
-            camera_info_msg_.header = roscv_image_msg_ptr->get_header();
-            params_.camera_info_publisher->publish(camera_info_msg_);
+            publish_camera_info(roscv_image_msg_ptr->get_header());
+
+            if (user_callback_)
+            {
+                user_callback_(*roscv_image_msg_ptr->image_ptr);
+            }
 
             loop_rate.sleep();  
         }
@@ -272,8 +273,13 @@ private:
         return false;
     }
 
-    inline bob_camera::msg::ImageInfo generate_image_info(const std_msgs::msg::Header & header, const cv::Mat & image) const
+    inline void publish_image_info(const std_msgs::msg::Header & header, const cv::Mat & image) const
     {
+        if (!params_.image_info_publisher || (node_.count_subscribers(params_.image_info_publisher->get_topic_name()) <= 0))
+        {
+            return;
+        }
+
         bob_camera::msg::ImageInfo image_info_msg;
         image_info_msg.header = header;
 
@@ -298,7 +304,18 @@ private:
         image_info_msg.target_temp = 0;
         image_info_msg.auto_exposure = false;
 
-        return image_info_msg;
+        params_.image_info_publisher->publish(image_info_msg);
+    }
+
+    inline void publish_camera_info(const std_msgs::msg::Header & header)
+    {
+        if (!params_.camera_info_publisher || (node_.count_subscribers(params_.camera_info_publisher->get_topic_name()) <= 0))
+        {
+            return;
+        }
+
+        camera_info_msg_.header = header;
+        params_.camera_info_publisher->publish(camera_info_msg_);
     }
 
     void request_camera_settings(const std::string_view & host, int port, const std::string_view& user, const std::string_view& password,
@@ -386,7 +403,7 @@ private:
                 roi_msg.height = bounding_box_.height;
             }
 
-            params_.roi_publisher->publish(roi_msg);
+            node_.publish_if_subscriber(params_.roi_publisher, roi_msg);
 
             RCLCPP_INFO(node_.get_logger(), "Detection frame size determined from mask: %d x %d", roi_msg.width, roi_msg.height);
         }

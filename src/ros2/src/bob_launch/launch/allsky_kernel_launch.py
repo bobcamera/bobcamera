@@ -177,17 +177,17 @@ def generate_launch_description():
             #     parameters = [config],
             #     extra_arguments=[{'use_intra_process_comms': True}],
             # ),
-            ComposableNode(
-                package='bob_image_processing',
-                plugin='FrameResizer',
-                name='annotated_frame_resizer_node',
-                namespace=namespace,
-                remappings=[
-                    ('bob/resizer/source', 'bob/frames/annotated'),
-                    ('bob/resizer/target', 'bob/frames/annotated/resized')],
-                parameters = [config],
-                extra_arguments=[{'use_intra_process_comms': True}]
-            ),             
+            # ComposableNode(
+            #     package='bob_image_processing',
+            #     plugin='FrameResizer',
+            #     name='annotated_frame_resizer_node',
+            #     namespace=namespace,
+            #     remappings=[
+            #         ('bob/resizer/source', 'bob/frames/annotated'),
+            #         ('bob/resizer/target', 'bob/frames/annotated/resized')],
+            #     parameters = [config],
+            #     extra_arguments=[{'use_intra_process_comms': True}]
+            # ),             
         ],
         output='screen',
     )    
