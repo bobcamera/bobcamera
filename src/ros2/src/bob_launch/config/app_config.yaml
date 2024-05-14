@@ -260,19 +260,19 @@ multi_frame_viewer_node:
 
 annotated_frame_compressor_node:
   ros__parameters:
-    compression_quality: 95
+    compression_quality: 75
 
 detection_masked_compressor_node:
   ros__parameters:
-    compression_quality: 95
+    compression_quality: 75
 
 privacy_masked_compressor_node:
   ros__parameters:
-    compression_quality: 95
+    compression_quality: 75
 
 foreground_mask_compressor_node:
   ros__parameters:
-    compression_quality: 95
+    compression_quality: 75
 
 # Monitoring infrastructure
 day_night_classifier_node:
