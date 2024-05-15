@@ -57,7 +57,7 @@ struct CameraWorkerParams
 class CameraWorker
 {
 public:
-    explicit CameraWorker(ParameterNode & node, CameraWorkerParams & params, const std::function<void(const cv::Mat &)> & user_callback = nullptr)
+    explicit CameraWorker(ParameterNode & node, CameraWorkerParams & params, const std::function<void(const std_msgs::msg::Header &, const cv::Mat &)> & user_callback = nullptr)
         : node_(node)
         , params_(params)
         , user_callback_(user_callback)
@@ -84,7 +84,7 @@ private:
     ParameterNode & node_;
     CameraWorkerParams & params_;
 
-    std::function<void(const cv::Mat &)> user_callback_;
+    std::function<void(const std_msgs::msg::Header &, const cv::Mat &)> user_callback_;
     
     rclcpp::Client<bob_interfaces::srv::CameraSettings>::SharedPtr camera_settings_client_;
     rclcpp::Client<bob_interfaces::srv::ConfigEntryUpdate>::SharedPtr fps_update_client_;
@@ -132,7 +132,7 @@ private:
 
             if (user_callback_)
             {
-                user_callback_(*roscv_image_msg_ptr->image_ptr);
+                user_callback_(roscv_image_msg_ptr->get_header(), *roscv_image_msg_ptr->image_ptr);
             }
 
             loop_rate.sleep();  
@@ -411,7 +411,6 @@ private:
 
     void mask_timer_callback()
     {
-        RCLCPP_INFO(node_.get_logger(), "mask_timer_callback");
         mask_timer_->cancel();
         try
         {

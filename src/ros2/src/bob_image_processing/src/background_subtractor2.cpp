@@ -14,7 +14,6 @@
 #include <bob_interfaces/msg/detector_state.hpp>
 #include <bob_interfaces/msg/detector_b_box_array.hpp>
 
-
 class BackgroundSubtractor2
     : public ParameterNode
 {
@@ -39,13 +38,8 @@ private:
 
     rclcpp::Client<bob_interfaces::srv::BGSResetRequest>::SharedPtr bgs_reset_client_;
 
-    std::string image_resized_publish_topic_;
-
     rclcpp::QoS pub_qos_profile_;
     rclcpp::QoS sub_qos_profile_;
-
-    bool mask_enable_override_;
-    std::string mask_filename_;
 
     void init()
     {
@@ -62,6 +56,14 @@ private:
 
         declare_node_parameters();
 
+        mask_override_service_ = create_service<bob_interfaces::srv::MaskOverrideRequest>("bob/mask/override",
+            [this](const std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Request> request, 
+                    std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Response> response) {mask_override_request(request, response);});
+
+        bgs_reset_service_ = create_service<bob_interfaces::srv::BGSResetRequest>("bob/bgs/reset", 
+            [this](const std::shared_ptr<bob_interfaces::srv::BGSResetRequest::Request> request, 
+                    std::shared_ptr<bob_interfaces::srv::BGSResetRequest::Response> response) {reset_bgs_request(request, response);});
+                    
         image_subscription_ = create_subscription<sensor_msgs::msg::Image>("bob/frames/allsky/original", sub_qos_profile_,
             [this](const sensor_msgs::msg::Image::SharedPtr img_msg){imageCallback(img_msg);});
         params_.image_publisher = create_publisher<sensor_msgs::msg::Image>("bob/frames/foreground_mask", pub_qos_profile_);
@@ -121,10 +123,10 @@ private:
             ParameterNode::ActionParam(
                 rclcpp::Parameter("image_resized_publish_topic", "bob/frames/foreground_mask/resized"), 
                 [this](const rclcpp::Parameter& param) {
-                    image_resized_publish_topic_ = param.as_string();
-                    if (!image_resized_publish_topic_.empty())
+                    const auto & image_resized_publish_topic = param.as_string();
+                    if (!image_resized_publish_topic.empty())
                     {
-                        params_.image_resized_publisher = create_publisher<sensor_msgs::msg::Image>(image_resized_publish_topic_, pub_qos_profile_);
+                        params_.image_resized_publisher = create_publisher<sensor_msgs::msg::Image>(image_resized_publish_topic, pub_qos_profile_);
                     }
                     else
                     {
@@ -166,7 +168,7 @@ private:
     void mask_override_request(const std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Request> request, 
         std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Response> response)
     {
-        mask_enable_override_ = request->mask_enabled;
+        params_.mask_enable_override = request->mask_enabled;
         if (request->mask_enabled)
         {
             RCLCPP_DEBUG(get_logger(), "Mask Override set to: True");

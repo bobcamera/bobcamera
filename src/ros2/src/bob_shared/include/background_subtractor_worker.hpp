@@ -22,7 +22,7 @@
 
 struct BackgroundSubtractorWorkerParams
 {
-    enum BGSType
+    enum class BGSType
     {
         Unknown,
         Vibe,
@@ -35,10 +35,10 @@ struct BackgroundSubtractorWorkerParams
     rclcpp::Publisher<sensor_msgs::msg::RegionOfInterest>::SharedPtr roi_publisher;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_resized_publisher;
 
-    BGSType bgs_type;
-    std::string sensitivity;
+    BGSType bgs_type = BGSType::Vibe;
+    std::string sensitivity = "medium_c";
     SensitivityConfigCollection sensitivity_collection;
-    bool mask_enable_override;
+    bool mask_enable_override = true;
     bool mask_enable_roi;
     std::string mask_filename;
     int resize_height;

@@ -1,22 +1,22 @@
 #include <opencv2/opencv.hpp>
 
-struct TrackPoint {
+struct TrackPoint 
+{
     cv::Point point;
     double bbox_area; 
     TrackPoint(const cv::Point& pt, double area) : point(pt), bbox_area(area) {}
 };
 
-class ImageRecorder {
+class ImageRecorder 
+{
 public:
-    ImageRecorder(int pre_buffer_size) : max_pre_buffer_size_(pre_buffer_size)
+    explicit ImageRecorder(int pre_buffer_size) : max_pre_buffer_size_(pre_buffer_size)
     {
         pre_buffer_ptr_ = std::make_unique<std::deque<cv::Mat>>();
-        heatmap_accumulator_ = cv::Mat();
-        frame_for_drawing_ = cv::Mat();
         draw_trajectories_enabled_ = true;
     }
 
-    void accumulate_mask(const cv::Mat& fg_mask, const cv::Size& frame_size, int x_offset, int y_offset) 
+    void accumulate_mask(const cv::Mat & fg_mask, const cv::Size & frame_size, int x_offset, int y_offset) 
     {
         x_offset_ = x_offset;
         y_offset_ = y_offset;
@@ -39,7 +39,6 @@ public:
         cv::add(heatmap_accumulator_, shifted_fg_mask, heatmap_accumulator_);
     }
 
-
     void reset() 
     {
         heatmap_accumulator_ = cv::Mat();
@@ -50,8 +49,6 @@ public:
     {
         draw_trajectories();
 
-        cv::Mat overlay;
-
         if (!heatmap_accumulator_.empty()) 
         {
             cv::Mat converted_heatmap;
@@ -60,24 +57,15 @@ public:
                 cv::cvtColor(heatmap_accumulator_, converted_heatmap, cv::COLOR_GRAY2BGR);
             } 
 
+            cv::Mat overlay;
             cv::addWeighted(frame_for_drawing_, 0.5, converted_heatmap, 0.5, 0, overlay);
-        }
-        else 
-        {
-            overlay = frame_for_drawing_.clone();
+            return cv::imwrite(full_path, overlay);
         }
 
-        if (cv::imwrite(full_path, overlay)) 
-        {
-            return true;
-        } 
-        else 
-        {
-            return false;
-        }
+        return cv::imwrite(full_path, frame_for_drawing_);
     }
 
-    void update_frame_for_drawing(const cv::Mat& img) 
+    void update_frame_for_drawing(const cv::Mat & img) 
     {
         frame_for_drawing_ = img.clone();
     }
@@ -145,20 +133,21 @@ private:
         }
     }
 
-    std::vector<cv::Scalar> pre_defined_colors = {
-        cv::Scalar(255, 0, 0),     // Bright Red
-        cv::Scalar(0, 255, 0),     // Lime Green
-        cv::Scalar(0, 255, 255),   // Bright Yellow
-        cv::Scalar(255, 0, 255),   // Magenta
-        cv::Scalar(0, 165, 255),   // Orange
-        cv::Scalar(255, 255, 0),   // Bright Cyan
-        cv::Scalar(0, 215, 255),   // Gold
-        cv::Scalar(238, 130, 238), // Violet
-        cv::Scalar(147, 20, 255)   // Deep Pink
-    };
-
-    cv::Scalar get_color_for_track(int trackID) 
+    cv::Scalar get_color_for_track(int trackID) const
     {
+        static const std::vector<cv::Scalar> pre_defined_colors = 
+        {
+            cv::Scalar(255, 0, 0),     // Bright Red
+            cv::Scalar(0, 255, 0),     // Lime Green
+            cv::Scalar(0, 255, 255),   // Bright Yellow
+            cv::Scalar(255, 0, 255),   // Magenta
+            cv::Scalar(0, 165, 255),   // Orange
+            cv::Scalar(255, 255, 0),   // Bright Cyan
+            cv::Scalar(0, 215, 255),   // Gold
+            cv::Scalar(238, 130, 238), // Violet
+            cv::Scalar(147, 20, 255)   // Deep Pink
+        };
+
         return pre_defined_colors[trackID % pre_defined_colors.size()];
     }
 

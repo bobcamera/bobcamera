@@ -86,7 +86,6 @@ private:
     bool mask_enable_roi_;
     std::string mask_filename_;
     std::optional<std::filesystem::file_time_type> mask_last_modified_time_;
-    rclcpp::Client<bob_interfaces::srv::BGSResetRequest>::SharedPtr bgs_reset_client_;
     rclcpp::Publisher<sensor_msgs::msg::RegionOfInterest>::SharedPtr roi_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_resized_publisher_;
     rclcpp::Service<bob_interfaces::srv::MaskOverrideRequest>::SharedPtr mask_override_service_;
@@ -107,13 +106,21 @@ private:
         declare_node_parameters();
         init_sensitivity(sensitivity_);
 
+        mask_override_service_ = create_service<bob_interfaces::srv::MaskOverrideRequest>("bob/mask/override",
+            [this](const std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Request> request, 
+                    std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Response> response) {mask_override_request(request, response);});
+
+        bgs_reset_service_ = create_service<bob_interfaces::srv::BGSResetRequest>("bob/bgs/reset", 
+            [this](const std::shared_ptr<bob_interfaces::srv::BGSResetRequest::Request> request, 
+                    std::shared_ptr<bob_interfaces::srv::BGSResetRequest::Response> response) {reset_bgs_request(request, response);});
+
         image_subscription_ = create_subscription<sensor_msgs::msg::Image>("bob/frames/allsky/original", sub_qos_profile_,
-            std::bind(&BackgroundSubtractor::imageCallback, this, std::placeholders::_1));
+            [this](const sensor_msgs::msg::Image::SharedPtr img_msg){imageCallback(img_msg);});
         image_publisher_ = create_publisher<sensor_msgs::msg::Image>("bob/frames/foreground_mask", pub_qos_profile_);
         detection_publisher_ = create_publisher<bob_interfaces::msg::DetectorBBoxArray>("bob/detection/allsky/boundingboxes", pub_qos_profile_);        
         state_publisher_ = create_publisher<bob_interfaces::msg::DetectorState>("bob/detection/detector_state", pub_qos_profile_);
 
-        mask_timer_ = create_wall_timer(std::chrono::seconds(60), std::bind(&BackgroundSubtractor::mask_timer_callback, this));
+        mask_timer_ = create_wall_timer(std::chrono::seconds(60), [this](){mask_timer_callback();});
         mask_timer_callback(); // Calling it the first time
     }
 

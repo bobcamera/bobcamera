@@ -12,7 +12,7 @@
 #include "image_utils.hpp"
 #include <visibility_control.h>
 
-#include <CameraWorker.hpp>
+#include <camera_worker.hpp>
 
 class WebCameraVideo2
     : public ParameterNode

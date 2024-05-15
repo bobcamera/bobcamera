@@ -67,11 +67,9 @@ private:
         sub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
         auto rmw_qos_profile = sub_qos_profile.get_rmw_qos_profile();
         
-        recording_request_service_= create_service<bob_interfaces::srv::RecordingRequest>("bob/recording/update", 
-            std::bind(&RecordManager::change_recording_enabled_request, 
-            this, 
-            std::placeholders::_1, 
-            std::placeholders::_2));
+        recording_request_service_= create_service<bob_interfaces::srv::RecordingRequest>("bob/recording/update",
+            [this](const std::shared_ptr<bob_interfaces::srv::RecordingRequest::Request> request, std::shared_ptr<bob_interfaces::srv::RecordingRequest::Response> response)
+                {change_recording_enabled_request(request, response);});
 
         state_publisher_ = create_publisher<bob_interfaces::msg::RecordingState>("bob/recording/state", pub_qos_profile);
         sub_frame_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(shared_from_this(), img_topic_, rmw_qos_profile);
@@ -80,12 +78,10 @@ private:
         sub_camera_info_ = std::make_shared<message_filters::Subscriber<bob_camera::msg::CameraInfo>>(shared_from_this(), camera_info_topic_, rmw_qos_profile);
 
         roi_subscription_ = create_subscription<sensor_msgs::msg::RegionOfInterest>(
-            "bob/mask/roi", sub_qos_profile,
-            std::bind(&RecordManager::roi_callback, this, std::placeholders::_1));
+            "bob/mask/roi", sub_qos_profile, [this](const sensor_msgs::msg::RegionOfInterest::SharedPtr roi_msg){roi_callback(roi_msg);});
 
         time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image, 
             bob_interfaces::msg::Tracking, bob_camera::msg::CameraInfo>>(*sub_frame_, *sub_fg_frame_, *sub_tracking_, *sub_camera_info_, 10);
-
         time_synchronizer_->registerCallback(&RecordManager::process_recordings, this);
 
         img_recorder_ = std::make_unique<ImageRecorder>(total_pre_frames_);
@@ -173,7 +169,8 @@ private:
         return oss.str();
     } 
 
-    void declare_node_parameters() {
+    void declare_node_parameters() 
+    {
         std::vector<ParameterNode::ActionParam> params = {
             ParameterNode::ActionParam(
                 rclcpp::Parameter("recordings_directory", "."), 
@@ -239,7 +236,7 @@ private:
     {
         try
         {          
-            std::unique_lock<std::mutex> lock(buffer_mutex_);
+            std::unique_lock lock(buffer_mutex_);
 
             cv::Mat img;
             ImageUtils::convert_image_msg(image_msg, img, true);
@@ -250,7 +247,7 @@ private:
                 prev_frame_width_ = img.cols;
                 prev_frame_height_ = img.rows;
             }
-            else if(img.rows != prev_frame_height_ || img.cols != prev_frame_width_ )
+            else if (img.rows != prev_frame_height_ || img.cols != prev_frame_width_ )
             {
                 RCLCPP_INFO(get_logger(), "Frame dimensions changed. ");
                 prev_frame_height_ = img.rows;
@@ -273,14 +270,13 @@ private:
                     current_state_ = RecordingStateEnum::BetweenEvents;
                     base_filename_ = generate_filename(image_msg);
 
-                    std::string current_date = get_current_date();
-                    if(current_date != date_)
+                    if(auto current_date = get_current_date(); current_date != date_)
                     {
                         create_dated_dir(recordings_directory_);
                         date_ = current_date;
                     }
 
-                    std::string full_path = dated_directory_ + "/allsky/" + prefix_str_ + base_filename_ + ".mp4";
+                    const std::string full_path = dated_directory_ + "/allsky/" + prefix_str_ + base_filename_ + ".mp4";
                     const std::string out_pipeline = pipeline_str_ + full_path;
                     video_recorder_->open_new_video(full_path, codec_str_, video_fps_, img.size(), img.channels() == 3);                    
                     img_recorder_->update_frame_for_drawing(img);
@@ -305,7 +301,7 @@ private:
                     {
                         const auto& bbox = detection.bbox;
                         double area = bbox.size_x * bbox.size_y; 
-                        img_recorder_->store_trajectory_point(detection.id, cv::Point(bbox.center.position.x, bbox.center.position.y), area);
+                        img_recorder_->store_trajectory_point(detection.id, cv::Point(static_cast<int>(bbox.center.position.x), static_cast<int>(bbox.center.position.y)), area);
                     }
                 }
 
@@ -375,7 +371,7 @@ private:
             state.recording = recording_;
             state_publisher_->publish(state);
         }
-        catch (std::exception &e)
+        catch (std::exception & e)
         {
             RCLCPP_ERROR(get_logger(), "exception: %s", e.what());
         }
@@ -434,7 +430,6 @@ private:
     int y_offset_;
     bool recording_;
 };
-
 
 int main(int argc, char **argv) 
 {

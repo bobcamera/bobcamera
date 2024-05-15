@@ -23,16 +23,25 @@ def generate_launch_description():
         executable='component_container',
         composable_node_descriptions=[
 
-            ComposableNode(
+            # ComposableNode(
                 package='bob_camera',
-                plugin='WebCameraVideo',
+                plugin='CameraBGS',
                 name='rtsp_camera_node',
                 namespace=namespace,
                 parameters = [config],
-                remappings=[('bob/mask/override', 'bob/mask/privacy/override')],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'rtsp'" ]))
             ),
+            # ComposableNode(
+            #     package='bob_camera',
+            #     plugin='WebCameraVideo',
+            #     name='rtsp_camera_node',
+            #     namespace=namespace,
+            #     parameters = [config],
+            #     remappings=[('bob/mask/override', 'bob/mask/privacy/override')],
+            #     extra_arguments=[{'use_intra_process_comms': True}],
+            #     condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'rtsp'" ]))
+            # ),
             ComposableNode(
                 package='bob_camera',
                 plugin='WebCameraVideo',
@@ -63,51 +72,52 @@ def generate_launch_description():
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'usb'" ])),
             ),
-            ComposableNode(
-                package='bob_simulator', 
-                plugin='MovingObjectsSimulation', 
-                name='simulated_frame_provider_node',
-                namespace=namespace,
-                parameters = [config],
-                remappings=[
-                    ('bob/simulation/output_frame', 'bob/frames/allsky/original')
-                ],
-                extra_arguments=[{'use_intra_process_comms': True}],
-                condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'simulate'" ])),  
-            ) , 
+            # ComposableNode(
+            #     package='bob_simulator', 
+            #     plugin='MovingObjectsSimulation', 
+            #     name='simulated_frame_provider_node',
+            #     namespace=namespace,
+            #     parameters = [config],
+            #     remappings=[
+            #         ('bob/simulation/output_frame', 'bob/frames/allsky/original')
+            #     ],
+            #     extra_arguments=[{'use_intra_process_comms': True}],
+            #     condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'simulate'" ])),  
+            # ) , 
             ComposableNode(
                 package='bob_camera',
-                plugin='WebCameraVideo2',
+                # plugin='WebCameraVideo2',
+                plugin='CameraBGS',
                 name='web_camera_video_overlay_node',
                 namespace=namespace,
                 parameters = [config],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'video_overlay'" ])),
             ),
-            ComposableNode(
-                package='bob_simulator',
-                plugin='SimulationOverlayProviderNode',  
-                name='simulation_overlay_provider_node',
-                namespace=namespace,
-                parameters = [config],
-                remappings=[('bob/simulation/output_frame', 'bob/frames/allsky/original')],
-                extra_arguments=[{'use_intra_process_comms': True}],
-                condition=IfCondition(PythonExpression([
-                    LaunchConfiguration('source_arg'), 
-                    " == 'rtsp_overlay'", 
-                    " or ", 
-                    LaunchConfiguration('source_arg'), 
-                    " == 'video_overlay'"]))
-            ),
+            # ComposableNode(
+            #     package='bob_simulator',
+            #     plugin='SimulationOverlayProviderNode',  
+            #     name='simulation_overlay_provider_node',
+            #     namespace=namespace,
+            #     parameters = [config],
+            #     remappings=[('bob/simulation/output_frame', 'bob/frames/allsky/original')],
+            #     extra_arguments=[{'use_intra_process_comms': True}],
+            #     condition=IfCondition(PythonExpression([
+            #         LaunchConfiguration('source_arg'), 
+            #         " == 'rtsp_overlay'", 
+            #         " or ", 
+            #         LaunchConfiguration('source_arg'), 
+            #         " == 'video_overlay'"]))
+            # ),
             #The one Background Subtractor Node to rule them all:
-            ComposableNode(
-                package='bob_image_processing',
-                plugin='BackgroundSubtractor',
-                name='background_subtractor_node',
-                namespace=namespace,
-                parameters = [config],
-                extra_arguments=[{'use_intra_process_comms': True}]
-            ),            
+            # ComposableNode(
+            #     package='bob_image_processing',
+            #     plugin='BackgroundSubtractor',
+            #     name='background_subtractor_node',
+            #     namespace=namespace,
+            #     parameters = [config],
+            #     extra_arguments=[{'use_intra_process_comms': True}]
+            # ),            
             ComposableNode(
                 package='bob_tracking',
                 plugin='TrackProvider',
