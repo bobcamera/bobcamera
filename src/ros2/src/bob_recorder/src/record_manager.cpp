@@ -91,7 +91,6 @@ private:
 
     void roi_callback(const sensor_msgs::msg::RegionOfInterest::SharedPtr roi_msg) 
     {
-        RCLCPP_INFO(get_logger(), "roi_callback");
         x_offset_ = roi_msg->x_offset;
         y_offset_ = roi_msg->y_offset;
     }
@@ -237,7 +236,6 @@ private:
     {
         try
         {          
-            RCLCPP_INFO(get_logger(), "process_recordings");
             std::unique_lock lock(buffer_mutex_);
 
             cv::Mat img;
@@ -382,7 +380,6 @@ private:
     void change_recording_enabled_request(const std::shared_ptr<bob_interfaces::srv::RecordingRequest::Request> request, 
         std::shared_ptr<bob_interfaces::srv::RecordingRequest::Response> response)
     {
-        RCLCPP_INFO(get_logger(), "change_recording_enabled_request");
         if (request->disable_recording)
         {
             current_state_ = RecordingStateEnum::Disabled;

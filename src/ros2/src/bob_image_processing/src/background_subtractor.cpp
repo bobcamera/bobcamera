@@ -236,8 +236,6 @@ private:
         {
             try
             {
-                profile_start("Frame");
-
                 cv::Mat img;
                 ImageUtils::convert_image_msg(img_msg, img, false);
 
@@ -257,6 +255,7 @@ private:
                 {
                     ros_cv_foreground_mask_ = std::make_unique<RosCvImageMsg>(gray_img, sensor_msgs::image_encodings::MONO8, false);
                 }
+                ros_cv_foreground_mask_->msg_ptr->header = img_msg->header;
 
                 profile_start("BGS");
                 bgsPtr->apply(gray_img, *ros_cv_foreground_mask_->image_ptr);
