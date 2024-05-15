@@ -135,6 +135,7 @@ public:
                 {
                     ros_cv_foreground_mask_ = std::make_unique<RosCvImageMsg>(gray_img, sensor_msgs::image_encodings::MONO8, false);
                 }
+                ros_cv_foreground_mask_->msg_ptr->header = header;
 
                 bgsPtr->apply(gray_img, *ros_cv_foreground_mask_->image_ptr);
 
