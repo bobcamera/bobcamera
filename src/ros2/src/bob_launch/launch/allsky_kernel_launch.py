@@ -23,7 +23,7 @@ def generate_launch_description():
         executable='component_container',
         composable_node_descriptions=[
 
-            # ComposableNode(
+            ComposableNode(
                 package='bob_camera',
                 plugin='CameraBGS',
                 name='rtsp_camera_node',

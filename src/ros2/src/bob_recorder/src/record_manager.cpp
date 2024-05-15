@@ -236,6 +236,7 @@ private:
     {
         try
         {          
+            RCLCPP_INFO(get_logger(), "process_recordings");
             std::unique_lock lock(buffer_mutex_);
 
             cv::Mat img;
@@ -380,6 +381,7 @@ private:
     void change_recording_enabled_request(const std::shared_ptr<bob_interfaces::srv::RecordingRequest::Request> request, 
         std::shared_ptr<bob_interfaces::srv::RecordingRequest::Response> response)
     {
+        RCLCPP_INFO(get_logger(), "change_recording_enabled_request");
         if (request->disable_recording)
         {
             current_state_ = RecordingStateEnum::Disabled;
