@@ -135,12 +135,9 @@ private:
 
             annotated_frame_creator_.create_frame(img, *tracking, x_offset_, y_offset_, enable_tracking_status_);
 
-            //auto annotated_frame_msg = cv_bridge::CvImage(image_msg->header, sensor_msgs::image_encodings::BGR8, img).toImageMsg();
-            // pub_annotated_frame_->publish(*annotated_frame_msg);
             pub_annotated_frame_->publish(*image_msg);
 
             publish_resized_frame(image_msg, img);
-            // publish_resized_frame(annotated_frame_msg, img);
         }
         catch (cv::Exception &cve)
         {
@@ -157,8 +154,7 @@ private:
         if ((resize_height_ > 0) && (resize_height_ != img.size().height))
         {
             cv::Mat resized_img;
-            const double aspect_ratio = (double)img.size().width / (double)img.size().height;
-            const auto frame_width = (int)(aspect_ratio * (double)resize_height_);
+            const auto frame_width = (int)(img.size().aspectRatio() * (double)resize_height_);
             cv::resize(img, resized_img, cv::Size(frame_width, resize_height_));
 
             auto resized_frame_msg = cv_bridge::CvImage(annotated_frame_msg->header, annotated_frame_msg->encoding, resized_img).toImageMsg();

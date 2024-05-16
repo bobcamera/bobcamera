@@ -34,7 +34,7 @@ struct CameraWorkerParams
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_resized_publisher;
     rclcpp::Publisher<bob_camera::msg::ImageInfo>::SharedPtr image_info_publisher;
     rclcpp::Publisher<bob_camera::msg::CameraInfo>::SharedPtr camera_info_publisher;
-    rclcpp::Publisher<sensor_msgs::msg::RegionOfInterest>::SharedPtr roi_publisher;
+    // rclcpp::Publisher<sensor_msgs::msg::RegionOfInterest>::SharedPtr roi_publisher;
 
     int camera_id;
     int resize_height;
@@ -176,8 +176,7 @@ private:
         cv::Mat resized_img;
         if (params_.resize_height > 0)
         {
-            const double aspect_ratio = (double)image_msg.image_ptr->size().width / (double)image_msg.image_ptr->size().height;
-            const auto frame_width = (int)(aspect_ratio * (double)params_.resize_height);
+            const auto frame_width = (int)(image_msg.image_ptr->size().aspectRatio() * (double)params_.resize_height);
             cv::resize(*image_msg.image_ptr, resized_img, cv::Size(frame_width, params_.resize_height));
         }
         else
@@ -403,7 +402,7 @@ private:
                 roi_msg.height = bounding_box_.height;
             }
 
-            node_.publish_if_subscriber(params_.roi_publisher, roi_msg);
+            // node_.publish_if_subscriber(params_.roi_publisher, roi_msg);
 
             RCLCPP_INFO(node_.get_logger(), "Detection frame size determined from mask: %d x %d", roi_msg.width, roi_msg.height);
         }

@@ -156,7 +156,8 @@
             // Create a topicStream for subscription
             var topicStream = new ROSLIB.Topic({
                 ros: ros,
-                name: '/bob/frames/allsky/masked/detection/resized/compressed',
+                // name: '/bob/frames/allsky/masked/detection/resized/compressed',
+                name: '/bob/frames/foreground_mask/resized/compressed',
                 messageType: 'sensor_msgs/msg/CompressedImage'
             });
 

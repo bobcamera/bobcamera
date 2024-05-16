@@ -137,7 +137,7 @@ private:
                 if (i == 1)
                 {
                     // Draw the marker only for the first point of the trajectory
-                    cv::drawMarker(frame_for_drawing_, shifted_start_point, track_color, cv::MARKER_DIAMOND, 10, track_points[i].thickness);
+                    cv::drawMarker(frame_for_drawing_, shifted_start_point, track_color, cv::MARKER_DIAMOND, 10, track_points[i - 1].thickness);
                 }
             }
         }
