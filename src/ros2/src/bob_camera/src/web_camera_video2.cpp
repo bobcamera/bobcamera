@@ -47,7 +47,7 @@ private:
                         mask_override_request(request, response);
                     });
 
-        params_.roi_publisher = create_publisher<sensor_msgs::msg::RegionOfInterest>("bob/mask/roi", qos_profile_);
+        // params_.roi_publisher = create_publisher<sensor_msgs::msg::RegionOfInterest>("bob/mask/roi", qos_profile_);
 
         declare_node_parameters();
 
