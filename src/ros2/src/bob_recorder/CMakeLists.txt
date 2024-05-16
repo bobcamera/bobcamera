@@ -41,22 +41,6 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
     add_definitions(-Wno-missing-braces)
 ENDIF()
 
-# # Video Recorder Node
-# add_library(video_recorder SHARED src/video_recorder.cpp)
-# target_compile_definitions(video_recorder PRIVATE "COMPOSITION_BUILDING_DLL")
-# target_link_libraries(video_recorder PUBLIC boblib jsoncpp)
-# ament_target_dependencies(video_recorder PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV rclcpp_components bob_interfaces bob_camera)
-# rclcpp_components_register_nodes(video_recorder "VideoRecorder")
-# install(TARGETS video_recorder DESTINATION lib)
-
-# # json Recorder Node
-# add_library(json_recorder SHARED src/json_recorder.cpp)
-# target_compile_definitions(json_recorder PRIVATE "COMPOSITION_BUILDING_DLL")
-# ament_target_dependencies(json_recorder PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters rclcpp_components bob_interfaces bob_camera)
-# target_link_libraries(json_recorder PUBLIC jsoncpp)
-# rclcpp_components_register_nodes(json_recorder "JsonRecorder")
-# install(TARGETS json_recorder DESTINATION lib)
-
 # Recorder Manager
 add_library(record_manager SHARED src/record_manager.cpp)
 target_compile_definitions(record_manager PRIVATE "COMPOSITION_BUILDING_DLL")

@@ -10,7 +10,8 @@ struct TrackPoint
 class ImageRecorder 
 {
 public:
-    explicit ImageRecorder(int pre_buffer_size) : max_pre_buffer_size_(pre_buffer_size)
+    explicit ImageRecorder(int pre_buffer_size) 
+        : max_pre_buffer_size_(pre_buffer_size)
     {
         pre_buffer_ptr_ = std::make_unique<std::deque<cv::Mat>>();
         draw_trajectories_enabled_ = true;

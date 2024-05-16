@@ -377,8 +377,8 @@ private:
             {
                 roi_msg.x_offset = 0;
                 roi_msg.y_offset = 0;
-                roi_msg.width = grey_mask_.size().width;
-                roi_msg.height = grey_mask_.size().height;
+                roi_msg.width = 0;
+                roi_msg.height = 0;
             }
             else
             {

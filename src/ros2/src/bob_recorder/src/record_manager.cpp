@@ -33,17 +33,12 @@ public:
     , prev_frame_width_(0)
     , prev_frame_height_(0)
     {
-        one_shot_timer_ = this->create_wall_timer(
-            std::chrono::seconds(1), 
-            [this]() {
-                this->init(); 
-                this->one_shot_timer_.reset();  
-            }
-        );
+        one_shot_timer_ = create_wall_timer(std::chrono::seconds(1), [this]() {init();});
     }
 
 private:
-    enum class RecordingStateEnum {
+    enum class RecordingStateEnum 
+    {
         Disabled,
         BeforeStart,
         BetweenEvents,
@@ -52,6 +47,7 @@ private:
 
     void init()
     {
+        one_shot_timer_.reset();
         RCLCPP_INFO(get_logger(), "Initializing RecordManager");
 
         declare_node_parameters();
@@ -95,7 +91,7 @@ private:
         y_offset_ = roi_msg->y_offset;
     }
 
-    std::string get_current_date() 
+    static std::string get_current_date() 
     {
         auto now = std::chrono::system_clock::now();
         auto time_t = std::chrono::system_clock::to_time_t(now);
@@ -109,16 +105,14 @@ private:
 
     static bool create_dir(const std::string& path) 
     {
-        std::filesystem::path dirPath = path;
-
-        if (!std::filesystem::exists(dirPath)) 
+        if (std::filesystem::path dirPath = path; !std::filesystem::exists(dirPath)) 
         {
             return std::filesystem::create_directories(dirPath);
         }
         return true;
     }
 
-    void create_subdirectory(const std::filesystem::path& parent, const std::string& subdirectory) 
+    void create_subdirectory(const std::filesystem::path& parent, const std::string& subdirectory) const
     {
         std::filesystem::path subDirPath = parent / subdirectory;
         if (std::filesystem::create_directory(subDirPath)) 
@@ -148,17 +142,13 @@ private:
 
                 return true;
             } 
-            else 
-            {
-                // RCLCPP_ERROR(get_logger(), "Failed to create dated directory: %s", dated_directory_.c_str());
-                return false;
-            }
-        } 
-        else 
-        {
-            RCLCPP_INFO(get_logger(), "Parent recordings directory doesn't exist: %s", dirPath.c_str());
+
+            // RCLCPP_ERROR(get_logger(), "Failed to create dated directory: %s", dated_directory_.c_str());
             return false;
-        }
+        } 
+
+        RCLCPP_INFO(get_logger(), "Parent recordings directory doesn't exist: %s", dirPath.c_str());
+        return false;
     }
 
     static std::string generate_filename(const sensor_msgs::msg::Image::SharedPtr& image_msg)
@@ -270,7 +260,7 @@ private:
                     current_state_ = RecordingStateEnum::BetweenEvents;
                     base_filename_ = generate_filename(image_msg);
 
-                    if(auto current_date = get_current_date(); current_date != date_)
+                    if (auto current_date = get_current_date(); current_date != date_)
                     {
                         create_dated_dir(recordings_directory_);
                         date_ = current_date;
@@ -380,14 +370,7 @@ private:
     void change_recording_enabled_request(const std::shared_ptr<bob_interfaces::srv::RecordingRequest::Request> request, 
         std::shared_ptr<bob_interfaces::srv::RecordingRequest::Response> response)
     {
-        if (request->disable_recording)
-        {
-            current_state_ = RecordingStateEnum::Disabled;
-        }
-        else
-        {
-            current_state_ = RecordingStateEnum::BeforeStart;
-        }
+        current_state_ = request->disable_recording ? RecordingStateEnum::Disabled : RecordingStateEnum::BeforeStart;
         response->success = true;
     }
 

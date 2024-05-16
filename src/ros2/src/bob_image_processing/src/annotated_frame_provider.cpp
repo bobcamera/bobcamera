@@ -135,10 +135,12 @@ private:
 
             annotated_frame_creator_.create_frame(img, *tracking, x_offset_, y_offset_, enable_tracking_status_);
 
-            auto annotated_frame_msg = cv_bridge::CvImage(image_msg->header, sensor_msgs::image_encodings::BGR8, img).toImageMsg();
-            pub_annotated_frame_->publish(*annotated_frame_msg);
+            //auto annotated_frame_msg = cv_bridge::CvImage(image_msg->header, sensor_msgs::image_encodings::BGR8, img).toImageMsg();
+            // pub_annotated_frame_->publish(*annotated_frame_msg);
+            pub_annotated_frame_->publish(*image_msg);
 
-            publish_resized_frame(annotated_frame_msg, img);
+            publish_resized_frame(image_msg, img);
+            // publish_resized_frame(annotated_frame_msg, img);
         }
         catch (cv::Exception &cve)
         {

@@ -326,13 +326,12 @@ private:
     void reset_bgs_request(const std::shared_ptr<bob_interfaces::srv::BGSResetRequest::Request> request, 
         std::shared_ptr<bob_interfaces::srv::BGSResetRequest::Response> response)
     {
-        //RCLCPP_INFO(get_logger(), "Restarting the BGS");
-        if(!request->bgs_params.empty() && request->bgs_params.length() > 0) { 
+        if(!request->bgs_params.empty() && request->bgs_params.length() > 0) 
+        { 
             RCLCPP_INFO(get_logger(), "We have updated bgs params to apply...");
         }
         bgsPtr->restart();
         response->success = true;
-        //RCLCPP_INFO(get_logger(), "Restarting BGS: SUCCESS");
     }
 
     std::unique_ptr<boblib::bgs::CoreBgs> createBGS(BGSType _type)

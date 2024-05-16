@@ -233,8 +233,8 @@ private:
             {
                 roi_msg.x_offset = 0;
                 roi_msg.y_offset = 0;
-                roi_msg.width = grey_mask_.size().width;
-                roi_msg.height = grey_mask_.size().height;
+                roi_msg.width = 0;
+                roi_msg.height = 0;
             }
             else
             {
@@ -342,13 +342,12 @@ private:
         {
             return;
         }
-        // TODO: Think about replacing the resized_img by the RosCvImageMsg, has to take into consideration the resizing of the resize_height and the image
         cv::Mat resized_img;
         if (params_.resize_height > 0)
         {
             const double aspect_ratio = (double)image_msg.image_ptr->size().width / (double)image_msg.image_ptr->size().height;
             const int frame_height = params_.resize_height;
-            const int frame_width = (int)(aspect_ratio * (double)frame_height);
+            const auto frame_width = (int)(aspect_ratio * (double)frame_height);
             cv::resize(*image_msg.image_ptr, resized_img, cv::Size(frame_width, frame_height));
         }
         else
