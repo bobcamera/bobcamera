@@ -29,9 +29,6 @@ public:
     COMPOSITION_PUBLIC
     explicit RecordManager(const rclcpp::NodeOptions& options)
     : ParameterNode("recorder_manager", options)
-    , current_state_(RecordingStateEnum::BeforeStart)
-    , prev_frame_width_(0)
-    , prev_frame_height_(0)
     {
         one_shot_timer_ = create_wall_timer(std::chrono::seconds(1), [this]() {init();});
     }
@@ -50,6 +47,10 @@ private:
         one_shot_timer_.reset();
         RCLCPP_INFO(get_logger(), "Initializing RecordManager");
 
+        current_state_ = RecordingStateEnum::BeforeStart;
+        prev_frame_width_ = 0;
+        prev_frame_height_ = 0;
+        
         declare_node_parameters();
 
         rclcpp::QoS pub_qos_profile{10};
@@ -210,7 +211,7 @@ private:
                 rclcpp::Parameter("seconds_save", 2), 
                 [this](const rclcpp::Parameter& param) 
                 {
-                    number_seconds_save_ = param.as_int();
+                    number_seconds_save_ = static_cast<int>(param.as_int());
                     total_pre_frames_ = (size_t)(number_seconds_save_ * video_fps_);
                 }
             ),
@@ -273,24 +274,24 @@ private:
                 } 
                 else 
                 {
-                    json_data = JsonRecorder::build_json_value(image_msg, tracking_msg, false, x_offset_, y_offset_);
+                    json_data = JsonRecorder::build_json_value(tracking_msg, false, x_offset_, y_offset_);
                     json_recorder_->add_to_pre_buffer(json_data, false);
                     video_recorder_->add_to_pre_buffer(img);
                 }
                 break;
 
             case RecordingStateEnum::BetweenEvents:
-                json_data = JsonRecorder::build_json_value(image_msg, tracking_msg, true, x_offset_, y_offset_);
+                json_data = JsonRecorder::build_json_value(tracking_msg, true, x_offset_, y_offset_);
                 json_recorder_->add_to_buffer(json_data, false);
                 video_recorder_->write_frame(img);
                 img_recorder_->accumulate_mask(fg_img, img.size(), x_offset_, y_offset_);
 
-                for (const auto& detection : tracking_msg->detections)
+                for (const auto & detection : tracking_msg->detections)
                 {
-                    if(detection.state == 2) // ActiveTarget
+                    if (detection.state == 2) // ActiveTarget
                     {
-                        const auto& bbox = detection.bbox;
-                        double area = bbox.size_x * bbox.size_y; 
+                        const auto & bbox = detection.bbox;
+                        const double area = bbox.size_x * bbox.size_y; 
                         img_recorder_->store_trajectory_point(detection.id, cv::Point(static_cast<int>(bbox.center.position.x), static_cast<int>(bbox.center.position.y)), area);
                     }
                 }
@@ -322,7 +323,7 @@ private:
                 }
                 else 
                 {
-                    json_data = JsonRecorder::build_json_value(image_msg, tracking_msg, false, x_offset_, y_offset_);
+                    json_data = JsonRecorder::build_json_value(tracking_msg, false, x_offset_, y_offset_);
                     json_recorder_->add_to_buffer(json_data, false);
                     video_recorder_->write_frame(img);
                     img_recorder_->accumulate_mask(fg_img, img.size(), x_offset_, y_offset_);

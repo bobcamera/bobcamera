@@ -1,10 +1,21 @@
 #include <opencv2/opencv.hpp>
 
+#include <array>
+
 struct TrackPoint 
 {
-    cv::Point point;
-    double bbox_area; 
-    TrackPoint(const cv::Point& pt, double area) : point(pt), bbox_area(area) {}
+    const cv::Point point;
+    const double bbox_area;
+    const int thickness;
+    const int thickness_scaled;
+
+    TrackPoint(const cv::Point & pt, double area) 
+        : point(pt)
+        , bbox_area(area)
+        , thickness(std::min(std::max(1, static_cast<int>(sqrt(bbox_area))), 10))
+        , thickness_scaled(std::max(1, static_cast<int>(static_cast<double>(thickness) * 0.40)))
+    {
+    }
 };
 
 class ImageRecorder 
@@ -46,7 +57,7 @@ public:
         track_trajectories_.clear();
     }
 
-    bool write_image(const std::string& full_path)
+    bool write_image(const std::string & full_path)
     {
         draw_trajectories();
 
@@ -89,7 +100,7 @@ public:
         pre_buffer_ptr_->clear();
     }
 
-    void store_trajectory_point(int detection_id, const cv::Point& point, double area)
+    void store_trajectory_point(int detection_id, const cv::Point & point, double area)
     {
         track_trajectories_[detection_id].emplace_back(point, area);
     }
@@ -109,34 +120,32 @@ private:
     void draw_trajectories()
     {
         if (!draw_trajectories_enabled_)
-            return;
-
-        for (const auto& track : track_trajectories_)
         {
-            cv::Scalar track_color = get_color_for_track(track.first); 
+            return;
+        }
 
-            for (size_t i = 1; i < track.second.size(); i++)
+        for (const auto & [detection_id, track_points] : track_trajectories_)
+        {
+            const cv::Scalar track_color = get_color_for_track(detection_id); 
+
+            for (size_t i = 1; i < track_points.size(); ++i)
             {
-                int thickness = std::max(1, static_cast<int>(sqrt(track.second[i].bbox_area)));
-                thickness = std::min(thickness, 10);
-                int thickness_scaled = std::max(1, static_cast<int>(thickness * 0.40));
-                
-                cv::Point shifted_start_point = track.second[i - 1].point + cv::Point(x_offset_, y_offset_);
-                cv::Point shifted_end_point = track.second[i].point + cv::Point(x_offset_, y_offset_);
-                cv::line(frame_for_drawing_, shifted_start_point, shifted_end_point, track_color, thickness_scaled);
+                const cv::Point shifted_start_point = track_points[i - 1].point + cv::Point(x_offset_, y_offset_);
+                const cv::Point shifted_end_point = track_points[i].point + cv::Point(x_offset_, y_offset_);
+                cv::line(frame_for_drawing_, shifted_start_point, shifted_end_point, track_color, track_points[i].thickness_scaled);
 
                 if (i == 1)
                 {
                     // Draw the marker only for the first point of the trajectory
-                    cv::drawMarker(frame_for_drawing_, shifted_start_point, track_color, cv::MARKER_DIAMOND, 10, thickness);
+                    cv::drawMarker(frame_for_drawing_, shifted_start_point, track_color, cv::MARKER_DIAMOND, 10, track_points[i].thickness);
                 }
             }
         }
     }
 
-    cv::Scalar get_color_for_track(int trackID) const
+    const cv::Scalar & get_color_for_track(int trackID) const
     {
-        static const std::vector<cv::Scalar> pre_defined_colors = 
+        static const std::array<cv::Scalar, 9> pre_defined_colors = 
         {
             cv::Scalar(255, 0, 0),     // Bright Red
             cv::Scalar(0, 255, 0),     // Lime Green

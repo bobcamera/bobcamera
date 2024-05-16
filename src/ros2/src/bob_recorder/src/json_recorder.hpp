@@ -81,19 +81,18 @@ public:
         return false;
     }
 
-    static Json::Value build_json_value(const sensor_msgs::msg::Image::SharedPtr & image_msg,
-                                        const bob_interfaces::msg::Tracking::SharedPtr & tracking_msg,
+    static Json::Value build_json_value(const bob_interfaces::msg::Tracking::SharedPtr & tracking_msg,
                                         bool include_detections,
                                         int x_offset,
                                         int y_offset) 
     {
         Json::Value jsonValue;
 
-        auto time_stamp = rclcpp::Time(image_msg->header.stamp);
+        auto time_stamp = rclcpp::Time(tracking_msg->header.stamp);
         int64_t time_in_nanosecs = time_stamp.nanoseconds();
 
         jsonValue["time_ns"] = time_in_nanosecs;
-        jsonValue["frame_id"] = image_msg->header.frame_id;
+        jsonValue["frame_id"] = tracking_msg->header.frame_id;
         jsonValue["trackable"] = tracking_msg->state.trackable;
 
         if (include_detections) 
