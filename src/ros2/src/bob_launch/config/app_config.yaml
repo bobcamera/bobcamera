@@ -130,6 +130,102 @@ rtsp_overlay_camera_node:
     privacy_mask_file: 'assets/masks/privacy-mask.jpg'
     privacy_mask_enable_offset_correction: False
     resize_height: 960
+    bgs_sensitivity: 'low_c'
+    bgs_type: ''
+    bgs_mask_file: 'assets/masks/detection-mask.jpg'
+    bgs_mask_enable_offset_correction: True
+    bgs_json_params: '[
+                    {
+                      "name": "low",
+                      "sensitivity": {
+                        "vibe": {
+                          "threshold": 65, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8
+                        }, 
+                        "wmv": {
+                          "enableWeight": true, "enableThreshold": true, "threshold": 50.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
+                        }, 
+                        "blob": {
+                          "sizeThreshold": 10, "areaThreshold": 100, "minDistance": 100, "maxBlobs": 25
+                        }, 
+                        "median_filter": false 
+                      }
+                    },
+                    {
+                      "name": "medium",
+                      "sensitivity": {
+                        "vibe": {
+                          "threshold": 45, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 4
+                        }, 
+                        "wmv": {
+                          "enableWeight": true, "enableThreshold": true, "threshold": 30.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
+                        }, 
+                        "blob": {
+                          "sizeThreshold": 6, "areaThreshold": 36, "minDistance": 36, "maxBlobs": 25
+                        }, 
+                        "median_filter": false 
+                      }
+                    },
+                    {
+                      "name": "high",
+                      "sensitivity": {
+                        "vibe": {
+                          "threshold": 30, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4
+                        }, 
+                        "wmv": {
+                          "enableWeight": true, "enableThreshold": true, "threshold": 15.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
+                        }, 
+                        "blob": {
+                          "sizeThreshold": 4, "areaThreshold": 16, "minDistance": 16, "maxBlobs": 25
+                        }, 
+                        "median_filter": false 
+                      }
+                    },    
+                    {
+                      "name": "low_c",
+                      "sensitivity": {
+                        "vibe": {
+                          "threshold": 65, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8
+                        }, 
+                        "wmv": {
+                          "enableWeight": true, "enableThreshold": true, "threshold": 50.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
+                        }, 
+                        "blob": {
+                          "sizeThreshold": 10, "areaThreshold": 100, "minDistance": 100, "maxBlobs": 25
+                        }, 
+                        "median_filter": true 
+                      }
+                    },
+                    {
+                      "name": "medium_c",
+                      "sensitivity": {
+                        "vibe": {
+                          "threshold": 45, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4
+                        }, 
+                        "wmv": {
+                          "enableWeight": true, "enableThreshold": true, "threshold": 25.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
+                        }, 
+                        "blob": {
+                          "sizeThreshold": 6, "areaThreshold": 36, "minDistance": 36, "maxBlobs": 25
+                        }, 
+                        "median_filter": true 
+                      }
+                    },
+                    {
+                      "name": "high_c",
+                      "sensitivity": {
+                        "vibe": {
+                          "threshold": 25, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4
+                        }, 
+                        "wmv": {
+                          "enableWeight": true, "enableThreshold": true, "threshold": 15.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
+                        }, 
+                        "blob": {
+                          "sizeThreshold": 4, "areaThreshold": 16, "minDistance": 16, "maxBlobs": 25
+                        }, 
+                        "median_filter": true 
+                      }
+                    }
+                  ]'
 
 web_camera_video_node:
   ros__parameters:
@@ -139,11 +235,105 @@ web_camera_video_node:
     image_resized_publish_topic: 'bob/frames/allsky/original/resized'
     source_type: 'VIDEO_FILE'
     videos:
-    mask_file: 'assets/masks/privacy-mask.jpg'
-    mask_enable_offset_correction: False
-    image_width: 0
-    image_height: 0    
+    privacy_mask_file: 'assets/masks/privacy-mask.jpg'
+    privacy_mask_enable_offset_correction: False
     resize_height: 960
+    bgs_sensitivity: 'low_c'
+    bgs_type: ''
+    bgs_mask_file: 'assets/masks/detection-mask.jpg'
+    bgs_mask_enable_offset_correction: True
+    bgs_json_params: '[
+                    {
+                      "name": "low",
+                      "sensitivity": {
+                        "vibe": {
+                          "threshold": 65, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8
+                        }, 
+                        "wmv": {
+                          "enableWeight": true, "enableThreshold": true, "threshold": 50.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
+                        }, 
+                        "blob": {
+                          "sizeThreshold": 10, "areaThreshold": 100, "minDistance": 100, "maxBlobs": 25
+                        }, 
+                        "median_filter": false 
+                      }
+                    },
+                    {
+                      "name": "medium",
+                      "sensitivity": {
+                        "vibe": {
+                          "threshold": 45, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 4
+                        }, 
+                        "wmv": {
+                          "enableWeight": true, "enableThreshold": true, "threshold": 30.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
+                        }, 
+                        "blob": {
+                          "sizeThreshold": 6, "areaThreshold": 36, "minDistance": 36, "maxBlobs": 25
+                        }, 
+                        "median_filter": false 
+                      }
+                    },
+                    {
+                      "name": "high",
+                      "sensitivity": {
+                        "vibe": {
+                          "threshold": 30, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4
+                        }, 
+                        "wmv": {
+                          "enableWeight": true, "enableThreshold": true, "threshold": 15.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
+                        }, 
+                        "blob": {
+                          "sizeThreshold": 4, "areaThreshold": 16, "minDistance": 16, "maxBlobs": 25
+                        }, 
+                        "median_filter": false 
+                      }
+                    },    
+                    {
+                      "name": "low_c",
+                      "sensitivity": {
+                        "vibe": {
+                          "threshold": 65, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8
+                        }, 
+                        "wmv": {
+                          "enableWeight": true, "enableThreshold": true, "threshold": 50.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
+                        }, 
+                        "blob": {
+                          "sizeThreshold": 10, "areaThreshold": 100, "minDistance": 100, "maxBlobs": 25
+                        }, 
+                        "median_filter": true 
+                      }
+                    },
+                    {
+                      "name": "medium_c",
+                      "sensitivity": {
+                        "vibe": {
+                          "threshold": 45, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4
+                        }, 
+                        "wmv": {
+                          "enableWeight": true, "enableThreshold": true, "threshold": 25.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
+                        }, 
+                        "blob": {
+                          "sizeThreshold": 6, "areaThreshold": 36, "minDistance": 36, "maxBlobs": 25
+                        }, 
+                        "median_filter": true 
+                      }
+                    },
+                    {
+                      "name": "high_c",
+                      "sensitivity": {
+                        "vibe": {
+                          "threshold": 25, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4
+                        }, 
+                        "wmv": {
+                          "enableWeight": true, "enableThreshold": true, "threshold": 15.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
+                        }, 
+                        "blob": {
+                          "sizeThreshold": 4, "areaThreshold": 16, "minDistance": 16, "maxBlobs": 25
+                        }, 
+                        "median_filter": true 
+                      }
+                    }
+                  ]'
 
 usb_camera_node:
   ros__parameters:
@@ -153,11 +343,105 @@ usb_camera_node:
     image_resized_publish_topic: 'bob/frames/allsky/original/resized'
     source_type: 'USB_CAMERA'
     camera_id: 0
-    mask_file: 'assets/masks/privacy-mask.jpg'
-    mask_enable_offset_correction: False
-    image_width: 0
-    image_height: 0    
+    privacy_mask_file: 'assets/masks/privacy-mask.jpg'
+    privacy_mask_enable_offset_correction: False
     resize_height: 960
+    bgs_sensitivity: 'low_c'
+    bgs_type: ''
+    bgs_mask_file: 'assets/masks/detection-mask.jpg'
+    bgs_mask_enable_offset_correction: True
+    bgs_json_params: '[
+                    {
+                      "name": "low",
+                      "sensitivity": {
+                        "vibe": {
+                          "threshold": 65, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8
+                        }, 
+                        "wmv": {
+                          "enableWeight": true, "enableThreshold": true, "threshold": 50.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
+                        }, 
+                        "blob": {
+                          "sizeThreshold": 10, "areaThreshold": 100, "minDistance": 100, "maxBlobs": 25
+                        }, 
+                        "median_filter": false 
+                      }
+                    },
+                    {
+                      "name": "medium",
+                      "sensitivity": {
+                        "vibe": {
+                          "threshold": 45, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 4
+                        }, 
+                        "wmv": {
+                          "enableWeight": true, "enableThreshold": true, "threshold": 30.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
+                        }, 
+                        "blob": {
+                          "sizeThreshold": 6, "areaThreshold": 36, "minDistance": 36, "maxBlobs": 25
+                        }, 
+                        "median_filter": false 
+                      }
+                    },
+                    {
+                      "name": "high",
+                      "sensitivity": {
+                        "vibe": {
+                          "threshold": 30, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4
+                        }, 
+                        "wmv": {
+                          "enableWeight": true, "enableThreshold": true, "threshold": 15.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
+                        }, 
+                        "blob": {
+                          "sizeThreshold": 4, "areaThreshold": 16, "minDistance": 16, "maxBlobs": 25
+                        }, 
+                        "median_filter": false 
+                      }
+                    },    
+                    {
+                      "name": "low_c",
+                      "sensitivity": {
+                        "vibe": {
+                          "threshold": 65, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8
+                        }, 
+                        "wmv": {
+                          "enableWeight": true, "enableThreshold": true, "threshold": 50.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
+                        }, 
+                        "blob": {
+                          "sizeThreshold": 10, "areaThreshold": 100, "minDistance": 100, "maxBlobs": 25
+                        }, 
+                        "median_filter": true 
+                      }
+                    },
+                    {
+                      "name": "medium_c",
+                      "sensitivity": {
+                        "vibe": {
+                          "threshold": 45, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4
+                        }, 
+                        "wmv": {
+                          "enableWeight": true, "enableThreshold": true, "threshold": 25.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
+                        }, 
+                        "blob": {
+                          "sizeThreshold": 6, "areaThreshold": 36, "minDistance": 36, "maxBlobs": 25
+                        }, 
+                        "median_filter": true 
+                      }
+                    },
+                    {
+                      "name": "high_c",
+                      "sensitivity": {
+                        "vibe": {
+                          "threshold": 25, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4
+                        }, 
+                        "wmv": {
+                          "enableWeight": true, "enableThreshold": true, "threshold": 15.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
+                        }, 
+                        "blob": {
+                          "sizeThreshold": 4, "areaThreshold": 16, "minDistance": 16, "maxBlobs": 25
+                        }, 
+                        "median_filter": true 
+                      }
+                    }
+                  ]'
 
 simulated_frame_provider_node:
   ros__parameters:
@@ -285,117 +569,6 @@ simulation_overlay_provider_node:
     image_resized_publish_topic: 'bob/frames/allsky/original/resized'
     resize_height: 960
 
-detection_mask_application_node:
-  ros__parameters:
-    mask_file: 'assets/masks/detection-mask.jpg'
-    mask_enable_offset_correction: True
-    image_width: 0
-    image_height: 0    
-
-privacy_mask_application_node:
-  ros__parameters:
-    mask_file: 'assets/masks/privacy-mask.jpg'
-    mask_enable_offset_correction: False
-    image_width: 0
-    image_height: 0    
-
-background_subtractor_node:
-  ros__parameters:
-    sensitivity: 'low_c'
-    bgs: ''
-    json_params: '[
-                    {
-                      "name": "low",
-                      "sensitivity": {
-                        "vibe": {
-                          "threshold": 65, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8
-                        }, 
-                        "wmv": {
-                          "enableWeight": true, "enableThreshold": true, "threshold": 50.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
-                        }, 
-                        "blob": {
-                          "sizeThreshold": 10, "areaThreshold": 100, "minDistance": 100, "maxBlobs": 25
-                        }, 
-                        "median_filter": false 
-                      }
-                    },
-                    {
-                      "name": "medium",
-                      "sensitivity": {
-                        "vibe": {
-                          "threshold": 45, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 4
-                        }, 
-                        "wmv": {
-                          "enableWeight": true, "enableThreshold": true, "threshold": 30.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
-                        }, 
-                        "blob": {
-                          "sizeThreshold": 6, "areaThreshold": 36, "minDistance": 36, "maxBlobs": 25
-                        }, 
-                        "median_filter": false 
-                      }
-                    },
-                    {
-                      "name": "high",
-                      "sensitivity": {
-                        "vibe": {
-                          "threshold": 30, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4
-                        }, 
-                        "wmv": {
-                          "enableWeight": true, "enableThreshold": true, "threshold": 15.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
-                        }, 
-                        "blob": {
-                          "sizeThreshold": 4, "areaThreshold": 16, "minDistance": 16, "maxBlobs": 25
-                        }, 
-                        "median_filter": false 
-                      }
-                    },    
-                    {
-                      "name": "low_c",
-                      "sensitivity": {
-                        "vibe": {
-                          "threshold": 65, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8
-                        }, 
-                        "wmv": {
-                          "enableWeight": true, "enableThreshold": true, "threshold": 50.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
-                        }, 
-                        "blob": {
-                          "sizeThreshold": 10, "areaThreshold": 100, "minDistance": 100, "maxBlobs": 25
-                        }, 
-                        "median_filter": true 
-                      }
-                    },
-                    {
-                      "name": "medium_c",
-                      "sensitivity": {
-                        "vibe": {
-                          "threshold": 45, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4
-                        }, 
-                        "wmv": {
-                          "enableWeight": true, "enableThreshold": true, "threshold": 25.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
-                        }, 
-                        "blob": {
-                          "sizeThreshold": 6, "areaThreshold": 36, "minDistance": 36, "maxBlobs": 25
-                        }, 
-                        "median_filter": true 
-                      }
-                    },
-                    {
-                      "name": "high_c",
-                      "sensitivity": {
-                        "vibe": {
-                          "threshold": 25, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4
-                        }, 
-                        "wmv": {
-                          "enableWeight": true, "enableThreshold": true, "threshold": 15.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
-                        }, 
-                        "blob": {
-                          "sizeThreshold": 4, "areaThreshold": 16, "minDistance": 16, "maxBlobs": 25
-                        }, 
-                        "median_filter": true 
-                      }
-                    }
-                  ]'
-
 track_provider_node:
   ros__parameters:
     pass: True
@@ -418,35 +591,14 @@ annotated_frame_provider_node:
     tracking_status_message: False
     image_resized_publish_topic: '/bob/frames/annotated/resized'
 
-original_frame_resizer_node:
-  ros__parameters:
-    resize_height: 960
-
-detection_masked_frame_resizer_node:
-  ros__parameters:
-    resize_height: 960
-
-privacy_masked_frame_resizer_node:
-  ros__parameters:
-    resize_height: 960
-
-foreground_mask_frame_resizer_node:
-  ros__parameters:
-    resize_height: 960
-
-annotated_frame_resizer_node:
-  ros__parameters:
-    resize_height: 960
-
 # Display
 multi_frame_viewer_node:
   ros__parameters:
     topics: 
       - '/bob/frames/annotated/resized/compressed'
+      - '/bob/frames/allsky/original/resized/compressed'
       - '/bob/frames/allsky/original'
-      - '/bob/frames/allsky/original/resized'
       - '/bob/frames/foreground_mask/resized'
-      - '/bob/frames/allsky/original'
 
 annotated_frame_compressor_node:
   ros__parameters:

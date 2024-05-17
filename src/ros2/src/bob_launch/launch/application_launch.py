@@ -201,15 +201,8 @@ def generate_launch_description():
             PythonLaunchDescriptionSource([
                 launch_package_dir, 
                 '/standard_launch.py']),
-            condition=IfCondition(PythonExpression([LaunchConfiguration('operation_arg'), " == 'standard'" ]))
+            # condition=IfCondition(PythonExpression([LaunchConfiguration('operation_arg'), " == 'standard'" ]))
         ),
-
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource([
-                launch_package_dir, 
-                '/headless_launch.py']),
-            condition=IfCondition(PythonExpression([LaunchConfiguration('operation_arg'), " == 'headless'" ]))
-        ),        
 
         RegisterEventHandler(
             OnShutdown(

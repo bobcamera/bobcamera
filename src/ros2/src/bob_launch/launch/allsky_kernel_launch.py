@@ -32,39 +32,27 @@ def generate_launch_description():
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'rtsp'" ]))
             ),
-            # ComposableNode(
-            #     package='bob_camera',
-            #     plugin='WebCameraVideo',
-            #     name='rtsp_camera_node',
-            #     namespace=namespace,
-            #     parameters = [config],
-            #     remappings=[('bob/mask/override', 'bob/mask/privacy/override')],
-            #     extra_arguments=[{'use_intra_process_comms': True}],
-            #     condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'rtsp'" ]))
-            # ),
             ComposableNode(
                 package='bob_camera',
-                plugin='WebCameraVideo',
+                plugin='CameraBGS',
                 name='rtsp_overlay_camera_node',
                 namespace=namespace,
                 parameters = [config],
-                remappings=[('bob/mask/override', 'bob/mask/privacy/override')],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'rtsp_overlay'" ]))
             ),
             ComposableNode(
                 package='bob_camera',
-                plugin='WebCameraVideo',
+                plugin='CameraBGS',
                 name='web_camera_video_node',
                 namespace=namespace,
                 parameters = [config],
-                remappings=[('bob/mask/override', 'bob/mask/privacy/override')],
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'video'" ])),
             ),
             ComposableNode(
                 package='bob_camera',
-                plugin='WebCameraVideo',
+                plugin='CameraBGS',
                 name='usb_camera_node',
                 namespace=namespace,
                 parameters = [config],
@@ -86,7 +74,6 @@ def generate_launch_description():
             # ) , 
             ComposableNode(
                 package='bob_camera',
-                # plugin='WebCameraVideo2',
                 plugin='CameraBGS',
                 name='web_camera_video_overlay_node',
                 namespace=namespace,
@@ -109,15 +96,6 @@ def generate_launch_description():
             #         LaunchConfiguration('source_arg'), 
             #         " == 'video_overlay'"]))
             # ),
-            #The one Background Subtractor Node to rule them all:
-            # ComposableNode(
-            #     package='bob_image_processing',
-            #     plugin='BackgroundSubtractor',
-            #     name='background_subtractor_node',
-            #     namespace=namespace,
-            #     parameters = [config],
-            #     extra_arguments=[{'use_intra_process_comms': True}]
-            # ),            
             ComposableNode(
                 package='bob_tracking',
                 plugin='TrackProvider',
@@ -142,62 +120,37 @@ def generate_launch_description():
                 parameters = [config],
                 extra_arguments=[{'use_intra_process_comms': True}]
             ),
-            # Nodes for resizing the image in order to stick it on the network for display
-            # ComposableNode(
-            #     package='bob_image_processing',
-            #     plugin='FrameResizer',
-            #     name='original_frame_resizer_node',
-            #     namespace=namespace,
-            #     remappings=[
-            #         ('bob/resizer/source', 'bob/frames/allsky/original'),
-            #         ('bob/resizer/target', 'bob/frames/allsky/original/resized')],
-            #     parameters = [config],
-            #     extra_arguments=[{'use_intra_process_comms': True}],
-            # ),            
-            # ComposableNode(
-            #     package='bob_image_processing',
-            #     plugin='FrameResizer',
-            #     name='detection_masked_frame_resizer_node',
-            #     namespace=namespace,
-            #     remappings=[
-            #         ('bob/resizer/source', 'bob/frames/allsky/masked/detection'),
-            #         ('bob/resizer/target', 'bob/frames/allsky/masked/detection/resized')],
-            #     parameters = [config],
-            #     extra_arguments=[{'use_intra_process_comms': True}],
-            # ),
-            # ComposableNode(
-            #     package='bob_image_processing',
-            #     plugin='FrameResizer',
-            #     name='privacy_masked_frame_resizer_node',
-            #     namespace=namespace,
-            #     remappings=[
-            #         ('bob/resizer/source', 'bob/frames/allsky/masked/privacy'),
-            #         ('bob/resizer/target', 'bob/frames/allsky/masked/privacy/resized')],
-            #     parameters = [config],
-            #     extra_arguments=[{'use_intra_process_comms': True}],
-            # ),              
-            # ComposableNode(
-            #     package='bob_image_processing',
-            #     plugin='FrameResizer',
-            #     name='foreground_mask_frame_resizer_node',
-            #     namespace=namespace,
-            #     remappings=[
-            #         ('bob/resizer/source', 'bob/frames/foreground_mask'),
-            #         ('bob/resizer/target', 'bob/frames/foreground_mask/resized')],
-            #     parameters = [config],
-            #     extra_arguments=[{'use_intra_process_comms': True}],
-            # ),
-            # ComposableNode(
-            #     package='bob_image_processing',
-            #     plugin='FrameResizer',
-            #     name='annotated_frame_resizer_node',
-            #     namespace=namespace,
-            #     remappings=[
-            #         ('bob/resizer/source', 'bob/frames/annotated'),
-            #         ('bob/resizer/target', 'bob/frames/annotated/resized')],
-            #     parameters = [config],
-            #     extra_arguments=[{'use_intra_process_comms': True}]
-            # ),             
+            # Compressing Nodes
+            ComposableNode(
+                package='bob_image_processing',
+                plugin='FrameCompressor',
+                name='annotated_frame_compressor_node',
+                namespace=namespace,                
+                remappings=[
+                    ('bob/compressor/source', 'bob/frames/annotated/resized'),
+                    ('bob/compressor/target', 'bob/frames/annotated/resized/compressed')],
+                parameters = [config],
+                extra_arguments=[{'use_intra_process_comms': True}]),
+            ComposableNode(
+                package='bob_image_processing',
+                plugin='FrameCompressor',
+                name='detection_masked_compressor_node',
+                namespace=namespace,
+                remappings=[
+                    ('bob/compressor/source', 'bob/frames/allsky/original/resized'),
+                    ('bob/compressor/target', 'bob/frames/allsky/original/resized/compressed')],
+                parameters = [config],
+                extra_arguments=[{'use_intra_process_comms': True}]),
+           ComposableNode(
+                package='bob_image_processing',
+                plugin='FrameCompressor',
+                name='foreground_mask_compressor_node',
+                namespace=namespace,
+                remappings=[
+                    ('bob/compressor/source', 'bob/frames/foreground_mask/resized'),
+                    ('bob/compressor/target', 'bob/frames/foreground_mask/resized/compressed')],
+                parameters = [config],
+                extra_arguments=[{'use_intra_process_comms': True}]),                
         ],
         output='screen',
     )    
