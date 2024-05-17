@@ -146,7 +146,7 @@ private:
         {
             return;
         }
-        RCLCPP_INFO(node_.get_logger(), "Applying mask");
+        RCLCPP_INFO(node_.get_logger(), "Applying Privacy mask");
         if (img.size() != grey_mask_.size())
         {
             RCLCPP_WARN(node_.get_logger(), "Frame and mask dimensions do not match. Attempting resize.");
@@ -405,7 +405,7 @@ private:
             {
                 if (mask_enabled_)
                 {
-                    RCLCPP_INFO(node_.get_logger(), "Mask Disabled.");
+                    RCLCPP_INFO(node_.get_logger(), "Privacy Mask Disabled.");
                 }
                 mask_enabled_ = false;
                 mask_timer_->reset();
@@ -424,11 +424,11 @@ private:
             mask_enabled_ = !grey_mask_.empty();
             if (grey_mask_.empty())
             {
-                RCLCPP_INFO(node_.get_logger(), "Mask Disabled, mask image was empty");
+                RCLCPP_INFO(node_.get_logger(), "Privacy Mask Disabled, mask image was empty");
             }
             else
             {
-                RCLCPP_INFO(node_.get_logger(), "Mask Enabled.");
+                RCLCPP_INFO(node_.get_logger(), "Privacy Mask Enabled.");
             }
             roi_calculation();
         }

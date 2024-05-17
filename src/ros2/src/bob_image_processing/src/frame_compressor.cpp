@@ -70,7 +70,7 @@ private:
         pub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
         pub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
 
-        timer_ = create_wall_timer(std::chrono::seconds(5), [this]{check_subscribers();});
+        timer_ = create_wall_timer(std::chrono::seconds(2), [this]{check_subscribers();});
 
         pub_compressed_frame_ = create_publisher<sensor_msgs::msg::CompressedImage>("bob/compressor/target", pub_qos_profile_);
         RCLCPP_INFO(get_logger(), "Creating topic %s", pub_compressed_frame_->get_topic_name());
@@ -78,18 +78,27 @@ private:
 
     void check_subscribers() 
     {
-        auto num_subs = count_subscribers(pub_compressed_frame_->get_topic_name());
-        if ((num_subs > 0) && !image_subscription_)
+        timer_->cancel();
+        try
         {
-            image_subscription_ = create_subscription<sensor_msgs::msg::Image>("bob/compressor/source", sub_qos_profile_,
-                [this](const sensor_msgs::msg::Image::SharedPtr image_msg){imageCallback(image_msg);});
-            RCLCPP_INFO(get_logger(), "Subscribing to %s", image_subscription_->get_topic_name());
-        } 
-        else if ((num_subs <= 0) && image_subscription_) 
-        {
-            RCLCPP_INFO(get_logger(), "Unsubscribing from %s", image_subscription_->get_topic_name());
-            image_subscription_.reset();
+            auto num_subs = count_subscribers(pub_compressed_frame_->get_topic_name());
+            if ((num_subs > 0) && !image_subscription_)
+            {
+                image_subscription_ = create_subscription<sensor_msgs::msg::Image>("bob/compressor/source", sub_qos_profile_,
+                    [this](const sensor_msgs::msg::Image::SharedPtr image_msg){imageCallback(image_msg);});
+                RCLCPP_INFO(get_logger(), "Subscribing to %s", image_subscription_->get_topic_name());
+            } 
+            else if ((num_subs <= 0) && image_subscription_) 
+            {
+                RCLCPP_INFO(get_logger(), "Unsubscribing from %s", image_subscription_->get_topic_name());
+                image_subscription_.reset();
+            }
         }
+        catch(const std::exception& e)
+        {
+            // Ignoring, probably due to application closing
+        }
+        timer_->reset();
     }
 
     void imageCallback(const sensor_msgs::msg::Image::SharedPtr image_msg) const

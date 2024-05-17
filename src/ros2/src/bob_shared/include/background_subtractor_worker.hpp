@@ -35,8 +35,8 @@ struct BackgroundSubtractorWorkerParams
     rclcpp::Publisher<sensor_msgs::msg::RegionOfInterest>::SharedPtr roi_publisher;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_resized_publisher;
 
-    BGSType bgs_type = BGSType::Vibe;
-    std::string sensitivity = "medium_c";
+    BGSType bgs_type;
+    std::string sensitivity;
     SensitivityConfigCollection sensitivity_collection;
     bool mask_enable_override = true;
     bool mask_enable_roi;
@@ -230,7 +230,7 @@ private:
         if (params_.mask_enable_roi && mask_enabled_)
         {
             sensor_msgs::msg::RegionOfInterest roi_msg;
-            if (true || grey_mask_.empty())
+            if (grey_mask_.empty())
             {
                 roi_msg.x_offset = 0;
                 roi_msg.y_offset = 0;
@@ -254,10 +254,10 @@ private:
                     }
                 }
 
-                roi_msg.x_offset = bounding_box_.x;
-                roi_msg.y_offset = bounding_box_.y;
-                roi_msg.width = bounding_box_.width;
-                roi_msg.height = bounding_box_.height;
+                roi_msg.x_offset = 0;//bounding_box_.x;
+                roi_msg.y_offset = 0;//bounding_box_.y;
+                roi_msg.width = 0;//bounding_box_.width;
+                roi_msg.height = 0;//bounding_box_.height;
             }
 
             params_.roi_publisher->publish(roi_msg);
@@ -302,7 +302,7 @@ private:
             {
                 if (mask_enabled_)
                 {
-                    RCLCPP_INFO(node_.get_logger(), "Mask Disabled.");
+                    RCLCPP_INFO(node_.get_logger(), "Detection Mask Disabled.");
                 }
                 mask_enabled_ = false;
                 mask_timer_->reset();
@@ -321,11 +321,11 @@ private:
             mask_enabled_ = !grey_mask_.empty();
             if (grey_mask_.empty())
             {
-                RCLCPP_INFO(node_.get_logger(), "Mask Disabled, mask image was empty");
+                RCLCPP_INFO(node_.get_logger(), "Detection Mask Disabled, mask image was empty");
             }
             else
             {
-                RCLCPP_INFO(node_.get_logger(), "Mask Enabled.");
+                RCLCPP_INFO(node_.get_logger(), "Detection Mask Enabled.");
             }
             roi_calculation();
         }
