@@ -50,7 +50,7 @@ private:
         current_state_ = RecordingStateEnum::BeforeStart;
         prev_frame_width_ = 0;
         prev_frame_height_ = 0;
-        
+
         declare_node_parameters();
 
         rclcpp::QoS pub_qos_profile{10};
@@ -96,12 +96,14 @@ private:
     {
         auto now = std::chrono::system_clock::now();
         auto time_t = std::chrono::system_clock::to_time_t(now);
-        std::tm local_tm = *std::localtime(&time_t);
+        std::tm local_tm;
 
-        std::ostringstream oss;
-        oss << std::put_time(&local_tm, "%Y%m%d");
+        localtime_r(&time_t, &local_tm);
 
-        return oss.str();
+        std::array<char, 16> buffer;
+        strftime(buffer.data(), buffer.size(), "%Y%m%d", &local_tm);
+
+        return std::string(buffer.data());
     }
 
     static bool create_dir(const std::string& path) 

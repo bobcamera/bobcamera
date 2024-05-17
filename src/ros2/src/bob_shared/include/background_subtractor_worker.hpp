@@ -203,8 +203,8 @@ private:
         for (const auto &bbox : bboxes)
         {
             bob_interfaces::msg::DetectorBBox bbox_msg;
-            bbox_msg.x = bbox.x;
-            bbox_msg.y = bbox.y;
+            bbox_msg.x = bbox.x + bounding_box_.x;
+            bbox_msg.y = bbox.y + bounding_box_.y;
             bbox_msg.width = bbox.width;
             bbox_msg.height = bbox.height;
             bbox2D_array.detections.push_back(bbox_msg);
@@ -229,7 +229,7 @@ private:
         if (params_.mask_enable_roi && mask_enabled_)
         {
             sensor_msgs::msg::RegionOfInterest roi_msg;
-            if(grey_mask_.empty())
+            if (true || grey_mask_.empty())
             {
                 roi_msg.x_offset = 0;
                 roi_msg.y_offset = 0;
