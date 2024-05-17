@@ -16,7 +16,7 @@ def generate_launch_description():
     loglevel = EnvironmentVariable('BOB_LOGLEVEL', default_value="INFO")
 
     kernel_container = ComposableNodeContainer(
-        name='track_container',
+        name='kernel_container',
         namespace=namespace,
         arguments=['--ros-args', '--log-level', loglevel],
         package='rclcpp_components',

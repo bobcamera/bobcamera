@@ -81,9 +81,16 @@ public:
     {
         if (sensitivity.empty() || (sensitivity.length() == 0))
         {
-            RCLCPP_DEBUG(node_.get_logger(), "Ignoring sensitivity request change");
+            RCLCPP_DEBUG(node_.get_logger(), "Ignoring sensitivity request change, EMPTY VALUE");
             return false;
         }
+
+        if(params_.sensitivity == sensitivity)
+        {
+            RCLCPP_DEBUG(node_.get_logger(), "Ignoring sensitivity request change, NO CHANGE");
+            return false;            
+        }
+
         if (!params_.sensitivity_collection.configs.contains(sensitivity))
         {
             RCLCPP_ERROR(node_.get_logger(), "Unknown config specified: %s", sensitivity.c_str());
@@ -99,7 +106,6 @@ public:
         vibe_params_ = std::make_unique<boblib::bgs::VibeParams>(config.sensitivity.vibe_threshold, config.sensitivity.vibe_bgSamples, config.sensitivity.vibe_requiredBGSamples, config.sensitivity.vibe_learningRate);
 
         bgsPtr = createBGS(params_.bgs_type);
-        RCLCPP_INFO(node_.get_logger(), "init_sensitivity 4");
 
         blob_params_ = std::make_unique<boblib::blobs::ConnectedBlobDetectionParams>(config.sensitivity.blob_sizeThreshold, config.sensitivity.blob_areaThreshold, config.sensitivity.blob_minDistance, config.sensitivity.blob_maxBlobs);
         blob_detector_ptr_ = std::make_unique<boblib::blobs::ConnectedBlobDetection>(*blob_params_);

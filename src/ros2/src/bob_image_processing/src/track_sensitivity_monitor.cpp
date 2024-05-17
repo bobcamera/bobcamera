@@ -77,7 +77,7 @@ private:
     {
         std::vector<ParameterNode::ActionParam> params = {
             ParameterNode::ActionParam(
-                rclcpp::Parameter("bgs_node", true), 
+                rclcpp::Parameter("bgs_node", "rtsp_camera_node"), 
                 [this](const rclcpp::Parameter& param) 
                 {
                     sensitivity_param_client_ = std::make_shared<rclcpp::AsyncParametersClient>(this, param.as_string()); 
@@ -244,7 +244,7 @@ private:
                         {
                             sensitivity_ = "medium_c";
                             updating = true;
-                        }     
+                        }
 
                         if (updating)
                             RCLCPP_DEBUG(get_logger(), "Tracking Auto Tune: Unstable conditions - lowering sensitivity");
@@ -266,7 +266,9 @@ private:
 
     void change_parameter_async(const std::string &param_name, const std::string &param_value) 
     {
-        if (!sensitivity_param_client_->service_is_ready()) 
+        // TODO: Move this into the base class so all param change requests can use the same code
+        //if (!sensitivity_param_client_->service_is_ready()) 
+        if (!sensitivity_param_client_->wait_for_service(std::chrono::seconds(5)))
         {
             RCLCPP_INFO(this->get_logger(), "Parameter service not ready, waiting...");
             return;
@@ -290,7 +292,7 @@ private:
         }
         if (param_result)
         {            
-            RCLCPP_INFO(get_logger(), "Sensitivity change completed");
+            RCLCPP_INFO(get_logger(), "Sensitivity change completed - reason: %s", change_reason_.c_str());
             
             // reset the counter
             sensitivity_increase_check_counter_ = 0;
