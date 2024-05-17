@@ -65,19 +65,24 @@ private:
         sensitivity_change_action_ = Ignore;
 
         interval_check_timer_ = create_wall_timer(std::chrono::seconds(check_interval_), 
-            std::bind(&TrackSensitivityMonitor::interval_check_timer_callback, this));
-
-        sensitivity_param_client_ = std::make_shared<rclcpp::AsyncParametersClient>(this, "background_subtractor_node");
+            [this](){interval_check_timer_callback();});
 
         monitoring_subscription_ = create_subscription<bob_interfaces::msg::MonitoringStatus>(
             "bob/monitoring/status", 
             sub_qos_profile_,
-            std::bind(&TrackSensitivityMonitor::status_callback, this, std::placeholders::_1));
+            [this](const bob_interfaces::msg::MonitoringStatus::SharedPtr status_msg){status_callback(status_msg);});
     }
 
     void declare_node_parameters()
     {
         std::vector<ParameterNode::ActionParam> params = {
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("bgs_node", true), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    sensitivity_param_client_ = std::make_shared<rclcpp::AsyncParametersClient>(this, param.as_string()); 
+                }
+            ),            
             ParameterNode::ActionParam(
                 rclcpp::Parameter("sensitivity", "medium_c"), 
                 [this](const rclcpp::Parameter& param) { sensitivity_ = param.as_string(); }
@@ -253,7 +258,7 @@ private:
 
                 if (updating)
                 {
-                    change_parameter_async("sensitivity", sensitivity_);
+                    change_parameter_async("bgs_sensitivity", sensitivity_);
                 }
             }
         }
