@@ -34,7 +34,6 @@ struct CameraWorkerParams
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_resized_publisher;
     rclcpp::Publisher<bob_camera::msg::ImageInfo>::SharedPtr image_info_publisher;
     rclcpp::Publisher<bob_camera::msg::CameraInfo>::SharedPtr camera_info_publisher;
-    // rclcpp::Publisher<sensor_msgs::msg::RegionOfInterest>::SharedPtr roi_publisher;
 
     int camera_id;
     int resize_height;
@@ -57,7 +56,9 @@ struct CameraWorkerParams
 class CameraWorker
 {
 public:
-    explicit CameraWorker(ParameterNode & node, CameraWorkerParams & params, const std::function<void(const std_msgs::msg::Header &, const cv::Mat &)> & user_callback = nullptr)
+    explicit CameraWorker(ParameterNode & node
+                        , CameraWorkerParams & params
+                        , const std::function<void(const std_msgs::msg::Header &, const cv::Mat &)> & user_callback = nullptr)
         : node_(node)
         , params_(params)
         , user_callback_(user_callback)
@@ -330,7 +331,9 @@ private:
         {
             auto response = future.get();
             if (response->success)
+            {
                 user_callback(response);  
+            }
         };
 
         // Send the request
@@ -371,15 +374,7 @@ private:
     {
         if (params_.mask_enable_roi && mask_enabled_)
         {
-            sensor_msgs::msg::RegionOfInterest roi_msg;
-            if(grey_mask_.empty())
-            {
-                roi_msg.x_offset = 0;
-                roi_msg.y_offset = 0;
-                roi_msg.width = 0;
-                roi_msg.height = 0;
-            }
-            else
+            if(!grey_mask_.empty())
             {
                 bounding_box_ = cv::Rect(grey_mask_.cols, grey_mask_.rows, 0, 0);                                
                 for (int y = 0; y < grey_mask_.rows; ++y) 
@@ -395,16 +390,9 @@ private:
                         }
                     }
                 }
-
-                roi_msg.x_offset = bounding_box_.x;
-                roi_msg.y_offset = bounding_box_.y;
-                roi_msg.width = bounding_box_.width;
-                roi_msg.height = bounding_box_.height;
             }
 
-            // node_.publish_if_subscriber(params_.roi_publisher, roi_msg);
-
-            RCLCPP_INFO(node_.get_logger(), "Detection frame size determined from mask: %d x %d", roi_msg.width, roi_msg.height);
+            RCLCPP_INFO(node_.get_logger(), "Detection frame size determined from mask: %d x %d", bounding_box_.width, bounding_box_.height);
         }
     }
 

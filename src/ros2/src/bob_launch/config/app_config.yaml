@@ -463,8 +463,8 @@ web_camera_video_overlay_node:
     resize_height: 960
     privacy_mask_file: 'assets/masks/privacy-mask.jpg'
     privacy_mask_enable_offset_correction: True
-    bgs_sensitivity: 'low_c'
-    bgs_type: ''
+    bgs_sensitivity: 'medium_c'
+    bgs_type: 'vibe'
     bgs_mask_file: 'assets/masks/detection-mask.jpg'
     bgs_mask_enable_offset_correction: True
     bgs_json_params: '[
