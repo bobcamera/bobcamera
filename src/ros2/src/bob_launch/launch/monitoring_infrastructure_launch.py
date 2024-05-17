@@ -51,7 +51,7 @@ def generate_launch_description():
         arguments=['--ros-args', '--log-level', loglevel],
         parameters = [config],
         remappings=[
-            ('bob/observer_frame/source', 'bob/frames/allsky/original')],
+            ('bob/observer_frame/source', 'bob/frames/allsky/original/resized')],
     )
 
     cloud_estimator_node = Node(
@@ -62,7 +62,7 @@ def generate_launch_description():
         arguments=['--ros-args', '--log-level', loglevel],
         parameters = [config],
         remappings=[
-            ('bob/observer_frame/source', 'bob/frames/allsky/original')],        
+            ('bob/observer_frame/source', 'bob/frames/allsky/original/resized')],        
     )
     
     star_mask_node = Node(
