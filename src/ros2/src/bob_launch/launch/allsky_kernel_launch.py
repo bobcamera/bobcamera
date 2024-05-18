@@ -60,18 +60,6 @@ def generate_launch_description():
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'usb'" ])),
             ),
-            # ComposableNode(
-            #     package='bob_simulator', 
-            #     plugin='MovingObjectsSimulation', 
-            #     name='simulated_frame_provider_node',
-            #     namespace=namespace,
-            #     parameters = [config],
-            #     remappings=[
-            #         ('bob/simulation/output_frame', 'bob/frames/allsky/original')
-            #     ],
-            #     extra_arguments=[{'use_intra_process_comms': True}],
-            #     condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'simulate'" ])),  
-            # ) , 
             ComposableNode(
                 package='bob_camera',
                 plugin='CameraBGS',
@@ -81,21 +69,6 @@ def generate_launch_description():
                 extra_arguments=[{'use_intra_process_comms': True}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'video_overlay'" ])),
             ),
-            # ComposableNode(
-            #     package='bob_simulator',
-            #     plugin='SimulationOverlayProviderNode',  
-            #     name='simulation_overlay_provider_node',
-            #     namespace=namespace,
-            #     parameters = [config],
-            #     remappings=[('bob/simulation/output_frame', 'bob/frames/allsky/original')],
-            #     extra_arguments=[{'use_intra_process_comms': True}],
-            #     condition=IfCondition(PythonExpression([
-            #         LaunchConfiguration('source_arg'), 
-            #         " == 'rtsp_overlay'", 
-            #         " or ", 
-            #         LaunchConfiguration('source_arg'), 
-            #         " == 'video_overlay'"]))
-            # ),
             ComposableNode(
                 package='bob_tracking',
                 plugin='TrackProvider',

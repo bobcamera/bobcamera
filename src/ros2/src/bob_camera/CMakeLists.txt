@@ -89,23 +89,6 @@ ament_target_dependencies(web_camera_video_node PUBLIC
 rclcpp_components_register_nodes(web_camera_video_node "WebCameraVideo")
 install(TARGETS web_camera_video_node DESTINATION lib)
 
-# Web Camera Video Node 2
-add_library(web_camera_video_node2 SHARED src/web_camera_video2.cpp)
-target_compile_definitions(web_camera_video_node2 PRIVATE "COMPOSITION_BUILDING_DLL")
-target_link_libraries(web_camera_video_node2 PUBLIC boblib "${cpp_typesupport_target}")
-ament_target_dependencies(web_camera_video_node2 PUBLIC
-    rclcpp 
-    sensor_msgs 
-    std_msgs
-    cv_bridge
-    rcl_interfaces 
-    rclcpp_components
-    OpenCV
-    Boost
-    bob_interfaces)
-rclcpp_components_register_nodes(web_camera_video_node2 "WebCameraVideo2")
-install(TARGETS web_camera_video_node2 DESTINATION lib)
-
 # Camera BGS Node
 add_library(camera_bgs_node SHARED src/camera_bgs.cpp)
 target_compile_definitions(camera_bgs_node PRIVATE "COMPOSITION_BUILDING_DLL")

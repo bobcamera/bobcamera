@@ -270,18 +270,6 @@ def application_config(context):
             # web_camera_video_overlay_node
             yaml_output['web_camera_video_overlay_node']['ros__parameters']['videos'] = videos.split(";")
 
-            # simulated_frame_provider_node
-            yaml_output['simulated_frame_provider_node']['ros__parameters']['num_objects'] = simulation_num_objects
-            yaml_output['simulated_frame_provider_node']['ros__parameters']['height'] = simulation_height
-            yaml_output['simulated_frame_provider_node']['ros__parameters']['width'] = simulation_width
-            yaml_output['simulated_frame_provider_node']['ros__parameters']['video_fps'] = fps
-
-            # simulation_overlay_provider_node
-            yaml_output['simulation_overlay_provider_node']['ros__parameters']['num_objects'] = simulation_num_objects
-            yaml_output['simulation_overlay_provider_node']['ros__parameters']['height'] = simulation_height
-            yaml_output['simulation_overlay_provider_node']['ros__parameters']['width'] = simulation_width
-            yaml_output['simulation_overlay_provider_node']['ros__parameters']['video_fps'] = fps
-
             # track_sensitivity_monitor_node
             yaml_output['track_sensitivity_monitor_node']['ros__parameters']['sensitivity'] = tracking_sensitivity
             yaml_output['track_sensitivity_monitor_node']['ros__parameters']['star_mask_enabled'] = enable_star_mask
