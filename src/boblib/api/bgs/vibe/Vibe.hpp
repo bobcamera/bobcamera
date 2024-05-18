@@ -20,7 +20,7 @@ namespace boblib::bgs
 
     private:
         virtual void initialize(const cv::Mat &oInitImg);
-        virtual void process(const cv::Mat &_image, cv::Mat &_fgmask, int _numProcess);
+        virtual void process(const cv::Mat &_image, cv::Mat &_fgmask, const cv::Mat & _detectMask, int _numProcess);
 
         VibeParams m_params;
 
@@ -30,9 +30,10 @@ namespace boblib::bgs
 
         template<class T>
         void initialize(const Img &_initImg, std::vector<std::unique_ptr<Img>> &_bg_img_samples, Pcg32 &_rnd_gen);
+        
         template<class T>
-        static void apply1(const Img &_image, std::vector<std::unique_ptr<Img>> &_bg_img_samples, Img &_fg_mask, const VibeParams &_params, Pcg32 &_rnd_gen);
+        void apply1(const Img &_image, Img &_fg_mask, const Img & _detect_mask, int _num_process);
         template<class T>
-        static void apply3(const Img &_image, std::vector<std::unique_ptr<Img>> &_bg_img_samples, Img &_fg_mask, const VibeParams &_params, Pcg32 &_rnd_gen);
+        void apply3(const Img &_image, Img &_fg_mask, const Img & _detect_mask, int _num_process);
     };
 }

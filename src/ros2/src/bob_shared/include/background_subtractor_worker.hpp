@@ -140,7 +140,7 @@ public:
                     cv::cvtColor(img, gray_img, cv::COLOR_BGR2GRAY);
                 }
 
-                apply_mask(gray_img);
+                //apply_mask(gray_img);
 
                 if (!ros_cv_foreground_mask_ || (gray_img.size() != ros_cv_foreground_mask_->image_ptr->size()))
                 {
@@ -148,7 +148,7 @@ public:
                 }
                 ros_cv_foreground_mask_->msg_ptr->header = header;
 
-                bgsPtr->apply(gray_img, *ros_cv_foreground_mask_->image_ptr);
+                bgsPtr->apply(gray_img, *ros_cv_foreground_mask_->image_ptr, (params_.mask_enable_roi && mask_enabled_) ? grey_mask_ : cv::Mat());
 
                 // auto frame_synthetic_msg = cv_bridge::CvImage(header, sensor_msgs::image_encodings::MONO8, gray_img).toImageMsg();
                 // params_.image_publisher->publish(*frame_synthetic_msg);
@@ -274,7 +274,7 @@ private:
 
             params_.roi_publisher->publish(roi_msg);
 
-            RCLCPP_INFO(node_.get_logger(), "Detection frame size determined from mask: %d x %d", roi_msg.width, roi_msg.height);
+            RCLCPP_INFO(node_.get_logger(), "Detection frame size determined from mask: %d x %d", bounding_box_.width, bounding_box_.height);
         }
     }
 

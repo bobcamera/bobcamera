@@ -20,7 +20,7 @@ namespace boblib::bgs
 
         virtual ~CoreBgs() {}
 
-        void apply(const cv::Mat &_image, cv::Mat &_fgmask);
+        void apply(const cv::Mat &_image, cv::Mat &_fgmask, const cv::Mat & _detectMask = cv::Mat());
         cv::Mat apply_ret(const cv::Mat &_image);
 
         void restart();
@@ -31,10 +31,10 @@ namespace boblib::bgs
 
     protected:
         virtual void initialize(const cv::Mat &_image) = 0;
-        virtual void process(const cv::Mat &_image, cv::Mat &_fgmask, int _numProcess) = 0;
+        virtual void process(const cv::Mat &_image, cv::Mat &_fgmask, const cv::Mat & _detectMask, int _numProcess) = 0;
 
         void prepare_parallel(const cv::Mat &_image);
-        void apply_parallel(const cv::Mat &_image, cv::Mat &_fgmask);
+        void apply_parallel(const cv::Mat &_image, cv::Mat &_fgmask, const cv::Mat & _detectMask);
 
         size_t m_num_processes_parallel;
         bool m_initialized;

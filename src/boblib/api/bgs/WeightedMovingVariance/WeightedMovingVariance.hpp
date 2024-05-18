@@ -25,7 +25,7 @@ namespace boblib::bgs
 
     private:
         virtual void initialize(const cv::Mat &_image);
-        virtual void process(const cv::Mat &img_input, cv::Mat &img_output, int _num_process);
+        virtual void process(const cv::Mat &img_input, cv::Mat &img_output, const cv::Mat & _detectMask, int _num_process);
 
         static const inline int ROLLING_BG_IDX[3][3] = {{0, 1, 2}, {2, 0, 1}, {1, 2, 0}};
 

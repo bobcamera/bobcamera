@@ -22,7 +22,7 @@ namespace boblib::bgs
         m_initialized = false;
     }
 
-    void CoreBgs::apply(const cv::Mat &_image, cv::Mat &_fgmask)
+    void CoreBgs::apply(const cv::Mat &_image, cv::Mat &_fgmask, const cv::Mat & _detectMask)
     {
         if (!m_initialized || *m_original_img_size != ImgSize(_image))
         {
@@ -41,11 +41,11 @@ namespace boblib::bgs
 
         if (m_num_processes_parallel == 1)
         {
-            process(_image, _fgmask, 0);
+            process(_image, _fgmask, _detectMask, 0);
         }
         else
         {
-            apply_parallel(_image, _fgmask);
+            apply_parallel(_image, _fgmask, _detectMask);
         }
     }
 
@@ -81,7 +81,7 @@ namespace boblib::bgs
         }
     }
 
-    void CoreBgs::apply_parallel(const cv::Mat &_image, cv::Mat &_fgmask)
+    void CoreBgs::apply_parallel(const cv::Mat &_image, cv::Mat &_fgmask, const cv::Mat & _detectMask)
     {
         std::for_each(
             std::execution::par,
@@ -93,7 +93,9 @@ namespace boblib::bgs
                                     _image.data + (m_img_sizes_parallel[np]->original_pixel_pos * m_img_sizes_parallel[np]->num_channels * m_img_sizes_parallel[np]->bytes_per_pixel));
                 cv::Mat maskPartial(m_img_sizes_parallel[np]->height, m_img_sizes_parallel[np]->width, _fgmask.type(),
                                     _fgmask.data + m_img_sizes_parallel[np]->original_pixel_pos);
-                process(imgSplit, maskPartial, np);
+                const cv::Mat & detectMaskPartial = _detectMask.empty() ? _detectMask : 
+                                cv::Mat(m_img_sizes_parallel[np]->height, m_img_sizes_parallel[np]->width, _detectMask.type(), _detectMask.data + m_img_sizes_parallel[np]->original_pixel_pos);
+                process(imgSplit, maskPartial, detectMaskPartial, np);
             });
     }
 }

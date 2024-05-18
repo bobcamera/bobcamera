@@ -53,7 +53,7 @@ namespace boblib::bgs
         ++_rolling_images.current_rolling_idx;
     }
 
-    void WeightedMovingVariance::process(const cv::Mat &_img_input, cv::Mat &_img_output, int _num_process)
+    void WeightedMovingVariance::process(const cv::Mat &_img_input, cv::Mat &_img_output, const cv::Mat & _detectMask, int _num_process)
     {
         if (_img_output.empty())
         {

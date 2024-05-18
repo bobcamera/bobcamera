@@ -42,6 +42,11 @@ namespace boblib
             return !(*this == rhs);
         }
 
+        bool empty() const
+        {
+            return width == 0 || height == 0;
+        }
+
         const int width;
         const int height;
         const int num_channels;
@@ -73,6 +78,11 @@ namespace boblib
         inline void clear()
         {
             memset(data, 0, size.size_in_bytes);
+        }
+
+        inline bool empty() const
+        {
+            return size.empty();
         }
 
         uint8_t *const data;
