@@ -16,6 +16,8 @@ rtsp_camera_node:
     camera_calibration_file: 'file:///workspaces/bobcamera/src/ros2/assets/config/camera_info.yaml'
     privacy_mask_file: 'assets/masks/privacy-mask.jpg'
     privacy_mask_enable_offset_correction: False
+    simulator_num_objects: 15
+    simulator: False
     resize_height: 960
     bgs_sensitivity: 'low_c'
     bgs_type: ''
@@ -130,6 +132,8 @@ rtsp_overlay_camera_node:
     privacy_mask_file: 'assets/masks/privacy-mask.jpg'
     privacy_mask_enable_offset_correction: False
     resize_height: 960
+    simulator_num_objects: 15
+    simulator: True
     bgs_sensitivity: 'low_c'
     bgs_type: ''
     bgs_mask_file: 'assets/masks/detection-mask.jpg'
@@ -237,6 +241,8 @@ web_camera_video_node:
     videos:
     privacy_mask_file: 'assets/masks/privacy-mask.jpg'
     privacy_mask_enable_offset_correction: False
+    simulator_num_objects: 15
+    simulator: False
     resize_height: 960
     bgs_sensitivity: 'low_c'
     bgs_type: ''
@@ -345,6 +351,8 @@ usb_camera_node:
     camera_id: 0
     privacy_mask_file: 'assets/masks/privacy-mask.jpg'
     privacy_mask_enable_offset_correction: False
+    simulator_num_objects: 15
+    simulator: False
     resize_height: 960
     bgs_sensitivity: 'low_c'
     bgs_type: ''
@@ -443,26 +451,19 @@ usb_camera_node:
                     }
                   ]'
 
-simulated_frame_provider_node:
-  ros__parameters:
-    height: 0
-    width: 0
-    num_objects: 0
-    image_resized_publish_topic: 'bob/frames/allsky/original/resized'
-
 web_camera_video_overlay_node:
   ros__parameters:
     image_publish_topic: 'bob/frames/allsky/original'
-    # image_publish_topic: 'bob/simulation/input_frame'
     image_info_publish_topic: 'bob/camera/all_sky/image_info'
     camera_info_publish_topic: 'bob/camera/all_sky/camera_info'
-    # image_resized_publish_topic: ''
     image_resized_publish_topic: 'bob/frames/allsky/original/resized'
     source_type: 'VIDEO_FILE'
     videos:
     resize_height: 960
     privacy_mask_file: 'assets/masks/privacy-mask.jpg'
     privacy_mask_enable_offset_correction: True
+    simulator_num_objects: 15
+    simulator: True
     bgs_sensitivity: 'medium_c'
     bgs_type: 'vibe'
     bgs_mask_file: 'assets/masks/detection-mask.jpg'
@@ -559,15 +560,6 @@ web_camera_video_overlay_node:
                       }
                     }
                   ]'
-
-simulation_overlay_provider_node:
-  ros__parameters:
-    height: 0
-    width: 0
-    num_objects: 0
-    video_fps: 10.0
-    image_resized_publish_topic: 'bob/frames/allsky/original/resized'
-    resize_height: 960
 
 track_provider_node:
   ros__parameters:

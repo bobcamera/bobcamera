@@ -258,6 +258,20 @@ private:
                     }
                 }
             ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("simulator_num_objects", 15), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    camera_params_.simulator_num_objects = static_cast<int>(param.as_int());
+                }
+            ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("simulator", false), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    camera_params_.simulator_enable =  param.as_bool();
+                }
+            ),
         };
         add_action_parameters(params);
     }

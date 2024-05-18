@@ -18,8 +18,9 @@
 #include <bob_camera/msg/image_info.hpp>
 #include <bob_camera/msg/camera_info.hpp>
 
-#include "image_utils.hpp"
-#include "parameter_node.hpp"
+#include <image_utils.hpp>
+#include <parameter_node.hpp>
+#include <object_simulator.hpp>
 
 struct CameraWorkerParams
 {
@@ -51,6 +52,8 @@ struct CameraWorkerParams
     bool mask_enable_override;
     bool mask_enable_roi;
     std::string mask_filename;
+    int simulator_num_objects;
+    bool simulator_enable;
 };
 
 class CameraWorker
@@ -71,6 +74,11 @@ public:
         run_ = false;
         fps_ = 25.0;
         mask_enabled_ = false;
+
+        if (params_.simulator_enable)
+        {
+            object_simulator_ptr_ = std::make_unique<ObjectSimulator>(params_.simulator_num_objects);
+        }
 
         camera_settings_client_ = node_.create_client<bob_interfaces::srv::CameraSettings>("bob/camera/settings");
         fps_update_client_ = node_.create_client<bob_interfaces::srv::ConfigEntryUpdate>("bob/config/update/fps");
@@ -101,6 +109,7 @@ private:
     std::optional<std::filesystem::file_time_type> mask_last_modified_time_;
     cv::Mat grey_mask_;
     cv::Rect bounding_box_;
+    std::unique_ptr<ObjectSimulator> object_simulator_ptr_;
 
     void captureLoop()
     {
@@ -116,6 +125,11 @@ private:
                 open_camera();
                 roscv_image_msg_ptr = RosCvImageMsg::create(video_capture_);
                 video_capture_.read(*roscv_image_msg_ptr->image_ptr);
+            }
+
+            if (params_.simulator_enable)
+            {
+                object_simulator_ptr_->move(*roscv_image_msg_ptr->image_ptr);
             }
 
             apply_mask(*roscv_image_msg_ptr->image_ptr);
