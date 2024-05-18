@@ -59,16 +59,9 @@ namespace boblib::bgs
         {
             _img_output.create(_img_input.size(), CV_8UC1);
         }
-        process(_img_input, _img_output, m_img_input_prev[_num_process], m_params);
-        roll_images(m_img_input_prev[_num_process]);
-    }
 
-    void WeightedMovingVariance::process(const cv::Mat &_in_image,
-                                        cv::Mat &_out_img,
-                                        RollingImages &_img_input_prev,
-                                        const WMVParams &_params)
-    {
-        memcpy(_img_input_prev.p_img_input, _in_image.data, _img_input_prev.p_img_size->size_in_bytes);
+        auto & _img_input_prev =  m_img_input_prev[_num_process];
+        memcpy(_img_input_prev.p_img_input, _img_input.data, _img_input_prev.p_img_size->size_in_bytes);
 
         if (_img_input_prev.first_phase < 2)
         {
@@ -76,44 +69,53 @@ namespace boblib::bgs
             return;
         }
 
+        uint8_t* detectMaskPtr = _detectMask.empty() ? nullptr : _detectMask.data;
+
         if (_img_input_prev.p_img_size->num_channels == 1)
         {
             if (_img_input_prev.p_img_size->bytes_per_pixel == 1)
             {
-                weighted_variance_mono(_img_input_prev.p_img_input, _img_input_prev.p_img_input_prev1, _img_input_prev.p_img_input_prev2,
-                                    _out_img.data, (size_t)_img_input_prev.p_img_size->num_pixels, 
-                                    _params.weight, _params.enable_threshold, _params.threshold_squared);
+                weighted_variance_mono(_img_input_prev.p_img_input, _img_input_prev.p_img_input_prev1, _img_input_prev.p_img_input_prev2, detectMaskPtr,
+                                    _img_output.data, (size_t)_img_input_prev.p_img_size->num_pixels, 
+                                    m_params.weight, m_params.enable_threshold, m_params.threshold_squared);
             }
             else
             {
-                weighted_variance_mono((uint16_t*)_img_input_prev.p_img_input, (uint16_t*)_img_input_prev.p_img_input_prev1, (uint16_t*)_img_input_prev.p_img_input_prev2,
-                                    _out_img.data, (size_t)_img_input_prev.p_img_size->num_pixels, 
-                                    _params.weight, _params.enable_threshold, _params.threshold_squared16);
+                weighted_variance_mono((uint16_t*)_img_input_prev.p_img_input, (uint16_t*)_img_input_prev.p_img_input_prev1, (uint16_t*)_img_input_prev.p_img_input_prev2, detectMaskPtr,
+                                    _img_output.data, (size_t)_img_input_prev.p_img_size->num_pixels, 
+                                    m_params.weight, m_params.enable_threshold, m_params.threshold_squared16);
             }
         }
         else
         {
             if (_img_input_prev.p_img_size->bytes_per_pixel == 1)
             {
-                weighted_variance_color(_img_input_prev.p_img_input, _img_input_prev.p_img_input_prev1, _img_input_prev.p_img_input_prev2,
-                                    _out_img.data, (size_t)_img_input_prev.p_img_size->num_pixels, 
-                                    _params.weight, _params.enable_threshold, _params.threshold_squared);
+                weighted_variance_color(_img_input_prev.p_img_input, _img_input_prev.p_img_input_prev1, _img_input_prev.p_img_input_prev2, detectMaskPtr,
+                                    _img_output.data, (size_t)_img_input_prev.p_img_size->num_pixels, 
+                                    m_params.weight, m_params.enable_threshold, m_params.threshold_squared);
             }
             else
             {
-                weighted_variance_color((uint16_t*)_img_input_prev.p_img_input, (uint16_t*)_img_input_prev.p_img_input_prev1, (uint16_t*)_img_input_prev.p_img_input_prev2,
-                                    _out_img.data, (size_t)_img_input_prev.p_img_size->num_pixels, 
-                                    _params.weight, _params.enable_threshold, _params.threshold_squared16);
+                weighted_variance_color((uint16_t*)_img_input_prev.p_img_input, (uint16_t*)_img_input_prev.p_img_input_prev1, (uint16_t*)_img_input_prev.p_img_input_prev2, detectMaskPtr,
+                                    _img_output.data, (size_t)_img_input_prev.p_img_size->num_pixels, 
+                                    m_params.weight, m_params.enable_threshold, m_params.threshold_squared16);
             }
         }
+    
+        roll_images(m_img_input_prev[_num_process]);
     }
 
     template<class T>
-    inline void calc_weighted_variance_mono(const T *const _i1, const T *const _i2, const T *const _i3,
+    inline void calc_weighted_variance_mono(const T *const _i1, const T *const _i2, const T *const _i3, const uint8_t *const _imgMask,
                                         uint8_t *const _o, uint32_t _total_pixels, const float* _weight)
     {
         for (uint32_t i{0}; i < _total_pixels; ++i)
         {
+            if (_imgMask && (_imgMask[i] == 0))
+            {
+                _o[i] = ZERO_UC;
+                continue;
+            }
             const float dI[]{(float)_i1[i], (float)_i2[i], (float)_i3[i]};
             const float mean{(dI[0] * _weight[0]) + (dI[1] * _weight[1]) + (dI[2] * _weight[2])};
             const float value[]{dI[0] - mean, dI[1] - mean, dI[2] - mean};
@@ -122,12 +124,17 @@ namespace boblib::bgs
     }
 
     template<class T>
-    inline void calc_weighted_variance_mono_threshold(const T *const _i1, const T *const _i2, const T *const _i3,
+    inline void calc_weighted_variance_mono_threshold(const T *const _i1, const T *const _i2, const T *const _i3, const uint8_t *const _imgMask,
                                                 uint8_t *const _o, uint32_t _total_pixels, 
                                                 const float* _weight, const float _threshold_squared)
     {
         for (uint32_t i{0}; i < _total_pixels; ++i)
         {
+            if (_imgMask && (_imgMask[i] == 0))
+            {
+                _o[i] = ZERO_UC;
+                continue;
+            }
             const float dI[]{(float)_i1[i], (float)_i2[i], (float)_i3[i]};
             const float mean{(dI[0] * _weight[0]) + (dI[1] * _weight[1]) + (dI[2] * _weight[2])};
             const float value[]{dI[0] - mean, dI[1] - mean, dI[2] - mean};
@@ -137,12 +144,17 @@ namespace boblib::bgs
     }
 
     template<class T>
-    inline void calc_weighted_variance_color(const T *const _i1, const T *const _i2, const T *const _i3,
+    inline void calc_weighted_variance_color(const T *const _i1, const T *const _i2, const T *const _i3, const uint8_t *const _imgMask,
                                         uint8_t *const _o, uint32_t _total_pixels, 
                                         const float* _weight)
     {
         for (uint32_t j{0}, j3{0}; j < _total_pixels; ++j, j3 += 3)
         {
+            if (_imgMask && (_imgMask[j] == 0))
+            {
+                _o[j] = ZERO_UC;
+                continue;
+            }
             const float dI1[]{(float)_i1[j3], (float)_i1[j3 + 1], (float)_i1[j3 + 2]};
             const float dI2[]{(float)_i2[j3], (float)_i2[j3 + 1], (float)_i2[j3 + 2]};
             const float dI3[]{(float)_i3[j3], (float)_i3[j3 + 1], (float)_i3[j3 + 2]};
@@ -160,12 +172,17 @@ namespace boblib::bgs
     }
 
     template<class T>
-    inline void calc_weighted_variance_color_threshold(const T *const _i1, const T *const _i2, const T *const _i3,
+    inline void calc_weighted_variance_color_threshold(const T *const _i1, const T *const _i2, const T *const _i3, const uint8_t *const _imgMask,
                                                 uint8_t *const _o, uint32_t _total_pixels, 
                                                 const float* _weight, const float thresholdSquared)
     {
         for (uint32_t j{0}, j3{0}; j < _total_pixels; ++j, j3 += 3)
         {
+            if (_imgMask && (_imgMask[j] == 0))
+            {
+                _o[j] = ZERO_UC;
+                continue;
+            }
             const float dI1[]{(float)_i1[j3], (float)_i1[j3 + 1], (float)_i1[j3 + 2]};
             const float dI2[]{(float)_i2[j3], (float)_i2[j3 + 1], (float)_i2[j3 + 2]};
             const float dI3[]{(float)_i3[j3], (float)_i3[j3 + 1], (float)_i3[j3 + 2]};
@@ -188,6 +205,7 @@ namespace boblib::bgs
         const T *const _img1,
         const T *const _img2,
         const T *const _img3,
+        const uint8_t *const _imgMask,
         uint8_t *const _out_img,
         const size_t _total_pixels,
         const float* _weight,
@@ -195,9 +213,9 @@ namespace boblib::bgs
         const float _threshold_squared)
     {
         if (_enable_threshold)
-            calc_weighted_variance_mono_threshold(_img1, _img2, _img3, _out_img, _total_pixels, _weight, _threshold_squared);
+            calc_weighted_variance_mono_threshold(_img1, _img2, _img3, _imgMask, _out_img, _total_pixels, _weight, _threshold_squared);
         else
-            calc_weighted_variance_mono(_img1, _img2, _img3, _out_img, _total_pixels, _weight);
+            calc_weighted_variance_mono(_img1, _img2, _img3, _imgMask, _out_img, _total_pixels, _weight);
     }
 
     template<class T>
@@ -205,6 +223,7 @@ namespace boblib::bgs
         const T *const _img1,
         const T *const _img2,
         const T *const _img3,
+        const uint8_t *const _imgMask,
         uint8_t *const _out_img,
         const size_t _total_pixels,
         const float* _weight, 
@@ -212,8 +231,8 @@ namespace boblib::bgs
         const float _threshold_squared)
     {
         if (_enable_threshold)
-            calc_weighted_variance_color_threshold(_img1, _img2, _img3, _out_img, _total_pixels, _weight, _threshold_squared);
+            calc_weighted_variance_color_threshold(_img1, _img2, _img3, _imgMask, _out_img, _total_pixels, _weight, _threshold_squared);
         else
-            calc_weighted_variance_color(_img1, _img2, _img3, _out_img, _total_pixels, _weight);
+            calc_weighted_variance_color(_img1, _img2, _img3, _imgMask, _out_img, _total_pixels, _weight);
     }
 }

@@ -4,6 +4,9 @@
         "typeindex": "cpp",
         "typeinfo": "cpp",
         "array": "cpp",
-        "string_view": "cpp"
+        "string_view": "cpp",
+        "string": "cpp",
+        "cmath": "cpp",
+        "complex": "cpp"
     }
 }

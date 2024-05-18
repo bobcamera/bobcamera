@@ -45,15 +45,13 @@ namespace boblib::bgs
         std::vector<RollingImages> m_img_input_prev;
 
         static void roll_images(RollingImages& _rolling_images);
-        static void process(const cv::Mat &_img_input,
-                            cv::Mat &_img_output,
-                            RollingImages &_img_input_prev,
-                            const WMVParams &_params);
+                    
         template<class T>
         static void weighted_variance_mono(
             const T *const _img1,
             const T *const _img2,
             const T *const _img3,
+            const uint8_t *const _imgMask,
             uint8_t *const _out_Img,
             const size_t _total_pixels,
             const float* _weight, 
@@ -64,6 +62,7 @@ namespace boblib::bgs
             const T *const _img1,
             const T *const _img2,
             const T *const _img3,
+            const uint8_t *const _imgMask,
             uint8_t *const _out_img,
             const size_t _total_pixels,
             const float* _weight, 

@@ -140,8 +140,6 @@ public:
                     cv::cvtColor(img, gray_img, cv::COLOR_BGR2GRAY);
                 }
 
-                //apply_mask(gray_img);
-
                 if (!ros_cv_foreground_mask_ || (gray_img.size() != ros_cv_foreground_mask_->image_ptr->size()))
                 {
                     ros_cv_foreground_mask_ = std::make_unique<RosCvImageMsg>(gray_img, sensor_msgs::image_encodings::MONO8, false);
@@ -150,9 +148,7 @@ public:
 
                 bgsPtr->apply(gray_img, *ros_cv_foreground_mask_->image_ptr, (params_.mask_enable_roi && mask_enabled_) ? grey_mask_ : cv::Mat());
 
-                // auto frame_synthetic_msg = cv_bridge::CvImage(header, sensor_msgs::image_encodings::MONO8, gray_img).toImageMsg();
-                // params_.image_publisher->publish(*frame_synthetic_msg);
-                params_.image_publisher->publish(*ros_cv_foreground_mask_->msg_ptr);
+                node_.publish_if_subscriber(params_.image_publisher, *ros_cv_foreground_mask_->msg_ptr);
 
                 publish_resized_frame(*ros_cv_foreground_mask_);
 
@@ -191,6 +187,13 @@ public:
     }
 
 private:
+    enum class MaskCheckType
+    {
+        Disable,
+        Enable,
+        NoChange
+    };
+
     ParameterNode & node_;
 
     BackgroundSubtractorWorkerParams & params_;
@@ -216,8 +219,8 @@ private:
         for (const auto &bbox : bboxes)
         {
             bob_interfaces::msg::DetectorBBox bbox_msg;
-            bbox_msg.x = bbox.x + bounding_box_.x;
-            bbox_msg.y = bbox.y + bounding_box_.y;
+            bbox_msg.x = bbox.x;
+            bbox_msg.y = bbox.y;
             bbox_msg.width = bbox.width;
             bbox_msg.height = bbox.height;
             bbox2D_array.detections.push_back(bbox_msg);
@@ -278,67 +281,66 @@ private:
         }
     }
 
-    inline void apply_mask(cv::Mat & img)
-    {
-        if (!mask_enabled_ || !params_.mask_enable_override)
-        {
-            return;
-        }
-        if (img.size() != grey_mask_.size())
-        {
-            RCLCPP_WARN(node_.get_logger(), "Frame and mask dimensions do not match. Attempting resize.");
-            RCLCPP_WARN(node_.get_logger(), "Note: Please ensure your mask has not gone stale, you might want to recreate it.");
-            cv::resize(grey_mask_, grey_mask_, img.size());
-        }
-        cv::bitwise_and(img, grey_mask_, img);
-        if (params_.mask_enable_roi)
-        {
-            img = img(bounding_box_);
-        }
-    }
-
     void mask_timer_callback()
     {
         mask_timer_->cancel();
-        try
+
+        auto detection_mask_result = mask_set(params_.mask_filename, mask_last_modified_time_, grey_mask_);
+
+        if (detection_mask_result == MaskCheckType::Enable)
         {
-            if (!std::filesystem::exists(params_.mask_filename))
+            if (!mask_enabled_)
             {
-                if (mask_enabled_)
-                {
-                    RCLCPP_INFO(node_.get_logger(), "Detection Mask Disabled.");
-                }
-                mask_enabled_ = false;
-                mask_timer_->reset();
-                return;
-            }
-
-            auto current_modified_time = std::filesystem::last_write_time(params_.mask_filename);
-            if (mask_last_modified_time_ == current_modified_time) 
-            {
-                mask_timer_->reset();
-                return;
-            }
-            mask_last_modified_time_ = current_modified_time;
-
-            grey_mask_= cv::imread(params_.mask_filename, cv::IMREAD_UNCHANGED);
-            mask_enabled_ = !grey_mask_.empty();
-            if (grey_mask_.empty())
-            {
-                RCLCPP_INFO(node_.get_logger(), "Detection Mask Disabled, mask image was empty");
+                mask_enabled_ = true;
+                RCLCPP_INFO(node_.get_logger(), "Detection Mask Enabled.");
             }
             else
             {
-                RCLCPP_INFO(node_.get_logger(), "Detection Mask Enabled.");
+                RCLCPP_INFO(node_.get_logger(), "Detection Mask Changed.");
             }
             roi_calculation();
         }
-        catch (cv::Exception &cve)
+        else if ((detection_mask_result == MaskCheckType::Disable) && mask_enabled_)
         {
-            RCLCPP_ERROR(node_.get_logger(), "Open CV exception on timer callback: %s", cve.what());
+            RCLCPP_INFO(node_.get_logger(), "Detection Mask Disabled.");
+            mask_enabled_ = false;
         }
-        
+
         mask_timer_->reset();
+    }
+
+    inline MaskCheckType mask_set(const std::string & mask_filename, std::optional<std::filesystem::file_time_type> & mask_last_modified_time, cv::Mat & mask)
+    {
+        try
+        {
+            if (!std::filesystem::exists(mask_filename))
+            {
+                mask_last_modified_time.reset();
+                return MaskCheckType::Disable;
+            }
+
+            auto current_modified_time = std::filesystem::last_write_time(mask_filename);
+            if (mask_last_modified_time == current_modified_time) 
+            {
+                return MaskCheckType::NoChange;
+            }
+            mask_last_modified_time = current_modified_time;
+
+            mask = cv::imread(mask_filename, cv::IMREAD_UNCHANGED);
+            if (mask.empty())
+            {
+                mask_last_modified_time.reset();
+                return MaskCheckType::Disable;
+            }
+
+            return MaskCheckType::Enable;
+        }
+        catch (std::exception &cve)
+        {
+            RCLCPP_ERROR(node_.get_logger(), "Exception on mask_set: %s", cve.what());
+            mask_last_modified_time.reset();
+            return MaskCheckType::Disable;
+        }
     }
 
     inline void publish_resized_frame(const RosCvImageMsg & image_msg)
