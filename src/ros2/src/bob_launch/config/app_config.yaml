@@ -599,6 +599,7 @@ multi_frame_viewer_node:
       - '/bob/frames/allsky/original/resized/compressed'
       - '/bob/frames/allsky/original'
       - '/bob/frames/foreground_mask/resized'
+      - '/bob/frames/foreground_mask'
 
 annotated_frame_compressor_node:
   ros__parameters:

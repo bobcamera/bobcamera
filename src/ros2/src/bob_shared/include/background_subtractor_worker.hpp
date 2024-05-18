@@ -146,6 +146,8 @@ public:
 
                 bgsPtr->apply(gray_img, *ros_cv_foreground_mask_->image_ptr);
 
+                // auto frame_synthetic_msg = cv_bridge::CvImage(header, sensor_msgs::image_encodings::MONO8, gray_img).toImageMsg();
+                // params_.image_publisher->publish(*frame_synthetic_msg);
                 params_.image_publisher->publish(*ros_cv_foreground_mask_->msg_ptr);
 
                 publish_resized_frame(*ros_cv_foreground_mask_);
@@ -272,31 +274,23 @@ private:
         }
     }
 
-    inline void apply_mask(const cv::Mat & img)
+    inline void apply_mask(cv::Mat & img)
     {
         if (!mask_enabled_ || !params_.mask_enable_override)
         {
             return;
         }
-        RCLCPP_INFO(node_.get_logger(), "Applying mask");
         if (img.size() != grey_mask_.size())
         {
             RCLCPP_WARN(node_.get_logger(), "Frame and mask dimensions do not match. Attempting resize.");
             RCLCPP_WARN(node_.get_logger(), "Note: Please ensure your mask has not gone stale, you might want to recreate it.");
             cv::resize(grey_mask_, grey_mask_, img.size());
         }
+        cv::bitwise_and(img, grey_mask_, img);
         if (params_.mask_enable_roi)
         {
-            cv::Mat image_roi = img(bounding_box_);
-            cv::Mat mask_roi = grey_mask_(bounding_box_);
-            cv::Mat result_roi;
-            cv::bitwise_and(image_roi, image_roi, result_roi, mask_roi);
-            result_roi.copyTo(img(bounding_box_));
+            img = img(bounding_box_);
         }
-        else
-        {
-            cv::bitwise_and(img, img, img, grey_mask_);
-        }        
     }
 
     void mask_timer_callback()
