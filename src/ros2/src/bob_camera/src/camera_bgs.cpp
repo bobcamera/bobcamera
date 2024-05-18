@@ -65,7 +65,6 @@ private:
             [this](const std::shared_ptr<bob_interfaces::srv::BGSResetRequest::Request> request, 
                     std::shared_ptr<bob_interfaces::srv::BGSResetRequest::Response> response) {reset_bgs_request(request, response);});
 
-        bgs_params_.roi_publisher = create_publisher<sensor_msgs::msg::RegionOfInterest>("bob/mask/roi", qos_profile_);
         bgs_params_.image_publisher = create_publisher<sensor_msgs::msg::Image>("bob/frames/foreground_mask", qos_profile_);
         bgs_params_.detection_publisher = create_publisher<bob_interfaces::msg::DetectorBBoxArray>("bob/detection/allsky/boundingboxes", qos_profile_);        
         bgs_params_.state_publisher = create_publisher<bob_interfaces::msg::DetectorState>("bob/detection/detector_state", qos_profile_);

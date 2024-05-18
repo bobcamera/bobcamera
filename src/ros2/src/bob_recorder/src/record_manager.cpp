@@ -393,7 +393,6 @@ private:
     std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> sub_fg_frame_;
     std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::Tracking>> sub_tracking_;
     std::shared_ptr<message_filters::Subscriber<bob_camera::msg::CameraInfo>> sub_camera_info_;
-    rclcpp::Subscription<sensor_msgs::msg::RegionOfInterest>::SharedPtr roi_subscription_;
     std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image,
     bob_interfaces::msg::Tracking, bob_camera::msg::CameraInfo>> time_synchronizer_;
 

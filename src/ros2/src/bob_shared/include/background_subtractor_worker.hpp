@@ -32,7 +32,6 @@ struct BackgroundSubtractorWorkerParams
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher;
     rclcpp::Publisher<bob_interfaces::msg::DetectorBBoxArray>::SharedPtr detection_publisher;
     rclcpp::Publisher<bob_interfaces::msg::DetectorState>::SharedPtr state_publisher;
-    rclcpp::Publisher<sensor_msgs::msg::RegionOfInterest>::SharedPtr roi_publisher;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_resized_publisher;
 
     BGSType bgs_type;
@@ -251,15 +250,7 @@ private:
     {
         if (params_.mask_enable_roi && mask_enabled_)
         {
-            sensor_msgs::msg::RegionOfInterest roi_msg;
-            if (grey_mask_.empty())
-            {
-                roi_msg.x_offset = 0;
-                roi_msg.y_offset = 0;
-                roi_msg.width = 0;
-                roi_msg.height = 0;
-            }
-            else
+            if (!grey_mask_.empty())
             {
                 bounding_box_ = cv::Rect(grey_mask_.cols, grey_mask_.rows, 0, 0);                                
                 for (int y = 0; y < grey_mask_.rows; ++y) 
@@ -275,14 +266,7 @@ private:
                         }
                     }
                 }
-
-                roi_msg.x_offset = 0;//bounding_box_.x;
-                roi_msg.y_offset = 0;//bounding_box_.y;
-                roi_msg.width = 0;//bounding_box_.width;
-                roi_msg.height = 0;//bounding_box_.height;
             }
-
-            params_.roi_publisher->publish(roi_msg);
 
             RCLCPP_INFO(node_.get_logger(), "Detection frame size determined from mask: %d x %d", bounding_box_.width, bounding_box_.height);
         }
