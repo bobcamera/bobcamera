@@ -82,9 +82,7 @@ public:
     }
 
     static Json::Value build_json_value(const bob_interfaces::msg::Tracking::SharedPtr & tracking_msg,
-                                        bool include_detections,
-                                        int x_offset,
-                                        int y_offset) 
+                                        bool include_detections) 
     {
         Json::Value jsonValue;
 
@@ -105,8 +103,8 @@ public:
                 jsonDetection["state"] = detection.state;
 
                 Json::Value jsonBbox;
-                jsonBbox["x"] = detection.bbox.center.position.x + x_offset;
-                jsonBbox["y"] = detection.bbox.center.position.y + y_offset;
+                jsonBbox["x"] = detection.bbox.center.position.x;
+                jsonBbox["y"] = detection.bbox.center.position.y;
                 jsonBbox["width"] = detection.bbox.size_x;
                 jsonBbox["height"] = detection.bbox.size_y;
                 jsonDetection["bbox"] = jsonBbox;

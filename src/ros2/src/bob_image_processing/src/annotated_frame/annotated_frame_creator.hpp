@@ -45,8 +45,6 @@ public:
 
     void create_frame(const cv::Mat& annotated_frame,
                     const bob_interfaces::msg::Tracking& msg_tracking,
-                    int x_offset,
-                    int y_offset,
                     bool enable_tracking_status)
     {
         int cropped_track_counter = 0;
@@ -85,8 +83,8 @@ public:
             {
                 cv::Rect bbox = get_sized_bbox(detection.bbox);
                 detections[detection.id] = bbox;
-                cv::Point p1(bbox.x + x_offset, bbox.y + y_offset);
-                cv::Point p2(bbox.x + bbox.width + x_offset, bbox.y + bbox.height + y_offset);
+                cv::Point p1(bbox.x, bbox.y);
+                cv::Point p2(bbox.x + bbox.width, bbox.y + bbox.height);
             
                 cv::Scalar color = _color(tracking_state);
 
@@ -110,7 +108,7 @@ public:
                     {
                         try
                         {
-                            cv::Mat cropped_image = annotated_frame(cv::Rect(bbox.x + x_offset, bbox.y + y_offset, bbox.width, bbox.height));
+                            cv::Mat cropped_image = annotated_frame(cv::Rect(bbox.x, bbox.y, bbox.width, bbox.height));
                             const double cropped_percentage = 0.04;  
                             int cropped_size = static_cast<int>(std::min(total_width, total_height) * cropped_percentage);
 

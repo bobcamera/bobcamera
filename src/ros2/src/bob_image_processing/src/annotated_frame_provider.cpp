@@ -28,9 +28,7 @@ public:
     COMPOSITION_PUBLIC
     explicit AnnotatedFrameProvider(const rclcpp::NodeOptions & options)
         : ParameterNode("annotated_frame_provider_node", options)
-        ,  annotated_frame_creator_(std::map<std::string, std::string>())
-        , x_offset_(0)
-        , y_offset_(0)
+        , annotated_frame_creator_(std::map<std::string, std::string>())
         , enable_tracking_status_(true)
     {
         timer_ = create_wall_timer(std::chrono::seconds(1), [this](){ init(); });
@@ -40,7 +38,6 @@ private:
     rclcpp::QoS pub_qos_profile_{10};
 
     std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> sub_masked_frame_;
-    std::shared_ptr<rclcpp::Subscription<sensor_msgs::msg::RegionOfInterest>> roi_subscription_;
     std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::Tracking>> sub_tracking_;
     std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::Tracking>> time_synchronizer_;
 
@@ -50,8 +47,6 @@ private:
 
     std::unique_ptr<RosCvImageMsg> ros_cv_annotated_frame_;
 
-    int x_offset_;
-    int y_offset_;
     bool enable_tracking_status_;
 
     std::unique_ptr<RosCvImageMsg> roscv_image_resize_msg_ptr;
@@ -82,8 +77,6 @@ private:
         pub_annotated_frame_ = create_publisher<sensor_msgs::msg::Image>("bob/frames/annotated", pub_qos_profile_);
         time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::Tracking>>(*sub_masked_frame_, *sub_tracking_, 10);
         time_synchronizer_->registerCallback(&AnnotatedFrameProvider::callback, this);
-
-        roi_subscription_ = create_subscription<sensor_msgs::msg::RegionOfInterest>("bob/mask/roi", sub_qos_profile, [this](const sensor_msgs::msg::RegionOfInterest::SharedPtr roi_msg) { roi_callback(roi_msg); });
     }
 
     void declare_node_parameters()
@@ -119,12 +112,6 @@ private:
         add_action_parameters(params);
     }
 
-    void roi_callback(const sensor_msgs::msg::RegionOfInterest::SharedPtr roi_msg) 
-    {
-        x_offset_ = roi_msg->x_offset;
-        y_offset_ = roi_msg->y_offset;
-    }
-
     void callback(const sensor_msgs::msg::Image::SharedPtr& image_msg,
                   const bob_interfaces::msg::Tracking::SharedPtr& tracking)
     {
@@ -133,7 +120,7 @@ private:
             cv::Mat img;
             ImageUtils::convert_image_msg(image_msg, img, true);
 
-            annotated_frame_creator_.create_frame(img, *tracking, x_offset_, y_offset_, enable_tracking_status_);
+            annotated_frame_creator_.create_frame(img, *tracking, enable_tracking_status_);
 
             pub_annotated_frame_->publish(*image_msg);
 

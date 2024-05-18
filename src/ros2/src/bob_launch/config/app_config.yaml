@@ -122,18 +122,20 @@ rtsp_overlay_camera_node:
     onvif_host: ''
     onvif_port: 0
     onvif_user: ''
-    onvif_password: ''
-    image_publish_topic: 'bob/simulation/input_frame'
+    onvif_password: ''        
+    image_publish_topic: 'bob/frames/allsky/original'
     image_info_publish_topic: 'bob/camera/all_sky/image_info'
     camera_info_publish_topic: 'bob/camera/all_sky/camera_info'
-    image_resized_publish_topic: 'bob/simulation/input_frame/resized'
+    image_resized_publish_topic: 'bob/frames/allsky/original/resized'
     source_type: 'RTSP_STREAM'
+    image_width: 0
+    image_height: 0
     camera_calibration_file: 'file:///workspaces/bobcamera/src/ros2/assets/config/camera_info.yaml'
     privacy_mask_file: 'assets/masks/privacy-mask.jpg'
     privacy_mask_enable_offset_correction: False
-    resize_height: 960
     simulator_num_objects: 15
     simulator: True
+    resize_height: 960
     bgs_sensitivity: 'low_c'
     bgs_type: ''
     bgs_mask_file: 'assets/masks/detection-mask.jpg'
