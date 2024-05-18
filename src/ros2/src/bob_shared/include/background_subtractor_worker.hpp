@@ -81,14 +81,18 @@ public:
     {
         if (sensitivity.empty() || (sensitivity.length() == 0))
         {
-            RCLCPP_DEBUG(node_.get_logger(), "Ignoring sensitivity request change, EMPTY VALUE");
+            RCLCPP_DEBUG(node_.get_logger(), "Ignoring sensitivity change request, EMPTY VALUE");
             return false;
         }
 
         if(params_.sensitivity == sensitivity)
         {
-            RCLCPP_DEBUG(node_.get_logger(), "Ignoring sensitivity request change, NO CHANGE");
+            RCLCPP_DEBUG(node_.get_logger(), "Ignoring sensitivity change request, NO CHANGE");
             return false;            
+        }
+        else
+        {
+            RCLCPP_INFO(node_.get_logger(), "Performing sensitivity change request, from: %s to: %s", params_.sensitivity.c_str(), sensitivity.c_str());
         }
 
         if (!params_.sensitivity_collection.configs.contains(sensitivity))
