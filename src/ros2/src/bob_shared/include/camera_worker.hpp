@@ -402,7 +402,7 @@ private:
                 }
             }
 
-            RCLCPP_INFO(node_.get_logger(), "Detection frame size determined from mask: %d x %d", bounding_box_.width, bounding_box_.height);
+            RCLCPP_INFO(node_.get_logger(), "Privacy frame size determined from mask: %d x %d", bounding_box_.width, bounding_box_.height);
         }
     }
 

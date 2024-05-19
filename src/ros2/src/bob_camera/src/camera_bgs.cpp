@@ -198,7 +198,6 @@ private:
                     try 
                     {
                         bgs_params_.sensitivity_collection = SensitivityConfigCollection::fromJsonString(param.as_string());
-                        bgs_worker_ptr_->init_sensitivity(bgs_params_.sensitivity);
                     }
                     catch (const std::exception& e) 
                     {

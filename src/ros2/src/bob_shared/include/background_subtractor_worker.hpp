@@ -231,6 +231,7 @@ private:
         switch (_type)
         {
         case BackgroundSubtractorWorkerParams::BGSType::Vibe:
+            RCLCPP_INFO(node_.get_logger(), "Vibe param: %u", vibe_params_->get_bg_samples());
             return std::make_unique<boblib::bgs::Vibe>(*vibe_params_);
         case BackgroundSubtractorWorkerParams::BGSType::WMV:
             return std::make_unique<boblib::bgs::WeightedMovingVariance>(*wmv_params_);

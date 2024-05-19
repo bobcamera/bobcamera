@@ -466,7 +466,7 @@ web_camera_video_overlay_node:
     privacy_mask_enable_offset_correction: True
     simulator_num_objects: 15
     simulator: True
-    bgs_sensitivity: 'medium_c'
+    bgs_sensitivity: 'low_c'
     bgs_type: 'vibe'
     bgs_mask_file: 'assets/masks/detection-mask.jpg'
     bgs_mask_enable_offset_correction: True
