@@ -107,7 +107,7 @@ private:
     double fps_;
     bool mask_enabled_;
     std::optional<std::filesystem::file_time_type> mask_last_modified_time_;
-    cv::Mat grey_mask_;
+    cv::Mat privacy_mask_;
     cv::Rect bounding_box_;
     std::unique_ptr<ObjectSimulator> object_simulator_ptr_;
 
@@ -160,14 +160,18 @@ private:
         {
             return;
         }
-        if (img.size() != grey_mask_.size())
+        if (img.size() != privacy_mask_.size())
         {
             RCLCPP_WARN(node_.get_logger(), "Frame and mask dimensions do not match. Attempting resize.");
             RCLCPP_WARN(node_.get_logger(), "Note: Please ensure your mask has not gone stale, you might want to recreate it.");
-            cv::resize(grey_mask_, grey_mask_, img.size());
+            cv::resize(privacy_mask_, privacy_mask_, img.size());
             roi_calculation();
         }
-        cv::bitwise_and(img, grey_mask_, img);
+        if (img.channels() != privacy_mask_.channels())
+        {
+            cv::cvtColor(privacy_mask_, privacy_mask_, img.channels() == 3 ? cv::COLOR_GRAY2BGR : cv::COLOR_BGR2GRAY);
+        }
+        cv::bitwise_and(img, privacy_mask_, img);
         if (params_.mask_enable_roi)
         {
             img = img(bounding_box_);
@@ -380,14 +384,14 @@ private:
     {
         if (params_.mask_enable_roi && mask_enabled_)
         {
-            if(!grey_mask_.empty())
+            if(!privacy_mask_.empty())
             {
-                bounding_box_ = cv::Rect(grey_mask_.cols, grey_mask_.rows, 0, 0);                                
-                for (int y = 0; y < grey_mask_.rows; ++y) 
+                bounding_box_ = cv::Rect(privacy_mask_.cols, privacy_mask_.rows, 0, 0);                                
+                for (int y = 0; y < privacy_mask_.rows; ++y) 
                 {
-                    for (int x = 0; x < grey_mask_.cols; ++x) 
+                    for (int x = 0; x < privacy_mask_.cols; ++x) 
                     {
-                        if (grey_mask_.at<uchar>(y, x) == 255) 
+                        if (privacy_mask_.at<uchar>(y, x) == 255) 
                         { 
                             bounding_box_.x = std::min(bounding_box_.x, x);
                             bounding_box_.y = std::min(bounding_box_.y, y);
@@ -426,9 +430,9 @@ private:
             }
             mask_last_modified_time_ = current_modified_time;
 
-            grey_mask_= cv::imread(params_.mask_filename, cv::IMREAD_UNCHANGED);
-            mask_enabled_ = !grey_mask_.empty();
-            if (grey_mask_.empty())
+            privacy_mask_= cv::imread(params_.mask_filename, cv::IMREAD_UNCHANGED);
+            mask_enabled_ = !privacy_mask_.empty();
+            if (privacy_mask_.empty())
             {
                 RCLCPP_INFO(node_.get_logger(), "Privacy Mask Disabled, mask image was empty");
             }

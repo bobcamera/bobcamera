@@ -3,7 +3,7 @@
 
 SORT::Tracker::Tracker(rclcpp::Logger logger)
     : logger_(logger), total_trackers_started_(0), total_trackers_finished_(0),
-     max_coast_cycles_(25), tracker_max_active_trackers_(100)
+     max_coast_cycles_(50), tracker_max_active_trackers_(100)
 {
 
 }
