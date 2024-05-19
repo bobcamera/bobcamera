@@ -50,7 +50,6 @@ struct CameraWorkerParams
     std::string onvif_user;
     std::string onvif_password;
     bool mask_enable_override;
-    bool mask_enable_roi;
     std::string mask_filename;
     int simulator_num_objects;
     bool simulator_enable;
@@ -108,7 +107,6 @@ private:
     bool mask_enabled_;
     std::optional<std::filesystem::file_time_type> mask_last_modified_time_;
     cv::Mat privacy_mask_;
-    cv::Rect bounding_box_;
     std::unique_ptr<ObjectSimulator> object_simulator_ptr_;
 
     void captureLoop()
@@ -162,20 +160,13 @@ private:
         }
         if (img.size() != privacy_mask_.size())
         {
-            RCLCPP_WARN(node_.get_logger(), "Frame and mask dimensions do not match. Attempting resize.");
-            RCLCPP_WARN(node_.get_logger(), "Note: Please ensure your mask has not gone stale, you might want to recreate it.");
             cv::resize(privacy_mask_, privacy_mask_, img.size());
-            roi_calculation();
         }
         if (img.channels() != privacy_mask_.channels())
         {
             cv::cvtColor(privacy_mask_, privacy_mask_, img.channels() == 3 ? cv::COLOR_GRAY2BGR : cv::COLOR_BGR2GRAY);
         }
         cv::bitwise_and(img, privacy_mask_, img);
-        if (params_.mask_enable_roi)
-        {
-            img = img(bounding_box_);
-        }
     }
 
     inline void publish_resized_frame(const RosCvImageMsg & image_msg) const
@@ -380,32 +371,6 @@ private:
         }
     }
 
-    inline void roi_calculation()
-    {
-        if (params_.mask_enable_roi && mask_enabled_)
-        {
-            if(!privacy_mask_.empty())
-            {
-                bounding_box_ = cv::Rect(privacy_mask_.cols, privacy_mask_.rows, 0, 0);                                
-                for (int y = 0; y < privacy_mask_.rows; ++y) 
-                {
-                    for (int x = 0; x < privacy_mask_.cols; ++x) 
-                    {
-                        if (privacy_mask_.at<uchar>(y, x) == 255) 
-                        { 
-                            bounding_box_.x = std::min(bounding_box_.x, x);
-                            bounding_box_.y = std::min(bounding_box_.y, y);
-                            bounding_box_.width = std::max(bounding_box_.width, x - bounding_box_.x);
-                            bounding_box_.height = std::max(bounding_box_.height, y - bounding_box_.y);
-                        }
-                    }
-                }
-            }
-
-            RCLCPP_INFO(node_.get_logger(), "Privacy frame size determined from mask: %d x %d", bounding_box_.width, bounding_box_.height);
-        }
-    }
-
     void mask_timer_callback()
     {
         mask_timer_->cancel();
@@ -440,7 +405,6 @@ private:
             {
                 RCLCPP_INFO(node_.get_logger(), "Privacy Mask Enabled.");
             }
-            roi_calculation();
         }
         catch (cv::Exception &cve)
         {

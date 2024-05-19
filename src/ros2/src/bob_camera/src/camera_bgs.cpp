@@ -48,8 +48,17 @@ private:
     {
         one_shot_timer_.reset();
 
+        bgs_params_.image_publisher = create_publisher<sensor_msgs::msg::Image>("bob/frames/foreground_mask", qos_profile_);
+        bgs_params_.detection_publisher = create_publisher<bob_interfaces::msg::DetectorBBoxArray>("bob/detection/allsky/boundingboxes", qos_profile_);        
+        bgs_params_.state_publisher = create_publisher<bob_interfaces::msg::DetectorState>("bob/detection/detector_state", qos_profile_);
+
         bgs_worker_ptr_ = std::make_unique<BackgroundSubtractorWorker>(*this, bgs_params_);
         camera_worker_ptr_ = std::make_unique<CameraWorker>(*this, camera_params_, [this](const std_msgs::msg::Header & header, const cv::Mat & img){bgs_callback(header, img);});
+
+        declare_node_parameters();
+
+        bgs_worker_ptr_->init();
+        camera_worker_ptr_->init();
 
         privacy_mask_override_service_ = create_service<bob_interfaces::srv::MaskOverrideRequest>("bob/mask/privacy/override",
             [this](const std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Request> request, 
@@ -64,14 +73,6 @@ private:
         bgs_reset_service_ = create_service<bob_interfaces::srv::BGSResetRequest>("bob/bgs/reset", 
             [this](const std::shared_ptr<bob_interfaces::srv::BGSResetRequest::Request> request, 
                     std::shared_ptr<bob_interfaces::srv::BGSResetRequest::Response> response) {reset_bgs_request(request, response);});
-
-        bgs_params_.image_publisher = create_publisher<sensor_msgs::msg::Image>("bob/frames/foreground_mask", qos_profile_);
-        bgs_params_.detection_publisher = create_publisher<bob_interfaces::msg::DetectorBBoxArray>("bob/detection/allsky/boundingboxes", qos_profile_);        
-        bgs_params_.state_publisher = create_publisher<bob_interfaces::msg::DetectorState>("bob/detection/detector_state", qos_profile_);
-
-        declare_node_parameters();
-        bgs_worker_ptr_->init();
-        camera_worker_ptr_->init();
     }
 
     void declare_node_parameters()
@@ -114,7 +115,7 @@ private:
                     else
                     {
                         camera_params_.image_resized_publisher.reset();
-                        RCLCPP_INFO(get_logger(), "Resizer topic disabled");
+                        RCLCPP_DEBUG(get_logger(), "Resizer topic disabled");
                     }
                 }
             ),
@@ -185,10 +186,6 @@ private:
                 rclcpp::Parameter("privacy_mask_file", "mask.pgm"), 
                 [this](const rclcpp::Parameter& param) {camera_params_.mask_filename = param.as_string();}
             ),
-            ParameterNode::ActionParam(
-                rclcpp::Parameter("privacy_mask_enable_offset_correction", false), 
-                [this](const rclcpp::Parameter& param) {camera_params_.mask_enable_roi = param.as_bool();}
-            ),
 
             //////// BGS PARAMS
             ParameterNode::ActionParam(
@@ -231,13 +228,6 @@ private:
                 [this](const rclcpp::Parameter& param) 
                 {
                     bgs_params_.mask_filename = param.as_string();
-                }
-            ),
-            ParameterNode::ActionParam(
-                rclcpp::Parameter("bgs_mask_enable_offset_correction", true), 
-                [this](const rclcpp::Parameter& param) 
-                {
-                    bgs_params_.mask_enable_roi = param.as_bool();
                 }
             ),
             // Image resizing

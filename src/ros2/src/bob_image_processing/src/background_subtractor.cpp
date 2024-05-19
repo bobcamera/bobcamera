@@ -112,13 +112,6 @@ private:
                     params_.mask_filename = param.as_string();
                 }
             ),
-            ParameterNode::ActionParam(
-                rclcpp::Parameter("mask_enable_offset_correction", true), 
-                [this](const rclcpp::Parameter& param) 
-                {
-                    params_.mask_enable_roi = param.as_bool();
-                }
-            ),
             // Image resizing
             ParameterNode::ActionParam(
                 rclcpp::Parameter("image_resized_publish_topic", "bob/frames/foreground_mask/resized"), 

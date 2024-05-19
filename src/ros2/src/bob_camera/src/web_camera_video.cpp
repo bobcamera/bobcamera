@@ -154,10 +154,6 @@ private:
                 rclcpp::Parameter("mask_file", "mask.pgm"), 
                 [this](const rclcpp::Parameter& param) {params_.mask_filename = param.as_string();}
             ),
-            ParameterNode::ActionParam(
-                rclcpp::Parameter("mask_enable_offset_correction", false), 
-                [this](const rclcpp::Parameter& param) {params_.mask_enable_roi = param.as_bool();}
-            ),
         };
         add_action_parameters(params);
     }

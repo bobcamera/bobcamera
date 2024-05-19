@@ -15,14 +15,12 @@ rtsp_camera_node:
     image_height: 0
     camera_calibration_file: 'file:///workspaces/bobcamera/src/ros2/assets/config/camera_info.yaml'
     privacy_mask_file: 'assets/masks/privacy-mask.jpg'
-    privacy_mask_enable_offset_correction: False
     simulator_num_objects: 15
     simulator: False
     resize_height: 960
     bgs_sensitivity: 'low_c'
     bgs_type: ''
     bgs_mask_file: 'assets/masks/detection-mask.jpg'
-    bgs_mask_enable_offset_correction: True
     bgs_json_params: '[
                     {
                       "name": "low",
@@ -132,14 +130,12 @@ rtsp_overlay_camera_node:
     image_height: 0
     camera_calibration_file: 'file:///workspaces/bobcamera/src/ros2/assets/config/camera_info.yaml'
     privacy_mask_file: 'assets/masks/privacy-mask.jpg'
-    privacy_mask_enable_offset_correction: False
     simulator_num_objects: 15
     simulator: True
     resize_height: 960
     bgs_sensitivity: 'low_c'
     bgs_type: ''
     bgs_mask_file: 'assets/masks/detection-mask.jpg'
-    bgs_mask_enable_offset_correction: True
     bgs_json_params: '[
                     {
                       "name": "low",
@@ -242,14 +238,12 @@ web_camera_video_node:
     source_type: 'VIDEO_FILE'
     videos:
     privacy_mask_file: 'assets/masks/privacy-mask.jpg'
-    privacy_mask_enable_offset_correction: False
     simulator_num_objects: 15
     simulator: False
     resize_height: 960
     bgs_sensitivity: 'low_c'
     bgs_type: ''
     bgs_mask_file: 'assets/masks/detection-mask.jpg'
-    bgs_mask_enable_offset_correction: True
     bgs_json_params: '[
                     {
                       "name": "low",
@@ -352,14 +346,12 @@ usb_camera_node:
     source_type: 'USB_CAMERA'
     camera_id: 0
     privacy_mask_file: 'assets/masks/privacy-mask.jpg'
-    privacy_mask_enable_offset_correction: False
     simulator_num_objects: 15
     simulator: False
     resize_height: 960
     bgs_sensitivity: 'low_c'
     bgs_type: ''
     bgs_mask_file: 'assets/masks/detection-mask.jpg'
-    bgs_mask_enable_offset_correction: True
     bgs_json_params: '[
                     {
                       "name": "low",
@@ -463,13 +455,11 @@ web_camera_video_overlay_node:
     videos:
     resize_height: 960
     privacy_mask_file: 'assets/masks/privacy-mask.jpg'
-    privacy_mask_enable_offset_correction: True
     simulator_num_objects: 15
     simulator: True
     bgs_sensitivity: 'low_c'
     bgs_type: 'vibe'
     bgs_mask_file: 'assets/masks/detection-mask.jpg'
-    bgs_mask_enable_offset_correction: True
     bgs_json_params: '[
                     {
                       "name": "low",
@@ -638,8 +628,8 @@ monitoring_status_aggregator_node:
 
 track_sensitivity_monitor_node:
   ros__parameters:
-    bgs_node: 'rtsp_camera_node'
-    check_interval: 30
+    bgs_node: 'web_camera_video_overlay_node' #'rtsp_camera_node'
+    check_interval: 10
     sensitivity_increase_count_threshold: 5
     sensitivity: 'medium_c'
     star_mask_enabled: True    

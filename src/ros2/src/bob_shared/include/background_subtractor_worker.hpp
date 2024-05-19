@@ -38,7 +38,6 @@ struct BackgroundSubtractorWorkerParams
     std::string sensitivity;
     SensitivityConfigCollection sensitivity_collection;
     bool mask_enable_override = true;
-    bool mask_enable_roi;
     std::string mask_filename;
     int resize_height;
 };
@@ -74,6 +73,7 @@ public:
             bgsPtr = createBGS(params_.bgs_type);
         }
         ready_ = true;
+        cv.notify_all();
     }
 
     bool init_sensitivity(const std::string & sensitivity)
@@ -83,15 +83,14 @@ public:
             RCLCPP_DEBUG(node_.get_logger(), "Ignoring sensitivity change request, EMPTY VALUE");
             return false;
         }
-
-        if(params_.sensitivity == sensitivity)
+        if (params_.sensitivity == sensitivity)
         {
-            RCLCPP_DEBUG(node_.get_logger(), "Ignoring sensitivity change request, NO CHANGE");
+            RCLCPP_INFO(node_.get_logger(), "Ignoring sensitivity change request, NO CHANGE");
             return false;            
         }
         else
         {
-            RCLCPP_INFO(node_.get_logger(), "Performing sensitivity change request, from: %s to: %s", params_.sensitivity.c_str(), sensitivity.c_str());
+            RCLCPP_DEBUG(node_.get_logger(), "Performing sensitivity change request, from: %s to: %s", params_.sensitivity.c_str(), sensitivity.c_str());
         }
 
         if (!params_.sensitivity_collection.configs.contains(sensitivity))
@@ -115,6 +114,7 @@ public:
 
         median_filter_ = config.sensitivity.median_filter;
         ready_ = true;
+        cv.notify_all();
         return true;
     }
 
@@ -125,63 +125,68 @@ public:
 
     void imageCallback(const std_msgs::msg::Header & header, const cv::Mat & img)
     {
-        if (ready_)
+        std::unique_lock lock(mutex);
+        cv.wait(lock, [this] { return ready_; });
+
+        try
         {
-            try
+            cv::Mat gray_img;
+            if (img.channels() == 1)
             {
-                cv::Mat gray_img;
-                if (img.channels() == 1)
-                {
-                    gray_img = img;
-                }
-                else
-                {
-                    cv::cvtColor(img, gray_img, cv::COLOR_BGR2GRAY);
-                }
-
-                if (!ros_cv_foreground_mask_ || (gray_img.size() != ros_cv_foreground_mask_->image_ptr->size()))
-                {
-                    ros_cv_foreground_mask_ = std::make_unique<RosCvImageMsg>(gray_img, sensor_msgs::image_encodings::MONO8, false);
-                }
-                ros_cv_foreground_mask_->msg_ptr->header = header;
-
-                bgsPtr->apply(gray_img, *ros_cv_foreground_mask_->image_ptr, (params_.mask_enable_roi && mask_enabled_) ? grey_mask_ : cv::Mat());
-
-                node_.publish_if_subscriber(params_.image_publisher, *ros_cv_foreground_mask_->msg_ptr);
-
-                publish_resized_frame(*ros_cv_foreground_mask_);
-
-                if (median_filter_)
-                {
-                    cv::medianBlur(*ros_cv_foreground_mask_->image_ptr, *ros_cv_foreground_mask_->image_ptr, 3);
-                }
-
-                bob_interfaces::msg::DetectorState state;
-                state.sensitivity = params_.sensitivity;
-                bob_interfaces::msg::DetectorBBoxArray bbox2D_array;
-                bbox2D_array.header = header;
-                bbox2D_array.image_width = gray_img.size().width;
-                bbox2D_array.image_height = gray_img.size().height;
-                std::vector<cv::Rect> bboxes;
-
-                boblib::blobs::DetectionResult det_result = blob_detector_ptr_->detect(*ros_cv_foreground_mask_->image_ptr, bboxes);
-                if (det_result == boblib::blobs::DetectionResult::Success)
-                {
-                    state.max_blobs_reached = false;
-                    add_bboxes(bbox2D_array, bboxes);
-                }
-                else if (det_result == boblib::blobs::DetectionResult::MaxBlobsReached)
-                {
-                    state.max_blobs_reached = true;
-                }
-                
-                params_.state_publisher->publish(state);
-                params_.detection_publisher->publish(bbox2D_array);            
+                gray_img = img;
             }
-            catch (std::exception &cve)
+            else
             {
-                RCLCPP_ERROR(node_.get_logger(), "Exception: %s", cve.what());
+                cv::cvtColor(img, gray_img, cv::COLOR_BGR2GRAY);
             }
+
+            if (!ros_cv_foreground_mask_ || (gray_img.size() != ros_cv_foreground_mask_->image_ptr->size()))
+            {
+                ros_cv_foreground_mask_ = std::make_unique<RosCvImageMsg>(gray_img, sensor_msgs::image_encodings::MONO8, false);
+            }
+            ros_cv_foreground_mask_->msg_ptr->header = header;
+
+            if (mask_enabled_ && (grey_mask_.size() != gray_img.size()))
+            {
+                cv::resize(grey_mask_, grey_mask_, gray_img.size());
+            }
+
+            bgsPtr->apply(gray_img, *ros_cv_foreground_mask_->image_ptr, mask_enabled_ ? grey_mask_ : cv::Mat());
+
+            node_.publish_if_subscriber(params_.image_publisher, *ros_cv_foreground_mask_->msg_ptr);
+
+            publish_resized_frame(*ros_cv_foreground_mask_);
+
+            if (median_filter_)
+            {
+                cv::medianBlur(*ros_cv_foreground_mask_->image_ptr, *ros_cv_foreground_mask_->image_ptr, 3);
+            }
+
+            bob_interfaces::msg::DetectorState state;
+            state.sensitivity = params_.sensitivity;
+            bob_interfaces::msg::DetectorBBoxArray bbox2D_array;
+            bbox2D_array.header = header;
+            bbox2D_array.image_width = gray_img.size().width;
+            bbox2D_array.image_height = gray_img.size().height;
+            std::vector<cv::Rect> bboxes;
+
+            boblib::blobs::DetectionResult det_result = blob_detector_ptr_->detect(*ros_cv_foreground_mask_->image_ptr, bboxes);
+            if (det_result == boblib::blobs::DetectionResult::Success)
+            {
+                state.max_blobs_reached = false;
+                add_bboxes(bbox2D_array, bboxes);
+            }
+            else if (det_result == boblib::blobs::DetectionResult::MaxBlobsReached)
+            {
+                state.max_blobs_reached = true;
+            }
+            
+            params_.state_publisher->publish(state);
+            params_.detection_publisher->publish(bbox2D_array);            
+        }
+        catch (std::exception &cve)
+        {
+            RCLCPP_ERROR(node_.get_logger(), "Exception: %s", cve.what());
         }
     }
 
@@ -197,7 +202,6 @@ private:
 
     BackgroundSubtractorWorkerParams & params_;
 
-    bool ready_;
     bool mask_enabled_;
     bool median_filter_;
     std::unique_ptr<boblib::bgs::CoreBgs> bgsPtr{nullptr};
@@ -212,6 +216,10 @@ private:
     std::optional<std::filesystem::file_time_type> mask_last_modified_time_;
     cv::Mat grey_mask_;
     cv::Rect bounding_box_;
+
+    bool ready_;
+    std::mutex mutex;
+    std::condition_variable cv;
 
     inline void add_bboxes(bob_interfaces::msg::DetectorBBoxArray &bbox2D_array, const std::vector<cv::Rect> &bboxes)
     {
@@ -231,38 +239,11 @@ private:
         switch (_type)
         {
         case BackgroundSubtractorWorkerParams::BGSType::Vibe:
-            RCLCPP_INFO(node_.get_logger(), "Vibe param: %u", vibe_params_->get_bg_samples());
             return std::make_unique<boblib::bgs::Vibe>(*vibe_params_);
         case BackgroundSubtractorWorkerParams::BGSType::WMV:
             return std::make_unique<boblib::bgs::WeightedMovingVariance>(*wmv_params_);
         default:
             return nullptr;
-        }
-    }
-
-    inline void roi_calculation()
-    {
-        if (params_.mask_enable_roi && mask_enabled_)
-        {
-            if (!grey_mask_.empty())
-            {
-                bounding_box_ = cv::Rect(grey_mask_.cols, grey_mask_.rows, 0, 0);                                
-                for (int y = 0; y < grey_mask_.rows; ++y) 
-                {
-                    for (int x = 0; x < grey_mask_.cols; ++x) 
-                    {
-                        if (grey_mask_.at<uchar>(y, x) == 255) 
-                        { 
-                            bounding_box_.x = std::min(bounding_box_.x, x);
-                            bounding_box_.y = std::min(bounding_box_.y, y);
-                            bounding_box_.width = std::max(bounding_box_.width, x - bounding_box_.x);
-                            bounding_box_.height = std::max(bounding_box_.height, y - bounding_box_.y);
-                        }
-                    }
-                }
-            }
-
-            RCLCPP_INFO(node_.get_logger(), "Detection frame size determined from mask: %d x %d", bounding_box_.width, bounding_box_.height);
         }
     }
 
@@ -283,7 +264,6 @@ private:
             {
                 RCLCPP_INFO(node_.get_logger(), "Detection Mask Changed.");
             }
-            roi_calculation();
         }
         else if ((detection_mask_result == MaskCheckType::Disable) && mask_enabled_)
         {
