@@ -39,6 +39,7 @@ private:
     bob_interfaces::msg::MonitoringStatus::SharedPtr status_msg_;
 
     std::string sensitivity_;
+    std::string proposed_sensitivity_;
     int check_interval_;
     SensitivityChangeActionEnum sensitivity_change_action_;
     bool star_mask_enabled_;
@@ -85,7 +86,11 @@ private:
             ),            
             ParameterNode::ActionParam(
                 rclcpp::Parameter("sensitivity", "medium_c"), 
-                [this](const rclcpp::Parameter& param) { sensitivity_ = param.as_string(); }
+                [this](const rclcpp::Parameter& param) 
+                { 
+                    sensitivity_ = param.as_string();
+                    proposed_sensitivity_ = param.as_string();
+                }
             ),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("check_interval", 30), 
@@ -178,7 +183,6 @@ private:
                     }
                 }
 
-                bool updating = false;
                 switch (sensitivity_change_action_)
                 {                
                     case IncreaseSensitivity:
@@ -188,34 +192,30 @@ private:
 
                         if (sensitivity_ == "low")
                         {
-                            sensitivity_ = "medium";
-                            updating = true;
+                            proposed_sensitivity_ = "medium";
                         }
                         else if (sensitivity_ == "medium")
                         {        
                             // Rule 3
                             if (status_msg_->day_night_enum == 1 || (star_mask_enabled_ && status_msg_->day_night_enum == 2))
                             {
-                                sensitivity_ = "high";
-                                updating = true;
+                                proposed_sensitivity_ = "high";
                             }
                         }
                         else if (sensitivity_ == "low_c")
                         {
-                            sensitivity_ = "medium_c";
-                            updating = true;
+                            proposed_sensitivity_ = "medium_c";
                         }
                         else if (sensitivity_ == "medium_c")
                         {
                             // Rule 3
                             if (status_msg_->day_night_enum == 1 || (star_mask_enabled_ && status_msg_->day_night_enum == 2))
                             {
-                                sensitivity_ = "high_c";
-                                updating = true;
+                                proposed_sensitivity_ = "high_c";
                             }
                         }
 
-                        if (updating)
+                        if (sensitivity_ != proposed_sensitivity_)
                             RCLCPP_DEBUG(get_logger(), "Tracking Auto Tune: Stable conditions - increasing sensitivity");
 
                         break;
@@ -227,27 +227,23 @@ private:
 
                         if (sensitivity_ == "medium")
                         {
-                            sensitivity_ = "low";
-                            updating = true;
+                            proposed_sensitivity_ = "low";
                         }
                         else if (sensitivity_ == "high")
                         {
-                            sensitivity_ = "medium";
-                            updating = true;
+                            proposed_sensitivity_ = "medium";
                         }
                         else if (sensitivity_ == "medium_c")
                         {
-                            sensitivity_ = "low_c";
-                            updating = true;
+                            proposed_sensitivity_ = "low_c";
                         }
                         else if (sensitivity_ == "high_c")
                         {
-                            sensitivity_ = "medium_c";
-                            updating = true;
+                            proposed_sensitivity_ = "medium_c";
                         }
 
-                        if (updating)
-                            RCLCPP_DEBUG(get_logger(), "Tracking Auto Tune: Unstable conditions - lowering sensitivity");
+                        if (sensitivity_ != proposed_sensitivity_)
+                            RCLCPP_INFO(get_logger(), "Tracking Auto Tune: Unstable conditions - lowering sensitivity");
 
                         break;
 
@@ -256,9 +252,9 @@ private:
                         break;
                 }
 
-                if (updating)
+                if (sensitivity_ != proposed_sensitivity_)
                 {
-                    change_parameter_async("bgs_sensitivity", sensitivity_);
+                    change_parameter_async("bgs_sensitivity", proposed_sensitivity_);
                 }
             }
         }
@@ -268,9 +264,9 @@ private:
     {
         // TODO: Move this into the base class so all param change requests can use the same code
         //if (!sensitivity_param_client_->service_is_ready()) 
-        if (!sensitivity_param_client_->wait_for_service(std::chrono::seconds(5)))
+        if (!sensitivity_param_client_->wait_for_service(std::chrono::seconds(1)))
         {
-            RCLCPP_INFO(this->get_logger(), "Parameter service not ready, waiting...");
+            RCLCPP_WARN(this->get_logger(), "Sensitivity parameter service not ready.");
             return;
         }
 
@@ -292,11 +288,13 @@ private:
         }
         if (param_result)
         {            
-            RCLCPP_INFO(get_logger(), "Sensitivity change completed - reason: %s", change_reason_.c_str());
+            RCLCPP_INFO(get_logger(), "Sensitivity change from: %s to %s completed - reason: %s", 
+                sensitivity_.c_str(), proposed_sensitivity_.c_str(), change_reason_.c_str());
             
-            // reset the counter
+            // reset sensitivity tracking state
             sensitivity_increase_check_counter_ = 0;
             sensitivity_change_action_ = Ignore;
+            sensitivity_ = proposed_sensitivity_;
         }
         else
         {

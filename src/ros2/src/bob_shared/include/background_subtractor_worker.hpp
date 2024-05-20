@@ -88,10 +88,6 @@ public:
             RCLCPP_INFO(node_.get_logger(), "Ignoring sensitivity change request, NO CHANGE");
             return false;            
         }
-        else
-        {
-            RCLCPP_DEBUG(node_.get_logger(), "Performing sensitivity change request, from: %s to: %s", params_.sensitivity.c_str(), sensitivity.c_str());
-        }
 
         if (!params_.sensitivity_collection.configs.contains(sensitivity))
         {
