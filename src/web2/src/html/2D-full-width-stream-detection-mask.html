@@ -110,6 +110,7 @@
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
         <link href="https://cdn.jsdelivr.net/npm/@mdi/font/css/materialdesignicons.min.css" rel="stylesheet">
         <script src="../lib/bob.js"></script>
+        <script src="../lib/bobsvg.js"></script>
 
         <!-- <script>
             // Set up the connection to the ROS2 environment using the roslib.js library
@@ -143,9 +144,9 @@
                 </ul>
             </div>
         </div>
-        <div id="stream" width="" height="">
-            <img id="image-subscription" width="" height="" />
-            <canvas id="maskCanvas" width="" height=""></canvas>
+        <div id="stream" width="100%" height="auto">
+            <img id="image-subscription" width="" height=""  />
+            <canvas id="maskCanvas" width="100%" height="auto"></canvas>
         </div>
 
         <script type="text/javascript" type="text/javascript">
@@ -159,7 +160,7 @@
                 name: '/bob/frames/allsky/original/resized/compressed',
                 messageType: 'sensor_msgs/msg/CompressedImage'
             });
-
+            
             let streamContainer = document.getElementById('stream');
             let videoStream = document.getElementById('image-subscription');
             let maskCanvas = document.getElementById('maskCanvas');
@@ -172,6 +173,8 @@
             let polygons = [];
             polygons.push([]);
             let offset = 0;
+            let oldMaskPolygons = [];
+            let maskShapes = {}
 
             const maskControlsHeaderDiv = document.getElementById('mask-controls-header-dev');
             const editMaskBtn = document.getElementById('editMaskBtn');
@@ -186,9 +189,11 @@
                 if (editMode) {
                     maskControlsHeaderDiv.innerText = 'Editing Mask';
                     svcOverrideMask(false);
+                    oldMaskPolygons = polygons;
                     // Clear any existing polygons if starting a new edit session
                     polygons = [[]];
                 } else {
+                    polygons = oldMaskPolygons;
                     maskControlsHeaderDiv.innerText = 'Detection Mask Controls';
                     svcOverrideMask(true);
                     redrawCanvas();
@@ -209,7 +214,6 @@
             }
 
             function drawPolygon(polygon, fillStyle, drawBorder) {
-                //console.log("drawPolygon");
                 if (polygon.length === 0 || !polygon[0]) return;
                 maskCanvasCtx.beginPath();
                 maskCanvasCtx.moveTo(polygon[0].x, polygon[0].y);
@@ -226,27 +230,36 @@
                     maskCanvasCtx.setLineDash([]);
                     maskCanvasCtx.lineDashOffset = 0;
                 }
-                //console.log(polygon);
             }
 
             function redrawCanvas() {
-                //console.log('redrawCanvas');
                 maskCanvasCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
-                polygons.forEach((polygon, index) => {
-                    const isCurrentPolygon = index === polygons.length - 1;
-                    drawPolygon(polygon, editMode && isCurrentPolygon ? 'rgba(0, 0, 0, 0.1)' : 'rgba(0, 0, 0, 1)', editMode && isCurrentPolygon);
-                });
-                //console.log(polygons);
+                if (editMode) {
+                    polygons.forEach((polygon, index) => {
+                        const isCurrentPolygon = index === polygons.length - 1;
+                        drawPolygon(polygon, editMode && isCurrentPolygon ? 'rgba(0, 0, 0, 0.1)' : 'rgba(0, 0, 0, 0.6)', editMode && isCurrentPolygon);
+                    });
+                } 
+                else {
+                    if (maskCanvas.width > 0 && maskCanvas.height > 0) {
+                        drawSVGOnCanvas(maskShapes, maskCanvas)
+                    }
+                }
             }
 
             function updateCanvasDimensions() {
                 maskCanvas.width = streamContainer.clientWidth;
                 maskCanvas.height = streamContainer.clientHeight;
+                svcGetMaskCVG();
             }
 
             function updateDimensions() {
-                let newHeight = videoStream.offsetHeight;
-                let newWidth = videoStream.offsetWidth;
+                let newHeight = videoStream.height;
+                let newWidth = videoStream.width;
+                //console.log(videoStream.offsetWidth, videoStream.offsetHeight, devicePixelRatio)
+                if (streamContainer.height === newHeight * devicePixelRatio && streamContainer.width === newWidth * devicePixelRatio) {
+                    return;
+                }
                 streamContainer.style.height = `${newHeight}px`;
                 streamContainer.style.width = `${newWidth}px`;
                 streamContainer.height = newHeight * devicePixelRatio;
@@ -310,7 +323,7 @@
                 redrawCanvas();
                 if (editMode) {
                     drawPolygon(currentPolygon, 'rgba(0, 0, 0, 0.1)', true);
-                }
+                } 
                 currentPolygon.pop();
             });
 
@@ -344,12 +357,31 @@
                 maskControlsHeaderDiv.innerText = 'Detection Mask Controls';
             });
 
+            function svcGetMaskCVG() {
+                let getSvgMaskService = new ROSLIB.Service({
+                    ros : ros,
+                    name : '/bob/webapi/mask/svg',
+                    serviceType : 'bob_interfaces/srv/MaskGetSvg'
+                });
+
+                let request = new ROSLIB.ServiceRequest({
+                    file_name: maskFilename,
+                });
+
+                getSvgMaskService.callService(request, function(result) {
+                    if (result.success) {
+                        console.debug("Mask get successfully!");
+                        maskShapes = parseSVG(result.mask);
+                        redrawCanvas();
+                    } else {
+                        console.warn("Failed to get mask:", result.message);
+                    }
+                });
+
+            }
+
             // SERVICE FUNCTIONS
             function svcSendMaskSVG() {
-
-                // let rosCon = new ROSLIB.Ros();
-                // rosConnect(rosCon, websocketsURL);
-
                 let updateSvgMaskService = new ROSLIB.Service({
                     // ros : rosCon,
                     ros : ros,
@@ -393,23 +425,17 @@
                 updateSvgMaskService.callService(request, function(result) {
                     if (result.success) {
                         console.log("Mask sent successfully!");
-                        alert('It can take up to 60 seconds for your new mask to be applied.')
+                        alert('It can take up to 10 seconds for your new mask to be applied.');
+                        maskShapes = parseSVG(svgContent);
+                        redrawCanvas();
                     } else {
                         console.error("Failed to send mask:", result.message);
                     }
-
-                    // rosCon.close();
                 });
             }
 
             function svcOverrideMask(enable) {
-                //console.log(`Override mask - setting: ${enable}`);
-
-                // let rosCon = new ROSLIB.Ros();
-                // rosConnect(rosCon, websocketsURL);
-
                 let maskOverrideService = new ROSLIB.Service({
-                    // ros : rosCon,
                     ros : ros,
                     name : '/bob/mask/detection/override',
                     serviceType : 'bob_interfaces/srv/MaskOverrideRequest'
@@ -421,23 +447,15 @@
 
                 maskOverrideService.callService(request, function(result) {
                     if (result.success) {
-                        console.log("Mask override sent successfully!");
+                        console.debug("Mask override sent successfully!");
                     } else {
                         console.error("Failed to send mask override:", result.message);
                     }
-
-                    // rosCon.close();
                 });
             }
 
             function svcDeleteMask() {
-                //console.log("Delete mask.");
-
-                // let rosCon = new ROSLIB.Ros();
-                // rosConnect(rosCon, websocketsURL);
-
                 let deleteMaskService = new ROSLIB.Service({
-                    // ros : rosCon,
                     ros : ros,
                     name : '/bob/webapi/mask/delete/svg',
                     serviceType : 'bob_interfaces/srv/MaskSvgDelete'
@@ -450,12 +468,12 @@
                 deleteMaskService.callService(request, function(result) {
                     if (result.success) {
                         console.log("Mask deleted successfully!");
-                        alert('It can take up to 60 seconds for your changes to take affect.')
+                        alert('It can take up to 10 seconds for your changes to take affect.')
+                        maskShapes = {};
+                        redrawCanvas();
                     } else {
                         console.error("Failed to delete mask:", result.message);
                     }
-
-                    // rosCon.close();
                 });
             }
 
@@ -479,7 +497,6 @@
             window.onload = init();
             window.onbeforeunload = function(event) {
                 // console.log('disposing......');
-                // ros.close();
 
                 // Unsubscribe from the topic
                 if (topicStream) {

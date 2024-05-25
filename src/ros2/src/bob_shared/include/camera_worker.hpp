@@ -67,6 +67,11 @@ public:
     {
     }
 
+    ~CameraWorker()
+    {
+        stop_capture();
+    }
+
     void init()
     {
         current_video_idx_ = 0;
@@ -117,38 +122,47 @@ private:
 
         while (run_)
         {
-            if (!video_capture_.read(*roscv_image_msg_ptr->image_ptr))
+            try
             {
-                current_video_idx_ = current_video_idx_ >= (params_.videos.size() - 1) ? 0 : current_video_idx_ + 1;
-                open_camera();
-                roscv_image_msg_ptr = RosCvImageMsg::create(video_capture_);
-                video_capture_.read(*roscv_image_msg_ptr->image_ptr);
-            }
+                if (!video_capture_.read(*roscv_image_msg_ptr->image_ptr))
+                {
+                    current_video_idx_ = current_video_idx_ >= (params_.videos.size() - 1) ? 0 : current_video_idx_ + 1;
+                    open_camera();
+                    roscv_image_msg_ptr = RosCvImageMsg::create(video_capture_);
+                    video_capture_.read(*roscv_image_msg_ptr->image_ptr);
+                }
 
-            if (params_.simulator_enable)
+                if (params_.simulator_enable)
+                {
+                    object_simulator_ptr_->move(*roscv_image_msg_ptr->image_ptr);
+                }
+
+                apply_mask(*roscv_image_msg_ptr->image_ptr);
+
+                roscv_image_msg_ptr->get_header().stamp = node_.now();
+                roscv_image_msg_ptr->get_header().frame_id = ParameterNode::generate_uuid();
+
+                params_.image_publisher->publish(*roscv_image_msg_ptr->msg_ptr);
+
+                publish_resized_frame(*roscv_image_msg_ptr);
+
+                publish_image_info(roscv_image_msg_ptr->get_header(), *roscv_image_msg_ptr->image_ptr);
+
+                publish_camera_info(roscv_image_msg_ptr->get_header());
+
+                if (user_callback_)
+                {
+                    user_callback_(roscv_image_msg_ptr->get_header(), *roscv_image_msg_ptr->image_ptr);
+                }
+
+                loop_rate.sleep();  
+            }
+            catch (const std::exception& e)
             {
-                object_simulator_ptr_->move(*roscv_image_msg_ptr->image_ptr);
+                RCLCPP_ERROR(node_.get_logger(), "Exception: %s", e.what());
+                rcutils_reset_error();
+                run_ = false;
             }
-
-            apply_mask(*roscv_image_msg_ptr->image_ptr);
-
-            roscv_image_msg_ptr->get_header().stamp = node_.now();
-            roscv_image_msg_ptr->get_header().frame_id = ParameterNode::generate_uuid();
-
-            params_.image_publisher->publish(*roscv_image_msg_ptr->msg_ptr);
-
-            publish_resized_frame(*roscv_image_msg_ptr);
-
-            publish_image_info(roscv_image_msg_ptr->get_header(), *roscv_image_msg_ptr->image_ptr);
-
-            publish_camera_info(roscv_image_msg_ptr->get_header());
-
-            if (user_callback_)
-            {
-                user_callback_(roscv_image_msg_ptr->get_header(), *roscv_image_msg_ptr->image_ptr);
-            }
-
-            loop_rate.sleep();  
         }
     }
 

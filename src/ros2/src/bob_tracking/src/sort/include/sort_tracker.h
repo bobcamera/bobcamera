@@ -31,7 +31,7 @@ namespace SORT
      * @param iou_threshold
      */
         static void AssociateDetectionsToTrackers(const std::vector<cv::Rect>& detection,
-                                        std::map<int, Track>& tracks,
+                                        const std::map<int, Track>& tracks,
                                         std::map<int, cv::Rect>& matched,
                                         std::vector<cv::Rect>& unmatched_det,
                                         // float iou_threshold = 0.001); // 0 to 1 for IOU

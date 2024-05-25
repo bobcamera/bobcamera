@@ -8,7 +8,7 @@
 class Track {
 public:
 Track();
-    Track(rclcpp::Logger logger);
+    explicit Track(rclcpp::Logger logger);
     ~Track() = default;
 
     void init(const cv::Rect& bbox);

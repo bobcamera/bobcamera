@@ -180,9 +180,9 @@ public:
             params_.state_publisher->publish(state);
             params_.detection_publisher->publish(bbox2D_array);            
         }
-        catch (std::exception &cve)
+        catch (const std::exception & e)
         {
-            RCLCPP_ERROR(node_.get_logger(), "Exception: %s", cve.what());
+            RCLCPP_ERROR(node_.get_logger(), "Exception: %s", e.what());
         }
     }
 

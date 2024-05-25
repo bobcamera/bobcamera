@@ -62,10 +62,17 @@ protected:
 
     void update_action_param(const rclcpp::Parameter &_param)
     {
-        auto it = parameters_map_.find(_param.get_name());
-        if (it != parameters_map_.end() && it->second.action != nullptr)
+        try
         {
-            it->second.action(_param);
+            auto it = parameters_map_.find(_param.get_name());
+            if (it != parameters_map_.end() && it->second.action != nullptr)
+            {
+                it->second.action(_param);
+            }
+        }
+        catch(const std::exception& e)
+        {
+            RCLCPP_ERROR(get_logger(), e.what());
         }
     }
 

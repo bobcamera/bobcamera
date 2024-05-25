@@ -48,6 +48,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/MaskOverrideRequest.srv"
   "srv/MaskSvgDelete.srv"
   "srv/MaskSvgUpdate.srv"
+  "srv/MaskGetSvg.srv"
   "srv/CameraSettings.srv"
   "srv/SensitivityChangeRequest.srv"
   "srv/RecordingRequest.srv"
