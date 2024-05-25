@@ -9,6 +9,7 @@
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
 #include "background_subtractor_companion.hpp"
+#include "mask_worker.hpp"
 
 #include <sensor_msgs/msg/region_of_interest.hpp>
 #include <sensor_msgs/msg/image.hpp>
@@ -53,8 +54,8 @@ public:
 
     void init()
     {
-        mask_timer_ = node_.create_wall_timer(std::chrono::seconds(60), std::bind(&BackgroundSubtractorWorker::mask_timer_callback, this));
-        mask_timer_callback(); // Calling it the first time
+        mask_worker_ptr_ = std::make_unique<MaskWorker>(node_, [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat & mask){mask_timer_callback(detection_mask_result, mask);});
+        mask_worker_ptr_->init(5, params_.mask_filename);
     }
 
     void init_bgs(const std::string & bgs)
@@ -142,12 +143,12 @@ public:
             }
             ros_cv_foreground_mask_->msg_ptr->header = header;
 
-            if (mask_enabled_ && (grey_mask_.size() != gray_img.size()))
+            if (mask_enabled_ && (detection_mask_.size() != gray_img.size()))
             {
-                cv::resize(grey_mask_, grey_mask_, gray_img.size());
+                cv::resize(detection_mask_, detection_mask_, gray_img.size());
             }
 
-            bgsPtr->apply(gray_img, *ros_cv_foreground_mask_->image_ptr, mask_enabled_ ? grey_mask_ : cv::Mat());
+            bgsPtr->apply(gray_img, *ros_cv_foreground_mask_->image_ptr, mask_enabled_ ? detection_mask_ : cv::Mat());
 
             node_.publish_if_subscriber(params_.image_publisher, *ros_cv_foreground_mask_->msg_ptr);
 
@@ -187,14 +188,9 @@ public:
     }
 
 private:
-    enum class MaskCheckType
-    {
-        Disable,
-        Enable,
-        NoChange
-    };
-
     ParameterNode & node_;
+
+    std::unique_ptr<MaskWorker> mask_worker_ptr_;
 
     BackgroundSubtractorWorkerParams & params_;
 
@@ -208,10 +204,7 @@ private:
 
     std::unique_ptr<RosCvImageMsg> ros_cv_foreground_mask_;
 
-    rclcpp::TimerBase::SharedPtr mask_timer_;
-    std::optional<std::filesystem::file_time_type> mask_last_modified_time_;
-    cv::Mat grey_mask_;
-    cv::Rect bounding_box_;
+    cv::Mat detection_mask_;
 
     bool ready_;
     std::mutex mutex;
@@ -243,67 +236,6 @@ private:
         }
     }
 
-    void mask_timer_callback()
-    {
-        mask_timer_->cancel();
-
-        auto detection_mask_result = mask_set(params_.mask_filename, mask_last_modified_time_, grey_mask_);
-
-        if (detection_mask_result == MaskCheckType::Enable)
-        {
-            if (!mask_enabled_)
-            {
-                mask_enabled_ = true;
-                RCLCPP_INFO(node_.get_logger(), "Detection Mask Enabled.");
-            }
-            else
-            {
-                RCLCPP_INFO(node_.get_logger(), "Detection Mask Changed.");
-            }
-        }
-        else if ((detection_mask_result == MaskCheckType::Disable) && mask_enabled_)
-        {
-            RCLCPP_INFO(node_.get_logger(), "Detection Mask Disabled.");
-            mask_enabled_ = false;
-        }
-
-        mask_timer_->reset();
-    }
-
-    inline MaskCheckType mask_set(const std::string & mask_filename, std::optional<std::filesystem::file_time_type> & mask_last_modified_time, cv::Mat & mask)
-    {
-        try
-        {
-            if (!std::filesystem::exists(mask_filename))
-            {
-                mask_last_modified_time.reset();
-                return MaskCheckType::Disable;
-            }
-
-            auto current_modified_time = std::filesystem::last_write_time(mask_filename);
-            if (mask_last_modified_time == current_modified_time) 
-            {
-                return MaskCheckType::NoChange;
-            }
-            mask_last_modified_time = current_modified_time;
-
-            mask = cv::imread(mask_filename, cv::IMREAD_UNCHANGED);
-            if (mask.empty())
-            {
-                mask_last_modified_time.reset();
-                return MaskCheckType::Disable;
-            }
-
-            return MaskCheckType::Enable;
-        }
-        catch (std::exception &cve)
-        {
-            RCLCPP_ERROR(node_.get_logger(), "Exception on mask_set: %s", cve.what());
-            mask_last_modified_time.reset();
-            return MaskCheckType::Disable;
-        }
-    }
-
     inline void publish_resized_frame(const RosCvImageMsg & image_msg)
     {
         if (!params_.image_resized_publisher || (node_.count_subscribers(params_.image_resized_publisher->get_topic_name()) <= 0))
@@ -326,6 +258,30 @@ private:
         auto resized_frame_msg = cv_bridge::CvImage(image_msg.msg_ptr->header, image_msg.msg_ptr->encoding, resized_img).toImageMsg();
         params_.image_resized_publisher->publish(*resized_frame_msg);            
     }
+
+    void mask_timer_callback(MaskWorker::MaskCheckType detection_mask_result, const cv::Mat & mask)
+    {
+        if (detection_mask_result == MaskWorker::MaskCheckType::Enable)
+        {
+            if (!mask_enabled_)
+            {
+                mask_enabled_ = true;
+                RCLCPP_INFO(node_.get_logger(), "Detection Mask Enabled.");
+            }
+            else
+            {
+                RCLCPP_INFO(node_.get_logger(), "Detection Mask Changed.");
+            }
+            detection_mask_ = mask.clone();
+        }
+        else if ((detection_mask_result == MaskWorker::MaskCheckType::Disable) && mask_enabled_)
+        {
+            RCLCPP_INFO(node_.get_logger(), "Detection Mask Disabled.");
+            mask_enabled_ = false;
+            detection_mask_.release();
+        }
+    }
+
 };
 
 

@@ -21,6 +21,7 @@
 #include <image_utils.hpp>
 #include <parameter_node.hpp>
 #include <object_simulator.hpp>
+#include <mask_worker.hpp>
 
 struct CameraWorkerParams
 {
@@ -84,11 +85,12 @@ public:
             object_simulator_ptr_ = std::make_unique<ObjectSimulator>(params_.simulator_num_objects);
         }
 
+        mask_worker_ptr_ = std::make_unique<MaskWorker>(node_, [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat & mask){mask_timer_callback(detection_mask_result, mask);});
+        mask_worker_ptr_->init(5, params_.mask_filename);
+
         camera_settings_client_ = node_.create_client<bob_interfaces::srv::CameraSettings>("bob/camera/settings");
         fps_update_client_ = node_.create_client<bob_interfaces::srv::ConfigEntryUpdate>("bob/config/update/fps");
 
-        mask_timer_ = node_.create_wall_timer(std::chrono::seconds(30), [this](){mask_timer_callback();});
-        mask_timer_callback(); // Calling it the first time
         open_camera();
         start_capture();
     }
@@ -97,6 +99,8 @@ private:
     ParameterNode & node_;
     CameraWorkerParams & params_;
 
+    std::unique_ptr<MaskWorker> mask_worker_ptr_;
+
     std::function<void(const std_msgs::msg::Header &, const cv::Mat &)> user_callback_;
     
     rclcpp::Client<bob_interfaces::srv::CameraSettings>::SharedPtr camera_settings_client_;
@@ -104,15 +108,14 @@ private:
 
     cv::VideoCapture video_capture_;
     bob_camera::msg::CameraInfo camera_info_msg_;
-    rclcpp::TimerBase::SharedPtr mask_timer_;
     std::jthread capture_thread_;
     uint32_t current_video_idx_;
     bool run_;
     double fps_;
-    bool mask_enabled_;
-    std::optional<std::filesystem::file_time_type> mask_last_modified_time_;
-    cv::Mat privacy_mask_;
     std::unique_ptr<ObjectSimulator> object_simulator_ptr_;
+
+    bool mask_enabled_;
+    cv::Mat privacy_mask_;
 
     void captureLoop()
     {
@@ -385,47 +388,27 @@ private:
         }
     }
 
-    void mask_timer_callback()
+    void mask_timer_callback(MaskWorker::MaskCheckType detection_mask_result, const cv::Mat & mask)
     {
-        mask_timer_->cancel();
-        try
+        if (detection_mask_result == MaskWorker::MaskCheckType::Enable)
         {
-            if (!std::filesystem::exists(params_.mask_filename))
+            if (!mask_enabled_)
             {
-                if (mask_enabled_)
-                {
-                    RCLCPP_INFO(node_.get_logger(), "Privacy Mask Disabled.");
-                }
-                mask_enabled_ = false;
-                mask_timer_->reset();
-                return;
-            }
-
-            auto current_modified_time = std::filesystem::last_write_time(params_.mask_filename);
-            if (mask_last_modified_time_ == current_modified_time) 
-            {
-                mask_timer_->reset();
-                return;
-            }
-            mask_last_modified_time_ = current_modified_time;
-
-            privacy_mask_= cv::imread(params_.mask_filename, cv::IMREAD_UNCHANGED);
-            mask_enabled_ = !privacy_mask_.empty();
-            if (privacy_mask_.empty())
-            {
-                RCLCPP_INFO(node_.get_logger(), "Privacy Mask Disabled, mask image was empty");
+                mask_enabled_ = true;
+                RCLCPP_INFO(node_.get_logger(), "Privacy Mask Enabled.");
             }
             else
             {
-                RCLCPP_INFO(node_.get_logger(), "Privacy Mask Enabled.");
+                RCLCPP_INFO(node_.get_logger(), "Privacy Mask Changed.");
             }
+            privacy_mask_ = mask.clone();
         }
-        catch (cv::Exception &cve)
+        else if ((detection_mask_result == MaskWorker::MaskCheckType::Disable) && mask_enabled_)
         {
-            RCLCPP_ERROR(node_.get_logger(), "Open CV exception on timer callback: %s", cve.what());
+            RCLCPP_INFO(node_.get_logger(), "Privacy Mask Disabled.");
+            mask_enabled_ = false;
+            privacy_mask_.release();
         }
-        
-        mask_timer_->reset();
     }
 
     void request_update_fps(const float fps, 

@@ -17,13 +17,14 @@ public:
         rclcpp::Parameter parameter;
         std::function<void(const rclcpp::Parameter&)> action;
 
-        ActionParam(const rclcpp::Parameter &_param,
-                    std::function<void(const rclcpp::Parameter&)> _action) 
-            : parameter(_param), action(_action) 
+        ActionParam(const rclcpp::Parameter & _param,
+                    const std::function<void(const rclcpp::Parameter &)> & _action) 
+            : parameter(_param)
+            , action(_action) 
         {}
     };
 
-    explicit ParameterNode(const std::string &node_name)
+    explicit ParameterNode(const std::string & node_name)
         : ParameterNode(node_name, *default_options())
     {
     }
@@ -51,7 +52,7 @@ public:
     }
 
 protected:
-    void add_action_parameters(const std::vector<ActionParam>& action_params)
+    void add_action_parameters(const std::vector<ActionParam> & action_params)
     {
         for (auto & action_param : action_params)
         {
@@ -64,13 +65,13 @@ protected:
     {
         try
         {
-            auto it = parameters_map_.find(_param.get_name());
+            const auto & it = parameters_map_.find(_param.get_name());
             if (it != parameters_map_.end() && it->second.action != nullptr)
             {
                 it->second.action(_param);
             }
         }
-        catch(const std::exception& e)
+        catch (const std::exception& e)
         {
             RCLCPP_ERROR(get_logger(), e.what());
         }
@@ -80,11 +81,11 @@ private:
     rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr parameters_callback_handle_;
     std::map<std::string, ActionParam> parameters_map_;
 
-    rcl_interfaces::msg::SetParametersResult param_change_callback_method(const std::vector<rclcpp::Parameter> &parameters)
+    rcl_interfaces::msg::SetParametersResult param_change_callback_method(const std::vector<rclcpp::Parameter> & parameters)
     {
         rcl_interfaces::msg::SetParametersResult result;
         result.successful = true;
-        for (auto &param : parameters)
+        for (auto & param : parameters)
         {
             update_action_param(param);
         }
