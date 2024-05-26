@@ -2,6 +2,11 @@
     "cmake.configureOnOpen": false,
     "files.associations": {
         "typeindex": "cpp",
-        "typeinfo": "cpp"
+        "typeinfo": "cpp",
+        "array": "cpp",
+        "string_view": "cpp",
+        "string": "cpp",
+        "cmath": "cpp",
+        "complex": "cpp"
     }
 }

@@ -22,26 +22,20 @@
 
 #include <rclcpp/experimental/executors/events_executor/events_executor.hpp>
 
-class RecordManager : public ParameterNode {
+class RecordManager 
+    : public ParameterNode 
+{
 public:
     COMPOSITION_PUBLIC
     explicit RecordManager(const rclcpp::NodeOptions& options)
     : ParameterNode("recorder_manager", options)
-    , current_state_(RecordingStateEnum::BeforeStart)
-    , prev_frame_width_(0)
-    , prev_frame_height_(0)
     {
-        one_shot_timer_ = this->create_wall_timer(
-            std::chrono::seconds(1), 
-            [this]() {
-                this->init(); 
-                this->one_shot_timer_.reset();  
-            }
-        );
+        one_shot_timer_ = create_wall_timer(std::chrono::seconds(1), [this]() {init();});
     }
 
 private:
-    enum class RecordingStateEnum {
+    enum class RecordingStateEnum 
+    {
         Disabled,
         BeforeStart,
         BetweenEvents,
@@ -50,7 +44,12 @@ private:
 
     void init()
     {
+        one_shot_timer_.reset();
         RCLCPP_INFO(get_logger(), "Initializing RecordManager");
+
+        current_state_ = RecordingStateEnum::BeforeStart;
+        prev_frame_width_ = 0;
+        prev_frame_height_ = 0;
 
         declare_node_parameters();
 
@@ -65,11 +64,9 @@ private:
         sub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
         auto rmw_qos_profile = sub_qos_profile.get_rmw_qos_profile();
         
-        recording_request_service_= create_service<bob_interfaces::srv::RecordingRequest>("bob/recording/update", 
-            std::bind(&RecordManager::change_recording_enabled_request, 
-            this, 
-            std::placeholders::_1, 
-            std::placeholders::_2));
+        recording_request_service_= create_service<bob_interfaces::srv::RecordingRequest>("bob/recording/update",
+            [this](const std::shared_ptr<bob_interfaces::srv::RecordingRequest::Request> request, std::shared_ptr<bob_interfaces::srv::RecordingRequest::Response> response)
+                {change_recording_enabled_request(request, response);});
 
         state_publisher_ = create_publisher<bob_interfaces::msg::RecordingState>("bob/recording/state", pub_qos_profile);
         sub_frame_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(shared_from_this(), img_topic_, rmw_qos_profile);
@@ -77,13 +74,8 @@ private:
         sub_tracking_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::Tracking>>(shared_from_this(), tracking_topic_, rmw_qos_profile);
         sub_camera_info_ = std::make_shared<message_filters::Subscriber<bob_camera::msg::CameraInfo>>(shared_from_this(), camera_info_topic_, rmw_qos_profile);
 
-        roi_subscription_ = create_subscription<sensor_msgs::msg::RegionOfInterest>(
-            "bob/mask/roi", sub_qos_profile,
-            std::bind(&RecordManager::roi_callback, this, std::placeholders::_1));
-
         time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image, 
             bob_interfaces::msg::Tracking, bob_camera::msg::CameraInfo>>(*sub_frame_, *sub_fg_frame_, *sub_tracking_, *sub_camera_info_, 10);
-
         time_synchronizer_->registerCallback(&RecordManager::process_recordings, this);
 
         img_recorder_ = std::make_unique<ImageRecorder>(total_pre_frames_);
@@ -91,36 +83,30 @@ private:
         video_recorder_ = std::make_unique<VideoRecorder>(total_pre_frames_);
     };
 
-    void roi_callback(const sensor_msgs::msg::RegionOfInterest::SharedPtr roi_msg) 
-    {
-        x_offset_ = roi_msg->x_offset;
-        y_offset_ = roi_msg->y_offset;
-    }
-
-    std::string get_current_date() 
+    static std::string get_current_date() 
     {
         auto now = std::chrono::system_clock::now();
         auto time_t = std::chrono::system_clock::to_time_t(now);
-        std::tm local_tm = *std::localtime(&time_t);
+        std::tm local_tm;
 
-        std::ostringstream oss;
-        oss << std::put_time(&local_tm, "%Y%m%d");
+        localtime_r(&time_t, &local_tm);
 
-        return oss.str();
+        std::array<char, 16> buffer;
+        strftime(buffer.data(), buffer.size(), "%Y%m%d", &local_tm);
+
+        return std::string(buffer.data());
     }
 
     static bool create_dir(const std::string& path) 
     {
-        std::filesystem::path dirPath = path;
-
-        if (!std::filesystem::exists(dirPath)) 
+        if (std::filesystem::path dirPath = path; !std::filesystem::exists(dirPath)) 
         {
             return std::filesystem::create_directories(dirPath);
         }
         return true;
     }
 
-    void create_subdirectory(const std::filesystem::path& parent, const std::string& subdirectory) 
+    void create_subdirectory(const std::filesystem::path& parent, const std::string& subdirectory) const
     {
         std::filesystem::path subDirPath = parent / subdirectory;
         if (std::filesystem::create_directory(subDirPath)) 
@@ -150,17 +136,13 @@ private:
 
                 return true;
             } 
-            else 
-            {
-                // RCLCPP_ERROR(get_logger(), "Failed to create dated directory: %s", dated_directory_.c_str());
-                return false;
-            }
-        } 
-        else 
-        {
-            RCLCPP_INFO(get_logger(), "Parent recordings directory doesn't exist: %s", dirPath.c_str());
+
+            // RCLCPP_ERROR(get_logger(), "Failed to create dated directory: %s", dated_directory_.c_str());
             return false;
-        }
+        } 
+
+        RCLCPP_INFO(get_logger(), "Parent recordings directory doesn't exist: %s", dirPath.c_str());
+        return false;
     }
 
     static std::string generate_filename(const sensor_msgs::msg::Image::SharedPtr& image_msg)
@@ -171,7 +153,8 @@ private:
         return oss.str();
     } 
 
-    void declare_node_parameters() {
+    void declare_node_parameters() 
+    {
         std::vector<ParameterNode::ActionParam> params = {
             ParameterNode::ActionParam(
                 rclcpp::Parameter("recordings_directory", "."), 
@@ -182,7 +165,7 @@ private:
                 }
             ),
             ParameterNode::ActionParam(
-                rclcpp::Parameter("img_topic", "bob/frames/allsky/masked/privacy"), 
+                rclcpp::Parameter("img_topic", "bob/frames/allsky/original"), 
                 [this](const rclcpp::Parameter& param) {img_topic_ = param.as_string();}
             ),
             ParameterNode::ActionParam(
@@ -221,7 +204,7 @@ private:
                 rclcpp::Parameter("seconds_save", 2), 
                 [this](const rclcpp::Parameter& param) 
                 {
-                    number_seconds_save_ = param.as_int();
+                    number_seconds_save_ = static_cast<int>(param.as_int());
                     total_pre_frames_ = (size_t)(number_seconds_save_ * video_fps_);
                 }
             ),
@@ -237,7 +220,7 @@ private:
     {
         try
         {          
-            std::unique_lock<std::mutex> lock(buffer_mutex_);
+            std::unique_lock lock(buffer_mutex_);
 
             cv::Mat img;
             ImageUtils::convert_image_msg(image_msg, img, true);
@@ -248,7 +231,7 @@ private:
                 prev_frame_width_ = img.cols;
                 prev_frame_height_ = img.rows;
             }
-            else if(img.rows != prev_frame_height_ || img.cols != prev_frame_width_ )
+            else if (img.rows != prev_frame_height_ || img.cols != prev_frame_width_ )
             {
                 RCLCPP_INFO(get_logger(), "Frame dimensions changed. ");
                 prev_frame_height_ = img.rows;
@@ -271,39 +254,38 @@ private:
                     current_state_ = RecordingStateEnum::BetweenEvents;
                     base_filename_ = generate_filename(image_msg);
 
-                    std::string current_date = get_current_date();
-                    if(current_date != date_)
+                    if (auto current_date = get_current_date(); current_date != date_)
                     {
                         create_dated_dir(recordings_directory_);
                         date_ = current_date;
                     }
 
-                    std::string full_path = dated_directory_ + "/allsky/" + prefix_str_ + base_filename_ + ".mp4";
+                    const std::string full_path = dated_directory_ + "/allsky/" + prefix_str_ + base_filename_ + ".mp4";
                     const std::string out_pipeline = pipeline_str_ + full_path;
                     video_recorder_->open_new_video(full_path, codec_str_, video_fps_, img.size(), img.channels() == 3);                    
                     img_recorder_->update_frame_for_drawing(img);
                 } 
                 else 
                 {
-                    json_data = JsonRecorder::build_json_value(image_msg, tracking_msg, false, x_offset_, y_offset_);
+                    json_data = JsonRecorder::build_json_value(tracking_msg, false);
                     json_recorder_->add_to_pre_buffer(json_data, false);
                     video_recorder_->add_to_pre_buffer(img);
                 }
                 break;
 
             case RecordingStateEnum::BetweenEvents:
-                json_data = JsonRecorder::build_json_value(image_msg, tracking_msg, true, x_offset_, y_offset_);
+                json_data = JsonRecorder::build_json_value(tracking_msg, true);
                 json_recorder_->add_to_buffer(json_data, false);
                 video_recorder_->write_frame(img);
-                img_recorder_->accumulate_mask(fg_img, img.size(), x_offset_, y_offset_);
+                img_recorder_->accumulate_mask(fg_img, img.size());
 
-                for (const auto& detection : tracking_msg->detections)
+                for (const auto & detection : tracking_msg->detections)
                 {
-                    if(detection.state == 2) // ActiveTarget
+                    if (detection.state == 2) // ActiveTarget
                     {
-                        const auto& bbox = detection.bbox;
-                        double area = bbox.size_x * bbox.size_y; 
-                        img_recorder_->store_trajectory_point(detection.id, cv::Point(bbox.center.position.x, bbox.center.position.y), area);
+                        const auto & bbox = detection.bbox;
+                        const double area = bbox.size_x * bbox.size_y; 
+                        img_recorder_->store_trajectory_point(detection.id, cv::Point(static_cast<int>(bbox.center.position.x), static_cast<int>(bbox.center.position.y)), area);
                     }
                 }
 
@@ -334,10 +316,10 @@ private:
                 }
                 else 
                 {
-                    json_data = JsonRecorder::build_json_value(image_msg, tracking_msg, false, x_offset_, y_offset_);
+                    json_data = JsonRecorder::build_json_value(tracking_msg, false);
                     json_recorder_->add_to_buffer(json_data, false);
                     video_recorder_->write_frame(img);
-                    img_recorder_->accumulate_mask(fg_img, img.size(), x_offset_, y_offset_);
+                    img_recorder_->accumulate_mask(fg_img, img.size());
 
                     --current_end_frame_;
                     if (tracking_msg->state.trackable > 0) 
@@ -373,7 +355,7 @@ private:
             state.recording = recording_;
             state_publisher_->publish(state);
         }
-        catch (std::exception &e)
+        catch (std::exception & e)
         {
             RCLCPP_ERROR(get_logger(), "exception: %s", e.what());
         }
@@ -382,14 +364,7 @@ private:
     void change_recording_enabled_request(const std::shared_ptr<bob_interfaces::srv::RecordingRequest::Request> request, 
         std::shared_ptr<bob_interfaces::srv::RecordingRequest::Response> response)
     {
-        if (request->disable_recording)
-        {
-            current_state_ = RecordingStateEnum::Disabled;
-        }
-        else
-        {
-            current_state_ = RecordingStateEnum::BeforeStart;
-        }
+        current_state_ = request->disable_recording ? RecordingStateEnum::Disabled : RecordingStateEnum::BeforeStart;
         response->success = true;
     }
 
@@ -418,7 +393,6 @@ private:
     std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> sub_fg_frame_;
     std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::Tracking>> sub_tracking_;
     std::shared_ptr<message_filters::Subscriber<bob_camera::msg::CameraInfo>> sub_camera_info_;
-    rclcpp::Subscription<sensor_msgs::msg::RegionOfInterest>::SharedPtr roi_subscription_;
     std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image,
     bob_interfaces::msg::Tracking, bob_camera::msg::CameraInfo>> time_synchronizer_;
 
@@ -428,11 +402,8 @@ private:
     int number_seconds_save_;
     int prev_frame_width_;
     int prev_frame_height_;
-    int x_offset_;
-    int y_offset_;
     bool recording_;
 };
-
 
 int main(int argc, char **argv) 
 {

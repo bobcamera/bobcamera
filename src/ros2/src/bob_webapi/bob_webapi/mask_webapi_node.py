@@ -5,7 +5,7 @@ import cv2
 import cairosvg
 from rclpy.node import Node
 from cv_bridge import CvBridge
-from bob_interfaces.srv import Mask, MaskSvgUpdate, MaskSvgDelete
+from bob_interfaces.srv import Mask, MaskGetSvg, MaskSvgUpdate, MaskSvgDelete
 from bob_shared.node_runner import NodeRunner
 
 class MaskWebApiNode(Node):
@@ -28,10 +28,32 @@ class MaskWebApiNode(Node):
 
     # setup services, publishers and subscribers
     self.get_mask_service = self.create_service(Mask, 'bob/webapi/mask/image', self.get_mask_callback)
+    self.get_mask_svg_service = self.create_service(MaskGetSvg, 'bob/webapi/mask/svg', self.get_mask_svg_callback)
     self.put_svg_mask_service = self.create_service(MaskSvgUpdate, 'bob/webapi/mask/update/svg', self.put_svg_mask_callback)
     self.delete_svg_mask_service = self.create_service(MaskSvgDelete, 'bob/webapi/mask/delete/svg', self.del_svg_mask_callback)
 
     self.get_logger().info(f'{self.get_name()} node is up and running.')
+
+  def get_mask_svg_callback(self, request, response):
+
+    try:      
+      mask_file_path = os.path.join(self.masks_folder, request.file_name)
+
+      if os.path.exists(mask_file_path) == False:
+        response.success = False
+        response.message = 'Mask file does not exist'
+      else:
+        with open(mask_file_path, 'r') as file:
+          svg_content = file.read()
+        response.mask = svg_content
+        response.success = True
+
+    except Exception as e:
+      self.get_logger().error(f"Exception getting mask. Error: {e}.")
+      self.get_logger().error(tb.format_exc())
+      response.success = False
+
+    return response
 
   def get_mask_callback(self, request, response):
 
@@ -39,10 +61,12 @@ class MaskWebApiNode(Node):
       mask_file_path = os.path.join(self.masks_folder, request.file_name)
 
       if os.path.exists(mask_file_path) == False:
-        self.get_logger().error(f'Mask path {mask_file_path} does not exist.')
-
-      mask_image = cv2.imread(mask_file_path, cv2.IMREAD_GRAYSCALE)
-      response.mask = self.br.cv2_to_imgmsg(mask_image)
+        response.success = False
+        response.message = 'Mask file does not exist'
+      else:
+        mask_image = cv2.imread(mask_file_path, cv2.IMREAD_GRAYSCALE)
+        response.mask = self.br.cv2_to_imgmsg(mask_image)
+        response.success = True
     except Exception as e:
       self.get_logger().error(f"Exception getting mask. Error: {e}.")
       self.get_logger().error(tb.format_exc())

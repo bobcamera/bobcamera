@@ -25,7 +25,7 @@ namespace boblib::bgs
 
     private:
         virtual void initialize(const cv::Mat &_image);
-        virtual void process(const cv::Mat &img_input, cv::Mat &img_output, int _num_process);
+        virtual void process(const cv::Mat &img_input, cv::Mat &img_output, const cv::Mat & _detectMask, int _num_process);
 
         static const inline int ROLLING_BG_IDX[3][3] = {{0, 1, 2}, {2, 0, 1}, {1, 2, 0}};
 
@@ -45,15 +45,13 @@ namespace boblib::bgs
         std::vector<RollingImages> m_img_input_prev;
 
         static void roll_images(RollingImages& _rolling_images);
-        static void process(const cv::Mat &_img_input,
-                            cv::Mat &_img_output,
-                            RollingImages &_img_input_prev,
-                            const WMVParams &_params);
+                    
         template<class T>
         static void weighted_variance_mono(
             const T *const _img1,
             const T *const _img2,
             const T *const _img3,
+            const uint8_t *const _imgMask,
             uint8_t *const _out_Img,
             const size_t _total_pixels,
             const float* _weight, 
@@ -64,6 +62,7 @@ namespace boblib::bgs
             const T *const _img1,
             const T *const _img2,
             const T *const _img3,
+            const uint8_t *const _imgMask,
             uint8_t *const _out_img,
             const size_t _total_pixels,
             const float* _weight, 

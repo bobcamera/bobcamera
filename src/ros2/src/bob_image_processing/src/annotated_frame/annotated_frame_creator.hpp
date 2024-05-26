@@ -43,21 +43,19 @@ public:
         frame_type = "masked";         //(settings["visualiser_frame_source"]),
     }
 
-    cv::Mat create_frame(const cv::Mat& annotated_frame,
-                         const bob_interfaces::msg::Tracking& msg_tracking,
-                         int x_offset,
-                         int y_offset,
-                         bool enable_tracking_status)
+    void create_frame(const cv::Mat& annotated_frame,
+                    const bob_interfaces::msg::Tracking& msg_tracking,
+                    bool enable_tracking_status)
     {
         int cropped_track_counter = 0;
-        bool enable_cropped_tracks = true; // settings.at("visualiser_show_cropped_tracks");
-        double zoom_factor = 2.0;          // settings.at("visualiser_cropped_zoom_factor");
+        const bool enable_cropped_tracks = true; // settings.at("visualiser_show_cropped_tracks");
+        const double zoom_factor = 2.0;          // settings.at("visualiser_cropped_zoom_factor");
         std::map<int, cv::Rect> detections;
         std::map<std::string, bob_interfaces::msg::TrackPoint> final_trajectory_points;
 
-        cv::Size frame_size = annotated_frame.size();
-        int total_height = frame_size.height;
-        int total_width = frame_size.width;
+        const cv::Size frame_size = annotated_frame.size();
+        const int total_height = frame_size.height;
+        const int total_width = frame_size.width;
 
         std::string status_message = "(bob) Tracker Status: trackable:" +
                                      std::to_string(msg_tracking.state.trackable) +
@@ -85,8 +83,8 @@ public:
             {
                 cv::Rect bbox = get_sized_bbox(detection.bbox);
                 detections[detection.id] = bbox;
-                cv::Point p1(bbox.x + x_offset, bbox.y + y_offset);
-                cv::Point p2(bbox.x + bbox.width + x_offset, bbox.y + bbox.height + y_offset);
+                cv::Point p1(bbox.x, bbox.y);
+                cv::Point p2(bbox.x + bbox.width, bbox.y + bbox.height);
             
                 cv::Scalar color = _color(tracking_state);
 
@@ -99,7 +97,6 @@ public:
                 // ellipse.size = cv::Size2f(semi_major_axis * 2, semi_minor_axis * 2);
                 // ellipse.angle = orientation * 180 / M_PI;
 
-
                 if (enable_cropped_tracks)
                 {
                     int margin = (cropped_track_counter == 0) ? 0 : 10;
@@ -111,7 +108,7 @@ public:
                     {
                         try
                         {
-                            cv::Mat cropped_image = annotated_frame(cv::Rect(bbox.x + x_offset, bbox.y + y_offset, bbox.width, bbox.height));
+                            cv::Mat cropped_image = annotated_frame(cv::Rect(bbox.x, bbox.y, bbox.width, bbox.height));
                             const double cropped_percentage = 0.04;  
                             int cropped_size = static_cast<int>(std::min(total_width, total_height) * cropped_percentage);
 
@@ -186,7 +183,7 @@ public:
         //     }
         // }
 
-        return annotated_frame;
+        //return annotated_frame;
     }
 
     double get_optimal_font_scale(const std::string &text, int width)
@@ -207,20 +204,20 @@ public:
         return fontScale;
     }
 
-    cv::Rect get_sized_bbox(vision_msgs::msg::BoundingBox2D bbox_msg)
+    inline cv::Rect get_sized_bbox(vision_msgs::msg::BoundingBox2D bbox_msg)
     {
-        int x = static_cast<int>(bbox_msg.center.position.x - (bbox_msg.size_x / 2));
-        int y = static_cast<int>(bbox_msg.center.position.y - (bbox_msg.size_y / 2));
-        int w = static_cast<int>(bbox_msg.size_x);
-        int h = static_cast<int>(bbox_msg.size_y);
+        const int x = static_cast<int>(bbox_msg.center.position.x - (bbox_msg.size_x / 2));
+        const int y = static_cast<int>(bbox_msg.center.position.y - (bbox_msg.size_y / 2));
+        const int w = static_cast<int>(bbox_msg.size_x);
+        const int h = static_cast<int>(bbox_msg.size_y);
 
-        int size = std::max(w, h) + 15;
-        int x1 = x + (w / 2) - (size / 2);
-        int y1 = y + (h / 2) - (size / 2);
+        const int size = std::max(w, h) + 15;
+        const int x1 = x + (w / 2) - (size / 2);
+        const int y1 = y + (h / 2) - (size / 2);
         return {x1, y1, size, size};
     }
 
-    cv::Scalar _color(TrackingStateEnum tracking_state)
+    inline cv::Scalar _color(TrackingStateEnum tracking_state)
     {
         switch (tracking_state)
         {

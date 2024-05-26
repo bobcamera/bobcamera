@@ -32,11 +32,14 @@ public:
     }
 
 private:
+    rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::QoS sub_qos_profile_{2};
+    rclcpp::QoS pub_qos_profile_{10};
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscription_;
     rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr pub_compressed_frame_;
     boblib::utils::Profiler profiler_;
     int compression_quality_;
+    std::vector<int> compression_params_;
 
     friend std::shared_ptr<FrameCompressor> std::make_shared<FrameCompressor>();
 
@@ -45,7 +48,13 @@ private:
         std::vector<ParameterNode::ActionParam> params = {
             ParameterNode::ActionParam(
                 rclcpp::Parameter("compression_quality", 75), 
-                [this](const rclcpp::Parameter& param) {compression_quality_ = param.as_int();}
+                [this](const rclcpp::Parameter& param) 
+                {
+                    compression_quality_ = static_cast<int>(param.as_int());
+                    compression_params_.clear();
+                    compression_params_.push_back(cv::IMWRITE_JPEG_QUALITY);
+                    compression_params_.push_back(compression_quality_);
+                }
             ),
         };
         add_action_parameters(params);
@@ -53,35 +62,54 @@ private:
     
     void init()
     {
-        rclcpp::QoS sub_qos_profile{10};
         sub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
         sub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
         sub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
 
-        rclcpp::QoS pub_qos_profile{10};
-        pub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
-        pub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
-        pub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
+        pub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
+        pub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
+        pub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
 
-        image_subscription_ = create_subscription<sensor_msgs::msg::Image>("bob/compressor/source", sub_qos_profile_,
-            std::bind(&FrameCompressor::imageCallback, this, std::placeholders::_1));
+        timer_ = create_wall_timer(std::chrono::seconds(2), [this]{check_subscribers();});
 
-        pub_compressed_frame_ = create_publisher<sensor_msgs::msg::CompressedImage>("bob/compressor/target", pub_qos_profile);
+        pub_compressed_frame_ = create_publisher<sensor_msgs::msg::CompressedImage>("bob/compressor/target", pub_qos_profile_);
+        RCLCPP_INFO(get_logger(), "Creating topic %s", pub_compressed_frame_->get_topic_name());
     }
 
-    void imageCallback(const sensor_msgs::msg::Image::SharedPtr image_msg)
+    void check_subscribers() 
+    {
+        timer_->cancel();
+        try
+        {
+            auto num_subs = count_subscribers(pub_compressed_frame_->get_topic_name());
+            if ((num_subs > 0) && !image_subscription_)
+            {
+                image_subscription_ = create_subscription<sensor_msgs::msg::Image>("bob/compressor/source", sub_qos_profile_,
+                    [this](const sensor_msgs::msg::Image::SharedPtr image_msg){imageCallback(image_msg);});
+                RCLCPP_INFO(get_logger(), "Subscribing to %s", image_subscription_->get_topic_name());
+            } 
+            else if ((num_subs <= 0) && image_subscription_) 
+            {
+                RCLCPP_INFO(get_logger(), "Unsubscribing from %s", image_subscription_->get_topic_name());
+                image_subscription_.reset();
+            }
+        }
+        catch(const std::exception& e)
+        {
+            // Ignoring, probably due to application closing
+        }
+        timer_->reset();
+    }
+
+    void imageCallback(const sensor_msgs::msg::Image::SharedPtr image_msg) const
     {
         try
         {
             cv::Mat image;
             ImageUtils::convert_image_msg(image_msg, image, true);            
 
-            std::vector<int> compression_params;
-            compression_params.push_back(cv::IMWRITE_JPEG_QUALITY);
-            compression_params.push_back(compression_quality_);  // Compression quality
-
             std::vector<uchar> compressed_image;
-            cv::imencode(".jpg", image, compressed_image, compression_params);            
+            cv::imencode(".jpg", image, compressed_image, compression_params_);            
 
             sensor_msgs::msg::CompressedImage compressed_image_msg;
             compressed_image_msg.header = image_msg->header;
@@ -89,10 +117,6 @@ private:
             compressed_image_msg.data = compressed_image;
 
             pub_compressed_frame_->publish(compressed_image_msg);
-        }
-        catch (cv_bridge::Exception &e)
-        {
-            RCLCPP_ERROR(get_logger(), "CV bridge exception: %s", e.what());
         }
         catch (cv::Exception &cve)
         {

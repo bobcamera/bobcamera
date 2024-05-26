@@ -6,11 +6,15 @@
 #include "bob_interfaces/msg/tracking.hpp"
 #include "bob_camera/msg/camera_info.hpp"
 
-class JsonRecorder{
+class JsonRecorder
+{
 public:
-    JsonRecorder(int pre_buffer_size) : max_pre_buffer_size_(pre_buffer_size){}
+    explicit JsonRecorder(int pre_buffer_size) 
+        : max_pre_buffer_size_(pre_buffer_size)
+    {
+    }
 
-    void add_to_pre_buffer(const Json::Value& jsonValue, bool prepend = false) 
+    void add_to_pre_buffer(const Json::Value & jsonValue, bool prepend = false) 
     {
         if (prepend) 
         {
@@ -39,7 +43,7 @@ public:
         }
     }
 
-    bool write_buffer_to_file(const std::string& filename) 
+    bool write_buffer_to_file(const std::string & filename) 
     {
         if (!json_buffer_.empty()) 
         {
@@ -77,19 +81,16 @@ public:
         return false;
     }
 
-    static Json::Value build_json_value(const sensor_msgs::msg::Image::SharedPtr& image_msg,
-                                        const bob_interfaces::msg::Tracking::SharedPtr& tracking_msg,
-                                        bool include_detections,
-                                        int x_offset,
-                                        int y_offset) 
+    static Json::Value build_json_value(const bob_interfaces::msg::Tracking::SharedPtr & tracking_msg,
+                                        bool include_detections) 
     {
         Json::Value jsonValue;
 
-        auto time_stamp = rclcpp::Time(image_msg->header.stamp);
+        auto time_stamp = rclcpp::Time(tracking_msg->header.stamp);
         int64_t time_in_nanosecs = time_stamp.nanoseconds();
 
         jsonValue["time_ns"] = time_in_nanosecs;
-        jsonValue["frame_id"] = image_msg->header.frame_id;
+        jsonValue["frame_id"] = tracking_msg->header.frame_id;
         jsonValue["trackable"] = tracking_msg->state.trackable;
 
         if (include_detections) 
@@ -102,8 +103,8 @@ public:
                 jsonDetection["state"] = detection.state;
 
                 Json::Value jsonBbox;
-                jsonBbox["x"] = detection.bbox.center.position.x + x_offset;
-                jsonBbox["y"] = detection.bbox.center.position.y + y_offset;
+                jsonBbox["x"] = detection.bbox.center.position.x;
+                jsonBbox["y"] = detection.bbox.center.position.y;
                 jsonBbox["width"] = detection.bbox.size_x;
                 jsonBbox["height"] = detection.bbox.size_y;
                 jsonDetection["bbox"] = jsonBbox;
@@ -114,7 +115,6 @@ public:
         
         return jsonValue;
     }
-
 
     static Json::Value build_json_camera_info(const bob_camera::msg::CameraInfo::SharedPtr& camera_info_msg) 
     { 

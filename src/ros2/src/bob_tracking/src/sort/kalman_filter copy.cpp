@@ -42,7 +42,7 @@ SORT::KalmanFilter::KalmanFilter(unsigned int num_states, unsigned int num_obs) 
 void SORT::KalmanFilter::Coast() 
 {
     x_predict_ = F_ * x_;
-    P_predict_ = (alpha_ * alpha_) * F_ * P_ * F_.transpose() + Q_;
+    P_predict_ = pow(alpha_,2) * F_ * P_ * F_.transpose() + Q_;
 }
 
 

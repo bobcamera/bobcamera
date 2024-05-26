@@ -121,11 +121,11 @@ private:
                 if (mask_enable_offset_correction_)
                 {
                     cv::Rect roi(bounding_box_.x, bounding_box_.y, bounding_box_.width, bounding_box_.height);
-                    masked_frame = img(roi).mul(converted_mask_(roi)/255.0);
+                    masked_frame = img(roi).mul(converted_mask_(roi) / 255.0);
                 }
                 else
                 {
-                    masked_frame = img.mul(converted_mask_/255.0);
+                    masked_frame = img.mul(converted_mask_ / 255.0);
                 }
 
                 auto ros_image = cv_bridge::CvImage(img_msg->header, sensor_msgs::image_encodings::BGR8, masked_frame).toImageMsg();            

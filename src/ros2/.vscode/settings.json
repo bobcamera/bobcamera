@@ -74,10 +74,13 @@
         "cinttypes": "cpp",
         "typeindex": "cpp",
         "typeinfo": "cpp",
-        "variant": "cpp"
+        "variant": "cpp",
+        "*.ipp": "cpp",
+        "filesystem": "cpp"
     },
     "cSpell.words": [
         "rclcpp"
     ],
-    "cmake.configureOnOpen": false
+    "cmake.configureOnOpen": false,
+    "sonarlint.pathToCompileCommands": "${workspaceFolder}/build/compile_commands.json"
 }

@@ -27,10 +27,12 @@ find_package(Boost REQUIRED COMPONENTS system)
 find_package(boblib REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(bob_interfaces REQUIRED)
+find_package(jsoncpp REQUIRED)
 
 
 include_directories(${OpenCV_INCLUDE_DIRS})
 include_directories("../bob_shared/include")
+include_directories(/usr/include/jsoncpp)
 
 set(msg_files
     "msg/AreaLimits.msg"
@@ -86,5 +88,22 @@ ament_target_dependencies(web_camera_video_node PUBLIC
     bob_interfaces)
 rclcpp_components_register_nodes(web_camera_video_node "WebCameraVideo")
 install(TARGETS web_camera_video_node DESTINATION lib)
+
+# Camera BGS Node
+add_library(camera_bgs_node SHARED src/camera_bgs.cpp)
+target_compile_definitions(camera_bgs_node PRIVATE "COMPOSITION_BUILDING_DLL")
+target_link_libraries(camera_bgs_node PUBLIC jsoncpp boblib "${cpp_typesupport_target}")
+ament_target_dependencies(camera_bgs_node PUBLIC
+    rclcpp 
+    sensor_msgs 
+    std_msgs
+    cv_bridge
+    rcl_interfaces 
+    rclcpp_components
+    OpenCV
+    Boost
+    bob_interfaces)
+rclcpp_components_register_nodes(camera_bgs_node "CameraBGS")
+install(TARGETS camera_bgs_node DESTINATION lib)
 
 ament_package()

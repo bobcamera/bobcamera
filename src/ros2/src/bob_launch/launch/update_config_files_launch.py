@@ -144,13 +144,13 @@ class ConfigDiscoverer():
     def _get_onvif_config(self, rtsp_url):
 
         try:
-            credstr = rtsp_url[rtsp_url.index("//"):rtsp_url.index("@")]
+            credstr = rtsp_url[rtsp_url.index("//"):rtsp_url.rfind("@")]
             if credstr.startswith("//"):
                 credstr = credstr.replace("//", "")
 
             cred_array = credstr.split(":")
 
-            hoststr = rtsp_url[rtsp_url.index("@"):]
+            hoststr = rtsp_url[rtsp_url.rfind("@"):]
 
             hoststr = hoststr[:hoststr.index("/"):]
             if hoststr.startswith("@"):
@@ -162,6 +162,8 @@ class ConfigDiscoverer():
             password = cred_array[1]
             host = host_array[0]
             port = int(host_array[1])
+
+            # print(f"User: {user}, Password: {password}, Host: {host}, Port: {port}")
 
             fall_back_ports = [80, 443, 554]
             onvif_connection_test_result = self._test_onvif_connection(host, port, user, password)
@@ -248,9 +250,12 @@ def application_config(context):
 
             # rtsp_camera_node
             yaml_output['rtsp_camera_node']['ros__parameters']['rtsp_uri'] = rtsp_url
-            yaml_output['rtsp_camera_node']['ros__parameters']['image_width'] = image_width
-            yaml_output['rtsp_camera_node']['ros__parameters']['image_height'] = image_height
-        
+            yaml_output['rtsp_camera_node']['ros__parameters']['bgs_mask_enable_override'] = mask_enable_override
+            yaml_output['rtsp_camera_node']['ros__parameters']['bgs_mask_enable_offset_correction'] = mask_enable_offset_correction
+            yaml_output['rtsp_camera_node']['ros__parameters']['privacy_mask_enable_override'] = mask_enable_override
+            yaml_output['rtsp_camera_node']['ros__parameters']['bgs_type'] = bgs_algo
+            yaml_output['rtsp_camera_node']['ros__parameters']['bgs_sensitivity'] = tracking_sensitivity
+
             # rtsp_overlay_camera_node
             yaml_output['rtsp_overlay_camera_node']['ros__parameters']['rtsp_uri'] = rtsp_url
             yaml_output['rtsp_overlay_camera_node']['ros__parameters']['image_width'] = image_width
@@ -264,33 +269,6 @@ def application_config(context):
 
             # web_camera_video_overlay_node
             yaml_output['web_camera_video_overlay_node']['ros__parameters']['videos'] = videos.split(";")
-
-            # simulated_frame_provider_node
-            yaml_output['simulated_frame_provider_node']['ros__parameters']['num_objects'] = simulation_num_objects
-            yaml_output['simulated_frame_provider_node']['ros__parameters']['height'] = simulation_height
-            yaml_output['simulated_frame_provider_node']['ros__parameters']['width'] = simulation_width
-            yaml_output['simulated_frame_provider_node']['ros__parameters']['video_fps'] = fps
-
-            # simulation_overlay_provider_node
-            yaml_output['simulation_overlay_provider_node']['ros__parameters']['num_objects'] = simulation_num_objects
-            yaml_output['simulation_overlay_provider_node']['ros__parameters']['height'] = simulation_height
-            yaml_output['simulation_overlay_provider_node']['ros__parameters']['width'] = simulation_width
-            yaml_output['simulation_overlay_provider_node']['ros__parameters']['video_fps'] = fps
-
-            # detection_mask_application_node
-            yaml_output['detection_mask_application_node']['ros__parameters']['mask_enable_override'] = mask_enable_override
-            yaml_output['detection_mask_application_node']['ros__parameters']['mask_enable_offset_correction'] = mask_enable_offset_correction
-            yaml_output['detection_mask_application_node']['ros__parameters']['image_width'] = image_width
-            yaml_output['detection_mask_application_node']['ros__parameters']['image_height'] = image_height
-
-            # privacy_mask_application_node
-            yaml_output['privacy_mask_application_node']['ros__parameters']['mask_enable_override'] = mask_enable_override
-            yaml_output['privacy_mask_application_node']['ros__parameters']['image_width'] = image_width
-            yaml_output['privacy_mask_application_node']['ros__parameters']['image_height'] = image_height            
-
-            # background_subtractor_v2_node
-            yaml_output['background_subtractor_v2_node']['ros__parameters']['bgs'] = bgs_algo
-            yaml_output['background_subtractor_v2_node']['ros__parameters']['sensitivity'] = tracking_sensitivity
 
             # track_sensitivity_monitor_node
             yaml_output['track_sensitivity_monitor_node']['ros__parameters']['sensitivity'] = tracking_sensitivity

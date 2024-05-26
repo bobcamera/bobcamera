@@ -32,12 +32,14 @@ private:
     };
 
     rclcpp::TimerBase::SharedPtr interval_check_timer_;
-    rclcpp::Client<bob_interfaces::srv::SensitivityChangeRequest>::SharedPtr sensitivity_change_client_;
     rclcpp::Subscription<bob_interfaces::msg::MonitoringStatus>::SharedPtr monitoring_subscription_;
+
+    rclcpp::AsyncParametersClient::SharedPtr sensitivity_param_client_;
 
     bob_interfaces::msg::MonitoringStatus::SharedPtr status_msg_;
 
     std::string sensitivity_;
+    std::string proposed_sensitivity_;
     int check_interval_;
     SensitivityChangeActionEnum sensitivity_change_action_;
     bool star_mask_enabled_;
@@ -64,22 +66,31 @@ private:
         sensitivity_change_action_ = Ignore;
 
         interval_check_timer_ = create_wall_timer(std::chrono::seconds(check_interval_), 
-            std::bind(&TrackSensitivityMonitor::interval_check_timer_callback, this));
-
-        sensitivity_change_client_ = create_client<bob_interfaces::srv::SensitivityChangeRequest>("bob/bgs/sensitivity_update");
+            [this](){interval_check_timer_callback();});
 
         monitoring_subscription_ = create_subscription<bob_interfaces::msg::MonitoringStatus>(
             "bob/monitoring/status", 
             sub_qos_profile_,
-            std::bind(&TrackSensitivityMonitor::status_callback, this, std::placeholders::_1));
+            [this](const bob_interfaces::msg::MonitoringStatus::SharedPtr status_msg){status_callback(status_msg);});
     }
 
     void declare_node_parameters()
     {
         std::vector<ParameterNode::ActionParam> params = {
             ParameterNode::ActionParam(
+                rclcpp::Parameter("bgs_node", "rtsp_camera_node"), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    sensitivity_param_client_ = std::make_shared<rclcpp::AsyncParametersClient>(this, param.as_string()); 
+                }
+            ),            
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("sensitivity", "medium_c"), 
-                [this](const rclcpp::Parameter& param) { sensitivity_ = param.as_string(); }
+                [this](const rclcpp::Parameter& param) 
+                { 
+                    sensitivity_ = param.as_string();
+                    proposed_sensitivity_ = param.as_string();
+                }
             ),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("check_interval", 30), 
@@ -172,7 +183,6 @@ private:
                     }
                 }
 
-                bool updating = false;
                 switch (sensitivity_change_action_)
                 {                
                     case IncreaseSensitivity:
@@ -182,34 +192,30 @@ private:
 
                         if (sensitivity_ == "low")
                         {
-                            sensitivity_ = "medium";
-                            updating = true;
+                            proposed_sensitivity_ = "medium";
                         }
                         else if (sensitivity_ == "medium")
                         {        
                             // Rule 3
                             if (status_msg_->day_night_enum == 1 || (star_mask_enabled_ && status_msg_->day_night_enum == 2))
                             {
-                                sensitivity_ = "high";
-                                updating = true;
+                                proposed_sensitivity_ = "high";
                             }
                         }
                         else if (sensitivity_ == "low_c")
                         {
-                            sensitivity_ = "medium_c";
-                            updating = true;
+                            proposed_sensitivity_ = "medium_c";
                         }
                         else if (sensitivity_ == "medium_c")
                         {
                             // Rule 3
                             if (status_msg_->day_night_enum == 1 || (star_mask_enabled_ && status_msg_->day_night_enum == 2))
                             {
-                                sensitivity_ = "high_c";
-                                updating = true;
+                                proposed_sensitivity_ = "high_c";
                             }
                         }
 
-                        if (updating)
+                        if (sensitivity_ != proposed_sensitivity_)
                             RCLCPP_DEBUG(get_logger(), "Tracking Auto Tune: Stable conditions - increasing sensitivity");
 
                         break;
@@ -221,27 +227,23 @@ private:
 
                         if (sensitivity_ == "medium")
                         {
-                            sensitivity_ = "low";
-                            updating = true;
+                            proposed_sensitivity_ = "low";
                         }
                         else if (sensitivity_ == "high")
                         {
-                            sensitivity_ = "medium";
-                            updating = true;
+                            proposed_sensitivity_ = "medium";
                         }
                         else if (sensitivity_ == "medium_c")
                         {
-                            sensitivity_ = "low_c";
-                            updating = true;
+                            proposed_sensitivity_ = "low_c";
                         }
                         else if (sensitivity_ == "high_c")
                         {
-                            sensitivity_ = "medium_c";
-                            updating = true;
-                        }     
+                            proposed_sensitivity_ = "medium_c";
+                        }
 
-                        if (updating)
-                            RCLCPP_DEBUG(get_logger(), "Tracking Auto Tune: Unstable conditions - lowering sensitivity");
+                        if (sensitivity_ != proposed_sensitivity_)
+                            RCLCPP_INFO(get_logger(), "Tracking Auto Tune: Unstable conditions - lowering sensitivity");
 
                         break;
 
@@ -250,36 +252,54 @@ private:
                         break;
                 }
 
-                if (updating)
+                if (sensitivity_ != proposed_sensitivity_)
                 {
-                    auto sensitivity_change_request = std::make_shared<bob_interfaces::srv::SensitivityChangeRequest::Request>();
-                    sensitivity_change_request->sensitivity = sensitivity_;
-                    if (sensitivity_change_client_->service_is_ready())
-                    {
-                        auto result = sensitivity_change_client_->async_send_request(sensitivity_change_request, 
-                            std::bind(&TrackSensitivityMonitor::sensitivity_change_request_callback, 
-                            this, 
-                            std::placeholders::_1));
-                    }
+                    change_parameter_async("bgs_sensitivity", proposed_sensitivity_);
                 }
             }
         }
     }
 
-    void sensitivity_change_request_callback(rclcpp::Client<bob_interfaces::srv::SensitivityChangeRequest>::SharedFuture future)
+    void change_parameter_async(const std::string &param_name, const std::string &param_value) 
     {
-        auto response = future.get();
-        if(response->success)
+        // TODO: Move this into the base class so all param change requests can use the same code
+        //if (!sensitivity_param_client_->service_is_ready()) 
+        if (!sensitivity_param_client_->wait_for_service(std::chrono::seconds(1)))
+        {
+            RCLCPP_WARN(this->get_logger(), "Sensitivity parameter service not ready.");
+            return;
+        }
+
+        auto parameters = std::vector<rclcpp::Parameter>{rclcpp::Parameter(param_name, param_value)};
+        auto result_future = sensitivity_param_client_->set_parameters(parameters, 
+            std::bind(&TrackSensitivityMonitor::async_sensitivity_change_request_callback, this, std::placeholders::_1));
+    }
+
+    void async_sensitivity_change_request_callback(std::shared_future<std::vector<rcl_interfaces::msg::SetParametersResult>> future) 
+    {
+        bool param_result = true;
+        for (const auto& result : future.get()) 
+        {
+            if (!result.successful)
+            {
+                param_result = false;
+                break;
+            }
+        }
+        if (param_result)
         {            
-            RCLCPP_INFO(get_logger(), "Sensitivity change completed, from %s to %s - reason: %s", 
-                response->sensitivity_from.c_str(), response->sensitivity_to.c_str(), change_reason_.c_str());
+            RCLCPP_INFO(get_logger(), "Sensitivity change from: %s to %s completed - reason: %s", 
+                sensitivity_.c_str(), proposed_sensitivity_.c_str(), change_reason_.c_str());
             
-            // reset the counter
+            // reset sensitivity tracking state
             sensitivity_increase_check_counter_ = 0;
             sensitivity_change_action_ = Ignore;
+            sensitivity_ = proposed_sensitivity_;
         }
         else
+        {
             RCLCPP_WARN(get_logger(), "Sensitivity change failed");
+        }
     }
 };
 

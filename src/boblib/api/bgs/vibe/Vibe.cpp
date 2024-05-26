@@ -62,85 +62,94 @@ namespace boblib::bgs
         }
     }
 
-    void Vibe::process(const cv::Mat &_image, cv::Mat &_fg_mask, int _num_process)
+    void Vibe::process(const cv::Mat &_image, cv::Mat &_fg_mask, const cv::Mat & _detectMask, int _num_process)
     {
         Img img_split(_image.data, ImgSize(_image.size().width, _image.size().height, _image.channels(), _image.elemSize1(), 0));
         Img mask_partial(_fg_mask.data, ImgSize(_image.size().width, _image.size().height, _fg_mask.channels(), _fg_mask.elemSize1(), 0));
+        Img detect_mask_partial(_detectMask.data, ImgSize(_detectMask.size().width, _detectMask.size().height, _detectMask.channels(), _detectMask.elemSize1(), 0));
         if (img_split.size.num_channels > 1)
         {
             if (img_split.size.bytes_per_pixel == 1)
             {
-                apply3<uint8_t>(img_split, m_bg_img_samples[_num_process], mask_partial, m_params, m_random_generators[_num_process]);
+                apply3<uint8_t>(img_split, mask_partial, detect_mask_partial, _num_process);
             }
             else
             {
-                apply3<uint16_t>(img_split, m_bg_img_samples[_num_process], mask_partial, m_params, m_random_generators[_num_process]);
+                apply3<uint16_t>(img_split, mask_partial, detect_mask_partial, _num_process);
             }
         }
         else
         {
             if (img_split.size.bytes_per_pixel == 1)
             {
-                apply1<uint8_t>(img_split, m_bg_img_samples[_num_process], mask_partial, m_params, m_random_generators[_num_process]);
+                apply1<uint8_t>(img_split, mask_partial, detect_mask_partial, _num_process);
             }
             else
             {
-                apply1<uint16_t>(img_split, m_bg_img_samples[_num_process], mask_partial, m_params, m_random_generators[_num_process]);
+                apply1<uint16_t>(img_split, mask_partial, detect_mask_partial, _num_process);
             }
         }
     }
 
     template<class T>
     void Vibe::apply3(const Img &_image,
-                    std::vector<std::unique_ptr<Img>> &_bg_img,
                     Img &_fg_mask,
-                    const VibeParams &_params,
-                    Pcg32 &_rnd_gen)
+                    const Img & _detect_mask,
+                    int _num_process)
     {
+        auto &_bg_img = m_bg_img_samples[_num_process];
+        auto &_rnd_gen = m_random_generators[_num_process];
+        const auto has_detect_mask = !_detect_mask.empty();
+
         _fg_mask.clear();
 
-        const int32_t n_color_dist_threshold = sizeof(T) == 1 ? _params.threshold_color_squared : _params.threshold_color16_squared;
+        const int32_t n_color_dist_threshold = sizeof(T) == 1 ? m_params.threshold_color_squared : m_params.threshold_color16_squared;
 
         size_t pix_offset{0}, color_pix_offset{0};
         for (int y{0}; y < _image.size.height; ++y)
         {
             for (int x{0}; x < _image.size.width; ++x, ++pix_offset, color_pix_offset += _image.size.num_channels)
             {
+                if (has_detect_mask && (_detect_mask.ptr<T>()[pix_offset] == 0))
+                {
+                    continue;
+                }
+
                 size_t n_good_samples_count{0},
                     n_sample_idx{0};
 
                 const T *const pix_data{&_image.ptr<T>()[color_pix_offset]};
 
-                while (n_sample_idx < _params.bg_samples)
+                while (n_sample_idx < m_params.bg_samples)
                 {
                     const T *const bg{&_bg_img[n_sample_idx]->ptr<T>()[color_pix_offset]};
                     if (l2_dist3_squared(pix_data, bg) < n_color_dist_threshold)
                     {
                         ++n_good_samples_count;
-                        if (n_good_samples_count >= _params.required_bg_samples)
+                        if (n_good_samples_count >= m_params.required_bg_samples)
                         {
                             break;
                         }
                     }
                     ++n_sample_idx;
                 }
-                if (n_good_samples_count < _params.required_bg_samples)
+                if (n_good_samples_count < m_params.required_bg_samples)
                 {
                     _fg_mask.data[pix_offset] = UCHAR_MAX;
                 }
                 else
                 {
-                    if ((_rnd_gen.fast() & _params.and_learning_rate) == 0)
+                    if ((_rnd_gen.fast() & m_params.and_learning_rate) == 0)
                     {
-                        T *const bg_img_pix_data{&_bg_img[_rnd_gen.fast() & _params.and_learning_rate]->ptr<T>()[color_pix_offset]};
+                        T *const bg_img_pix_data{&_bg_img[_rnd_gen.fast() & m_params.and_learning_rate]->ptr<T>()[color_pix_offset]};
                         bg_img_pix_data[0] = pix_data[0];
                         bg_img_pix_data[1] = pix_data[1];
                         bg_img_pix_data[2] = pix_data[2];
                     }
-                    if ((_rnd_gen.fast() & _params.and_learning_rate) == 0)
+                    if ((_rnd_gen.fast() & m_params.and_learning_rate) == 0)
                     {
                         const int neigh_data{get_neighbor_position_3x3(x, y, _image.size, _rnd_gen.fast()) * 3};
-                        T *const xy_rand_data{&_bg_img[_rnd_gen.fast() & _params.and_learning_rate]->ptr<T>()[neigh_data]};
+                        T *const xy_rand_data{&_bg_img[_rnd_gen.fast() & m_params.and_learning_rate]->ptr<T>()[neigh_data]};
                         xy_rand_data[0] = pix_data[0];
                         xy_rand_data[1] = pix_data[1];
                         xy_rand_data[2] = pix_data[2];
@@ -152,51 +161,59 @@ namespace boblib::bgs
 
     template<class T>
     void Vibe::apply1(const Img &_image,
-                    std::vector<std::unique_ptr<Img>> &_bg_img,
                     Img &_fg_mask,
-                    const VibeParams &_params,
-                    Pcg32 &_rnd_gen)
+                    const Img & _detect_mask,
+                    int _num_process)
     {
+        auto &_bg_img = m_bg_img_samples[_num_process];
+        auto &_rnd_gen = m_random_generators[_num_process];
+        const auto has_detect_mask = !_detect_mask.empty();
+
         _fg_mask.clear();
 
-        const int32_t n_color_dist_threshold = sizeof(T) == 1 ? _params.threshold_mono : _params.threshold_mono16;
+        const int32_t n_color_dist_threshold = sizeof(T) == 1 ? m_params.threshold_mono : m_params.threshold_mono16;
 
         size_t pix_offset{0};
         for (int y{0}; y < _image.size.height; ++y)
         {
             for (int x{0}; x < _image.size.width; ++x, ++pix_offset)
             {
+                if (has_detect_mask && (_detect_mask.ptr<T>()[pix_offset] == 0))
+                {
+                    continue;
+                }
+
                 uint32_t n_good_samples_count{0},
                     n_sample_idx{0};
 
                 const T pix_data{_image.ptr<T>()[pix_offset]};
 
-                while (n_sample_idx < _params.bg_samples)
+                while (n_sample_idx < m_params.bg_samples)
                 {
                     if (std::abs((int32_t)_bg_img[n_sample_idx]->ptr<T>()[pix_offset] - (int32_t)pix_data) < n_color_dist_threshold)
                     {
                         ++n_good_samples_count;
-                        if (n_good_samples_count >= _params.required_bg_samples)
+                        if (n_good_samples_count >= m_params.required_bg_samples)
                         {
                             break;
                         }
                     }
                     ++n_sample_idx;
                 }
-                if (n_good_samples_count < _params.required_bg_samples)
+                if (n_good_samples_count < m_params.required_bg_samples)
                 {
                     _fg_mask.data[pix_offset] = UCHAR_MAX;
                 }
                 else
                 {
-                    if ((_rnd_gen.fast() & _params.and_learning_rate) == 0)
+                    if ((_rnd_gen.fast() & m_params.and_learning_rate) == 0)
                     {
-                        _bg_img[_rnd_gen.fast() & _params.and_learning_rate]->ptr<T>()[pix_offset] = pix_data;
+                        _bg_img[_rnd_gen.fast() & m_params.and_learning_rate]->ptr<T>()[pix_offset] = pix_data;
                     }
-                    if ((_rnd_gen.fast() & _params.and_learning_rate) == 0)
+                    if ((_rnd_gen.fast() & m_params.and_learning_rate) == 0)
                     {
                         const int neigh_data{get_neighbor_position_3x3(x, y, _image.size, _rnd_gen.fast())};
-                        _bg_img[_rnd_gen.fast() & _params.and_learning_rate]->ptr<T>()[neigh_data] = pix_data;
+                        _bg_img[_rnd_gen.fast() & m_params.and_learning_rate]->ptr<T>()[neigh_data] = pix_data;
                     }
                 }
             }
