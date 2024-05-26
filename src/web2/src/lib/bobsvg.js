@@ -170,7 +170,7 @@ function drawSVGOnCanvas2(svgDetails, width, height) {
     return canvas;
 }
 
-function drawSVGOnCanvas(svgDetails, canvas) {
+function drawSVGOnCanvas(svgDetails, canvas, alpha) {
     var canvasCtx = canvas.getContext('2d');
 
     if (Object.keys(svgDetails).length === 0 && svgDetails.constructor === Object) {
@@ -180,7 +180,7 @@ function drawSVGOnCanvas(svgDetails, canvas) {
 
     scaleSVG(svgDetails, canvas.width, canvas.height);
 
-    canvasCtx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+    canvasCtx.fillStyle = 'rgba(0, 0, 0, ' + alpha + ')';
     canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
 
     let oldGlobalCompositeOperation = canvasCtx.globalCompositeOperation

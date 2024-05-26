@@ -40,12 +40,13 @@ class MaskWebApiNode(Node):
       mask_file_path = os.path.join(self.masks_folder, request.file_name)
 
       if os.path.exists(mask_file_path) == False:
-        self.get_logger().error(f'Mask path {mask_file_path} does not exist.')
-
-      with open(mask_file_path, 'r') as file:
-        svg_content = file.read()
-      response.mask = svg_content
-      response.success = True
+        response.success = False
+        response.message = 'Mask file does not exist'
+      else:
+        with open(mask_file_path, 'r') as file:
+          svg_content = file.read()
+        response.mask = svg_content
+        response.success = True
 
     except Exception as e:
       self.get_logger().error(f"Exception getting mask. Error: {e}.")
@@ -60,10 +61,12 @@ class MaskWebApiNode(Node):
       mask_file_path = os.path.join(self.masks_folder, request.file_name)
 
       if os.path.exists(mask_file_path) == False:
-        self.get_logger().error(f'Mask path {mask_file_path} does not exist.')
-
-      mask_image = cv2.imread(mask_file_path, cv2.IMREAD_GRAYSCALE)
-      response.mask = self.br.cv2_to_imgmsg(mask_image)
+        response.success = False
+        response.message = 'Mask file does not exist'
+      else:
+        mask_image = cv2.imread(mask_file_path, cv2.IMREAD_GRAYSCALE)
+        response.mask = self.br.cv2_to_imgmsg(mask_image)
+        response.success = True
     except Exception as e:
       self.get_logger().error(f"Exception getting mask. Error: {e}.")
       self.get_logger().error(tb.format_exc())
