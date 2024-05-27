@@ -42,6 +42,40 @@ launch:
           plugin: FrameViewer
           name: multi_frame_viewer_node
           remappings: []
+    - name: Monitor
+      nodes:
+        - package: bob_image_processing
+          plugin: TrackSensitivityMonitor
+          name: track_sensitivity_monitor_node
+          remappings: []
+        - package: bob_recorder
+          plugin: RecordingMonitor
+          name: allsky_recorder_monitoring_node
+          remappings: []
+  nodes:
+    - package: bob_observer
+      executable: day_night_classifier
+      name: day_night_classifier_node
+      remappings:
+        - 'bob/observer_frame/source': 'bob/frames/allsky/original/resized'
+    - package: bob_observer
+      executable: cloud_estimator
+      name: cloud_estimator_node
+      remappings:
+        - 'bob/observer_frame/source': 'bob/frames/allsky/original/resized'
+    - package: bob_observer
+      executable: star_mask
+      name: star_mask_node
+      remappings:
+        - 'bob/observer_frame/source': '/bob/frames/allsky/original/resized'
+    - package: bob_monitor
+      executable: monitoring_status_aggregator
+      name: monitoring_status_aggregator_node
+      remappings: []
+    - package: bob_monitor
+      executable: onvif_service
+      name: onvif_service_node
+      remappings: []
 
 # Kernel
 camera_node:
