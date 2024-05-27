@@ -192,14 +192,7 @@ private:
                 rclcpp::Parameter("bgs_json_params", ""), 
                 [this](const rclcpp::Parameter& param) 
                 {
-                    try 
-                    {
-                        bgs_params_.sensitivity_collection = SensitivityConfigCollection::fromJsonString(param.as_string());
-                    }
-                    catch (const std::exception& e) 
-                    {
-                        RCLCPP_ERROR(get_logger(), "Failed to parse the JSON data: %s", e.what());
-                    }
+                    bgs_params_.sensitivity_collection = SensitivityConfigCollection::fromJsonString(param.as_string());
                 }
             ),
             ParameterNode::ActionParam(

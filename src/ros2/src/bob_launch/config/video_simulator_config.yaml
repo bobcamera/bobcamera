@@ -1,31 +1,65 @@
 launch:
-  nodes:
-    - bob_camera:CameraBGS:rtsp_camera_node
-    - bob_camera:CameraBGS:rtsp_camera_node
-    - bob_camera:CameraBGS:rtsp_camera_node
+  node_containers:
+    - name: Kernel
+      nodes:
+        - package: bob_camera
+          plugin: CameraBGS
+          name: camera_node
+          remappings: []
+        - package: bob_tracking
+          plugin: TrackProvider
+          name: track_provider_node
+          remappings: []
+        - package: bob_recorder
+          plugin: RecordManager
+          name: allsky_recorder_node
+          remappings: []
+        - package: bob_image_processing
+          plugin: AnnotatedFrameProvider
+          name: annotated_frame_provider_node
+          remappings: []
+        - package: bob_image_processing
+          plugin: FrameCompressor
+          name: annotated_frame_compressor_node
+          remappings:
+            - 'bob/compressor/source': 'bob/frames/annotated/resized'
+            - 'bob/compressor/target': 'bob/frames/annotated/resized/compressed'
+        - package: bob_image_processing
+          plugin: FrameCompressor
+          name: detection_masked_compressor_node
+          remappings:
+            - 'bob/compressor/source': 'bob/frames/allsky/original/resized'
+            - 'bob/compressor/target': 'bob/frames/allsky/original/resized/compressed'
+        - package: bob_image_processing
+          plugin: FrameCompressor
+          name: foreground_mask_compressor_node
+          remappings:
+            - 'bob/compressor/source': 'bob/frames/foreground_mask/resized'
+            - 'bob/compressor/target': 'bob/frames/foreground_mask/resized/compressed'
+    - name: Display
+      nodes:
+        - package: bob_visualizers
+          plugin: FrameViewer
+          name: multi_frame_viewer_node
+          remappings: []
 
 # Kernel
-rtsp_camera_node:
+camera_node:
   ros__parameters:
-    rtsp_uri: ''
-    onvif_host: ''
-    onvif_port: 0
-    onvif_user: ''
-    onvif_password: ''        
     image_publish_topic: 'bob/frames/allsky/original'
     image_info_publish_topic: 'bob/camera/all_sky/image_info'
     camera_info_publish_topic: 'bob/camera/all_sky/camera_info'
     image_resized_publish_topic: 'bob/frames/allsky/original/resized'
-    source_type: 'RTSP_STREAM'
-    image_width: 0
-    image_height: 0
-    camera_calibration_file: 'file:///workspaces/bobcamera/src/ros2/assets/config/camera_info.yaml'
+    source_type: 'VIDEO_FILE'
+    videos:
+      - /workspaces/bobcamera/media/fisheye_videos/mike-drone.mp4
+      - /workspaces/bobcamera/media/fisheye_videos/mikeg-30min.mp4
+    resize_height: 960
     privacy_mask_file: 'assets/masks/privacy-mask.jpg'
     simulator_num_objects: 15
-    simulator: False
-    resize_height: 960
+    simulator: True
     bgs_sensitivity: 'low_c'
-    bgs_type: ''
+    bgs_type: 'vibe'
     bgs_mask_file: 'assets/masks/detection-mask.jpg'
     bgs_json_params: '[
                     {
@@ -142,16 +176,6 @@ annotated_frame_provider_node:
     tracking_status_message: False
     image_resized_publish_topic: '/bob/frames/annotated/resized'
 
-# Display
-multi_frame_viewer_node:
-  ros__parameters:
-    topics: 
-      - '/bob/frames/annotated/resized/compressed'
-      - '/bob/frames/allsky/original/resized/compressed'
-      - '/bob/frames/allsky/original'
-      - '/bob/frames/foreground_mask/resized'
-      - '/bob/frames/foreground_mask'
-
 annotated_frame_compressor_node:
   ros__parameters:
     compression_quality: 75
@@ -167,6 +191,16 @@ privacy_masked_compressor_node:
 foreground_mask_compressor_node:
   ros__parameters:
     compression_quality: 75
+
+# Display
+multi_frame_viewer_node:
+  ros__parameters:
+    topics: 
+      - '/bob/frames/annotated/resized/compressed'
+      - '/bob/frames/allsky/original/resized/compressed'
+      - '/bob/frames/allsky/original'
+      - '/bob/frames/foreground_mask/resized'
+      - '/bob/frames/foreground_mask'
 
 # Monitoring infrastructure
 day_night_classifier_node:
@@ -195,7 +229,7 @@ monitoring_status_aggregator_node:
 
 track_sensitivity_monitor_node:
   ros__parameters:
-    bgs_node: 'web_camera_video_overlay_node' #'rtsp_camera_node'
+    bgs_node: 'camera_node'
     check_interval: 10
     sensitivity_increase_count_threshold: 5
     sensitivity: 'medium_c'
@@ -220,7 +254,7 @@ onvif_service_node:
 # Web infrastructure
 info_webapi_node:
   ros__parameters:
-    application_version: '1.2.16'
+    application_version: '1.3.1'
     frame_width: 0
     frame_height: 0
     video_fps: 15.0

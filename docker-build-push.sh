@@ -73,13 +73,6 @@ else
     echo "Failed to update version number - ./docker/docker-compose-rstudioless.yaml."
 fi
 
-# Replace version number in docker-compose-headless.yaml
-if sed -i "s/bobcamera\/bob-ros2-prod:$bob_version/bobcamera\/bob-ros2-prod:$version_number/" ./docker/docker-compose-headless.yaml; then
-    echo "Version number successfully updated - ./docker/docker-compose-headless.yaml."
-else
-    echo "Failed to update version number - ./docker/docker-compose-headless.yaml."
-fi
-
 # Replace version number in docker-compose-demo.yaml
 if sed -i "s/bobcamera\/bob-web-prod:$web_version/bobcamera\/bob-web-prod:$version_number/" ./docker/docker-compose-demo.yaml && \
    sed -i "s/bobcamera\/bob-ros2-prod:$bob_version/bobcamera\/bob-ros2-prod:$version_number/" ./docker/docker-compose-demo.yaml; then
@@ -112,30 +105,30 @@ rm -r ./src/ros2/assets/masks/*
 rm -r ./src/ros2/assets/recordings/*
 rm -r ./src/ros2/assets/wsdl/*
 
-docker build \
-    --progress=plain \
-    --push \
-    --platform linux/amd64 \
-    -f ./docker/Dockerfile . \
-    -t bobcamera/bob-opencv:$version_number \
-    -t bobcamera/bob-opencv:latest \
-    --target opencv
+# docker build \
+#     --progress=plain \
+#     --push \
+#     --platform linux/amd64 \
+#     -f ./docker/Dockerfile . \
+#     -t bobcamera/bob-opencv:$version_number \
+#     -t bobcamera/bob-opencv:latest \
+#     --target opencv
 
-docker build \
-    --progress=plain \
-    --platform linux/amd64 \
-    -f ./docker/Dockerfile . \
-    -t bobcamera/boblib:$version_number \
-    -t bobcamera/boblib:latest \
-    --target boblib
+# docker build \
+#     --progress=plain \
+#     --platform linux/amd64 \
+#     -f ./docker/Dockerfile . \
+#     -t bobcamera/boblib:$version_number \
+#     -t bobcamera/boblib:latest \
+#     --target boblib
 
-docker build \
-    --progress=plain \
-    --platform linux/amd64 \
-    -f ./docker/Dockerfile . \
-    -t bobcamera/bob-boblibapp:$version_number \
-    -t bobcamera/bob-boblibapp:latest \
-    --target boblib-app
+# docker build \
+#     --progress=plain \
+#     --platform linux/amd64 \
+#     -f ./docker/Dockerfile . \
+#     -t bobcamera/bob-boblibapp:$version_number \
+#     -t bobcamera/bob-boblibapp:latest \
+#     --target boblib-app
 
 docker build \
     --progress=plain \
@@ -146,13 +139,13 @@ docker build \
     -t bobcamera/bob-ros2-dev:latest \
     --target bob-ros2-dev
 
-docker build \
-    --progress=plain \
-    --platform linux/amd64 \
-    -f ./docker/Dockerfile . \
-    -t bobcamera/bob-ros2-build:$version_number \
-    -t bobcamera/bob-ros2-build:latest \
-    --target bob-ros2-build
+# docker build \
+#     --progress=plain \
+#     --platform linux/amd64 \
+#     -f ./docker/Dockerfile . \
+#     -t bobcamera/bob-ros2-build:$version_number \
+#     -t bobcamera/bob-ros2-build:latest \
+#     --target bob-ros2-build
 
 docker build \
     --progress=plain \

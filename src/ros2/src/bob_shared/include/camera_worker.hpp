@@ -75,24 +75,37 @@ public:
 
     void init()
     {
-        current_video_idx_ = 0;
-        run_ = false;
-        fps_ = 25.0;
-        mask_enabled_ = false;
-
-        if (params_.simulator_enable)
+        try
         {
-            object_simulator_ptr_ = std::make_unique<ObjectSimulator>(params_.simulator_num_objects);
+            current_video_idx_ = 0;
+            run_ = false;
+            fps_ = 25.0;
+            mask_enabled_ = false;
+
+            if (params_.simulator_enable)
+            {
+                object_simulator_ptr_ = std::make_unique<ObjectSimulator>(params_.simulator_num_objects);
+            }
+
+            mask_worker_ptr_ = std::make_unique<MaskWorker>(node_, [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat & mask){mask_timer_callback(detection_mask_result, mask);});
+            mask_worker_ptr_->init(5, params_.mask_filename);
+
+            camera_settings_client_ = node_.create_client<bob_interfaces::srv::CameraSettings>("bob/camera/settings");
+            fps_update_client_ = node_.create_client<bob_interfaces::srv::ConfigEntryUpdate>("bob/config/update/fps");
+
+            open_camera();
+            start_capture();
         }
-
-        mask_worker_ptr_ = std::make_unique<MaskWorker>(node_, [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat & mask){mask_timer_callback(detection_mask_result, mask);});
-        mask_worker_ptr_->init(5, params_.mask_filename);
-
-        camera_settings_client_ = node_.create_client<bob_interfaces::srv::CameraSettings>("bob/camera/settings");
-        fps_update_client_ = node_.create_client<bob_interfaces::srv::ConfigEntryUpdate>("bob/config/update/fps");
-
-        open_camera();
-        start_capture();
+        catch (const std::exception& e)
+        {
+            RCLCPP_ERROR(node_.get_logger(), "Exception: %s", e.what());
+            throw;
+        }
+        catch (...) 
+        {
+            RCLCPP_ERROR(node_.get_logger(), "Unknown exception caught");
+            throw;
+        }
     }
 
 private:
@@ -164,6 +177,11 @@ private:
             {
                 RCLCPP_ERROR(node_.get_logger(), "Exception: %s", e.what());
                 rcutils_reset_error();
+                run_ = false;
+            }
+            catch (...) 
+            {
+                RCLCPP_ERROR(node_.get_logger(), "Unknown exception caught");
                 run_ = false;
             }
         }

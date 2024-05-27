@@ -66,7 +66,7 @@ def generate_launch_description():
                 name='web_camera_video_overlay_node',
                 namespace=namespace,
                 parameters = [config],
-                extra_arguments=[{'use_intra_process_comms': True}],
+                extra_arguments=[{'use_intra_process_comms': True, 'RCUTILS_LOGGING_CONFIG_FILE': '/workspaces/bobcamera/src/ros2/config/ros2_log_config.yaml'}],
                 condition=IfCondition(PythonExpression([LaunchConfiguration('source_arg'), " == 'video_overlay'" ])),
             ),
             ComposableNode(
