@@ -653,7 +653,7 @@ onvif_service_node:
 # Web infrastructure
 info_webapi_node:
   ros__parameters:
-    application_version: '1.2.16'
+    application_version: '1.3.1'
     frame_width: 0
     frame_height: 0
     video_fps: 15.0
