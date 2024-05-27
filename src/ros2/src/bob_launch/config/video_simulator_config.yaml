@@ -1,6 +1,7 @@
 launch:
   node_containers:
     - name: Kernel
+      executable: component_container_mt
       nodes:
         - package: bob_camera
           plugin: CameraBGS
@@ -37,12 +38,14 @@ launch:
             - 'bob/compressor/source': 'bob/frames/foreground_mask/resized'
             - 'bob/compressor/target': 'bob/frames/foreground_mask/resized/compressed'
     - name: Display
+      executable: component_container
       nodes:
         - package: bob_visualizers
           plugin: FrameViewer
           name: multi_frame_viewer_node
           remappings: []
     - name: Monitor
+      executable: component_container_mt
       nodes:
         - package: bob_image_processing
           plugin: TrackSensitivityMonitor
@@ -52,7 +55,7 @@ launch:
           plugin: RecordingMonitor
           name: allsky_recorder_monitoring_node
           remappings: []
-  nodes:
+  standalone_nodes:
     - package: bob_observer
       executable: day_night_classifier
       name: day_night_classifier_node

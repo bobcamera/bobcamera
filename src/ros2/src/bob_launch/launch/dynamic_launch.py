@@ -47,7 +47,8 @@ def generate_containers(config, namespace, loglevel):
     node_containers = config['launch']['node_containers']
     for node_container in node_containers:
         node_container_name = node_container['name']
-        print(f"Container Name: {node_container_name}")
+        node_container_executable = node_container.get('executable', 'component_container')
+        print(f"Container Name: {node_container_name}, executable: {node_container_executable}")
 
         composable_nodes = generate_composable_nodes(config, node_container, namespace)
 
@@ -58,7 +59,7 @@ def generate_containers(config, namespace, loglevel):
                 namespace=namespace,
                 arguments=['--ros-args', '--log-level', loglevel],
                 package='rclcpp_components',
-                executable='component_container', # change to component_container_mt to enhance performance
+                executable=node_container_executable, # change to component_container_mt to enhance performance
                 composable_node_descriptions=composable_nodes,
                 output='screen',
             )
@@ -74,7 +75,7 @@ def generate_containers(config, namespace, loglevel):
 
 def generate_nodes(config, namespace, loglevel):
     nodes = []
-    config_nodes = config['launch']['nodes']
+    config_nodes = config['launch'].get('standalone_nodes', [])
     for config_node in config_nodes:
         remappings = [
             (k, v) for mapping in config_node.get('remappings', [])
