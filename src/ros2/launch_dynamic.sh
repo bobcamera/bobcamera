@@ -4,5 +4,7 @@
 # Options: DEBUG, INFO, WARN, ERROR or FATAL
 export BOB_LOGLEVEL=${BOB_LOGLEVEL:-"INFO"}
 
+cp ./src/bob_launch/config/$1 ./assets/config/app_config.yaml
+
 # Launch the application
 ./launcher.sh dynamic_launch.py

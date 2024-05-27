@@ -106,7 +106,7 @@ def generate_nodes(config, namespace, loglevel):
 
 
 def generate_launch_description():
-    config_file_path = 'assets/config/video_simulator_config.yaml'
+    config_file_path = 'assets/config/app_config.yaml'
     namespace = EnvironmentVariable('BOB_NAMESPACE', default_value="")
     loglevel = EnvironmentVariable('BOB_LOGLEVEL', default_value="INFO")
 
