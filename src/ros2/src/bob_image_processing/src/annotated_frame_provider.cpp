@@ -45,11 +45,8 @@ private:
     AnnotatedFrameCreator annotated_frame_creator_;
     rclcpp::TimerBase::SharedPtr timer_;
 
-    std::unique_ptr<RosCvImageMsg> ros_cv_annotated_frame_;
-
     bool enable_tracking_status_;
 
-    std::unique_ptr<RosCvImageMsg> roscv_image_resize_msg_ptr;
     int resize_height_;
     std::string image_resized_publish_topic_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_resized_publisher_;

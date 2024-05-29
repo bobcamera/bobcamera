@@ -137,26 +137,26 @@ public:
                 cv::cvtColor(img, gray_img, cv::COLOR_BGR2GRAY);
             }
 
-            if (!ros_cv_foreground_mask_ || (gray_img.size() != ros_cv_foreground_mask_->image_ptr->size()))
+            if (!ros_cv_foreground_mask_ || (gray_img.size() != ros_cv_foreground_mask_->get_image().size()))
             {
-                ros_cv_foreground_mask_ = std::make_unique<RosCvImageMsg>(gray_img, sensor_msgs::image_encodings::MONO8, false);
+                ros_cv_foreground_mask_ = std::make_unique<RosCvImageMsg>(gray_img, sensor_msgs::image_encodings::MONO8, true);
             }
-            ros_cv_foreground_mask_->msg_ptr->header = header;
+            ros_cv_foreground_mask_->set_header(header);
 
             if (mask_enabled_ && (detection_mask_.size() != gray_img.size()))
             {
                 cv::resize(detection_mask_, detection_mask_, gray_img.size());
             }
 
-            bgsPtr->apply(gray_img, *ros_cv_foreground_mask_->image_ptr, mask_enabled_ ? detection_mask_ : cv::Mat());
+            bgsPtr->apply(gray_img, ros_cv_foreground_mask_->get_image(), mask_enabled_ ? detection_mask_ : cv::Mat());
 
-            node_.publish_if_subscriber(params_.image_publisher, *ros_cv_foreground_mask_->msg_ptr);
+            node_.publish_if_subscriber(params_.image_publisher, ros_cv_foreground_mask_->get_msg());
 
             publish_resized_frame(*ros_cv_foreground_mask_);
 
             if (median_filter_)
             {
-                cv::medianBlur(*ros_cv_foreground_mask_->image_ptr, *ros_cv_foreground_mask_->image_ptr, 3);
+                cv::medianBlur(ros_cv_foreground_mask_->get_image(), ros_cv_foreground_mask_->get_image(), 3);
             }
 
             bob_interfaces::msg::DetectorState state;
@@ -165,9 +165,9 @@ public:
             bbox2D_array.header = header;
             bbox2D_array.image_width = gray_img.size().width;
             bbox2D_array.image_height = gray_img.size().height;
-            std::vector<cv::Rect> bboxes;
 
-            boblib::blobs::DetectionResult det_result = blob_detector_ptr_->detect(*ros_cv_foreground_mask_->image_ptr, bboxes);
+            std::vector<cv::Rect> bboxes;
+            boblib::blobs::DetectionResult det_result = blob_detector_ptr_->detect(ros_cv_foreground_mask_->get_image(), bboxes);
             if (det_result == boblib::blobs::DetectionResult::Success)
             {
                 state.max_blobs_reached = false;
@@ -184,6 +184,12 @@ public:
         catch (const std::exception & e)
         {
             RCLCPP_ERROR(node_.get_logger(), "Exception: %s", e.what());
+            throw;
+        }
+        catch (...)
+        {
+            RCLCPP_ERROR(node_.get_logger(), "Unknown Exception");
+            throw;
         }
     }
 
@@ -245,17 +251,17 @@ private:
         cv::Mat resized_img;
         if (params_.resize_height > 0)
         {
-            const double aspect_ratio = (double)image_msg.image_ptr->size().width / (double)image_msg.image_ptr->size().height;
+            const double aspect_ratio = (double)image_msg.get_image().size().width / (double)image_msg.get_image().size().height;
             const int frame_height = params_.resize_height;
             const auto frame_width = (int)(aspect_ratio * (double)frame_height);
-            cv::resize(*image_msg.image_ptr, resized_img, cv::Size(frame_width, frame_height));
+            cv::resize(image_msg.get_image(), resized_img, cv::Size(frame_width, frame_height));
         }
         else
         {
-            resized_img = *image_msg.image_ptr;
+            resized_img = image_msg.get_image();
         }
 
-        auto resized_frame_msg = cv_bridge::CvImage(image_msg.msg_ptr->header, image_msg.msg_ptr->encoding, resized_img).toImageMsg();
+        auto resized_frame_msg = cv_bridge::CvImage(image_msg.get_header(), image_msg.get_msg().encoding, resized_img).toImageMsg();
         params_.image_resized_publisher->publish(*resized_frame_msg);            
     }
 
@@ -281,7 +287,6 @@ private:
             detection_mask_.release();
         }
     }
-
 };
 
 

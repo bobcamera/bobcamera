@@ -18,8 +18,7 @@ def parse_yaml(file_path):
     
 
 def get_node_parameters(config, node_name):
-    parameters = config['basic_config'].get(node_name, {}) | config['advanced_config'].get(node_name, {})
-    return parameters
+    return config['basic_config'].get(node_name, {}) | config['advanced_config'].get(node_name, {})
 
 
 def generate_composable_nodes(config, node_container, namespace):
@@ -64,7 +63,7 @@ def generate_containers(config, namespace, loglevel):
                 namespace=namespace,
                 arguments=['--ros-args', '--log-level', loglevel],
                 package='rclcpp_components',
-                executable=node_container_executable, # change to component_container_mt to enhance performance
+                executable=node_container_executable,
                 composable_node_descriptions=composable_nodes,
                 output=node_container_output,
             )
@@ -78,6 +77,7 @@ def generate_containers(config, namespace, loglevel):
     
     return containers
 
+
 def generate_standalone_nodes(config, namespace, loglevel):
     nodes = []
     config_nodes = config['launch'].get('standalone_nodes', [])
@@ -88,6 +88,7 @@ def generate_standalone_nodes(config, namespace, loglevel):
         ]
         parameters = get_node_parameters(config, config_node['name'])
         print(f"Standalone Node: Package: {config_node['package']}, Executable: {config_node['executable']}, Name: {config_node['name']}")
+        print(f"  Parameters: {parameters}")
 
         node = None
         try:
@@ -119,8 +120,8 @@ def generate_launch_description():
     if config is None:
         raise RuntimeError("Failed to load YAML configuration")
 
-    namespace = config['launch'].get('namespace', '')
     loglevel = EnvironmentVariable('BOB_LOGLEVEL', default_value="INFO")
+    namespace = config['launch'].get('namespace', '')
     rosbridge_enable = config['launch'].get('rosbridge', True)
 
     launch_list = generate_containers(config, namespace, loglevel)

@@ -22,7 +22,7 @@ class MaskWebApiNode(Node):
     self.mask_width = self.get_parameter('width').value
     self.mask_height = self.get_parameter('height').value
 
-    self.get_logger().debug(f'Masks path {self.masks_folder}, width {self.mask_width}, height {self.mask_height}.')
+    self.get_logger().info(f'Masks path {self.masks_folder}, width {self.mask_width}, height {self.mask_height}.')
 
     self.br = CvBridge()
 

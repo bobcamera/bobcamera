@@ -136,39 +136,58 @@ private:
 
         std::unique_ptr<RosCvImageMsg> roscv_image_msg_ptr = RosCvImageMsg::create(video_capture_);
 
+        int retries = 0;
         while (run_)
         {
             try
             {
-                if (!video_capture_.read(*roscv_image_msg_ptr->image_ptr))
+                if (!video_capture_.read(roscv_image_msg_ptr->get_image()))
                 {
-                    current_video_idx_ = current_video_idx_ >= (params_.videos.size() - 1) ? 0 : current_video_idx_ + 1;
-                    open_camera();
-                    roscv_image_msg_ptr = RosCvImageMsg::create(video_capture_);
-                    video_capture_.read(*roscv_image_msg_ptr->image_ptr);
+                    if (params_.source_type == CameraWorkerParams::SourceType::VIDEO_FILE)
+                    {
+                        current_video_idx_ = current_video_idx_ >= (params_.videos.size() - 1) ? 0 : current_video_idx_ + 1;
+                        open_camera();
+                        roscv_image_msg_ptr = RosCvImageMsg::create(video_capture_);
+                        continue;
+                    }
+                    else
+                    {
+                        if (++retries > 5)
+                        {
+                            RCLCPP_ERROR(node_.get_logger(), "Could not open VIDEO SOURCE");
+                            run_ = false;
+                        }
+                        continue;
+                    }
                 }
+                if (roscv_image_msg_ptr->recreate_if_invalid())
+                {
+                    RCLCPP_INFO(node_.get_logger(), "ImageMsg recreated");
+                }
+
+                retries = 0;
 
                 if (params_.simulator_enable)
                 {
-                    object_simulator_ptr_->move(*roscv_image_msg_ptr->image_ptr);
+                    object_simulator_ptr_->move(roscv_image_msg_ptr->get_image());
                 }
 
-                apply_mask(*roscv_image_msg_ptr->image_ptr);
+                apply_mask(roscv_image_msg_ptr->get_image());
 
                 roscv_image_msg_ptr->get_header().stamp = node_.now();
                 roscv_image_msg_ptr->get_header().frame_id = ParameterNode::generate_uuid();
 
-                params_.image_publisher->publish(*roscv_image_msg_ptr->msg_ptr);
+                node_.publish_if_subscriber(params_.image_publisher, roscv_image_msg_ptr->get_msg());
 
                 publish_resized_frame(*roscv_image_msg_ptr);
 
-                publish_image_info(roscv_image_msg_ptr->get_header(), *roscv_image_msg_ptr->image_ptr);
+                publish_image_info(roscv_image_msg_ptr->get_header(), roscv_image_msg_ptr->get_image());
 
                 publish_camera_info(roscv_image_msg_ptr->get_header());
 
                 if (user_callback_)
                 {
-                    user_callback_(roscv_image_msg_ptr->get_header(), *roscv_image_msg_ptr->image_ptr);
+                    user_callback_(roscv_image_msg_ptr->get_header(), roscv_image_msg_ptr->get_image());
                 }
 
                 loop_rate.sleep();  
@@ -185,6 +204,7 @@ private:
                 run_ = false;
             }
         }
+        RCLCPP_DEBUG(node_.get_logger(), "Leaving capture loop");
     }
 
     inline void apply_mask(cv::Mat & img)
@@ -213,15 +233,15 @@ private:
         cv::Mat resized_img;
         if (params_.resize_height > 0)
         {
-            const auto frame_width = (int)(image_msg.image_ptr->size().aspectRatio() * (double)params_.resize_height);
-            cv::resize(*image_msg.image_ptr, resized_img, cv::Size(frame_width, params_.resize_height));
+            const auto frame_width = (int)(image_msg.get_image().size().aspectRatio() * (double)params_.resize_height);
+            cv::resize(image_msg.get_image(), resized_img, cv::Size(frame_width, params_.resize_height));
         }
         else
         {
-            resized_img = *image_msg.image_ptr;
+            resized_img = image_msg.get_image();
         }
 
-        auto resized_frame_msg = cv_bridge::CvImage(image_msg.msg_ptr->header, image_msg.msg_ptr->encoding, resized_img).toImageMsg();
+        auto resized_frame_msg = cv_bridge::CvImage(image_msg.get_header(), image_msg.get_msg().encoding, resized_img).toImageMsg();
         params_.image_resized_publisher->publish(*resized_frame_msg);            
     }
 
@@ -255,7 +275,7 @@ private:
 
             case CameraWorkerParams::SourceType::VIDEO_FILE:
             {
-                auto video_path = params_.videos[current_video_idx_];
+                const auto & video_path = params_.videos[current_video_idx_];
                 RCLCPP_INFO(node_.get_logger(), "Video '%s' opening", video_path.c_str());
                 video_capture_.open(video_path);
             }
