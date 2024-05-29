@@ -1,14 +1,8 @@
-import os
-import launch
 import yaml
 from launch import LaunchDescription
-from launch.actions import LogInfo
 from launch_ros.actions import Node, ComposableNodeContainer
-from launch.actions import DeclareLaunchArgument
 from launch_ros.descriptions import ComposableNode
-from launch.substitutions import PythonExpression, LaunchConfiguration, EnvironmentVariable 
-from launch.conditions import IfCondition
-from ament_index_python.packages import get_package_share_directory
+from launch.substitutions import EnvironmentVariable 
 
 def parse_yaml(file_path):
     try:
@@ -17,6 +11,12 @@ def parse_yaml(file_path):
     except Exception as e:
         print(f"Error loading YAML file: {e}")
         return None
+    
+
+def get_node_parameters(config, node_name):
+    parameters = config['basic_config'].get(node_name, {}) | config['advanced_config'].get(node_name, {})
+    return parameters
+
 
 def generate_composable_nodes(config, node_container, namespace):
     node_descriptions = node_container['nodes']
@@ -26,7 +26,7 @@ def generate_composable_nodes(config, node_container, namespace):
             (k, v) for mapping in node_description.get('remappings', [])
             for k, v in mapping.items()
         ]
-        parameters = config[node_description['name']]['ros__parameters']
+        parameters = get_node_parameters(config, node_description['name'])
 
         print(f"Node: Package: {node_description['package']}, Plugin: {node_description['plugin']}, Name: {node_description['name']}")
         node = ComposableNode(
@@ -48,6 +48,7 @@ def generate_containers(config, namespace, loglevel):
     for node_container in node_containers:
         node_container_name = node_container['name']
         node_container_executable = node_container.get('executable', 'component_container')
+        node_container_output = node_container.get('output', 'screen')
         print(f"Container Name: {node_container_name}, executable: {node_container_executable}")
 
         composable_nodes = generate_composable_nodes(config, node_container, namespace)
@@ -61,7 +62,7 @@ def generate_containers(config, namespace, loglevel):
                 package='rclcpp_components',
                 executable=node_container_executable, # change to component_container_mt to enhance performance
                 composable_node_descriptions=composable_nodes,
-                output='screen',
+                output=node_container_output,
             )
         except Exception as e:
             print(f"Error creating ComposableNodeContainer: {e}")
@@ -73,7 +74,7 @@ def generate_containers(config, namespace, loglevel):
     
     return containers
 
-def generate_nodes(config, namespace, loglevel):
+def generate_standalone_nodes(config, namespace, loglevel):
     nodes = []
     config_nodes = config['launch'].get('standalone_nodes', [])
     for config_node in config_nodes:
@@ -81,7 +82,7 @@ def generate_nodes(config, namespace, loglevel):
             (k, v) for mapping in config_node.get('remappings', [])
             for k, v in mapping.items()
         ]
-        parameters = config[config_node['name']]['ros__parameters']
+        parameters = get_node_parameters(config, config_node['name'])
         print(f"Standalone Node: Package: {config_node['package']}, Executable: {config_node['executable']}, Name: {config_node['name']}")
 
         node = None
@@ -94,6 +95,7 @@ def generate_nodes(config, namespace, loglevel):
                 arguments=['--ros-args', '--log-level', loglevel],
                 parameters=[parameters],
                 remappings=remappings,
+                output=config_node.get('output', 'screen')
             )
         except Exception as e:
             print(f"Error creating Standalone Node: {e}")
@@ -116,6 +118,6 @@ def generate_launch_description():
         raise RuntimeError("Failed to load YAML configuration")
 
     containers = generate_containers(config, namespace, loglevel)
-    containers.extend(generate_nodes(config, namespace, loglevel))
+    containers.extend(generate_standalone_nodes(config, namespace, loglevel))
 
     return LaunchDescription(containers)
