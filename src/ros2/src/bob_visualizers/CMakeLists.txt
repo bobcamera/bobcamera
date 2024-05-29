@@ -44,12 +44,12 @@ ament_target_dependencies(frame_viewer_node PUBLIC rclcpp sensor_msgs vision_msg
 rclcpp_components_register_nodes(frame_viewer_node "FrameViewer")
 install(TARGETS frame_viewer_node DESTINATION lib)
 
-# Frame BBox Viewer Node
-add_library(frame_bbox_viewer_node SHARED src/frame_bbox_viewer.cpp)
-target_compile_definitions(frame_bbox_viewer_node PRIVATE "COMPOSITION_BUILDING_DLL")
-target_link_libraries(frame_bbox_viewer_node PUBLIC boblib)
-ament_target_dependencies(frame_bbox_viewer_node PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV bob_interfaces rclcpp_components)
-rclcpp_components_register_nodes(frame_bbox_viewer_node "FrameBBoxViewer")
-install(TARGETS frame_bbox_viewer_node DESTINATION lib)
+# # Frame BBox Viewer Node
+# add_library(frame_bbox_viewer_node SHARED src/frame_bbox_viewer.cpp)
+# target_compile_definitions(frame_bbox_viewer_node PRIVATE "COMPOSITION_BUILDING_DLL")
+# target_link_libraries(frame_bbox_viewer_node PUBLIC boblib)
+# ament_target_dependencies(frame_bbox_viewer_node PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV bob_interfaces rclcpp_components)
+# rclcpp_components_register_nodes(frame_bbox_viewer_node "FrameBBoxViewer")
+# install(TARGETS frame_bbox_viewer_node DESTINATION lib)
 
 ament_package()

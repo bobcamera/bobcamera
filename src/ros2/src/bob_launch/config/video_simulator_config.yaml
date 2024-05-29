@@ -4,20 +4,20 @@
 #########################################################################
 basic_config:
   camera_node:
-    source_type: 'VIDEO_FILE'
+    source_type: 'VIDEO_FILE' # USB_CAMERA | VIDEO_FILE | RTSP_STREAM
     rtsp_uri: ''
     onvif_host: ''
     onvif_port: 0
     onvif_user: ''
-    onvif_password: ''        
+    onvif_password: ''
     videos:
       - /workspaces/bobcamera/media/fisheye_videos/mike-drone.mp4
       - /workspaces/bobcamera/media/fisheye_videos/mikeg-30min.mp4
     resize_height: 960
-    simulator: True
-    simulator_num_objects: 15
-    bgs_sensitivity: 'low_c'
-    bgs_type: 'vibe'
+    simulator: True # True for including simulated objects, False otherwise
+    simulator_num_objects: 15 # Number of simulated objects if the simulator parameter is true
+    bgs_sensitivity: 'low_c' # Initial sensitivity configuration based on the 'bgs_json_params' in the advanced config section
+    bgs_type: 'vibe' # The background subtractor to use: 'vibe' | 'wmv'
 
   allsky_recorder_node:
     codec: 'avc1'
@@ -253,6 +253,7 @@ advanced_config:
 #     
 #########################################################################
 launch:
+  namespace: ''
   node_containers:
     - name: Kernel
       executable: component_container_mt # component_container or component_container_mt
@@ -339,5 +340,15 @@ launch:
     - package: bob_monitor
       executable: onvif_service
       name: onvif_service_node
+      remappings: []
+      output: screen
+    - package: bob_webapi
+      executable: info_webapi
+      name: info_webapi_node
+      remappings: []
+      output: screen
+    - package: bob_webapi
+      executable: mask_webapi
+      name: mask_webapi_node
       remappings: []
       output: screen

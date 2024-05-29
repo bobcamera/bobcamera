@@ -1,8 +1,12 @@
+import os
 import yaml
 from launch import LaunchDescription
 from launch_ros.actions import Node, ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
 from launch.substitutions import EnvironmentVariable 
+from launch.actions import IncludeLaunchDescription
+from launch.launch_description_sources import FrontendLaunchDescriptionSource
+from ament_index_python.packages import get_package_share_directory
 
 def parse_yaml(file_path):
     try:
@@ -28,7 +32,7 @@ def generate_composable_nodes(config, node_container, namespace):
         ]
         parameters = get_node_parameters(config, node_description['name'])
 
-        print(f"Node: Package: {node_description['package']}, Plugin: {node_description['plugin']}, Name: {node_description['name']}")
+        print(f"  Node: Package: {node_description['package']}, Plugin: {node_description['plugin']}, Name: {node_description['name']}")
         node = ComposableNode(
             package=node_description['package'],
             plugin=node_description['plugin'],
@@ -110,14 +114,19 @@ def generate_standalone_nodes(config, namespace, loglevel):
 
 def generate_launch_description():
     config_file_path = 'assets/config/app_config.yaml'
-    namespace = EnvironmentVariable('BOB_NAMESPACE', default_value="")
-    loglevel = EnvironmentVariable('BOB_LOGLEVEL', default_value="INFO")
 
     config = parse_yaml(config_file_path)
     if config is None:
         raise RuntimeError("Failed to load YAML configuration")
 
-    containers = generate_containers(config, namespace, loglevel)
-    containers.extend(generate_standalone_nodes(config, namespace, loglevel))
+    namespace = config['launch'].get('namespace', '')
+    loglevel = EnvironmentVariable('BOB_LOGLEVEL', default_value="INFO")
 
-    return LaunchDescription(containers)
+    ros_bridge_package_xml = os.path.join(get_package_share_directory('rosbridge_server'), 'launch/rosbridge_websocket_launch.xml')
+    rosbridge_launch = IncludeLaunchDescription(FrontendLaunchDescriptionSource(ros_bridge_package_xml))
+
+    launch_list = generate_containers(config, namespace, loglevel)
+    launch_list.extend(generate_standalone_nodes(config, namespace, loglevel))
+    launch_list.extend([rosbridge_launch])
+
+    return LaunchDescription(launch_list)
