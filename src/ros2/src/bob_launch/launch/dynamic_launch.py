@@ -121,12 +121,14 @@ def generate_launch_description():
 
     namespace = config['launch'].get('namespace', '')
     loglevel = EnvironmentVariable('BOB_LOGLEVEL', default_value="INFO")
-
-    ros_bridge_package_xml = os.path.join(get_package_share_directory('rosbridge_server'), 'launch/rosbridge_websocket_launch.xml')
-    rosbridge_launch = IncludeLaunchDescription(FrontendLaunchDescriptionSource(ros_bridge_package_xml))
+    rosbridge_enable = config['launch'].get('rosbridge', True)
 
     launch_list = generate_containers(config, namespace, loglevel)
     launch_list.extend(generate_standalone_nodes(config, namespace, loglevel))
-    launch_list.extend([rosbridge_launch])
+
+    if (rosbridge_enable):
+        ros_bridge_package_xml = os.path.join(get_package_share_directory('rosbridge_server'), 'launch/rosbridge_websocket_launch.xml')
+        rosbridge_launch = IncludeLaunchDescription(FrontendLaunchDescriptionSource(ros_bridge_package_xml))
+        launch_list.append(rosbridge_launch)
 
     return LaunchDescription(launch_list)

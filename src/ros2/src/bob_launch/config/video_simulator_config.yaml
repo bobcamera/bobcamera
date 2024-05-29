@@ -216,6 +216,10 @@ advanced_config:
 #   as you want, the 'name' of the node should also be the same in the
 #   configuration above.(basic/advanced)
 #
+#   There are standalone parameters:
+#     namespace: the namespace to run BOB
+#     rosbridge: True to enable rosbridge frontend connection, False otherwise
+#
 #   The Node Containers are executables that will run nodes in the same
 #   process, they have the advantage of using intra process communication
 #   so no network overhead between nodes, they have the following
@@ -254,6 +258,7 @@ advanced_config:
 #########################################################################
 launch:
   namespace: ''
+  rosbridge: True
   node_containers:
     - name: Kernel
       executable: component_container_mt # component_container or component_container_mt
