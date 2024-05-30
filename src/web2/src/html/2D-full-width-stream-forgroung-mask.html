@@ -13,25 +13,7 @@
         <!-- JS Library Needed for Connecting to the ROS2 Environment -->
         <script src="https://cdnjs.cloudflare.com/ajax/libs/roslibjs/1.1.0/roslib.min.js"></script>
 
-        <script>
-            // Set up the connection to the ROS2 environment using the roslib.js library
-
-            // Define the Websockets address of the ROS2 environment
-            var websocketsURL = 'ws://localhost:9090';
-
-            // Create a ROSLIB.Ros object which will connect to the ROS2 environment via websockets
-            var ros = new ROSLIB.Ros({url: websocketsURL});
-
-            // Define callbacks for connection events
-            ros.on('connection', function () {console.log('Connected to websocket server.');});
-
-            // Define callbacks for error events
-            ros.on('error', function (error) {console.log('Error connecting to websocket server: ', error);});
-
-            // Define callbacks for close events
-            ros.on('close', function () {console.log('Connection to websocket server closed.');});
-
-        </script>
+        <script src="../lib/bob.js"></script>
 
     </head>
 
@@ -41,14 +23,14 @@
 
         <script type="text/javascript" type="text/javascript">
 
-            // Define the ROS2 Subscription Topic
-            var ros2topic = '/bob/frames/foreground_mask/resized/compressed';
+            var ros = new ROSLIB.Ros();
+            rosConnect(ros, websocketsURL, true);
 
-            // Define the Message Type of the ROS2 Subscription Topic
-            var ros2messageType = 'sensor_msgs/msg/CompressedImage';
-
-            // Create a topicStream for subscription
-            var topicStream = new ROSLIB.Topic({ros: ros, name: ros2topic, messageType: ros2messageType});
+            var topicStream = new ROSLIB.Topic({
+                ros: ros,
+                name: '/bob/frames/foreground_mask/resized/compressed',
+                messageType: 'sensor_msgs/msg/CompressedImage'
+            });
 
             // Stream Messages Published From a ROS2 Topic (On each new message arrival, the function is called)
             topicStream.subscribe(function (message) {

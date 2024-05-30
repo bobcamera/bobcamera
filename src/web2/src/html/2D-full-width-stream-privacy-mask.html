@@ -133,7 +133,8 @@
         <script type="text/javascript" type="text/javascript">
 
             // Connect to the ROS2 environment
-            ros = rosConnect(websocketsURL, true);
+            var ros = new ROSLIB.Ros();
+            rosConnect(ros, websocketsURL, true);
 
             // Create a topicStream for subscription
             var topicStream = new ROSLIB.Topic({
@@ -329,12 +330,11 @@
             // SERVICE FUNCTIONS
             function svcSendMaskSVG() {
 
-                // let rosCon = new ROSLIB.Ros();
-                // rosConnect(rosCon, websocketsURL);
+                let rosCon = new ROSLIB.Ros();
+                rosConnect(rosCon, websocketsURL);
 
                 let updateSvgMaskService = new ROSLIB.Service({
-                    // ros : rosCon,
-                    ros : ros,
+                    ros : rosCon,
                     name : '/bob/webapi/mask/update/svg',
                     serviceType : 'bob_interfaces/srv/MaskSvgUpdate'
                 });
@@ -379,19 +379,18 @@
                     } else {
                         console.error("Failed to send mask:", result.message);
                     }
-                    // rosCon.close();
+                    rosCon.close();
                 });
             }
 
             function svcOverrideMask(enable) {
                 //console.log(`Override mask - setting: ${enable}`);
 
-                // let rosCon = new ROSLIB.Ros();
-                // rosConnect(rosCon, websocketsURL);
+                let rosCon = new ROSLIB.Ros();
+                rosConnect(rosCon, websocketsURL);
 
                 let maskOverrideService = new ROSLIB.Service({
-                    // ros : rosCon,
-                    ros : ros,
+                    ros : rosCon,
                     name : '/bob/mask/privacy/override',
                     serviceType : 'bob_interfaces/srv/MaskOverrideRequest'
                 });
@@ -407,19 +406,18 @@
                         console.error("Failed to send mask override:", result.message);
                     }
 
-                    // rosCon.close();
+                    rosCon.close();
                 });
             }
 
             function svcDeleteMask() {
                 //console.log("Delete mask.");
 
-                // let rosCon = new ROSLIB.Ros();
-                // rosConnect(rosCon, websocketsURL);
+                let rosCon = new ROSLIB.Ros();
+                rosConnect(rosCon, websocketsURL);
 
                 let deleteMaskService = new ROSLIB.Service({
-                    // ros : rosCon,
-                    ros : ros,
+                    ros : rosCon,
                     name : '/bob/webapi/mask/delete/svg',
                     serviceType : 'bob_interfaces/srv/MaskSvgDelete'
                 });
@@ -431,12 +429,12 @@
                 deleteMaskService.callService(request, function(result) {
                     if (result.success) {
                         console.log("Mask deleted successfully!");
-                        alert('It can take up to 60 seconds for your changes to take affect.')
+                        alert('It can take up to 5 seconds for your changes to take affect.')
                     } else {
                         console.error("Failed to delete mask:", result.message);
                     }
 
-                    // rosCon.close();
+                    rosCon.close();
                 });
             }
 
