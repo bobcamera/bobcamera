@@ -294,11 +294,11 @@
     let isPlaying = true;
     let firstImageReceived = false;
 
-    // var ros = new ROSLIB.Ros();
-    // rosConnect(ros, websocketsURL, true);
+    var ros = new ROSLIB.Ros();
+    rosConnect(ros, websocketsURL, true);
 
     // Connect to the ROS2 environment
-    ros = rosConnect(websocketsURL, true);
+    // ros = rosConnect(websocketsURL, true);
 
     var ros2ImageTopic1 = '/bob/camera/all_sky/bayer/resized/compressed'; // define the ROS2 Subscription Topic 1
     var ros2ImageTopic2 = '/bob/frames/annotated/resized/compressed'; // define the ROS2 Subscription Topic 2
