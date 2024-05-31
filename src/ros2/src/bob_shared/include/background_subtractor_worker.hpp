@@ -35,6 +35,8 @@ struct BackgroundSubtractorWorkerParams
     rclcpp::Publisher<bob_interfaces::msg::DetectorState>::SharedPtr state_publisher;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_resized_publisher;
 
+    std::string image_publish_topic;
+    std::string image_resized_publish_topic;
     BGSType bgs_type;
     std::string sensitivity;
     SensitivityConfigCollection sensitivity_collection;
@@ -244,7 +246,9 @@ private:
 
     inline void publish_resized_frame(const RosCvImageMsg & image_msg)
     {
-        if (!params_.image_resized_publisher || (node_.count_subscribers(params_.image_resized_publisher->get_topic_name()) <= 0))
+        if (!params_.image_resized_publisher 
+            || (params_.resize_height <= 0)
+            || (node_.count_subscribers(params_.image_resized_publisher->get_topic_name()) <= 0))
         {
             return;
         }

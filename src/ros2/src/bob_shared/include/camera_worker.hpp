@@ -29,7 +29,8 @@ struct CameraWorkerParams
     {
         USB_CAMERA,
         VIDEO_FILE,
-        RTSP_STREAM
+        RTSP_STREAM,
+        UNKNOWN
     };
 
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher;
@@ -81,6 +82,7 @@ public:
             run_ = false;
             fps_ = 25.0;
             mask_enabled_ = false;
+            is_open_ = false;
 
             if (params_.simulator_enable)
             {
@@ -108,6 +110,58 @@ public:
         }
     }
 
+    bool is_open() const
+    {
+        return is_open_;
+    }
+
+    void open_camera()
+    {
+        switch (params_.source_type)
+        {
+            case CameraWorkerParams::SourceType::USB_CAMERA:
+            {
+                params_.camera_id = static_cast<int>(node_.get_parameter("camera_id").get_value<rclcpp::ParameterType::PARAMETER_INTEGER>());
+                RCLCPP_INFO(node_.get_logger(), "Camera %d opening", params_.camera_id);
+                video_capture_.open(params_.camera_id);
+                set_highest_resolution();
+            }
+            break;
+
+            case CameraWorkerParams::SourceType::VIDEO_FILE:
+            {
+                const auto & video_path = params_.videos[current_video_idx_];
+                RCLCPP_INFO(node_.get_logger(), "Video '%s' opening", video_path.c_str());
+                video_capture_.open(video_path);
+            }
+            break;
+
+            case CameraWorkerParams::SourceType::RTSP_STREAM:
+            {
+                RCLCPP_INFO(node_.get_logger(), "RTSP Stream '%s' opening", params_.rtsp_uri.c_str());
+                video_capture_.open(params_.rtsp_uri);
+            }
+            break;
+
+            default:
+                RCLCPP_ERROR(node_.get_logger(), "Unknown SOURCE_TYPE");
+                return;
+        }
+
+        if (video_capture_.isOpened())
+        {
+            is_open_ = true;
+            fps_ = video_capture_.get(cv::CAP_PROP_FPS);
+            RCLCPP_INFO(node_.get_logger(), "fps: %f", fps_);
+
+            create_camera_info_msg();
+        }
+        else
+        {
+            is_open_ = false;
+        }
+    }    
+
 private:
     ParameterNode & node_;
     CameraWorkerParams & params_;
@@ -125,6 +179,7 @@ private:
     uint32_t current_video_idx_;
     bool run_;
     double fps_;
+    bool is_open_;
     std::unique_ptr<ObjectSimulator> object_simulator_ptr_;
 
     bool mask_enabled_;
@@ -226,7 +281,9 @@ private:
 
     inline void publish_resized_frame(const RosCvImageMsg & image_msg) const
     {
-        if (!params_.image_resized_publisher || (node_.count_subscribers(params_.image_resized_publish_topic) <= 0))
+        if (!params_.image_resized_publisher 
+            || (params_.resize_height <= 0)
+            || (node_.count_subscribers(params_.image_resized_publish_topic) <= 0))
         {
             return;
         }
@@ -259,44 +316,6 @@ private:
 			capture_thread_.join();
         }
 	}
-
-    inline void open_camera()
-    {
-        switch (params_.source_type)
-        {
-            case CameraWorkerParams::SourceType::USB_CAMERA:
-            {
-                params_.camera_id = static_cast<int>(node_.get_parameter("camera_id").get_value<rclcpp::ParameterType::PARAMETER_INTEGER>());
-                RCLCPP_INFO(node_.get_logger(), "Camera %d opening", params_.camera_id);
-                video_capture_.open(params_.camera_id);
-                set_highest_resolution();
-            }
-            break;
-
-            case CameraWorkerParams::SourceType::VIDEO_FILE:
-            {
-                const auto & video_path = params_.videos[current_video_idx_];
-                RCLCPP_INFO(node_.get_logger(), "Video '%s' opening", video_path.c_str());
-                video_capture_.open(video_path);
-            }
-            break;
-
-            case CameraWorkerParams::SourceType::RTSP_STREAM:
-            {
-                RCLCPP_INFO(node_.get_logger(), "RTSP Stream '%s' opening", params_.rtsp_uri.c_str());
-                video_capture_.open(params_.rtsp_uri);
-            }
-            break;
-        }
-
-        if (video_capture_.isOpened())
-        {
-            fps_ = video_capture_.get(cv::CAP_PROP_FPS);
-            RCLCPP_INFO(node_.get_logger(), "fps: %f", fps_);
-
-            create_camera_info_msg();
-        }
-    }
 
     inline bool set_highest_resolution()
     {

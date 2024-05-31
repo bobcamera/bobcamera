@@ -83,7 +83,8 @@ private:
                 rclcpp::Parameter("image_publish_topic", "bob/frames/allsky/original"), 
                 [this](const rclcpp::Parameter& param) 
                 {
-                    camera_params_.image_publish_topic = param.as_string(); 
+                    camera_params_.image_publish_topic = param.as_string();
+                    camera_params_.image_resized_publish_topic = camera_params_.image_publish_topic + "/resized";
                     camera_params_.image_publisher = create_publisher<sensor_msgs::msg::Image>(camera_params_.image_publish_topic, qos_profile_);
                 }
             ),
@@ -101,22 +102,6 @@ private:
                 {
                     camera_params_.camera_info_publish_topic = param.as_string(); 
                     camera_params_.camera_info_publisher = create_publisher<bob_camera::msg::CameraInfo>(camera_params_.camera_info_publish_topic, qos_profile_);
-                }
-            ),
-            ParameterNode::ActionParam(
-                rclcpp::Parameter("image_resized_publish_topic", "bob/frames/allsky/original/resized"), 
-                [this](const rclcpp::Parameter& param) 
-                {
-                    camera_params_.image_resized_publish_topic = param.as_string();
-                    if (!camera_params_.image_resized_publish_topic.empty())
-                    {
-                        camera_params_.image_resized_publisher = create_publisher<sensor_msgs::msg::Image>(camera_params_.image_resized_publish_topic, qos_profile_);
-                    }
-                    else
-                    {
-                        camera_params_.image_resized_publisher.reset();
-                        RCLCPP_DEBUG(get_logger(), "Resizer topic disabled");
-                    }
                 }
             ),
             ParameterNode::ActionParam(
@@ -138,43 +123,98 @@ private:
                     } 
                     else
                     {
+                        camera_params_.source_type = UNKNOWN;
                         RCLCPP_ERROR(get_logger(), "Invalid source type: %s", type.c_str());
+                    }
+
+                    if ((camera_params_.source_type != UNKNOWN)
+                        && camera_worker_ptr_->is_open())
+                    {
+                        camera_worker_ptr_->open_camera();
                     }
                 }
             ),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("camera_id", 0), 
-                [this](const rclcpp::Parameter& param) {camera_params_.camera_id = static_cast<int>(param.as_int());}
+                [this](const rclcpp::Parameter& param) 
+                {
+                    camera_params_.camera_id = static_cast<int>(param.as_int());
+                    if ((camera_params_.source_type == CameraWorkerParams::SourceType::USB_CAMERA)
+                        && camera_worker_ptr_->is_open())
+                    {
+                        camera_worker_ptr_->open_camera();
+                    }
+                }
             ),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("videos", std::vector<std::string>({""})), 
-                [this](const rclcpp::Parameter& param) {camera_params_.videos = param.as_string_array();}
+                [this](const rclcpp::Parameter& param) 
+                {
+                    camera_params_.videos = param.as_string_array();
+                    if ((camera_params_.source_type == CameraWorkerParams::SourceType::VIDEO_FILE)
+                        && camera_worker_ptr_->is_open())
+                    {
+                        camera_worker_ptr_->open_camera();
+                    }                }
             ),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("rtsp_uri", ""), 
-                [this](const rclcpp::Parameter& param) {camera_params_.rtsp_uri = param.as_string();}
+                [this](const rclcpp::Parameter& param) 
+                {
+                    camera_params_.rtsp_uri = param.as_string();
+                    if ((camera_params_.source_type == CameraWorkerParams::SourceType::RTSP_STREAM)
+                        && camera_worker_ptr_->is_open())
+                    {
+                        camera_worker_ptr_->open_camera();
+                    }                
+                }
             ),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("onvif_host", "192.168.1.20"),
-                [this](const rclcpp::Parameter& param) {camera_params_.onvif_host = param.as_string();}
+                [this](const rclcpp::Parameter& param) 
+                {
+                    camera_params_.onvif_host = param.as_string();
+                    if ((camera_params_.source_type == CameraWorkerParams::SourceType::RTSP_STREAM)
+                        && camera_worker_ptr_->is_open())
+                    {
+                        camera_worker_ptr_->open_camera();
+                    }                
+                }
             ),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("onvif_port", 80),
-                [this](const rclcpp::Parameter& param) {camera_params_.onvif_port = static_cast<int>(param.as_int());}
+                [this](const rclcpp::Parameter& param) 
+                {
+                    camera_params_.onvif_port = static_cast<int>(param.as_int());
+                    if ((camera_params_.source_type == CameraWorkerParams::SourceType::RTSP_STREAM)
+                        && camera_worker_ptr_->is_open())
+                    {
+                        camera_worker_ptr_->open_camera();
+                    }                
+                }
             ),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("onvif_user", "default_user"),
-                [this](const rclcpp::Parameter& param) {camera_params_.onvif_user = param.as_string();}
+                [this](const rclcpp::Parameter& param) 
+                {
+                    camera_params_.onvif_user = param.as_string();
+                    if ((camera_params_.source_type == CameraWorkerParams::SourceType::RTSP_STREAM)
+                        && camera_worker_ptr_->is_open())
+                    {
+                        camera_worker_ptr_->open_camera();
+                    }                
+                }
             ),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("onvif_password", "default_password"),
-                [this](const rclcpp::Parameter& param) {camera_params_.onvif_password = param.as_string();}
-            ),
-            ParameterNode::ActionParam(
-                rclcpp::Parameter("resize_height", 960), 
-                [this](const rclcpp::Parameter& param) {
-                    camera_params_.resize_height = static_cast<int>(param.as_int());
-                    bgs_params_.resize_height = static_cast<int>(param.as_int());
+                [this](const rclcpp::Parameter& param)
+                {
+                    camera_params_.onvif_password = param.as_string();
+                    if ((camera_params_.source_type == CameraWorkerParams::SourceType::RTSP_STREAM)
+                        && camera_worker_ptr_->is_open())
+                    {
+                        camera_worker_ptr_->open_camera();
+                    }                
                 }
             ),
             // MASK parameters
@@ -188,6 +228,15 @@ private:
             ),
 
             //////// BGS PARAMS
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("bgs_publish_topic", "bob/frames/foreground_mask"), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    bgs_params_.image_publish_topic = param.as_string();
+                    bgs_params_.image_resized_publish_topic = bgs_params_.image_publish_topic + "/resized";
+                    bgs_params_.image_publisher = create_publisher<sensor_msgs::msg::Image>(bgs_params_.image_publish_topic, qos_profile_);
+                }
+            ),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("bgs_json_params", ""), 
                 [this](const rclcpp::Parameter& param) 
@@ -251,6 +300,25 @@ private:
                 [this](const rclcpp::Parameter& param) 
                 {
                     camera_params_.simulator_enable =  param.as_bool();
+                }
+            ),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("resize_height", 960), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    camera_params_.resize_height = static_cast<int>(param.as_int());
+                    bgs_params_.resize_height = static_cast<int>(param.as_int());
+                    if (camera_params_.resize_height > 0)
+                    {
+                        camera_params_.image_resized_publisher = create_publisher<sensor_msgs::msg::Image>(camera_params_.image_resized_publish_topic, qos_profile_);
+                        bgs_params_.image_resized_publisher = create_publisher<sensor_msgs::msg::Image>(bgs_params_.image_resized_publish_topic, qos_profile_);
+                    }
+                    else
+                    {
+                        camera_params_.image_resized_publisher.reset();
+                        bgs_params_.image_resized_publisher.reset();
+                        RCLCPP_DEBUG(get_logger(), "Resizer topics disabled");
+                    }
                 }
             ),
         };

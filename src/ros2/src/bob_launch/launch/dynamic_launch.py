@@ -22,8 +22,8 @@ def get_node_parameters(config, node_name):
 
 
 def generate_composable_nodes(config, node_container, namespace):
-    node_descriptions = node_container['nodes']
     nodes = []
+    node_descriptions = node_container['nodes']
     for node_description in node_descriptions:
         remappings = [
             (k, v) for mapping in node_description.get('remappings', [])

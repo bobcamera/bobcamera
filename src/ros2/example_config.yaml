@@ -44,7 +44,7 @@ advanced_config:
     image_publish_topic: 'bob/frames/allsky/original'
     image_info_publish_topic: 'bob/camera/all_sky/image_info'
     camera_info_publish_topic: 'bob/camera/all_sky/camera_info'
-    image_resized_publish_topic: 'bob/frames/allsky/original/resized'
+    bgs_publish_topic: 'bob/frames/foreground_mask'
     bgs_mask_file: 'assets/masks/detection-mask.jpg'
     bgs_json_params: '[
                     {
@@ -262,7 +262,7 @@ launch:
 
   node_containers:
     - name: Kernel
-      executable: component_container_mt # component_container or component_container_mt
+      executable: component_container_mt
       output: both 
       nodes:
         - package: bob_camera

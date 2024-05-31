@@ -104,7 +104,7 @@ public:
     {
         auto image_temp_ptr = std::make_unique<cv::Mat>();
         video_capture.read(*image_temp_ptr);
-        std::unique_ptr<RosCvImageMsg> roscv_image_msg_ptr = std::make_unique<RosCvImageMsg>(*image_temp_ptr, image_temp_ptr->channels() == 1 ? sensor_msgs::image_encodings::MONO8 : sensor_msgs::image_encodings::BGR8, true);
+        auto roscv_image_msg_ptr = std::make_unique<RosCvImageMsg>(*image_temp_ptr, image_temp_ptr->channels() == 1 ? sensor_msgs::image_encodings::MONO8 : sensor_msgs::image_encodings::BGR8, true);
         image_temp_ptr = nullptr;
 
         return roscv_image_msg_ptr;
