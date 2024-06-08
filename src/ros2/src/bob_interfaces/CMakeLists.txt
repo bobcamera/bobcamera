@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.8)
 project(bob_interfaces)
 
-include_directories(/usr/local/lib/python3.10/dist-packages/numpy/core/include)
+#include_directories(/usr/local/lib/python3.12/dist-packages/numpy/core/include)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)

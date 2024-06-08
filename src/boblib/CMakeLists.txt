@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
 
 list(APPEND CMAKE_MODULE_PATH
     "${CMAKE_SOURCE_DIR}/cmake/"
@@ -40,7 +40,7 @@ option(USE_LINK_TIME_OPTIM "Enable link time optimization" ON)
 option(USE_FAST_MATH "Enable fast math optimization" OFF)
 option(USE_OPENMP "Enable OpenMP in internal implementations" ON)
 
-set(BOBLIB_PYTHON_SUPPORT ON)
+set(BOBLIB_PYTHON_SUPPORT OFF)
 
 find_package(OpenCV 4.0 REQUIRED)
 message(STATUS "Found OpenCV >=4.0")
@@ -90,7 +90,7 @@ if (USE_LINK_TIME_OPTIM)
 endif ()
 
 add_subdirectory(api)
-add_subdirectory(apps)
+# add_subdirectory(apps)
 
 if (BOBLIB_PYTHON_SUPPORT)
     message(STATUS "Building Python bindings lib")
