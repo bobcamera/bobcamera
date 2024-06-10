@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format2.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="2">
-    <name>bob_image_processing</name>
+    <name>bob_auxiliary</name>
     <version>1.2.16</version>
-    <description>ROS2 Node for getting images and publishing other images</description>
+    <description>ROS2 Package for Auxiliar nodes</description>
     <maintainer email="uapbob@gmail.com">Bob Universal Object Tracker</maintainer>
     <license>GPLv3</license>
 
@@ -14,10 +14,11 @@
     <depend>vision_msgs</depend>
     <depend>cv_bridge</depend>
     <depend>rcl_interfaces</depend>
-    <depend>bob_camera</depend>
     <depend>message_filters</depend>
-    <depend>rclcpp_components</depend>
     <depend>bob_interfaces</depend>
+    <depend>bob_image_processing</depend>
+    <depend>bob_tracking</depend>
+    <depend>rclcpp_components</depend>
     <depend>rclcpp_lifecycle</depend>
 
     <export>

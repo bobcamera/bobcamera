@@ -14,20 +14,19 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 
-#include "annotated_frame/annotated_frame_creator.hpp"
-#include "parameter_node.hpp"
-#include "image_utils.hpp"
+#include <parameter_lifecycle_node.hpp>
+#include <image_utils.hpp>
 #include <visibility_control.h>
 
-#include <rclcpp/experimental/executors/events_executor/events_executor.hpp>
+#include "annotated_frame/annotated_frame_creator.hpp"
 
 class AnnotatedFrameProvider 
-    : public ParameterNode
+    : public ParameterLifeCycleNode
 {
 public:
     COMPOSITION_PUBLIC
     explicit AnnotatedFrameProvider(const rclcpp::NodeOptions & options)
-        : ParameterNode("annotated_frame_provider_node", options)
+        : ParameterLifeCycleNode("annotated_frame_provider_node", options)
         , annotated_frame_creator_(std::map<std::string, std::string>())
         , enable_tracking_status_(true)
     {
@@ -37,8 +36,8 @@ public:
 private:
     rclcpp::QoS pub_qos_profile_{10};
 
-    std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> sub_masked_frame_;
-    std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::Tracking>> sub_tracking_;
+    std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image, rclcpp_lifecycle::LifecycleNode>> sub_masked_frame_;
+    std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::Tracking, rclcpp_lifecycle::LifecycleNode>> sub_tracking_;
     std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::Tracking>> time_synchronizer_;
 
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_annotated_frame_;
@@ -69,21 +68,22 @@ private:
 
         declare_node_parameters();
 
-        sub_masked_frame_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(shared_from_this(), "bob/frames/allsky/original/resized", rmw_qos_profile);
-        sub_tracking_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::Tracking>>(shared_from_this(), "bob/tracker/tracking/resized", rmw_qos_profile);
         pub_annotated_frame_ = create_publisher<sensor_msgs::msg::Image>("bob/frames/annotated", pub_qos_profile_);
+
+        sub_masked_frame_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image, rclcpp_lifecycle::LifecycleNode>>(shared_from_this(), "bob/frames/allsky/original/resized", rmw_qos_profile);
+        sub_tracking_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::Tracking, rclcpp_lifecycle::LifecycleNode>>(shared_from_this(), "bob/tracker/tracking/resized", rmw_qos_profile);
         time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::Tracking>>(*sub_masked_frame_, *sub_tracking_, 10);
         time_synchronizer_->registerCallback(&AnnotatedFrameProvider::callback, this);
     }
 
     void declare_node_parameters()
     {
-        std::vector<ParameterNode::ActionParam> params = {
-            ParameterNode::ActionParam(
+        std::vector<ParameterLifeCycleNode::ActionParam> params = {
+            ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("tracking_status_message", false), 
                 [this](const rclcpp::Parameter& param) {enable_tracking_status_ = param.as_bool();}
             ),                     
-            ParameterNode::ActionParam(
+            ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("image_resized_publish_topic", "bob/frames/allsky/original/resized"), 
                 [this](const rclcpp::Parameter& param) {
                     image_resized_publish_topic_ = param.as_string();
@@ -98,7 +98,7 @@ private:
                     }
                 }
             ),
-            ParameterNode::ActionParam(
+            ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("resize_height", 960), 
                 [this](const rclcpp::Parameter& param) 
                 {
@@ -150,15 +150,5 @@ private:
         }
     }
 };
-
-int main(int argc, char **argv)
-{
-    rclcpp::init(argc, argv);
-    rclcpp::experimental::executors::EventsExecutor executor;
-    executor.add_node(std::make_shared<AnnotatedFrameProvider>(rclcpp::NodeOptions()));
-    executor.spin();
-    rclcpp::shutdown();
-    return 0;
-}
 
 RCLCPP_COMPONENTS_REGISTER_NODE(AnnotatedFrameProvider)

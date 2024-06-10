@@ -18,7 +18,8 @@
 #############################################################################
 # MWG: This docker stage is used to setup and build the OpenCV builder image
 #############################################################################
-FROM ubuntu:22.04 as builder
+FROM ubuntu:noble as opencv
+ENV OPENCV_VERSION=4.10.0
 ENV TZ=Europe/London
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
     && echo $TZ > /etc/timezone \
@@ -29,42 +30,23 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
         wget \
         git \
         unzip \
-        libavcodec-dev \
-        libavformat-dev \
-        libswscale-dev \
-        libv4l-dev \
-        libxvidcore-dev \
-        libx264-dev \
-        libatlas-base-dev \
+        usbutils \
+        libusb-1.0-0-dev \
         python3-dev \
         python3-numpy \
         python3-pip \
-        libtbb2 \
-        libtbb-dev \
-        libdc1394-25 \
-        libdc1394-dev \
-        libopenexr-dev \
-        libunwind-dev \
-        libgstreamer-plugins-base1.0-dev \
-        libgstreamer-opencv1.0-0 \
-        libgstreamer1.0-dev \
-        liblapacke-dev \
-        libva-dev libva-drm2 libva-x11-2 libva-glx2 \
-        libhdf5-dev \
         qtbase5-dev \
-        usbutils \
-        libusb-1.0-0-dev \
-    && ln -s /usr/bin/python3 /usr/bin/python \
+        libdc1394-dev \
+        libavcodec-dev \
+        libavformat-dev \
+        libswscale-dev \
+        libgstreamer-opencv1.0-0 \
+        libgstreamer-plugins-base1.0-dev \
+        libtbb-dev \
+        libva-dev libva-drm2 libva-x11-2 libva-glx2 \
     && apt-get autoclean && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-
-###################################################################
-# MWG: This docker stage is used to build OpenCV
-###################################################################
-FROM builder AS opencv
-ENV OPENCV_VERSION=4.9.0
-RUN cd /tmp \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
+    && cd /tmp \
     && wget --no-check-certificate -O opencv-$OPENCV_VERSION.zip https://github.com/opencv/opencv/archive/$OPENCV_VERSION.zip \
     && wget --no-check-certificate -O opencv_contrib-$OPENCV_VERSION.zip https://github.com/opencv/opencv_contrib/archive/$OPENCV_VERSION.zip \
     && unzip opencv-$OPENCV_VERSION.zip \
@@ -108,13 +90,13 @@ RUN cd /tmp \
     && sh -c 'echo "/usr/local/lib" >> /etc/ld.so.conf.d/opencv.conf' && ldconfig \
     && apt-get autoclean && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.10/
+ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.12/
 
 
 ###################################################################
 # MWG: This docker stage is used to build the QHY stuff
 ###################################################################
-FROM ubuntu:22.04 as qhy
+FROM ubuntu:noble as qhy
 RUN apt-get update && apt-get install -y --no-install-recommends wget tar \
     && cd /opt \
     && TMPDIR=/opt \
@@ -132,92 +114,38 @@ RUN apt-get update && apt-get install -y --no-install-recommends wget tar \
     && bash install.sh
 
 
-# docker build --progress=plain --platform linux/amd64 -f Dockerfile . -t bobcamera/boblib:1.2.7 -t bobcamera/boblib:latest --target boblib
-# docker buildx build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/boblib:1.2.7 -t bobcamera/boblib:latest --target boblib
-###################################################################
-# MWG: This docker stage is used to build BobLib Library
-###################################################################
-FROM opencv as boblib
-COPY . /opt/bobcamera
-COPY --from=qhy /opt/sdk_qhy /opt/sdk_qhy/
-RUN cd /opt/sdk_qhy && bash install.sh \
-    && cd /opt \
-    && mkdir -p /opt/bobcamera/src/boblib/build \
-    && cd /opt/bobcamera/src/boblib/build \
-    && cmake -DCMAKE_INSTALL_PREFIX=/usr/local .. \
-    && cmake --build . -j$(nproc) \
-    && make install
-ENV PYTHONPATH=$PYTHONPATH:/usr/local/lib/python3/dist-packages/
-
-
-# docker build --progress=plain --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-boblibapp:1.2.7 -t bobcamera/bob-boblibapp:latest --target boblib-app
-# docker buildx build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-boblibapp:1.2.7 -t bobcamera/bob-boblibapp:latest --target boblib-app
-# docker buildx build --progress=plain --push --platform linux/amd64,linux/arm64 -f Dockerfile . -t bobcamera/bob-boblibapp:1.2.7 -t bobcamera/bob-boblibapp:latest --target boblib-app
-# docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY bobcamera/bob-boblibapp:latest bash
-###################################################################
-# MWG: This docker stage is used to build BobLib Application
-###################################################################
-FROM ubuntu:22.04 AS boblib-app
-# Copy the compiled libs
-COPY --from=boblib /usr/local/ /usr/local/
-COPY --from=boblib /opt/bobcamera/src/boblib/install_app.sh /root
-COPY --from=boblib /usr/lib/python3 /usr/lib/python3
-COPY --from=qhy /opt/sdk_qhy /opt/sdk_qhy/
-# install dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        libtbb12 libqt5opengl5 libqt5test5 libdc1394-25 \
-        gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-vaapi \
-    # Install QHY SDK
-    && cd /opt/sdk_qhy && bash install.sh \
-    # Install the libs locally
-    && sh -c 'echo "/usr/local/lib" >> /etc/ld.so.conf.d/opencv.conf' && ldconfig \
-    # cleaning
-    && apt-get autoclean && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.10/:/usr/local/lib/python3/dist-packages/
-WORKDIR /root
-
-
 # docker build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-dev:1.2.7 -t bobcamera/bob-ros2-dev:latest --target bob-ros2-dev
 # docker buildx build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-dev:1.2.7 -t bobcamera/bob-ros2-dev:latest --target bob-ros2-dev
 # docker buildx build --progress=plain --push --platform linux/amd64,linux/arm64 -f Dockerfile . -t bobcamera/bob-ros2-dev:1.2.7 -t bobcamera/bob-ros2-dev:latest --target bob-ros2-dev
 ###################################################################
 # MWG: This docker stage is used to build the ros2 dev environment
 ###################################################################
-FROM ros:iron AS bob-ros2-dev
-ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.10/:/usr/local/lib/python3/dist-packages/:/opt/ros/${ROS_DISTRO}/lib/python3.10/site-packages
-ENV PATH=/opt/ros/${ROS_DISTRO}/bin:$PATH
+FROM ros:jazzy AS bob-ros2-dev
+ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.12/:/usr/local/lib/python3.12/dist-packages/:/opt/ros/${ROS_DISTRO}/lib/python3.12/site-packages
+ENV PATH=$PATH:/root/.local/bin
 ENV DEBIAN_FRONTEND=noninteractive
-ENV AMENT_PREFIX_PATH=/opt/ros/${ROS_DISTRO}
 ENV COLCON_PREFIX_PATH=/opt/ros/${ROS_DISTRO}
-ENV LD_LIBRARY_PATH=/opt/ros/${ROS_DISTRO}/lib
-ENV ROS_PYTHON_VERSION=3
-ENV ROS_VERSION=2
 ENV LANG=en_GB.UTF-8
-ARG USERNAME=ros
-ARG USER_UID=1000
-ARG USER_GID=$USER_UID
 # Copy the compiled libs
-COPY --from=boblib /usr/local/lib/libopencv_* /usr/local/lib
-COPY --from=boblib /usr/local/lib/libboblib.a /usr/local/lib
-COPY --from=boblib /usr/local/lib/cmake /usr/local/lib/cmake
-COPY --from=boblib /usr/local/include /usr/local/include
-COPY --from=boblib /usr/local/lib/python3/dist-packages/ /usr/local/lib/python3/dist-packages/
-COPY --from=boblib /usr/lib/python3 /usr/lib/python3
+COPY --from=opencv /usr/local/lib/libopencv_* /usr/local/lib
+COPY --from=opencv /usr/local/lib/cmake /usr/local/lib/cmake
+COPY --from=opencv /usr/local/include /usr/local/include
+COPY --from=opencv /usr/lib/python3 /usr/lib/python3
 COPY --from=qhy /opt/sdk_qhy /opt/sdk_qhy/
 # install dependencies
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
-        libtbb12 libqt5opengl5 libqt5test5 libdc1394-25 libgstreamer-plugins-base1.0-0 \
-        libavcodec58 libavformat58 libswscale5 liblapack3 libatlas-base-dev openexr libhdf5-dev \
-        locales tzdata sudo bash-completion libjsoncpp-dev libboost-python-dev libboost-system-dev libtbb-dev pip \
+        libtbb12 libqt5opengl5 libqt5test5 libdc1394-25 \
+        libgstreamer-plugins-base1.0-0 libgstreamer-plugins-good1.0-0 libgstreamer-plugins-bad1.0-0 \
+        libavcodec-extra60 libavformat-extra60 libswscale7 \
+        locales tzdata sudo bash-completion libjsoncpp-dev libboost-python-dev libboost-system-dev libtbb-dev \
+        pip pipx \
         ros-${ROS_DISTRO}-vision-msgs ros-${ROS_DISTRO}-image-transport \
-    && pip install Pillow \
-    && pip install pymongo \
-    && pip install tornado \
+        python3-pillow python3-pymongo python3-tornado python3-cairosvg\
     # Install ONVIF library so we can get camera details using the ONVIF protocol
-    && pip install onvif2_zeep \
+    && mv /usr/lib/python3.12/EXTERNALLY-MANAGED /usr/lib/python3.12/EXTERNALLY-MANAGED.old \
+    && pip install --upgrade onvif2_zeep \
     # Install the library used to convert the svg mask to a PNG and then a JPG
-    && pip install cairosvg \    
+    # && pip install cairosvg \    
     # Install QHY SDK
     && cd /opt/sdk_qhy && bash install.sh \
     # Install the libs locally
@@ -229,21 +157,28 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     && locale-gen en_GB.UTF-8 \
     && update-locale LC_ALL=en_GB.UTF-8 LANG=en_GB.UTF-8 \
     && dpkg-reconfigure --frontend noninteractive tzdata \
-    && groupadd --gid $USER_GID $USERNAME \
-    && useradd -s /bin/bash --uid $USER_UID --gid $USER_GID -m $USERNAME \
-    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME\
-    && chmod 0440 /etc/sudoers.d/$USERNAME \
-    && echo "source /usr/share/bash-completion/completions/git" >> /home/$USERNAME/.bashrc \
-    && echo "export DISPLAY=:0" >> /home/$USERNAME/.bashrc \
-    && echo "if [ -f /opt/ros/${ROS_DISTRO}/setup.bash ]; then source /opt/ros/${ROS_DISTRO}/setup.bash; fi" >> /home/$USERNAME/.bashrc
+    # Create ros user and modify exists uid 1000 if exists
+    && if ! getent group 1000 > /dev/null; then \
+        groupadd -g 1000 ros; \
+    fi \
+    && USER_WITH_UID_1000=$(getent passwd 1000 | cut -d: -f1) \
+    && if [ -n "$USER_WITH_UID_1000" ]; then \
+        usermod -u 10000 $USER_WITH_UID_1000; \
+    fi \
+    && useradd -s /bin/bash --uid 1000 --gid 1000 -m ros \
+    && echo ros ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/ros \
+    && chmod 0440 /etc/sudoers.d/ros \
+    && echo "export DISPLAY=:0" >> /home/ros/.bashrc
 # Building new ros-${ROS_DISTRO}-vision-opencv
 WORKDIR /opt/ros2_ws
 RUN mkdir -p /opt/ros2_ws/src \
    && git clone https://github.com/ros-perception/vision_opencv.git \
-   && bash /opt/ros/${ROS_DISTRO}/setup.bash \
+   && bash -c "source /opt/ros/${ROS_DISTRO}/setup.bash \
+   && cd /opt/ros2_ws \
+   && rosdep fix-permissions \
    && rosdep update \
    && rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y \
-   && colcon build
+   && colcon build"
 
 
 # docker build --progress=plain --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-build:1.2.7 -t bobcamera/bob-ros2-build:latest --target bob-ros2-build
@@ -253,11 +188,17 @@ RUN mkdir -p /opt/ros2_ws/src \
 ###############################################################
 FROM bob-ros2-dev AS bob-ros2-build
 COPY src/ros2 /workspaces/bobcamera/src/ros2
+COPY src/boblib /workspaces/bobcamera/src/boblib
 WORKDIR /workspaces/bobcamera/src/ros2
-RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
-    && bash /opt/ros/$ROS_DISTRO/setup.bash \
-    && bash /opt/ros2_ws/install/setup.bash \
-    && colcon build --parallel-workers $(nproc) --cmake-args -DCMAKE_BUILD_TYPE=Release
+RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash \
+    && source /opt/ros2_ws/install/setup.bash \
+    && mkdir -p cd ../boblib/build \
+    && cd ../boblib/build \
+    && cmake -DCMAKE_INSTALL_PREFIX=/usr/local .. \
+    && cmake --build . -j$(nproc) \
+    && sudo make install \
+    && cd - \
+    && colcon build --parallel-workers $(nproc) --cmake-args -DCMAKE_BUILD_TYPE=Release"
 
 
 # docker build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-prod:1.2.7 -t bobcamera/bob-ros2-prod:latest --target bob-ros2-prod
@@ -268,7 +209,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
 # MWG: This docker stage is used to construct the image with the build artifacts 
 # outputted from the build stage above
 ###################################################################################
-FROM ros:iron-ros-core AS bob-ros2-prod
+FROM ros:jazzy-ros-core AS bob-ros2-prod
 ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.10/:/usr/local/lib/python3/dist-packages/:/opt/ros/${ROS_DISTRO}/lib/python3.10/site-packages
 ENV PATH=/opt/ros/${ROS_DISTRO}/bin:$PATH
 ENV DEBIAN_FRONTEND=noninteractive
@@ -282,10 +223,10 @@ ARG USERNAME=ros
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 # Copy the compiled libs
-COPY --from=boblib /usr/local/lib/libopencv_*.so /usr/local/lib
-COPY --from=boblib /usr/local/lib/libboblib.a /usr/local/lib
-COPY --from=boblib /usr/local/lib/python3/dist-packages/ /usr/local/lib/python3/dist-packages/
-COPY --from=boblib /usr/lib/python3 /usr/lib/python3
+COPY --from=opencv /usr/local/lib/libopencv_*.so /usr/local/lib
+COPY --from=bob-ros2-build /usr/local/lib/libboblib.a /usr/local/lib
+COPY --from=bob-ros2-build /usr/local/lib/python3/dist-packages/ /usr/local/lib/python3/dist-packages/
+COPY --from=opencv /usr/lib/python3 /usr/lib/python3
 COPY --from=qhy /opt/sdk_qhy /opt/sdk_qhy/
 COPY media/fisheye_videos /workspaces/bobcamera/media/fisheye_videos
 COPY --from=bob-ros2-build /workspaces/bobcamera/src/ros2/assets /workspaces/bobcamera/src/ros2/assets

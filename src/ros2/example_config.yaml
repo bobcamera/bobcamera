@@ -4,20 +4,20 @@
 #########################################################################
 basic_config:
   camera_node:
-    source_type: 'VIDEO_FILE' # USB_CAMERA | VIDEO_FILE | RTSP_STREAM
+    source_type: 'VIDEO_FILE'   # USB_CAMERA | VIDEO_FILE | RTSP_STREAM
     rtsp_uri: ''
     onvif_host: ''
     onvif_port: 0
     onvif_user: ''
     onvif_password: ''
-    videos:
+    videos:                     # List of videos to display in sequence if source_type is VIDEO_FILE
       - /workspaces/bobcamera/media/fisheye_videos/mike-drone.mp4
       - /workspaces/bobcamera/media/fisheye_videos/mikeg-30min.mp4
-    resize_height: 960
-    simulator: True # True for including simulated objects, False otherwise
-    simulator_num_objects: 15 # Number of simulated objects if the simulator parameter is true
-    bgs_sensitivity: 'low_c' # Initial sensitivity configuration based on the 'bgs_json_params' in the advanced config section
-    bgs_type: 'vibe' # The background subtractor to use: 'vibe' | 'wmv'
+    resize_height: 960          # 0 to disable resize publish
+    simulator: True             # True for including simulated objects, False otherwise
+    simulator_num_objects: 15   # Number of simulated objects if the simulator parameter is True
+    bgs_sensitivity: 'low_c'    # Initial sensitivity configuration based on the 'bgs_json_params' in the advanced config section
+    bgs_type: 'vibe'            # The background subtractor to use: 'vibe' | 'wmv'
 
   allsky_recorder_node:
     codec: 'avc1'
@@ -45,98 +45,46 @@ advanced_config:
     image_info_publish_topic: 'bob/camera/all_sky/image_info'
     camera_info_publish_topic: 'bob/camera/all_sky/camera_info'
     bgs_publish_topic: 'bob/frames/foreground_mask'
+    bgs_detection_topic: 'bob/detection/allsky/boundingboxes'
+    bgs_detection_state_topic: 'bob/detection/detector_state'
     bgs_mask_file: 'assets/masks/detection-mask.jpg'
     bgs_json_params: '[
-                    {
-                      "name": "low",
+                    { "name": "low",
                       "sensitivity": {
-                        "vibe": {
-                          "threshold": 65, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8
-                        }, 
-                        "wmv": {
-                          "enableWeight": true, "enableThreshold": true, "threshold": 50.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
-                        }, 
-                        "blob": {
-                          "sizeThreshold": 10, "areaThreshold": 100, "minDistance": 100, "maxBlobs": 25
-                        }, 
-                        "median_filter": false 
-                      }
-                    },
-                    {
-                      "name": "medium",
+                        "vibe": {"threshold": 65, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8}, 
+                        "wmv": {"enableWeight": true, "enableThreshold": true, "threshold": 50.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}, 
+                        "blob": {"sizeThreshold": 10, "areaThreshold": 100, "minDistance": 100, "maxBlobs": 25}, 
+                        "median_filter": false}},
+                    { "name": "medium",
                       "sensitivity": {
-                        "vibe": {
-                          "threshold": 45, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 4
-                        }, 
-                        "wmv": {
-                          "enableWeight": true, "enableThreshold": true, "threshold": 30.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
-                        }, 
-                        "blob": {
-                          "sizeThreshold": 6, "areaThreshold": 36, "minDistance": 36, "maxBlobs": 25
-                        }, 
-                        "median_filter": false 
-                      }
-                    },
-                    {
-                      "name": "high",
+                        "vibe": {"threshold": 45, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 4}, 
+                        "wmv": {"enableWeight": true, "enableThreshold": true, "threshold": 30.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}, 
+                        "blob": {"sizeThreshold": 6, "areaThreshold": 36, "minDistance": 36, "maxBlobs": 25}, 
+                        "median_filter": false}},
+                    { "name": "high",
                       "sensitivity": {
-                        "vibe": {
-                          "threshold": 30, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4
-                        }, 
-                        "wmv": {
-                          "enableWeight": true, "enableThreshold": true, "threshold": 15.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
-                        }, 
-                        "blob": {
-                          "sizeThreshold": 4, "areaThreshold": 16, "minDistance": 16, "maxBlobs": 25
-                        }, 
-                        "median_filter": false 
-                      }
-                    },    
-                    {
-                      "name": "low_c",
+                        "vibe": {"threshold": 30, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4}, 
+                        "wmv": {"enableWeight": true, "enableThreshold": true, "threshold": 15.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}, 
+                        "blob": {"sizeThreshold": 4, "areaThreshold": 16, "minDistance": 16, "maxBlobs": 25}, 
+                        "median_filter": false}},    
+                    { "name": "low_c",
                       "sensitivity": {
-                        "vibe": {
-                          "threshold": 65, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8
-                        }, 
-                        "wmv": {
-                          "enableWeight": true, "enableThreshold": true, "threshold": 50.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
-                        }, 
-                        "blob": {
-                          "sizeThreshold": 10, "areaThreshold": 100, "minDistance": 100, "maxBlobs": 25
-                        }, 
-                        "median_filter": true 
-                      }
-                    },
-                    {
-                      "name": "medium_c",
+                        "vibe": {"threshold": 65, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8}, 
+                        "wmv": {"enableWeight": true, "enableThreshold": true, "threshold": 50.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}, 
+                        "blob": {"sizeThreshold": 10, "areaThreshold": 100, "minDistance": 100, "maxBlobs": 25}, 
+                        "median_filter": true}},
+                    { "name": "medium_c",
                       "sensitivity": {
-                        "vibe": {
-                          "threshold": 45, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4
-                        }, 
-                        "wmv": {
-                          "enableWeight": true, "enableThreshold": true, "threshold": 25.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
-                        }, 
-                        "blob": {
-                          "sizeThreshold": 6, "areaThreshold": 36, "minDistance": 36, "maxBlobs": 25
-                        }, 
-                        "median_filter": true 
-                      }
-                    },
-                    {
-                      "name": "high_c",
+                        "vibe": {"threshold": 45, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4}, 
+                        "wmv": {"enableWeight": true, "enableThreshold": true, "threshold": 25.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}, 
+                        "blob": {"sizeThreshold": 6, "areaThreshold": 36, "minDistance": 36, "maxBlobs": 25}, 
+                        "median_filter": true}},
+                    { "name": "high_c",
                       "sensitivity": {
-                        "vibe": {
-                          "threshold": 25, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4
-                        }, 
-                        "wmv": {
-                          "enableWeight": true, "enableThreshold": true, "threshold": 15.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2
-                        }, 
-                        "blob": {
-                          "sizeThreshold": 4, "areaThreshold": 16, "minDistance": 16, "maxBlobs": 25
-                        }, 
-                        "median_filter": true 
-                      }
-                    }
+                        "vibe": {"threshold": 25, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4}, 
+                        "wmv": {"enableWeight": true, "enableThreshold": true, "threshold": 15.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}, 
+                        "blob": {"sizeThreshold": 4, "areaThreshold": 16, "minDistance": 16, "maxBlobs": 25}, 
+                        "median_filter": true}}
                   ]'
 
   track_provider_node:
@@ -209,6 +157,10 @@ advanced_config:
     width: 1920
     height: 1080
 
+  lifecycle_service_client_node:
+    lifecycle_nodes:
+      - 'camera_node'
+
 #########################################################################
 # Launch nodes configuration
 #   Here is what containers and nodes will be launched by this
@@ -269,92 +221,97 @@ launch:
           plugin: CameraBGS
           name: camera_node
           remappings: []
-        - package: bob_tracking
-          plugin: TrackProvider
-          name: track_provider_node
-          remappings: []
-        - package: bob_recorder
-          plugin: RecordManager
-          name: allsky_recorder_node
-          remappings: []
-        - package: bob_image_processing
-          plugin: AnnotatedFrameProvider
-          name: annotated_frame_provider_node
-          remappings: []
-        - package: bob_image_processing
-          plugin: FrameCompressor
-          name: annotated_frame_compressor_node
-          remappings:
-            - 'bob/compressor/source': 'bob/frames/annotated/resized'
-            - 'bob/compressor/target': 'bob/frames/annotated/resized/compressed'
-        - package: bob_image_processing
-          plugin: FrameCompressor
-          name: detection_masked_compressor_node
-          remappings:
-            - 'bob/compressor/source': 'bob/frames/allsky/original/resized'
-            - 'bob/compressor/target': 'bob/frames/allsky/original/resized/compressed'
-        - package: bob_image_processing
-          plugin: FrameCompressor
-          name: foreground_mask_compressor_node
-          remappings:
-            - 'bob/compressor/source': 'bob/frames/foreground_mask/resized'
-            - 'bob/compressor/target': 'bob/frames/foreground_mask/resized/compressed'
-    - name: Display
-      executable: component_container # Has to be single-threaded because of OpenCV display
-      output: both
-      nodes:
-        - package: bob_visualizers
-          plugin: FrameViewer
-          name: multi_frame_viewer_node
-          remappings: []
-    - name: Monitor
-      executable: component_container_mt
-      output: both
-      nodes:
-        - package: bob_image_processing
-          plugin: TrackSensitivityMonitor
-          name: track_sensitivity_monitor_node
-          remappings: []
-        - package: bob_recorder
-          plugin: RecordingMonitor
-          name: allsky_recorder_monitoring_node
-          remappings: []
+    #     - package: bob_tracking
+    #       plugin: TrackProvider
+    #       name: track_provider_node
+    #       remappings: []
+    #     - package: bob_recorder
+    #       plugin: RecordManager
+    #       name: allsky_recorder_node
+    #       remappings: []
+    #     - package: bob_image_processing
+    #       plugin: AnnotatedFrameProvider
+    #       name: annotated_frame_provider_node
+    #       remappings: []
+    #     - package: bob_image_processing
+    #       plugin: FrameCompressor
+    #       name: annotated_frame_compressor_node
+    #       remappings:
+    #         - 'bob/compressor/source': 'bob/frames/annotated/resized'
+    #         - 'bob/compressor/target': 'bob/frames/annotated/resized/compressed'
+    #     - package: bob_image_processing
+    #       plugin: FrameCompressor
+    #       name: detection_masked_compressor_node
+    #       remappings:
+    #         - 'bob/compressor/source': 'bob/frames/allsky/original/resized'
+    #         - 'bob/compressor/target': 'bob/frames/allsky/original/resized/compressed'
+    #     - package: bob_image_processing
+    #       plugin: FrameCompressor
+    #       name: foreground_mask_compressor_node
+    #       remappings:
+    #         - 'bob/compressor/source': 'bob/frames/foreground_mask/resized'
+    #         - 'bob/compressor/target': 'bob/frames/foreground_mask/resized/compressed'
+    # - name: Display
+    #   executable: component_container # Has to be single-threaded because of OpenCV display
+    #   output: both
+    #   nodes:
+    #     - package: bob_visualizers
+    #       plugin: FrameViewer
+    #       name: multi_frame_viewer_node
+    #       remappings: []
+    # - name: Monitor
+    #   executable: component_container_mt
+    #   output: both
+    #   nodes:
+    #     - package: bob_image_processing
+    #       plugin: TrackSensitivityMonitor
+    #       name: track_sensitivity_monitor_node
+    #       remappings: []
+    #     - package: bob_recorder
+    #       plugin: RecordingMonitor
+    #       name: allsky_recorder_monitoring_node
+    #       remappings: []
   standalone_nodes:
-    - package: bob_observer
-      executable: day_night_classifier
-      name: day_night_classifier_node
-      remappings:
-        - 'bob/observer_frame/source': 'bob/frames/allsky/original/resized'
-      output: screen
-    - package: bob_observer
-      executable: cloud_estimator
-      name: cloud_estimator_node
-      remappings:
-        - 'bob/observer_frame/source': 'bob/frames/allsky/original/resized'
-      output: screen
-    - package: bob_observer
-      executable: star_mask
-      name: star_mask_node
-      remappings:
-        - 'bob/observer_frame/source': '/bob/frames/allsky/original/resized'
-      output: screen
-    - package: bob_monitor
-      executable: monitoring_status_aggregator
-      name: monitoring_status_aggregator_node
-      remappings: []
-      output: screen
-    - package: bob_monitor
-      executable: onvif_service
-      name: onvif_service_node
-      remappings: []
-      output: screen
-    - package: bob_webapi
-      executable: info_webapi
-      name: info_webapi_node
-      remappings: []
-      output: screen
-    - package: bob_webapi
-      executable: mask_webapi
-      name: mask_webapi_node
+    # - package: bob_observer
+    #   executable: day_night_classifier
+    #   name: day_night_classifier_node
+    #   remappings:
+    #     - 'bob/observer_frame/source': 'bob/frames/allsky/original/resized'
+    #   output: screen
+    # - package: bob_observer
+    #   executable: cloud_estimator
+    #   name: cloud_estimator_node
+    #   remappings:
+    #     - 'bob/observer_frame/source': 'bob/frames/allsky/original/resized'
+    #   output: screen
+    # - package: bob_observer
+    #   executable: star_mask
+    #   name: star_mask_node
+    #   remappings:
+    #     - 'bob/observer_frame/source': '/bob/frames/allsky/original/resized'
+    #   output: screen
+    # - package: bob_monitor
+    #   executable: monitoring_status_aggregator
+    #   name: monitoring_status_aggregator_node
+    #   remappings: []
+    #   output: screen
+    # - package: bob_monitor
+    #   executable: onvif_service
+    #   name: onvif_service_node
+    #   remappings: []
+    #   output: screen
+    # - package: bob_webapi
+    #   executable: info_webapi
+    #   name: info_webapi_node
+    #   remappings: []
+    #   output: screen
+    # - package: bob_webapi
+    #   executable: mask_webapi
+    #   name: mask_webapi_node
+    #   remappings: []
+    #   output: screen
+    - package: bob_auxiliary
+      executable: lifecycle_service_client_node
+      name: lifecycle_service_client_node
       remappings: []
       output: screen

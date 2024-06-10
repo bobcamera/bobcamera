@@ -12,7 +12,7 @@
 
 #include <boblib/api/utils/profiler.hpp>
 
-#include "parameter_node.hpp"
+#include "parameter_lifecycle_node.hpp"
 #include "image_utils.hpp"
 
 #include <visibility_control.h>
@@ -20,12 +20,12 @@
 #include <rclcpp/experimental/executors/events_executor/events_executor.hpp>
 
 class FrameResizer
-    : public ParameterNode
+    : public ParameterLifeCycleNode
 {
 public:
     COMPOSITION_PUBLIC
     explicit FrameResizer(const rclcpp::NodeOptions & options) 
-        : ParameterNode("frame_resizer_node", options)
+        : ParameterLifeCycleNode("frame_resizer_node", options)
     {
         declare_node_parameters();
         init();
@@ -42,8 +42,8 @@ private:
 
     void declare_node_parameters()
     {
-        std::vector<ParameterNode::ActionParam> params = {
-            ParameterNode::ActionParam(
+        std::vector<ParameterLifeCycleNode::ActionParam> params = {
+            ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("resize_height", 960), 
                 [this](const rclcpp::Parameter& param) {resize_height_ = param.as_int();}
             ),
@@ -102,15 +102,5 @@ private:
         }        
     }
 };
-
-int main(int argc, char **argv)
-{
-    rclcpp::init(argc, argv);
-    rclcpp::experimental::executors::EventsExecutor executor;
-    executor.add_node(std::make_shared<FrameResizer>(rclcpp::NodeOptions()));
-    executor.spin();
-    rclcpp::shutdown();
-    return 0;
-}
 
 RCLCPP_COMPONENTS_REGISTER_NODE(FrameResizer)

@@ -12,7 +12,7 @@
 
 #include <boblib/api/utils/profiler.hpp>
 
-#include "parameter_node.hpp"
+#include "parameter_lifecycle_node.hpp"
 #include "image_utils.hpp"
 
 #include <visibility_control.h>
@@ -20,12 +20,12 @@
 #include <rclcpp/experimental/executors/events_executor/events_executor.hpp>
 
 class FrameCompressor
-    : public ParameterNode
+    : public ParameterLifeCycleNode
 {
 public:
     COMPOSITION_PUBLIC
     explicit FrameCompressor(const rclcpp::NodeOptions & options) 
-        : ParameterNode("frame_compressor_node", options)
+        : ParameterLifeCycleNode("frame_compressor_node", options)
     {
         declare_node_parameters();
         init();
@@ -45,8 +45,8 @@ private:
 
     void declare_node_parameters()
     {
-        std::vector<ParameterNode::ActionParam> params = {
-            ParameterNode::ActionParam(
+        std::vector<ParameterLifeCycleNode::ActionParam> params = {
+            ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("compression_quality", 75), 
                 [this](const rclcpp::Parameter& param) 
                 {
@@ -124,15 +124,5 @@ private:
         }        
     }
 };
-
-int main(int argc, char **argv)
-{
-    rclcpp::init(argc, argv);
-    rclcpp::experimental::executors::EventsExecutor executor;
-    executor.add_node(std::make_shared<FrameCompressor>(rclcpp::NodeOptions()));
-    executor.spin();
-    rclcpp::shutdown();
-    return 0;
-}
 
 RCLCPP_COMPONENTS_REGISTER_NODE(FrameCompressor)

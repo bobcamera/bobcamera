@@ -18,6 +18,7 @@ endif ()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
+find_package(rclcpp_lifecycle REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
@@ -28,6 +29,7 @@ find_package(boblib REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(bob_interfaces REQUIRED)
 find_package(jsoncpp REQUIRED)
+find_package(lifecycle_msgs REQUIRED)
 
 
 include_directories(${OpenCV_INCLUDE_DIRS})
@@ -56,39 +58,6 @@ ENDIF()
 rosidl_get_typesupport_target(cpp_typesupport_target ${PROJECT_NAME} "rosidl_typesupport_cpp")
 # End package definition
 
-# QhyNode - To re-enable this node you need to refactor it
-# add_library(qhy_node SHARED src/qhy_node.cpp)
-# target_compile_definitions(qhy_node PRIVATE "COMPOSITION_BUILDING_DLL")
-# target_link_libraries(qhy_node PUBLIC boblib "${cpp_typesupport_target}")
-# ament_target_dependencies(qhy_node PUBLIC
-#     rclcpp 
-#     sensor_msgs 
-#     std_msgs
-#     cv_bridge
-#     rcl_interfaces 
-#     rclcpp_components
-#     OpenCV
-#     Boost)
-# rclcpp_components_register_nodes(qhy_node "QhyNode")
-# install(TARGETS qhy_node DESTINATION lib)
-
-# # Web Camera Video Node - To re-enable this node you need to refactor it
-# add_library(web_camera_video_node SHARED src/web_camera_video.cpp)
-# target_compile_definitions(web_camera_video_node PRIVATE "COMPOSITION_BUILDING_DLL")
-# target_link_libraries(web_camera_video_node PUBLIC boblib "${cpp_typesupport_target}")
-# ament_target_dependencies(web_camera_video_node PUBLIC
-#     rclcpp 
-#     sensor_msgs 
-#     std_msgs
-#     cv_bridge
-#     rcl_interfaces 
-#     rclcpp_components
-#     OpenCV
-#     Boost
-#     bob_interfaces)
-# rclcpp_components_register_nodes(web_camera_video_node "WebCameraVideo")
-# install(TARGETS web_camera_video_node DESTINATION lib)
-
 # Camera BGS Node
 add_library(camera_bgs_node SHARED src/camera_bgs.cpp)
 target_compile_definitions(camera_bgs_node PRIVATE "COMPOSITION_BUILDING_DLL")
@@ -100,10 +69,16 @@ ament_target_dependencies(camera_bgs_node PUBLIC
     cv_bridge
     rcl_interfaces 
     rclcpp_components
+    rclcpp_lifecycle
     OpenCV
     Boost
-    bob_interfaces)
+    bob_interfaces
+    lifecycle_msgs)
 rclcpp_components_register_nodes(camera_bgs_node "CameraBGS")
 install(TARGETS camera_bgs_node DESTINATION lib)
+
+# rclcpp_components_register_node(camera_bgs_node
+#   PLUGIN "bob_camera::CameraBGS"
+#   EXECUTABLE my_lifecycle_node_executable)
 
 ament_package()

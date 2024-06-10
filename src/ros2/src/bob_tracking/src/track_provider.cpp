@@ -9,18 +9,18 @@
 #include <bob_interfaces/msg/tracking.hpp>
 
 #include "sort/include/sort_tracker.h"
-#include "parameter_node.hpp"
+#include "parameter_lifecycle_node.hpp"
 #include "image_utils.hpp"
 
 #include <visibility_control.h>
 
 class TrackProvider
-    : public ParameterNode
+    : public ParameterLifeCycleNode
 {
 public:
     COMPOSITION_PUBLIC
     explicit TrackProvider(const rclcpp::NodeOptions & options)
-        : ParameterNode("frame_provider_node", options)
+        : ParameterLifeCycleNode("frame_provider_node", options)
         , video_tracker_(get_logger()) 
     {
         one_shot_timer_ = this->create_wall_timer(
@@ -67,8 +67,8 @@ private:
 
     void declare_node_parameters() 
     {
-        std::vector<ParameterNode::ActionParam> params = {
-            ParameterNode::ActionParam(
+        std::vector<ParameterLifeCycleNode::ActionParam> params = {
+            ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("resize_height", 960), 
                 [this](const rclcpp::Parameter& param) {
                     resize_height_ = param.as_int();
@@ -212,15 +212,5 @@ private:
         prediction_array.push_back(track_msg);
     }
 };
-
-int main(int argc, char **argv)
-{
-    rclcpp::init(argc, argv);
-    rclcpp::experimental::executors::EventsExecutor executor;
-    executor.add_node(std::make_shared<TrackProvider>(rclcpp::NodeOptions()));
-    executor.spin();
-    rclcpp::shutdown();
-    return 0;
-}
 
 RCLCPP_COMPONENTS_REGISTER_NODE(TrackProvider)

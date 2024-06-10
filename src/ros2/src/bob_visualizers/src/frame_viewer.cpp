@@ -10,20 +10,18 @@
 
 #include <sensor_msgs/msg/image.hpp>
 
-#include "parameter_node.hpp"
+#include "parameter_lifecycle_node.hpp"
 #include "image_utils.hpp"
 
 #include <visibility_control.h>
 
-#include <rclcpp/experimental/executors/events_executor/events_executor.hpp>
-
 class FrameViewer
-    : public ParameterNode
+    : public ParameterLifeCycleNode
 {
 public:
     COMPOSITION_PUBLIC
     explicit FrameViewer(const rclcpp::NodeOptions & options) 
-        : ParameterNode("frame_viewer_node", options)
+        : ParameterLifeCycleNode("frame_viewer_node", options)
         , current_topic_{0}
     {
         declare_node_parameters();
@@ -42,8 +40,8 @@ private:
 
     void declare_node_parameters()
     {
-        std::vector<ParameterNode::ActionParam> params = {
-            ParameterNode::ActionParam(
+        std::vector<ParameterLifeCycleNode::ActionParam> params = {
+            ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("topics", std::vector<std::string>({"bob/frames/allsky/original", "bob/frames/foreground_mask"})), 
                 [this](const rclcpp::Parameter& param) {topics_ = param.as_string_array();}
             ),
@@ -169,15 +167,5 @@ private:
         }
     }
 };
-
-int main(int argc, char **argv)
-{
-    rclcpp::init(argc, argv);
-    rclcpp::experimental::executors::EventsExecutor executor;
-    executor.add_node(std::make_shared<FrameViewer>(rclcpp::NodeOptions()));
-    executor.spin();
-    rclcpp::shutdown();
-    return 0;
-}
 
 RCLCPP_COMPONENTS_REGISTER_NODE(FrameViewer)

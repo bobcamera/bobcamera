@@ -6,7 +6,7 @@
 
 #include <cv_bridge/cv_bridge.hpp>
 
-#include "parameter_node.hpp"
+#include "parameter_lifecycle_node.hpp"
 #include "image_utils.hpp"
 #include "background_subtractor_companion.hpp"
 #include "mask_worker.hpp"
@@ -31,12 +31,14 @@ struct BackgroundSubtractorWorkerParams
     };
 
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_resized_publisher;
     rclcpp::Publisher<bob_interfaces::msg::DetectorBBoxArray>::SharedPtr detection_publisher;
     rclcpp::Publisher<bob_interfaces::msg::DetectorState>::SharedPtr state_publisher;
-    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_resized_publisher;
 
     std::string image_publish_topic;
     std::string image_resized_publish_topic;
+    std::string detection_publish_topic;
+    std::string detection_state_publish_topic;
     BGSType bgs_type;
     std::string sensitivity;
     SensitivityConfigCollection sensitivity_collection;
@@ -48,7 +50,7 @@ struct BackgroundSubtractorWorkerParams
 class BackgroundSubtractorWorker
 {
 public:
-    BackgroundSubtractorWorker(ParameterNode & node, BackgroundSubtractorWorkerParams & params)
+    BackgroundSubtractorWorker(ParameterLifeCycleNode & node, BackgroundSubtractorWorkerParams & params)
         : node_(node)
         , params_(params)
     {
@@ -169,7 +171,7 @@ public:
             bbox2D_array.image_height = gray_img.size().height;
 
             std::vector<cv::Rect> bboxes;
-            boblib::blobs::DetectionResult det_result = blob_detector_ptr_->detect(ros_cv_foreground_mask_->get_image(), bboxes);
+            auto det_result = blob_detector_ptr_->detect(ros_cv_foreground_mask_->get_image(), bboxes);
             if (det_result == boblib::blobs::DetectionResult::Success)
             {
                 state.max_blobs_reached = false;
@@ -179,9 +181,9 @@ public:
             {
                 state.max_blobs_reached = true;
             }
-            
-            params_.state_publisher->publish(state);
-            params_.detection_publisher->publish(bbox2D_array);            
+
+            node_.publish_if_subscriber(params_.state_publisher, state);
+            node_.publish_if_subscriber(params_.detection_publisher, bbox2D_array);            
         }
         catch (const std::exception & e)
         {
@@ -196,7 +198,7 @@ public:
     }
 
 private:
-    ParameterNode & node_;
+    ParameterLifeCycleNode & node_;
 
     std::unique_ptr<MaskWorker> mask_worker_ptr_;
 

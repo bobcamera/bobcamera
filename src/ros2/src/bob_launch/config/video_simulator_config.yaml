@@ -262,7 +262,7 @@ launch:
 
   node_containers:
     - name: Kernel
-      executable: component_container_mt # component_container or component_container_mt
+      executable: component_container # component_container or component_container_mt
       output: both 
       nodes:
         - package: bob_camera

@@ -1,12 +1,16 @@
 import os
 import yaml
+import rclpy
+import copy
 from launch import LaunchDescription
 from launch_ros.actions import Node, ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
 from launch.substitutions import EnvironmentVariable 
-from launch.actions import IncludeLaunchDescription
+from launch.actions import IncludeLaunchDescription, TimerAction, OpaqueFunction
 from launch.launch_description_sources import FrontendLaunchDescriptionSource
 from ament_index_python.packages import get_package_share_directory
+from lifecycle_msgs.msg import Transition
+from lifecycle_msgs.srv import ChangeState
 
 def parse_yaml(file_path):
     try:
@@ -21,8 +25,53 @@ def get_node_parameters(config, node_name):
     return config['basic_config'].get(node_name, {}) | config['advanced_config'].get(node_name, {})
 
 
+def create_lifecycle_client(node_name, transition_id):
+    rclpy.init()
+    node = rclpy.create_node('lifecycle_manager')
+    client = node.create_client(ChangeState, f'/{node_name}/change_state')
+    req = ChangeState.Request()
+    req.transition.id = transition_id
+
+    while not client.wait_for_service(timeout_sec=1.0):
+        node.get_logger().info(f'Waiting for {node_name} change_state service...')
+
+    future = client.call_async(req)
+
+    rclpy.spin_until_future_complete(node, future)
+    if future.result() is not None:
+        node.get_logger().info(f'Successfully changed state of {node_name}')
+    else:
+        node.get_logger().error(f'Failed to change state of {node_name}')
+
+    rclpy.shutdown()
+
+
+def create_lifecycle_manager(node_names, transition_id):
+    rclpy.init()
+    print(node_names)
+
+    for node_name in node_names:
+        node = rclpy.create_node('lifecycle_manager')
+        client = node.create_client(ChangeState, f'/{node_name}/change_state')
+        req = ChangeState.Request()
+        req.transition.id = transition_id
+        while not client.wait_for_service(timeout_sec=1.0):
+            node.get_logger().info(f'Waiting for {node_name} change_state service...')
+
+        future = client.call_async(req)
+
+        rclpy.spin_until_future_complete(node, future)
+        if future.result() is not None:
+            node.get_logger().info(f'Successfully changed state of {node_name}')
+        else:
+            node.get_logger().error(f'Failed to change state of {node_name}')
+
+    rclpy.shutdown()
+
+
 def generate_composable_nodes(config, node_container, namespace):
     nodes = []
+    node_names = []
     node_descriptions = node_container['nodes']
     for node_description in node_descriptions:
         remappings = [
@@ -42,7 +91,9 @@ def generate_composable_nodes(config, node_container, namespace):
             remappings=remappings
         )
         nodes.append(node)
-    return nodes
+        node_names.append(node_description['name'])
+
+    return nodes, node_names
 
 
 def generate_containers(config, namespace, loglevel):
@@ -54,7 +105,7 @@ def generate_containers(config, namespace, loglevel):
         node_container_output = node_container.get('output', 'screen')
         print(f"Container Name: {node_container_name}, executable: {node_container_executable}")
 
-        composable_nodes = generate_composable_nodes(config, node_container, namespace)
+        composable_nodes, node_names = generate_composable_nodes(config, node_container, namespace)
 
         container = None
         try:
@@ -74,7 +125,10 @@ def generate_containers(config, namespace, loglevel):
             raise RuntimeError("Failed to create ComposableNodeContainer")
 
         containers.append(container)
-    
+        # containers.append(TimerAction(period=5.0, actions=[OpaqueFunction(function=lambda context: create_lifecycle_manager(copy.deepcopy(node_names), Transition.TRANSITION_CONFIGURE))]))
+        # for node_name in node_names:
+        #     containers.append(TimerAction(period=5.0, actions=[OpaqueFunction(function=lambda context: create_lifecycle_client(copy.deepcopy(node_name), Transition.TRANSITION_CONFIGURE))]))
+            
     return containers
 
 

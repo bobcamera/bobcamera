@@ -2,7 +2,7 @@
 #include <rclcpp_components/register_node_macro.hpp>
 #include <rclcpp/experimental/executors/events_executor/events_executor.hpp>
 
-#include "parameter_node.hpp"
+#include "parameter_lifecycle_node.hpp"
 
 #include <visibility_control.h>
 
@@ -11,12 +11,12 @@
 #include "bob_interfaces/msg/monitoring_status.hpp"
 
 class TrackSensitivityMonitor
-    : public ParameterNode
+    : public ParameterLifeCycleNode
 {
 public:
     COMPOSITION_PUBLIC
     explicit TrackSensitivityMonitor(const rclcpp::NodeOptions & options)
-        : ParameterNode("track_sensitivity_monitor_node", options)
+        : ParameterLifeCycleNode("track_sensitivity_monitor_node", options)
         , pub_qos_profile_(10)
         , sub_qos_profile_(10)
     {
@@ -76,15 +76,15 @@ private:
 
     void declare_node_parameters()
     {
-        std::vector<ParameterNode::ActionParam> params = {
-            ParameterNode::ActionParam(
+        std::vector<ParameterLifeCycleNode::ActionParam> params = {
+            ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("bgs_node", "rtsp_camera_node"), 
                 [this](const rclcpp::Parameter& param) 
                 {
                     sensitivity_param_client_ = std::make_shared<rclcpp::AsyncParametersClient>(this, param.as_string()); 
                 }
             ),            
-            ParameterNode::ActionParam(
+            ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("sensitivity", "medium_c"), 
                 [this](const rclcpp::Parameter& param) 
                 { 
@@ -92,11 +92,11 @@ private:
                     proposed_sensitivity_ = param.as_string();
                 }
             ),
-            ParameterNode::ActionParam(
+            ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("check_interval", 30), 
                 [this](const rclcpp::Parameter& param) { check_interval_ = param.as_int(); }
             ),
-            ParameterNode::ActionParam(
+            ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("sensitivity_increase_count_threshold", 5), 
                 [this](const rclcpp::Parameter& param) 
                 { 
@@ -104,7 +104,7 @@ private:
                     sensitivity_increase_check_counter_ = 0;
                 }
             ),
-            ParameterNode::ActionParam(
+            ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("star_mask_enabled", true), 
                 [this](const rclcpp::Parameter& param) { star_mask_enabled_ = param.as_bool(); }
             ),            
@@ -302,15 +302,5 @@ private:
         }
     }
 };
-
-int main(int argc, char **argv)
-{
-    rclcpp::init(argc, argv);
-    rclcpp::experimental::executors::EventsExecutor executor;
-    executor.add_node(std::make_shared<TrackSensitivityMonitor>(rclcpp::NodeOptions()));
-    executor.spin();
-    rclcpp::shutdown();
-    return 0;
-}
 
 RCLCPP_COMPONENTS_REGISTER_NODE(TrackSensitivityMonitor)

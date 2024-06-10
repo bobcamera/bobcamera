@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.5)
 
 include_directories(${OpenCV_INCLUDE_DIRS})
 include_directories($ENV{QHYCCD_SDK_INCLUDE_DIRS})

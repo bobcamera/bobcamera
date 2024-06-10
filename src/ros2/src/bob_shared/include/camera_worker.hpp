@@ -19,7 +19,7 @@
 #include <bob_camera/msg/camera_info.hpp>
 
 #include <image_utils.hpp>
-#include <parameter_node.hpp>
+#include <parameter_lifecycle_node.hpp>
 #include <object_simulator.hpp>
 #include <mask_worker.hpp>
 
@@ -60,7 +60,7 @@ struct CameraWorkerParams
 class CameraWorker
 {
 public:
-    explicit CameraWorker(ParameterNode & node
+    explicit CameraWorker(ParameterLifeCycleNode & node
                         , CameraWorkerParams & params
                         , const std::function<void(const std_msgs::msg::Header &, const cv::Mat &)> & user_callback = nullptr)
         : node_(node)
@@ -163,7 +163,7 @@ public:
     }    
 
 private:
-    ParameterNode & node_;
+    ParameterLifeCycleNode & node_;
     CameraWorkerParams & params_;
 
     std::unique_ptr<MaskWorker> mask_worker_ptr_;
@@ -230,7 +230,7 @@ private:
                 apply_mask(roscv_image_msg_ptr->get_image());
 
                 roscv_image_msg_ptr->get_header().stamp = node_.now();
-                roscv_image_msg_ptr->get_header().frame_id = ParameterNode::generate_uuid();
+                roscv_image_msg_ptr->get_header().frame_id = ParameterLifeCycleNode::generate_uuid();
 
                 node_.publish_if_subscriber(params_.image_publisher, roscv_image_msg_ptr->get_msg());
 
@@ -411,7 +411,6 @@ private:
             }
         };
 
-        // Send the request
         auto result = camera_settings_client_->async_send_request(request, response_received_callback);
     }
 
