@@ -26,6 +26,7 @@ find_package(boblib REQUIRED)
 find_package(bob_interfaces REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
+find_package(lifecycle_msgs REQUIRED)
 
 include_directories(${OpenCV_INCLUDE_DIRS})
 include_directories("../bob_shared/include")
@@ -37,18 +38,17 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
     add_definitions(-Wno-missing-braces)
 ENDIF()
 
-# LifecycleServiceClient Node
-# add_library(lifecycle_service_client_node SHARED src/lifecycle_service_client.cpp)
-# target_compile_definitions(lifecycle_service_client_node PRIVATE "COMPOSITION_BUILDING_DLL")
-# target_link_libraries(lifecycle_service_client_node PUBLIC boblib)
-# ament_target_dependencies(lifecycle_service_client_node PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV bob_interfaces rclcpp_lifecycle rclcpp_components)
-# rclcpp_components_register_nodes(lifecycle_service_client_node "LifecycleServiceClient")
-# install(TARGETS lifecycle_service_client_node DESTINATION lib)
+# LifecycleServiceClient Node Library
+add_library(lifecycle_service_client_node SHARED src/lifecycle_service_client.cpp)
+target_compile_definitions(lifecycle_service_client_node PRIVATE "COMPOSITION_BUILDING_DLL")
+target_link_libraries(lifecycle_service_client_node PUBLIC "${cpp_typesupport_target}")
+ament_target_dependencies(lifecycle_service_client_node PUBLIC rclcpp std_msgs rcl_interfaces rclcpp_components rclcpp_lifecycle bob_interfaces lifecycle_msgs)
+rclcpp_components_register_nodes(lifecycle_service_client_node "LifecycleServiceClient")
+install(TARGETS lifecycle_service_client_node DESTINATION lib)
 
-
-add_executable(lifecycle_service_client_node src/lifecycle_service_client.cpp)
-target_link_libraries(lifecycle_service_client_node PUBLIC boblib "${cpp_typesupport_target}")
-ament_target_dependencies(lifecycle_service_client_node PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV bob_interfaces rclcpp_lifecycle rclcpp_components)
-install(TARGETS lifecycle_service_client_node DESTINATION lib/${PROJECT_NAME})
+# LifecycleServiceClient Node Executable
+# add_executable(lifecycle_service_client_node src/lifecycle_service_client.cpp)
+# ament_target_dependencies(lifecycle_service_client_node PUBLIC rclcpp bob_interfaces rclcpp_lifecycle rclcpp_components lifecycle_msgs)
+# install(TARGETS lifecycle_service_client_node DESTINATION lib/${PROJECT_NAME})
 
 ament_package()

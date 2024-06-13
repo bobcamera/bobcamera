@@ -245,7 +245,7 @@ private:
                     user_callback_(roscv_image_msg_ptr->get_header(), roscv_image_msg_ptr->get_image());
                 }
 
-                loop_rate.sleep();  
+                loop_rate.sleep();
             }
             catch (const std::exception& e)
             {

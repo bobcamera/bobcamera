@@ -31,7 +31,18 @@ public:
         camera_params_ptr_ = std::make_unique<CameraWorkerParams>();
         bgs_params_ptr_ = std::make_unique<BackgroundSubtractorWorkerParams>();
 
+        bgs_worker_ptr_ = std::make_unique<BackgroundSubtractorWorker>(*this, *bgs_params_ptr_);
+        camera_worker_ptr_ = std::make_unique<CameraWorker>(*this, *camera_params_ptr_, [this](const std_msgs::msg::Header & header, const cv::Mat & img){bgs_callback(header, img);});
         //one_shot_timer_ = create_wall_timer(std::chrono::seconds(2), [this](){init();});
+    }
+
+    CallbackReturn on_configure(const rclcpp_lifecycle::State & state)
+    {
+        RCLCPP_INFO(get_logger(), "Configuring");
+
+        init();
+
+        return CallbackReturn::SUCCESS;
     }
 
 private:
@@ -45,15 +56,6 @@ private:
     rclcpp::Service<bob_interfaces::srv::MaskOverrideRequest>::SharedPtr bgs_mask_override_service_;
     rclcpp::TimerBase::SharedPtr one_shot_timer_;
 
-    CallbackReturn on_configure(const rclcpp_lifecycle::State &)
-    {
-        RCLCPP_INFO(get_logger(), "Configuring");
-
-        init();
-
-        return CallbackReturn::SUCCESS;
-    }
-
     void init()
     {
         //one_shot_timer_.reset();
@@ -61,9 +63,6 @@ private:
         //bgs_params_ptr_->image_publisher = create_publisher<sensor_msgs::msg::Image>("bob/frames/foreground_mask", qos_profile_);
         //bgs_params_.detection_publisher = create_publisher<bob_interfaces::msg::DetectorBBoxArray>("bob/detection/allsky/boundingboxes", qos_profile_);        
         // bgs_params_.state_publisher = create_publisher<bob_interfaces::msg::DetectorState>("bob/detection/detector_state", qos_profile_);
-
-        bgs_worker_ptr_ = std::make_unique<BackgroundSubtractorWorker>(*this, *bgs_params_ptr_);
-        camera_worker_ptr_ = std::make_unique<CameraWorker>(*this, *camera_params_ptr_, [this](const std_msgs::msg::Header & header, const cv::Mat & img){bgs_callback(header, img);});
 
         declare_node_parameters();
 

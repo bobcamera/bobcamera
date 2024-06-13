@@ -6,10 +6,15 @@
 #include <boost/uuid/uuid_io.hpp>
 
 #include <rclcpp/rclcpp.hpp>
+#include <rcl_interfaces/msg/set_parameters_result.hpp>
+
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 #include <rclcpp_lifecycle/state.hpp>
 #include <rclcpp_lifecycle/transition.hpp>
-#include <rcl_interfaces/msg/set_parameters_result.hpp>
+#include <lifecycle_msgs/msg/state.hpp>
+#include <lifecycle_msgs/msg/transition.hpp>
+#include <lifecycle_msgs/srv/change_state.hpp>
+#include <lifecycle_msgs/srv/get_state.hpp>
 
 class ParameterLifeCycleNode
     : public rclcpp_lifecycle::LifecycleNode
@@ -37,17 +42,7 @@ public:
     explicit ParameterLifeCycleNode(const std::string &node_name, const rclcpp::NodeOptions & options)
         : rclcpp_lifecycle::LifecycleNode(node_name, options)
     {
-        parameters_callback_handle_ = add_on_set_parameters_callback(std::bind(&ParameterLifeCycleNode::param_change_callback_method, this, std::placeholders::_1));
-        // register_on_configure(std::bind(&ParameterNode::on_configure, this, std::placeholders::_1));
-        // register_on_activate(std::bind(&ParameterNode::on_activate, this, std::placeholders::_1));
-        // register_on_deactivate(std::bind(&ParameterNode::on_deactivate, this, std::placeholders::_1));
-        // register_on_cleanup(std::bind(&ParameterNode::on_cleanup, this, std::placeholders::_1));
-        // register_on_shutdown(std::bind(&ParameterNode::on_shutdown, this, std::placeholders::_1));
-        // register_on_error(std::bind(&ParameterNode::on_error, this, std::placeholders::_1));
-        // register_on_configure([this](const rclcpp_lifecycle::State & state){return on_configure(state);});
-
-        //this->trigger_transition(rclcpp_lifecycle::Transition(1));
-        RCLCPP_INFO(get_logger(), "########## ParameterNode constructor");
+        parameters_callback_handle_ = add_on_set_parameters_callback([this](const std::vector<rclcpp::Parameter> & parameters){return param_change_callback_method(parameters);});
     }
 
     static std::string generate_uuid()
@@ -64,46 +59,6 @@ public:
             return;
         }
         publisher->publish(message);
-    }
-
-    CallbackReturn on_configure(const rclcpp_lifecycle::State &) 
-    {
-        RCLCPP_INFO(get_logger(), "$$$$$$$$$$$$$$$$$$$$$$$$ Configuring");
-        sleep(3);
-
-        return CallbackReturn::SUCCESS;
-    }
-
-    CallbackReturn on_activate(const rclcpp_lifecycle::State &) 
-    {
-        RCLCPP_INFO(get_logger(), "Activating");
-        return CallbackReturn::SUCCESS;
-    }
-
-    CallbackReturn on_deactivate(const rclcpp_lifecycle::State &) 
-    {
-        RCLCPP_INFO(get_logger(), "Deactivating");
-        return CallbackReturn::SUCCESS;
-    }
-
-    CallbackReturn on_cleanup(const rclcpp_lifecycle::State &) 
-    {
-        RCLCPP_INFO(get_logger(), "Cleaning up");
-        return CallbackReturn::SUCCESS;
-    }
-
-    CallbackReturn on_shutdown(const rclcpp_lifecycle::State &) 
-    {
-        RCLCPP_INFO(get_logger(), "Shutting down");
-        // Shutdown node
-        return CallbackReturn::SUCCESS;
-    }
-
-    CallbackReturn on_error(const rclcpp_lifecycle::State &) 
-    {
-        RCLCPP_ERROR(get_logger(), "Error handling");
-        // Handle error
-        return CallbackReturn::SUCCESS;
     }
 
 protected:

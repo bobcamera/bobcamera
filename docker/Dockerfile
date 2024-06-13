@@ -168,7 +168,8 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     && useradd -s /bin/bash --uid 1000 --gid 1000 -m ros \
     && echo ros ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/ros \
     && chmod 0440 /etc/sudoers.d/ros \
-    && echo "export DISPLAY=:0" >> /home/ros/.bashrc
+    && echo "export DISPLAY=:0" >> /home/ros/.bashrc \
+    && echo "source /opt/ros/${ROS_DISTRO}/setup.sh" >> /home/ros/.bashrc
 # Building new ros-${ROS_DISTRO}-vision-opencv
 WORKDIR /opt/ros2_ws
 RUN mkdir -p /opt/ros2_ws/src \

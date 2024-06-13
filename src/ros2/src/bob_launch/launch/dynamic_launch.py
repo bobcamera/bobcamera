@@ -70,9 +70,11 @@ def create_lifecycle_manager(node_names, transition_id):
 
 
 def generate_composable_nodes(config, node_container, namespace):
+    node_descriptions = node_container.get('nodes', [])
+    if node_descriptions is None:
+        return []
+
     nodes = []
-    node_names = []
-    node_descriptions = node_container['nodes']
     for node_description in node_descriptions:
         remappings = [
             (k, v) for mapping in node_description.get('remappings', [])
@@ -91,21 +93,23 @@ def generate_composable_nodes(config, node_container, namespace):
             remappings=remappings
         )
         nodes.append(node)
-        node_names.append(node_description['name'])
 
-    return nodes, node_names
+    return nodes
 
 
 def generate_containers(config, namespace, loglevel):
+    node_containers = config['launch'].get('node_containers', [])
+    if node_containers is None:
+        return []
+
     containers = []
-    node_containers = config['launch']['node_containers']
     for node_container in node_containers:
         node_container_name = node_container['name']
         node_container_executable = node_container.get('executable', 'component_container')
         node_container_output = node_container.get('output', 'screen')
         print(f"Container Name: {node_container_name}, executable: {node_container_executable}")
 
-        composable_nodes, node_names = generate_composable_nodes(config, node_container, namespace)
+        composable_nodes = generate_composable_nodes(config, node_container, namespace)
 
         container = None
         try:
@@ -125,16 +129,16 @@ def generate_containers(config, namespace, loglevel):
             raise RuntimeError("Failed to create ComposableNodeContainer")
 
         containers.append(container)
-        # containers.append(TimerAction(period=5.0, actions=[OpaqueFunction(function=lambda context: create_lifecycle_manager(copy.deepcopy(node_names), Transition.TRANSITION_CONFIGURE))]))
-        # for node_name in node_names:
-        #     containers.append(TimerAction(period=5.0, actions=[OpaqueFunction(function=lambda context: create_lifecycle_client(copy.deepcopy(node_name), Transition.TRANSITION_CONFIGURE))]))
             
     return containers
 
 
 def generate_standalone_nodes(config, namespace, loglevel):
-    nodes = []
     config_nodes = config['launch'].get('standalone_nodes', [])
+    if config_nodes is None:
+        return []
+
+    nodes = []
     for config_node in config_nodes:
         remappings = [
             (k, v) for mapping in config_node.get('remappings', [])

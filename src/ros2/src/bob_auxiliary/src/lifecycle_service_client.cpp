@@ -10,102 +10,159 @@
 #include <lifecycle_msgs/srv/get_state.hpp>
 
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp_components/register_node_macro.hpp>
 #include <visibility_control.h>
 
 #include <parameter_node.hpp>
-
-using namespace std::chrono_literals;
 
 class LifecycleServiceClient 
     : public ParameterNode
 {
 public:
     COMPOSITION_PUBLIC
-    explicit LifecycleServiceClient(const std::string & node_name)
-        : ParameterNode(node_name)
+    explicit LifecycleServiceClient(const rclcpp::NodeOptions & options)
+        : ParameterNode("lifecycle_service_client_node", options)
     {
         declare_node_parameters();
+        init();
     }
 
-    bool change_states(std::uint8_t transition, std::chrono::seconds time_out = 3s) 
+    void init()
     {
-        bool success = true;
-        for (const auto & node_name : lifecycle_nodes_)
-        {
-            success &= change_state(node_name, transition, time_out);
-        }
-        return success;
-    }
-
-    unsigned int get_state(const std::string & node, std::chrono::seconds time_out = 3s)
-    {
-        auto client_get_state_ = create_client<lifecycle_msgs::srv::GetState>(node + "/get_state");
-        auto request = std::make_shared<lifecycle_msgs::srv::GetState::Request>();
-
-        if (!client_get_state_->wait_for_service(time_out)) 
-        {
-            RCLCPP_ERROR(get_logger(), "Service %s is not available.", client_get_state_->get_service_name());
-            return lifecycle_msgs::msg::State::PRIMARY_STATE_UNKNOWN;
-        }
-
-        auto future_result = client_get_state_->async_send_request(request).future.share();
-
-        auto future_status = wait_for_result(future_result, time_out);
-
-        if (future_status != std::future_status::ready) 
-        {
-            RCLCPP_ERROR(get_logger(), "Server time out while getting current state for node %s", node.c_str());
-            return lifecycle_msgs::msg::State::PRIMARY_STATE_UNKNOWN;
-        }
-
-        if (future_result.get()) 
-        {
-            RCLCPP_INFO(get_logger(), "Node %s has current state %s.", node.c_str(), future_result.get()->current_state.label.c_str());
-            return future_result.get()->current_state.id;
-        } 
-        else 
-        {
-            RCLCPP_ERROR(get_logger(), "Failed to get current state for node %s", node.c_str());
-            return lifecycle_msgs::msg::State::PRIMARY_STATE_UNKNOWN;
-        }
-    }
-
-    bool change_state(const std::string & node, std::uint8_t transition, std::chrono::seconds time_out = 3s)
-    {
-        auto client_change_state_ = create_client<lifecycle_msgs::srv::ChangeState>(node + "/change_state");
-        auto request = std::make_shared<lifecycle_msgs::srv::ChangeState::Request>();
-        request->transition.id = transition;
-
-        if (!client_change_state_->wait_for_service(time_out)) 
-        {
-            RCLCPP_ERROR(get_logger(),"Service %s is not available.", client_change_state_->get_service_name());
-            return false;
-        }
-
-        auto future_result = client_change_state_->async_send_request(request).future.share();
-
-        auto future_status = wait_for_result(future_result, time_out);
-
-        if (future_status != std::future_status::ready) 
-        {
-            RCLCPP_ERROR(get_logger(), "Server time out while getting current state for node %s", node.c_str());
-            return false;
-        }
-
-        if (future_result.get()->success) 
-        {
-            RCLCPP_INFO(get_logger(), "Transition %d successfully triggered.", static_cast<int>(transition));
-            return true;
-        } 
-        else 
-        {
-            RCLCPP_WARN(get_logger(), "Failed to trigger transition %u", static_cast<unsigned int>(transition));
-            return false;
-        }
+        timer_nodes_ = create_wall_timer(std::chrono::seconds(5), [this](){timer_callback();});
     }
 
 private:
-    std::vector<std::string> lifecycle_nodes_;
+    class NodeStatus
+    {
+    public:
+        NodeStatus(const std::string & _name, LifecycleServiceClient::SharedPtr node)
+            : name(_name)
+        {
+            node_ = node->create_sub_node(_name + "_manager");
+            state.id = lifecycle_msgs::msg::State::PRIMARY_STATE_UNKNOWN;
+            state.label = "unknown";
+            client_change_state_ = node_->create_client<lifecycle_msgs::srv::ChangeState>("/" + _name + "/change_state");
+            client_get_state_ = node_->create_client<lifecycle_msgs::srv::GetState>("/" + _name + "/get_state");
+            get_request_ = std::make_shared<lifecycle_msgs::srv::GetState::Request>();
+            change_request_ = std::make_shared<lifecycle_msgs::srv::ChangeState::Request>();
+        }
+
+        std::string get_name() const
+        {
+            return name;
+        }
+
+        lifecycle_msgs::msg::State get_state() const
+        {
+            return state;
+        }
+
+        void update_state(std::chrono::seconds time_out = std::chrono::seconds(3))
+        {
+            if (!client_get_state_->wait_for_service(time_out)) 
+            {
+                RCLCPP_ERROR(node_->get_logger(), "Service %s is not available.", client_get_state_->get_service_name());
+                
+                state.id = lifecycle_msgs::msg::State::PRIMARY_STATE_UNKNOWN;
+                state.label = "unknown";
+            }
+
+            auto future = client_get_state_->async_send_request(get_request_, [this](rclcpp::Client<lifecycle_msgs::srv::GetState>::SharedFuture future) 
+            {
+                auto response = future.get();
+                state.id = response->current_state.id;
+                state.label = response->current_state.label;
+                RCLCPP_DEBUG(node_->get_logger(), "get_state(%s) = %d:%s", name.c_str(), static_cast<int>(state.id), state.label.c_str());
+            });
+        }
+
+        void change_state(std::uint8_t transition, std::chrono::seconds time_out = std::chrono::seconds(3))
+        {
+            change_request_->transition.id = transition;
+
+            if (!client_change_state_->wait_for_service(time_out)) 
+            {
+                RCLCPP_ERROR(node_->get_logger(),"Service %s is not available.", client_change_state_->get_service_name());
+                return;
+            }
+
+            auto future_result = client_change_state_->async_send_request(change_request_, [this, transition](rclcpp::Client<lifecycle_msgs::srv::ChangeState>::SharedFuture future) 
+            {
+                auto response = future.get();
+                if (response->success)
+                {
+                    RCLCPP_DEBUG(node_->get_logger(), "change_state(%s) -> Transition %d successfully triggered.", name.c_str(), static_cast<int>(transition));
+                    update_state();
+                }
+                else
+                {
+                    RCLCPP_DEBUG(node_->get_logger(), "change_state(%s) -> Transition NOT triggered.", name.c_str());
+                }
+            });
+        }
+
+    private:
+        const std::string name;
+        lifecycle_msgs::msg::State state;
+        rclcpp::Client<lifecycle_msgs::srv::ChangeState>::SharedPtr client_change_state_;
+        rclcpp::Client<lifecycle_msgs::srv::GetState>::SharedPtr client_get_state_;
+        LifecycleServiceClient::SharedPtr node_;
+        std::shared_ptr<lifecycle_msgs::srv::GetState_Request> get_request_;
+        std::shared_ptr<lifecycle_msgs::srv::ChangeState_Request> change_request_;
+    };
+
+    rclcpp::TimerBase::SharedPtr timer_nodes_;
+    std::map<std::string, NodeStatus> lifecycle_nodes_;
+    std::set<std::string> non_lifecycle_running_nodes_;
+    std::set<std::string> running_nodes_;
+
+    void timer_callback()
+    {
+        timer_nodes_->cancel();
+
+        auto current_running_nodes = get_node_names();
+
+        std::ranges::transform(current_running_nodes, current_running_nodes.begin(), [](const std::string& str) {return (!str.empty() && str.front() == '/') ? str.substr(1) : str;});
+
+        std::set<std::string> new_values;
+        std::set<std::string> deleted_values;
+        // Creating the sets with new and deleted values
+        std::ranges::sort(current_running_nodes);
+        std::ranges::set_difference(current_running_nodes, running_nodes_, std::inserter(new_values, new_values.end()));
+        std::ranges::set_difference(running_nodes_, current_running_nodes, std::inserter(deleted_values, deleted_values.end()));
+
+        // Removing from our node map and set
+        std::erase_if(lifecycle_nodes_, [&deleted_values](const auto& pair) {return deleted_values.contains(pair.first);});
+        std::erase_if(non_lifecycle_running_nodes_, [&deleted_values](const auto& node_name) {return deleted_values.contains(node_name);});
+
+        for (const auto & node_name : new_values)
+        {
+            auto services_and_types = get_service_names_and_types_by_node(node_name, "/");
+            //for (auto service : services_and_types) RCLCPP_INFO(get_logger(), "Node %s : service: %s", node_name.c_str(), service.first.c_str());
+            if (!services_and_types.empty() && services_and_types.contains("/" + node_name + "/change_state"))
+            {
+                RCLCPP_INFO(get_logger(), "Node %s is lifecycle", node_name.c_str());
+                lifecycle_nodes_.emplace(node_name, NodeStatus(node_name, shared_from_this()));
+                check_change_status(node_name);
+            }
+            else
+            {
+                RCLCPP_INFO(get_logger(), "Node %s is NOT lifecycle", node_name.c_str());
+                non_lifecycle_running_nodes_.emplace(node_name);
+            }
+        }
+        running_nodes_.clear();
+        running_nodes_.insert(current_running_nodes.begin(), current_running_nodes.end());
+
+        timer_nodes_->reset();
+    }
+
+    void check_change_status(const std::string & node_name)
+    {
+        // TODO: implement a state machine, right now we only send a configure state
+        lifecycle_nodes_.at(node_name).change_state(lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE);
+    }
 
     void declare_node_parameters()
     {
@@ -114,7 +171,7 @@ private:
                 rclcpp::Parameter("lifecycle_nodes", std::vector<std::string>()), 
                 [this](const rclcpp::Parameter& param) 
                 {
-                    lifecycle_nodes_ = param.as_string_array();
+                    auto lifecycle_nodes = param.as_string_array();
                 }
             ),
         };
@@ -142,24 +199,7 @@ private:
     }
 };
 
-void callee_script(std::shared_ptr<LifecycleServiceClient> lc_client)
-{
-    using Transition = lifecycle_msgs::msg::Transition;
-
-    // configure
-    {
-        if (!lc_client->change_states(Transition::TRANSITION_CONFIGURE)) 
-        {
-            return;
-        }
-    }
-}
-
-void wake_executor(std::shared_future<void> future, rclcpp::executors::SingleThreadedExecutor & exec)
-{
-    future.wait();
-    exec.cancel();
-}
+RCLCPP_COMPONENTS_REGISTER_NODE(LifecycleServiceClient)
 
 int main(int argc, char ** argv)
 {
@@ -167,16 +207,10 @@ int main(int argc, char ** argv)
 
     rclcpp::init(argc, argv);
 
-    auto lc_client = std::make_shared<LifecycleServiceClient>("lc_client");
+    auto lc_client = std::make_shared<LifecycleServiceClient>(rclcpp::NodeOptions());
+    lc_client->init();
 
-    rclcpp::executors::SingleThreadedExecutor exe;
-    exe.add_node(lc_client);
-
-    std::shared_future<void> script = std::async(std::launch::async, callee_script, lc_client);
-
-    auto wake_exec = std::async(std::launch::async, wake_executor, script,std::ref(exe));
-
-    exe.spin_until_future_complete(script);
+    rclcpp::spin(lc_client);
 
     rclcpp::shutdown();
 
