@@ -10,6 +10,7 @@ basic_config:
     onvif_port: 0
     onvif_user: ''
     onvif_password: ''
+    usb_camera_resolution: [640, 480]
     videos:                     # List of videos to display in sequence if source_type is VIDEO_FILE
       - /workspaces/bobcamera/media/fisheye_videos/mike-drone.mp4
       - /workspaces/bobcamera/media/fisheye_videos/mikeg-30min.mp4
@@ -41,13 +42,17 @@ basic_config:
 advanced_config:
   camera_node:
     privacy_mask_file: 'assets/masks/privacy-mask.jpg'
+    privacy_mask_override_service_topic: 'bob/mask/privacy/override'
     image_publish_topic: 'bob/frames/allsky/original'
     image_info_publish_topic: 'bob/camera/all_sky/image_info'
     camera_info_publish_topic: 'bob/camera/all_sky/camera_info'
+    camera_settings_client_topic: 'bob/camera/settings'
+    fps_update_client_topic: 'bob/config/update/fps'
     bgs_publish_topic: 'bob/frames/foreground_mask'
     bgs_detection_topic: 'bob/detection/allsky/boundingboxes'
     bgs_detection_state_topic: 'bob/detection/detector_state'
     bgs_mask_file: 'assets/masks/detection-mask.jpg'
+    bgs_mask_override_service_topic: 'bob/mask/detection/override'
     bgs_json_params: '[
                     { "name": "low",
                       "sensitivity": {
@@ -272,14 +277,6 @@ launch:
           plugin: RecordingMonitor
           name: allsky_recorder_monitoring_node
           remappings: []
-    # - name: LifeCycle_Manager
-    #   executable: component_container_mt
-    #   output: both
-    #   nodes:
-    #     - package: bob_auxiliary
-    #       plugin: LifecycleServiceClient
-    #       name: lifecycle_service_client_node
-    #       remappings: []
         
   standalone_nodes:
     - package: bob_observer

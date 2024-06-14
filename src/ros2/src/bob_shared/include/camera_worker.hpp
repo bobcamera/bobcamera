@@ -37,8 +37,11 @@ struct CameraWorkerParams
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_resized_publisher;
     rclcpp::Publisher<bob_camera::msg::ImageInfo>::SharedPtr image_info_publisher;
     rclcpp::Publisher<bob_camera::msg::CameraInfo>::SharedPtr camera_info_publisher;
+    rclcpp::Client<bob_interfaces::srv::CameraSettings>::SharedPtr camera_settings_client;
+    rclcpp::Client<bob_interfaces::srv::ConfigEntryUpdate>::SharedPtr fps_update_client;
 
     int camera_id;
+    std::vector<long> usb_resolution;
     int resize_height;
     std::vector<std::string> videos;
     std::string image_publish_topic;
@@ -92,9 +95,6 @@ public:
             mask_worker_ptr_ = std::make_unique<MaskWorker>(node_, [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat & mask){mask_timer_callback(detection_mask_result, mask);});
             mask_worker_ptr_->init(5, params_.mask_filename);
 
-            camera_settings_client_ = node_.create_client<bob_interfaces::srv::CameraSettings>("bob/camera/settings");
-            fps_update_client_ = node_.create_client<bob_interfaces::srv::ConfigEntryUpdate>("bob/config/update/fps");
-
             open_camera();
             start_capture();
         }
@@ -121,10 +121,9 @@ public:
         {
             case CameraWorkerParams::SourceType::USB_CAMERA:
             {
-                params_.camera_id = static_cast<int>(node_.get_parameter("camera_id").get_value<rclcpp::ParameterType::PARAMETER_INTEGER>());
                 RCLCPP_INFO(node_.get_logger(), "Camera %d opening", params_.camera_id);
                 video_capture_.open(params_.camera_id);
-                set_highest_resolution();
+                set_camera_resolution();
             }
             break;
 
@@ -170,9 +169,6 @@ private:
 
     std::function<void(const std_msgs::msg::Header &, const cv::Mat &)> user_callback_;
     
-    rclcpp::Client<bob_interfaces::srv::CameraSettings>::SharedPtr camera_settings_client_;
-    rclcpp::Client<bob_interfaces::srv::ConfigEntryUpdate>::SharedPtr fps_update_client_;
-
     cv::VideoCapture video_capture_;
     bob_camera::msg::CameraInfo camera_info_msg_;
     std::jthread capture_thread_;
@@ -317,7 +313,7 @@ private:
         }
 	}
 
-    inline bool set_highest_resolution()
+    inline bool set_camera_resolution()
     {
         static const std::vector<std::pair<int, int>> resolutions = 
         {
@@ -332,13 +328,29 @@ private:
             {320, 240}   // QVGA
         };
 
-        for (const auto & [width, height] : resolutions)
+        auto set_check_resolution = [this](long width, long height)
         {
             video_capture_.set(cv::CAP_PROP_FRAME_WIDTH, width);
             video_capture_.set(cv::CAP_PROP_FRAME_HEIGHT, height);
 
-            if ((video_capture_.get(cv::CAP_PROP_FRAME_WIDTH) == width) &&
-                (video_capture_.get(cv::CAP_PROP_FRAME_HEIGHT) == height))
+            return ((video_capture_.get(cv::CAP_PROP_FRAME_WIDTH) == width) &&
+                    (video_capture_.get(cv::CAP_PROP_FRAME_HEIGHT) == height));
+        };
+
+        // If we have the values defined, try setting
+        if (params_.usb_resolution.size() == 2)
+        {
+            auto success = set_check_resolution(params_.usb_resolution[0], params_.usb_resolution[1]);
+            if (success)
+            {
+                return true;
+            }
+        }
+        // If not, we set the highest resolution
+        for (const auto & [width, height] : resolutions)
+        {
+            auto success = set_check_resolution(params_.usb_resolution[0], params_.usb_resolution[1]);
+            if (success)
             {
                 RCLCPP_INFO(node_.get_logger(), "Setting resolution for %d x %d", width, height);
                 return true;
@@ -411,7 +423,7 @@ private:
             }
         };
 
-        auto result = camera_settings_client_->async_send_request(request, response_received_callback);
+        auto result = params_.camera_settings_client->async_send_request(request, response_received_callback);
     }
 
     inline void create_camera_info_msg()
@@ -485,7 +497,7 @@ private:
         };
 
         // Send the request
-        auto result = fps_update_client_->async_send_request(request, response_received_callback);
+        auto result = params_.fps_update_client->async_send_request(request, response_received_callback);
     }
 };
 

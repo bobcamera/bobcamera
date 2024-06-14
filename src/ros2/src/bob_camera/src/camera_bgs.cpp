@@ -33,10 +33,9 @@ public:
 
         bgs_worker_ptr_ = std::make_unique<BackgroundSubtractorWorker>(*this, *bgs_params_ptr_);
         camera_worker_ptr_ = std::make_unique<CameraWorker>(*this, *camera_params_ptr_, [this](const std_msgs::msg::Header & header, const cv::Mat & img){bgs_callback(header, img);});
-        //one_shot_timer_ = create_wall_timer(std::chrono::seconds(2), [this](){init();});
     }
 
-    CallbackReturn on_configure(const rclcpp_lifecycle::State & state)
+    CallbackReturn on_configure(const rclcpp_lifecycle::State &)
     {
         RCLCPP_INFO(get_logger(), "Configuring");
 
@@ -46,35 +45,22 @@ public:
     }
 
 private:
+    rclcpp::QoS qos_profile_{10}; 
+
     std::unique_ptr<CameraWorkerParams> camera_params_ptr_;
     std::unique_ptr<CameraWorker> camera_worker_ptr_;
     std::unique_ptr<BackgroundSubtractorWorkerParams> bgs_params_ptr_;
     std::unique_ptr<BackgroundSubtractorWorker> bgs_worker_ptr_;
 
-    rclcpp::QoS qos_profile_{10}; 
     rclcpp::Service<bob_interfaces::srv::MaskOverrideRequest>::SharedPtr privacy_mask_override_service_;
     rclcpp::Service<bob_interfaces::srv::MaskOverrideRequest>::SharedPtr bgs_mask_override_service_;
-    rclcpp::TimerBase::SharedPtr one_shot_timer_;
 
     void init()
     {
-        //one_shot_timer_.reset();
-
-        //bgs_params_ptr_->image_publisher = create_publisher<sensor_msgs::msg::Image>("bob/frames/foreground_mask", qos_profile_);
-        //bgs_params_.detection_publisher = create_publisher<bob_interfaces::msg::DetectorBBoxArray>("bob/detection/allsky/boundingboxes", qos_profile_);        
-        // bgs_params_.state_publisher = create_publisher<bob_interfaces::msg::DetectorState>("bob/detection/detector_state", qos_profile_);
-
         declare_node_parameters();
 
         bgs_worker_ptr_->init();
         camera_worker_ptr_->init();
-
-        privacy_mask_override_service_ = create_service<bob_interfaces::srv::MaskOverrideRequest>("bob/mask/privacy/override",
-            [this](const std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Request> request, 
-                    std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Response> response){privacy_mask_override_request(request, response);});
-        bgs_mask_override_service_ = create_service<bob_interfaces::srv::MaskOverrideRequest>("bob/mask/detection/override",
-            [this](const std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Request> request, 
-                    std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Response> response){bgs_mask_override_request(request, response);});
     }
 
     void declare_node_parameters()
@@ -129,6 +115,45 @@ private:
                 {
                     bgs_params_ptr_->detection_state_publish_topic = param.as_string();
                     bgs_params_ptr_->state_publisher = create_publisher<bob_interfaces::msg::DetectorState>(bgs_params_ptr_->detection_state_publish_topic, qos_profile_);
+                }
+            ),
+            ParameterLifeCycleNode::ActionParam(
+                rclcpp::Parameter("privacy_mask_override_service_topic", "bob/mask/privacy/override"), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    privacy_mask_override_service_ = create_service<bob_interfaces::srv::MaskOverrideRequest>(param.as_string(),
+                            [this](const std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Request> request, 
+                                        std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Response> response){privacy_mask_override_request(request, response);});
+                }
+            ),
+            ParameterLifeCycleNode::ActionParam(
+                rclcpp::Parameter("bgs_mask_override_service_topic", "bob/mask/detection/override"), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    bgs_mask_override_service_ = create_service<bob_interfaces::srv::MaskOverrideRequest>(param.as_string(),
+                            [this](const std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Request> request, 
+                                    std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Response> response){bgs_mask_override_request(request, response);});
+                }
+            ),
+            ParameterLifeCycleNode::ActionParam(
+                rclcpp::Parameter("camera_settings_client_topic", "bob/camera/settings"), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    camera_params_ptr_->camera_settings_client = create_client<bob_interfaces::srv::CameraSettings>(param.as_string());
+                }
+            ),
+            ParameterLifeCycleNode::ActionParam(
+                rclcpp::Parameter("fps_update_client_topic", "bob/config/update/fps"), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    camera_params_ptr_->fps_update_client = create_client<bob_interfaces::srv::ConfigEntryUpdate>(param.as_string());
+                }
+            ),
+            ParameterLifeCycleNode::ActionParam(
+                rclcpp::Parameter("usb_camera_resolution", std::vector<long>()), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    camera_params_ptr_->usb_resolution = param.as_integer_array();
                 }
             ),
             ParameterLifeCycleNode::ActionParam(
