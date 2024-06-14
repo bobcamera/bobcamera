@@ -5,12 +5,8 @@
 #include <rclcpp/rclcpp.hpp>
 #include <cv_bridge/cv_bridge.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
-#include <message_filters/subscriber.h>
-#include <message_filters/time_synchronizer.h>
 
 #include <sensor_msgs/msg/image.hpp>
-
-#include <boblib/api/utils/profiler.hpp>
 
 #include "parameter_lifecycle_node.hpp"
 #include "image_utils.hpp"
@@ -27,22 +23,62 @@ public:
     explicit FrameResizer(const rclcpp::NodeOptions & options) 
         : ParameterLifeCycleNode("frame_resizer_node", options)
     {
-        declare_node_parameters();
+    }
+
+    CallbackReturn on_configure(const rclcpp_lifecycle::State &)
+    {
+        RCLCPP_INFO(get_logger(), "Configuring");
+
         init();
+
+        return CallbackReturn::SUCCESS;
     }
 
 private:
+    rclcpp::TimerBase::SharedPtr timer_;
+    rclcpp::QoS pub_qos_profile_{10};
     rclcpp::QoS sub_qos_profile_{10};
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscription_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_resized_frame_;
-    boblib::utils::Profiler profiler_;
+    std::string resized_frame_subscriber_topic_;
     int resize_height_;
 
     friend std::shared_ptr<FrameResizer> std::make_shared<FrameResizer>();
 
+    void init()
+    {
+        sub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
+        sub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
+        sub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
+
+        pub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
+        pub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
+        pub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
+
+        declare_node_parameters();
+
+        timer_ = create_wall_timer(std::chrono::seconds(2), [this]{check_subscribers();});
+    }
+
     void declare_node_parameters()
     {
         std::vector<ParameterLifeCycleNode::ActionParam> params = {
+            ParameterLifeCycleNode::ActionParam(
+                rclcpp::Parameter("resized_frame_subscriber_topic", "bob/resizer/source"), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    resized_frame_subscriber_topic_ = param.as_string();
+                    image_subscription_.reset();
+                }
+            ),
+            ParameterLifeCycleNode::ActionParam(
+                rclcpp::Parameter("resized_frame_publisher_topic", "bob/resizer/target"), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    pub_resized_frame_ = create_publisher<sensor_msgs::msg::Image>(param.as_string(), pub_qos_profile_);
+                    RCLCPP_DEBUG(get_logger(), "Creating topic %s", pub_resized_frame_->get_topic_name());
+                }
+            ),
             ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("resize_height", 960), 
                 [this](const rclcpp::Parameter& param) {resize_height_ = param.as_int();}
@@ -50,25 +86,32 @@ private:
         };
         add_action_parameters(params);
     }
-    
-    void init()
+
+    void check_subscribers() 
     {
-        rclcpp::QoS sub_qos_profile{10};
-        sub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
-        sub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
-        sub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
-
-        rclcpp::QoS pub_qos_profile{10};
-        pub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
-        pub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
-        pub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
-
-        image_subscription_ = create_subscription<sensor_msgs::msg::Image>("bob/resizer/source", sub_qos_profile_,
-            std::bind(&FrameResizer::imageCallback, this, std::placeholders::_1));
-
-        pub_resized_frame_ = create_publisher<sensor_msgs::msg::Image>("bob/resizer/target", pub_qos_profile);
+        timer_->cancel();
+        try
+        {
+            auto num_subs = count_subscribers(pub_resized_frame_->get_topic_name());
+            if ((num_subs > 0) && !image_subscription_)
+            {
+                image_subscription_ = create_subscription<sensor_msgs::msg::Image>(resized_frame_subscriber_topic_, sub_qos_profile_,
+                    [this](const sensor_msgs::msg::Image::SharedPtr image_msg){imageCallback(image_msg);});
+                RCLCPP_DEBUG(get_logger(), "Subscribing to %s", image_subscription_->get_topic_name());
+            } 
+            else if ((num_subs <= 0) && image_subscription_) 
+            {
+                RCLCPP_DEBUG(get_logger(), "Unsubscribing from %s", image_subscription_->get_topic_name());
+                image_subscription_.reset();
+            }
+        }
+        catch(const std::exception& e)
+        {
+            // Ignoring, probably due to application closing
+        }
+        timer_->reset();
     }
-
+    
     void imageCallback(const sensor_msgs::msg::Image::SharedPtr image_msg)
     {
         try

@@ -48,11 +48,6 @@ private:
             change_request_ = std::make_shared<lifecycle_msgs::srv::ChangeState::Request>();
         }
 
-        void init()
-        {
-            update_state();
-        }
-
         std::string get_name() const
         {
             return name_;
@@ -73,7 +68,7 @@ private:
                 state_.label = "unknown";
             }
 
-            auto future = client_get_state_->async_send_request(get_request_, [this](rclcpp::Client<lifecycle_msgs::srv::GetState>::SharedFuture future) 
+            auto futureAndRequestId = client_get_state_->async_send_request(get_request_, [this](rclcpp::Client<lifecycle_msgs::srv::GetState>::SharedFuture future) 
             {
                 auto response = future.get();
                 state_.id = response->current_state.id;
@@ -108,15 +103,6 @@ private:
             });
         }
 
-    private:
-        const std::string name_;
-        lifecycle_msgs::msg::State state_;
-        rclcpp::Client<lifecycle_msgs::srv::ChangeState>::SharedPtr client_change_state_;
-        rclcpp::Client<lifecycle_msgs::srv::GetState>::SharedPtr client_get_state_;
-        LifecycleManager::SharedPtr node_;
-        std::shared_ptr<lifecycle_msgs::srv::GetState_Request> get_request_;
-        std::shared_ptr<lifecycle_msgs::srv::ChangeState_Request> change_request_;
-
         void check_change_status()
         {
             // TODO: implement a state machine, right now we only send a configure state
@@ -130,17 +116,54 @@ private:
                     break;
             }
         }
+
+        void prune_requests()
+        {
+            std::vector<int64_t> pruned_requests;
+            size_t n_pruned_change = client_change_state_->prune_requests_older_than(std::chrono::system_clock::now() - std::chrono::seconds(5), &pruned_requests);
+            size_t n_pruned_get = client_change_state_->prune_requests_older_than(std::chrono::system_clock::now() - std::chrono::seconds(5), &pruned_requests);
+            if (n_pruned_change || n_pruned_get) 
+            {
+                RCLCPP_INFO(node_->get_logger(), "The server hasn't replied for more than 5s, %zu requests were discarded, the discarded requests numbers are:", n_pruned_change + n_pruned_get);
+            }
+        }
+
+    private:
+        const std::string name_;
+        lifecycle_msgs::msg::State state_;
+        rclcpp::Client<lifecycle_msgs::srv::ChangeState>::SharedPtr client_change_state_;
+        rclcpp::Client<lifecycle_msgs::srv::GetState>::SharedPtr client_get_state_;
+        LifecycleManager::SharedPtr node_;
+        std::shared_ptr<lifecycle_msgs::srv::GetState_Request> get_request_;
+        std::shared_ptr<lifecycle_msgs::srv::ChangeState_Request> change_request_;
     };
 
     rclcpp::TimerBase::SharedPtr timer_nodes_;
     std::map<std::string, NodeStatusManager> lifecycle_nodes_;
     std::set<std::string> non_lifecycle_running_nodes_;
-    std::set<std::string> running_nodes_;
+    std::vector<std::string> running_nodes_;
 
     void timer_callback()
     {
         timer_nodes_->cancel();
 
+        add_remove_nodes();
+        do_state_machine();
+
+        timer_nodes_->reset();
+    }
+
+    void do_state_machine()
+    {
+        for (auto & node : lifecycle_nodes_)
+        {
+            node.second.prune_requests();
+            node.second.update_state();
+        }
+    }
+
+    void add_remove_nodes()
+    {
         auto current_running_nodes = get_node_names();
 
         std::ranges::transform(current_running_nodes, current_running_nodes.begin(), [](const std::string& str) {return (!str.empty() && str.front() == '/') ? str.substr(1) : str;});
@@ -163,8 +186,7 @@ private:
             if (!services_and_types.empty() && services_and_types.contains("/" + node_name + "/change_state"))
             {
                 RCLCPP_INFO(get_logger(), "Node %s is lifecycle", node_name.c_str());
-                auto & [map_node_name, node_manager] = *lifecycle_nodes_.emplace(node_name, NodeStatusManager(node_name, shared_from_this())).first;
-                node_manager.init();
+                *lifecycle_nodes_.emplace(node_name, NodeStatusManager(node_name, shared_from_this())).first;
             }
             else
             {
@@ -172,10 +194,7 @@ private:
                 non_lifecycle_running_nodes_.emplace(node_name);
             }
         }
-        running_nodes_.clear();
-        running_nodes_.insert(current_running_nodes.begin(), current_running_nodes.end());
-
-        timer_nodes_->reset();
+        running_nodes_ = current_running_nodes;
     }
 
     void declare_node_parameters()

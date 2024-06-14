@@ -20,9 +20,17 @@ public:
         , pub_qos_profile_(10)
         , sub_qos_profile_(10)
     {
-        init();
     }
-    
+
+    CallbackReturn on_configure(const rclcpp_lifecycle::State &)
+    {
+        RCLCPP_INFO(get_logger(), "Configuring");
+
+        init();
+
+        return CallbackReturn::SUCCESS;
+    }
+
 private:
     enum SensitivityChangeActionEnum
     {
@@ -61,22 +69,25 @@ private:
         pub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
         pub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
 
-        declare_node_parameters();
-
         sensitivity_change_action_ = Ignore;
+
+        declare_node_parameters();
 
         interval_check_timer_ = create_wall_timer(std::chrono::seconds(check_interval_), 
             [this](){interval_check_timer_callback();});
-
-        monitoring_subscription_ = create_subscription<bob_interfaces::msg::MonitoringStatus>(
-            "bob/monitoring/status", 
-            sub_qos_profile_,
-            [this](const bob_interfaces::msg::MonitoringStatus::SharedPtr status_msg){status_callback(status_msg);});
     }
 
     void declare_node_parameters()
     {
         std::vector<ParameterLifeCycleNode::ActionParam> params = {
+            ParameterLifeCycleNode::ActionParam(
+                rclcpp::Parameter("monitoring_subscription_topic", "bob/monitoring/status"), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    monitoring_subscription_ = create_subscription<bob_interfaces::msg::MonitoringStatus>(param.as_string(), sub_qos_profile_,
+                            [this](const bob_interfaces::msg::MonitoringStatus::SharedPtr status_msg){status_callback(status_msg);});
+                }
+            ),            
             ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("bgs_node", "rtsp_camera_node"), 
                 [this](const rclcpp::Parameter& param) 

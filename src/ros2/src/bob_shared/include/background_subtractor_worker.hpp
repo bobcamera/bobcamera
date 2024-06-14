@@ -11,7 +11,6 @@
 #include "background_subtractor_companion.hpp"
 #include "mask_worker.hpp"
 
-#include <sensor_msgs/msg/region_of_interest.hpp>
 #include <sensor_msgs/msg/image.hpp>
 
 #include <bob_interfaces/msg/detector_state.hpp>

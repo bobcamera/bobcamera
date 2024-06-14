@@ -27,8 +27,15 @@ public:
     explicit FrameCompressor(const rclcpp::NodeOptions & options) 
         : ParameterLifeCycleNode("frame_compressor_node", options)
     {
-        declare_node_parameters();
+    }
+
+    CallbackReturn on_configure(const rclcpp_lifecycle::State &)
+    {
+        RCLCPP_INFO(get_logger(), "Configuring");
+
         init();
+
+        return CallbackReturn::SUCCESS;
     }
 
 private:
@@ -37,15 +44,46 @@ private:
     rclcpp::QoS pub_qos_profile_{10};
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscription_;
     rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr pub_compressed_frame_;
-    boblib::utils::Profiler profiler_;
+    std::string compressed_frame_subscriber_topic_;
     int compression_quality_;
     std::vector<int> compression_params_;
 
     friend std::shared_ptr<FrameCompressor> std::make_shared<FrameCompressor>();
 
+    void init()
+    {
+        sub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
+        sub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
+        sub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
+
+        pub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
+        pub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
+        pub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
+
+        declare_node_parameters();
+
+        timer_ = create_wall_timer(std::chrono::seconds(2), [this]{check_subscribers();});
+    }
+
     void declare_node_parameters()
     {
         std::vector<ParameterLifeCycleNode::ActionParam> params = {
+            ParameterLifeCycleNode::ActionParam(
+                rclcpp::Parameter("compressed_frame_subscriber_topic", "bob/compressor/source"), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    compressed_frame_subscriber_topic_ = param.as_string();
+                    image_subscription_.reset();
+                }
+            ),
+            ParameterLifeCycleNode::ActionParam(
+                rclcpp::Parameter("compressed_frame_publisher_topic", "bob/compressor/target"), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    pub_compressed_frame_ = create_publisher<sensor_msgs::msg::CompressedImage>(param.as_string(), pub_qos_profile_);
+                    RCLCPP_DEBUG(get_logger(), "Creating topic %s", pub_compressed_frame_->get_topic_name());
+                }
+            ),
             ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("compression_quality", 75), 
                 [this](const rclcpp::Parameter& param) 
@@ -59,22 +97,6 @@ private:
         };
         add_action_parameters(params);
     }
-    
-    void init()
-    {
-        sub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
-        sub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
-        sub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
-
-        pub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
-        pub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
-        pub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
-
-        timer_ = create_wall_timer(std::chrono::seconds(2), [this]{check_subscribers();});
-
-        pub_compressed_frame_ = create_publisher<sensor_msgs::msg::CompressedImage>("bob/compressor/target", pub_qos_profile_);
-        RCLCPP_INFO(get_logger(), "Creating topic %s", pub_compressed_frame_->get_topic_name());
-    }
 
     void check_subscribers() 
     {
@@ -84,13 +106,13 @@ private:
             auto num_subs = count_subscribers(pub_compressed_frame_->get_topic_name());
             if ((num_subs > 0) && !image_subscription_)
             {
-                image_subscription_ = create_subscription<sensor_msgs::msg::Image>("bob/compressor/source", sub_qos_profile_,
+                image_subscription_ = create_subscription<sensor_msgs::msg::Image>(compressed_frame_subscriber_topic_, sub_qos_profile_,
                     [this](const sensor_msgs::msg::Image::SharedPtr image_msg){imageCallback(image_msg);});
-                RCLCPP_INFO(get_logger(), "Subscribing to %s", image_subscription_->get_topic_name());
+                RCLCPP_DEBUG(get_logger(), "Subscribing to %s", image_subscription_->get_topic_name());
             } 
             else if ((num_subs <= 0) && image_subscription_) 
             {
-                RCLCPP_INFO(get_logger(), "Unsubscribing from %s", image_subscription_->get_topic_name());
+                RCLCPP_DEBUG(get_logger(), "Unsubscribing from %s", image_subscription_->get_topic_name());
                 image_subscription_.reset();
             }
         }

@@ -23,20 +23,23 @@ public:
         : ParameterLifeCycleNode("frame_provider_node", options)
         , video_tracker_(get_logger()) 
     {
-        one_shot_timer_ = this->create_wall_timer(
-            std::chrono::seconds(1), 
-            [this]() {
-                this->init(); 
-                this->one_shot_timer_.reset();  
-            }
-        );
+    }
+
+    CallbackReturn on_configure(const rclcpp_lifecycle::State &)
+    {
+        RCLCPP_INFO(get_logger(), "Configuring");
+
+        init();
+
+        return CallbackReturn::SUCCESS;
     }
 
 private:
+    rclcpp::QoS pub_qos_profile_{10};
+    rclcpp::QoS sub_qos_profile_{10};
     rclcpp::Publisher<bob_interfaces::msg::Tracking>::SharedPtr pub_tracker_tracking_;
     rclcpp::Publisher<bob_interfaces::msg::Tracking>::SharedPtr pub_tracker_tracking_resized_;
     rclcpp::Subscription<bob_interfaces::msg::DetectorBBoxArray>::SharedPtr detector_bounding_boxes_subscription_;    
-    rclcpp::TimerBase::SharedPtr one_shot_timer_;
     SORT::Tracker video_tracker_;
     int resize_height_;
 
@@ -44,34 +47,42 @@ private:
 
     void init()
     {
-        RCLCPP_INFO(get_logger(), "Initializing TrackProvider");
+        pub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
+        pub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
+        pub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
+        
+        sub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
+        sub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
+        sub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
 
         declare_node_parameters();
-
-        rclcpp::QoS pub_qos_profile{10};
-        pub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
-        pub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
-        pub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
-        
-        rclcpp::QoS sub_qos_profile{10};
-        sub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
-        sub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
-        sub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
-
-        detector_bounding_boxes_subscription_ = create_subscription<bob_interfaces::msg::DetectorBBoxArray>("bob/detection/allsky/boundingboxes", sub_qos_profile,
-            std::bind(&TrackProvider::callback, this, std::placeholders::_1));
-
-        pub_tracker_tracking_ = create_publisher<bob_interfaces::msg::Tracking>("bob/tracker/tracking", pub_qos_profile);
-        pub_tracker_tracking_resized_ = create_publisher<bob_interfaces::msg::Tracking>("bob/tracker/tracking/resized", pub_qos_profile);
     }
 
     void declare_node_parameters() 
     {
         std::vector<ParameterLifeCycleNode::ActionParam> params = {
             ParameterLifeCycleNode::ActionParam(
+                rclcpp::Parameter("bounding_boxes_subscription_topic", "bob/detection/allsky/boundingboxes"), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    detector_bounding_boxes_subscription_ = create_subscription<bob_interfaces::msg::DetectorBBoxArray>(param.as_string(), sub_qos_profile_,
+                        [this](const bob_interfaces::msg::DetectorBBoxArray::SharedPtr bounding_boxes_msg){callback(bounding_boxes_msg);});
+                }
+            ),        
+            ParameterLifeCycleNode::ActionParam(
+                rclcpp::Parameter("tracker_publisher_topic", "bob/tracker/tracking"), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    pub_tracker_tracking_ = create_publisher<bob_interfaces::msg::Tracking>(param.as_string(), pub_qos_profile_);
+                    pub_tracker_tracking_resized_ = create_publisher<bob_interfaces::msg::Tracking>(param.as_string() + "/resized", pub_qos_profile_);
+                }
+            ),        
+
+            ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("resize_height", 960), 
-                [this](const rclcpp::Parameter& param) {
-                    resize_height_ = param.as_int();
+                [this](const rclcpp::Parameter& param) 
+                {
+                    resize_height_ = static_cast<int>(param.as_int());
                 }
             ),        
         };
@@ -120,7 +131,7 @@ private:
 
     inline void publish_tracking_resized(const bob_interfaces::msg::Tracking & tracking_msg, int image_height) const
     {
-        if (count_subscribers(std::string(pub_tracker_tracking_->get_topic_name()) + "/resized") <= 0)
+        if ((resize_height_ <= 0) || count_subscribers(std::string(pub_tracker_tracking_->get_topic_name()) + "/resized") <= 0)
         {
             return;
         }

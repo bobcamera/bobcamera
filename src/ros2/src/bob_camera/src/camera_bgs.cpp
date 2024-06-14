@@ -7,7 +7,6 @@
 #include <rclcpp_components/register_node_macro.hpp>
 
 #include <bob_interfaces/srv/mask_override_request.hpp>
-#include <sensor_msgs/msg/region_of_interest.hpp>
 
 #include <parameter_lifecycle_node.hpp>
 #include <image_utils.hpp>

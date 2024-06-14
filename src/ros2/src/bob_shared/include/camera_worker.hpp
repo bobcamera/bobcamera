@@ -10,7 +10,6 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include <sensor_msgs/msg/image.hpp>
-#include <sensor_msgs/msg/region_of_interest.hpp>
 
 #include <bob_interfaces/srv/camera_settings.hpp>
 #include <bob_interfaces/srv/config_entry_update.hpp>

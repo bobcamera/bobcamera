@@ -93,10 +93,14 @@ advanced_config:
                   ]'
 
   track_provider_node:
-    pass: True
+    bounding_boxes_subscription_topic: 'bob/detection/allsky/boundingboxes'
+    tracker_publisher_topic: 'bob/tracker/tracking'
+    resize_height: 960
 
   allsky_recorder_node:
     recordings_directory: 'assets/recordings'
+    recording_request_service_topic: 'bob/recording/update'
+    state_publisher_topic: 'bob/recording/state'
     img_topic: 'bob/frames/allsky/original'
     fg_img_topic: 'bob/frames/foreground_mask'
     tracking_topic: 'bob/tracker/tracking'
@@ -104,18 +108,24 @@ advanced_config:
 
   annotated_frame_provider_node:
     tracking_status_message: False
-    image_resized_publish_topic: '/bob/frames/annotated/resized'
+    resize_height: 960
+    annotated_frame_publisher_topic: 'bob/frames/annotated'
+    camera_frame_topic: 'bob/frames/allsky/original/resized'
+    tracking_topic: 'bob/tracker/tracking/resized'
 
   annotated_frame_compressor_node:
+    compressed_frame_subscriber_topic: 'bob/frames/annotated/resized'
+    compressed_frame_publisher_topic: 'bob/frames/annotated/resized/compressed'
     compression_quality: 75
 
   detection_masked_compressor_node:
-    compression_quality: 75
-
-  privacy_masked_compressor_node:
+    compressed_frame_subscriber_topic: 'bob/frames/allsky/original/resized'
+    compressed_frame_publisher_topic: 'bob/frames/allsky/original/resized/compressed'
     compression_quality: 75
 
   foreground_mask_compressor_node:
+    compressed_frame_subscriber_topic: 'bob/frames/foreground_mask/resized'
+    compressed_frame_publisher_topic: 'bob/frames/foreground_mask/resized/compressed'
     compression_quality: 75
 
   day_night_classifier_node:
@@ -139,6 +149,7 @@ advanced_config:
     observer_tracker_sample_set: 5
 
   track_sensitivity_monitor_node:
+    monitoring_subscription_topic: 'bob/monitoring/status'
     bgs_node: 'camera_node'
     check_interval: 10
     sensitivity_increase_count_threshold: 5
@@ -161,10 +172,6 @@ advanced_config:
     masks_folder: 'assets/masks'
     width: 1920
     height: 1080
-
-  # lifecycle_service_client_node:
-  #   lifecycle_nodes:
-  #     - 'camera_node'
 
 #########################################################################
 # Launch nodes configuration
@@ -242,21 +249,15 @@ launch:
         - package: bob_image_processing
           plugin: FrameCompressor
           name: annotated_frame_compressor_node
-          remappings:
-            - 'bob/compressor/source': 'bob/frames/annotated/resized'
-            - 'bob/compressor/target': 'bob/frames/annotated/resized/compressed'
+          remappings: []
         - package: bob_image_processing
           plugin: FrameCompressor
           name: detection_masked_compressor_node
-          remappings:
-            - 'bob/compressor/source': 'bob/frames/allsky/original/resized'
-            - 'bob/compressor/target': 'bob/frames/allsky/original/resized/compressed'
+          remappings: []
         - package: bob_image_processing
           plugin: FrameCompressor
           name: foreground_mask_compressor_node
-          remappings:
-            - 'bob/compressor/source': 'bob/frames/foreground_mask/resized'
-            - 'bob/compressor/target': 'bob/frames/foreground_mask/resized/compressed'
+          remappings: []
     - name: Display
       executable: component_container # Has to be single-threaded because of OpenCV display
       output: both
