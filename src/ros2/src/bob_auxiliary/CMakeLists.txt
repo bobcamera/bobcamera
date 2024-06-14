@@ -39,16 +39,11 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
 ENDIF()
 
 # LifecycleServiceClient Node Library
-add_library(lifecycle_service_client_node SHARED src/lifecycle_service_client.cpp)
-target_compile_definitions(lifecycle_service_client_node PRIVATE "COMPOSITION_BUILDING_DLL")
-target_link_libraries(lifecycle_service_client_node PUBLIC "${cpp_typesupport_target}")
-ament_target_dependencies(lifecycle_service_client_node PUBLIC rclcpp std_msgs rcl_interfaces rclcpp_components rclcpp_lifecycle bob_interfaces lifecycle_msgs)
-rclcpp_components_register_nodes(lifecycle_service_client_node "LifecycleServiceClient")
-install(TARGETS lifecycle_service_client_node DESTINATION lib)
-
-# LifecycleServiceClient Node Executable
-# add_executable(lifecycle_service_client_node src/lifecycle_service_client.cpp)
-# ament_target_dependencies(lifecycle_service_client_node PUBLIC rclcpp bob_interfaces rclcpp_lifecycle rclcpp_components lifecycle_msgs)
-# install(TARGETS lifecycle_service_client_node DESTINATION lib/${PROJECT_NAME})
+add_library(lifecycle_manager_node SHARED src/lifecycle_manager.cpp)
+target_compile_definitions(lifecycle_manager_node PRIVATE "COMPOSITION_BUILDING_DLL")
+target_link_libraries(lifecycle_manager_node PUBLIC "${cpp_typesupport_target}")
+ament_target_dependencies(lifecycle_manager_node PUBLIC rclcpp std_msgs rcl_interfaces rclcpp_components rclcpp_lifecycle bob_interfaces lifecycle_msgs)
+rclcpp_components_register_nodes(lifecycle_manager_node "LifecycleManager")
+install(TARGETS lifecycle_manager_node DESTINATION lib)
 
 ament_package()

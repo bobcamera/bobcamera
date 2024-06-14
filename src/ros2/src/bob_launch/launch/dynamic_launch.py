@@ -1,16 +1,12 @@
 import os
 import yaml
-import rclpy
-import copy
 from launch import LaunchDescription
 from launch_ros.actions import Node, ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
 from launch.substitutions import EnvironmentVariable 
-from launch.actions import IncludeLaunchDescription, TimerAction, OpaqueFunction
+from launch.actions import IncludeLaunchDescription
 from launch.launch_description_sources import FrontendLaunchDescriptionSource
 from ament_index_python.packages import get_package_share_directory
-from lifecycle_msgs.msg import Transition
-from lifecycle_msgs.srv import ChangeState
 
 def parse_yaml(file_path):
     try:
@@ -20,54 +16,8 @@ def parse_yaml(file_path):
         print(f"Error loading YAML file: {e}")
         return None
     
-
 def get_node_parameters(config, node_name):
     return config['basic_config'].get(node_name, {}) | config['advanced_config'].get(node_name, {})
-
-
-def create_lifecycle_client(node_name, transition_id):
-    rclpy.init()
-    node = rclpy.create_node('lifecycle_manager')
-    client = node.create_client(ChangeState, f'/{node_name}/change_state')
-    req = ChangeState.Request()
-    req.transition.id = transition_id
-
-    while not client.wait_for_service(timeout_sec=1.0):
-        node.get_logger().info(f'Waiting for {node_name} change_state service...')
-
-    future = client.call_async(req)
-
-    rclpy.spin_until_future_complete(node, future)
-    if future.result() is not None:
-        node.get_logger().info(f'Successfully changed state of {node_name}')
-    else:
-        node.get_logger().error(f'Failed to change state of {node_name}')
-
-    rclpy.shutdown()
-
-
-def create_lifecycle_manager(node_names, transition_id):
-    rclpy.init()
-    print(node_names)
-
-    for node_name in node_names:
-        node = rclpy.create_node('lifecycle_manager')
-        client = node.create_client(ChangeState, f'/{node_name}/change_state')
-        req = ChangeState.Request()
-        req.transition.id = transition_id
-        while not client.wait_for_service(timeout_sec=1.0):
-            node.get_logger().info(f'Waiting for {node_name} change_state service...')
-
-        future = client.call_async(req)
-
-        rclpy.spin_until_future_complete(node, future)
-        if future.result() is not None:
-            node.get_logger().info(f'Successfully changed state of {node_name}')
-        else:
-            node.get_logger().error(f'Failed to change state of {node_name}')
-
-    rclpy.shutdown()
-
 
 def generate_composable_nodes(config, node_container, namespace):
     node_descriptions = node_container.get('nodes', [])
@@ -95,7 +45,6 @@ def generate_composable_nodes(config, node_container, namespace):
         nodes.append(node)
 
     return nodes
-
 
 def generate_containers(config, namespace, loglevel):
     node_containers = config['launch'].get('node_containers', [])
@@ -131,7 +80,6 @@ def generate_containers(config, namespace, loglevel):
         containers.append(container)
             
     return containers
-
 
 def generate_standalone_nodes(config, namespace, loglevel):
     config_nodes = config['launch'].get('standalone_nodes', [])
@@ -170,6 +118,25 @@ def generate_standalone_nodes(config, namespace, loglevel):
     
     return nodes
 
+def generate_lifecycle_manager(config, namespace, loglevel):
+    parameters = get_node_parameters(config, 'lifecycle_manager_node')
+    return ComposableNodeContainer(
+                name='LifeCycleManager',
+                namespace=namespace,
+                arguments=['--ros-args', '--log-level', loglevel],
+                package='rclcpp_components',
+                executable='component_container_mt',
+                composable_node_descriptions=[ComposableNode(
+                                                package='bob_auxiliary',
+                                                plugin='LifecycleManager',
+                                                name='lifecycle_manager_node',
+                                                namespace=namespace,
+                                                parameters=[parameters],
+                                                extra_arguments=[{'use_intra_process_comms': True}],
+                                                remappings=[]
+                                            )],
+                output='both',
+            )
 
 def generate_launch_description():
     config_file_path = 'assets/config/app_config.yaml'
@@ -181,6 +148,7 @@ def generate_launch_description():
     loglevel = EnvironmentVariable('BOB_LOGLEVEL', default_value="INFO")
     namespace = config['launch'].get('namespace', '')
     rosbridge_enable = config['launch'].get('rosbridge', True)
+    lifecycle_enable = config['launch'].get('lifecycle', True)
 
     launch_list = generate_containers(config, namespace, loglevel)
     launch_list.extend(generate_standalone_nodes(config, namespace, loglevel))
@@ -189,5 +157,8 @@ def generate_launch_description():
         ros_bridge_package_xml = os.path.join(get_package_share_directory('rosbridge_server'), 'launch/rosbridge_websocket_launch.xml')
         rosbridge_launch = IncludeLaunchDescription(FrontendLaunchDescriptionSource(ros_bridge_package_xml))
         launch_list.append(rosbridge_launch)
+
+    if (lifecycle_enable):
+        launch_list.append(generate_lifecycle_manager(config, namespace, loglevel))
 
     return LaunchDescription(launch_list)

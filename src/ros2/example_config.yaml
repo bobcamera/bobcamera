@@ -157,9 +157,9 @@ advanced_config:
     width: 1920
     height: 1080
 
-  lifecycle_service_client_node:
-    lifecycle_nodes:
-      - 'camera_node'
+  # lifecycle_service_client_node:
+  #   lifecycle_nodes:
+  #     - 'camera_node'
 
 #########################################################################
 # Launch nodes configuration
@@ -211,6 +211,7 @@ advanced_config:
 launch:
   namespace: ''
   rosbridge: True
+  lifecycle: True
 
   node_containers:
     - name: Kernel
@@ -225,10 +226,10 @@ launch:
           plugin: TrackProvider
           name: track_provider_node
           remappings: []
-        # - package: bob_recorder
-        #   plugin: RecordManager
-        #   name: allsky_recorder_node
-        #   remappings: []
+        - package: bob_recorder
+          plugin: RecordManager
+          name: allsky_recorder_node
+          remappings: []
         - package: bob_image_processing
           plugin: AnnotatedFrameProvider
           name: annotated_frame_provider_node
@@ -271,14 +272,14 @@ launch:
           plugin: RecordingMonitor
           name: allsky_recorder_monitoring_node
           remappings: []
-    - name: LifeCycle_Manager
-      executable: component_container_mt
-      output: both
-      nodes:
-        - package: bob_auxiliary
-          plugin: LifecycleServiceClient
-          name: lifecycle_service_client_node
-          remappings: []
+    # - name: LifeCycle_Manager
+    #   executable: component_container_mt
+    #   output: both
+    #   nodes:
+    #     - package: bob_auxiliary
+    #       plugin: LifecycleServiceClient
+    #       name: lifecycle_service_client_node
+    #       remappings: []
         
   standalone_nodes:
     - package: bob_observer

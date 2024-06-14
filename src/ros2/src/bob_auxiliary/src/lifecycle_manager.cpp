@@ -15,12 +15,12 @@
 
 #include <parameter_node.hpp>
 
-class LifecycleServiceClient 
+class LifecycleManager 
     : public ParameterNode
 {
 public:
     COMPOSITION_PUBLIC
-    explicit LifecycleServiceClient(const rclcpp::NodeOptions & options)
+    explicit LifecycleManager(const rclcpp::NodeOptions & options)
         : ParameterNode("lifecycle_service_client_node", options)
     {
         declare_node_parameters();
@@ -36,7 +36,7 @@ private:
     class NodeStatusManager
     {
     public:
-        NodeStatusManager(const std::string & name, LifecycleServiceClient::SharedPtr base_node)
+        NodeStatusManager(const std::string & name, LifecycleManager::SharedPtr base_node)
             : name_(name)
         {
             node_ = base_node->create_sub_node(name + "_manager");
@@ -113,7 +113,7 @@ private:
         lifecycle_msgs::msg::State state_;
         rclcpp::Client<lifecycle_msgs::srv::ChangeState>::SharedPtr client_change_state_;
         rclcpp::Client<lifecycle_msgs::srv::GetState>::SharedPtr client_get_state_;
-        LifecycleServiceClient::SharedPtr node_;
+        LifecycleManager::SharedPtr node_;
         std::shared_ptr<lifecycle_msgs::srv::GetState_Request> get_request_;
         std::shared_ptr<lifecycle_msgs::srv::ChangeState_Request> change_request_;
 
@@ -193,20 +193,4 @@ private:
     }
 };
 
-RCLCPP_COMPONENTS_REGISTER_NODE(LifecycleServiceClient)
-
-int main(int argc, char ** argv)
-{
-    setvbuf(stdout, NULL, _IONBF, BUFSIZ);
-
-    rclcpp::init(argc, argv);
-
-    auto lc_client = std::make_shared<LifecycleServiceClient>(rclcpp::NodeOptions());
-    lc_client->init();
-
-    rclcpp::spin(lc_client);
-
-    rclcpp::shutdown();
-
-    return 0;
-}
+RCLCPP_COMPONENTS_REGISTER_NODE(LifecycleManager)

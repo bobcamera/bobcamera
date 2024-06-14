@@ -20,6 +20,7 @@
     <depend>bob_tracking</depend>
     <depend>rclcpp_components</depend>
     <depend>rclcpp_lifecycle</depend>
+    <depend>lifecycle_msgs</depend>
 
     <export>
         <build_type>ament_cmake</build_type>
