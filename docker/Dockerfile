@@ -47,6 +47,8 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
     && apt-get autoclean && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
     && cd /tmp \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
+    && cd /tmp \
     && wget --no-check-certificate -O opencv-$OPENCV_VERSION.zip https://github.com/opencv/opencv/archive/$OPENCV_VERSION.zip \
     && wget --no-check-certificate -O opencv_contrib-$OPENCV_VERSION.zip https://github.com/opencv/opencv_contrib/archive/$OPENCV_VERSION.zip \
     && unzip opencv-$OPENCV_VERSION.zip \
@@ -190,6 +192,7 @@ RUN mkdir -p /opt/ros2_ws/src \
 FROM bob-ros2-dev AS bob-ros2-build
 COPY src/ros2 /workspaces/bobcamera/src/ros2
 COPY src/boblib /workspaces/bobcamera/src/boblib
+COPY src/boblib /workspaces/bobcamera/src/boblib
 WORKDIR /workspaces/bobcamera/src/ros2
 RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash \
     && source /opt/ros2_ws/install/setup.bash \
@@ -224,6 +227,10 @@ ARG USERNAME=ros
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 # Copy the compiled libs
+COPY --from=opencv /usr/local/lib/libopencv_*.so /usr/local/lib
+COPY --from=bob-ros2-build /usr/local/lib/libboblib.a /usr/local/lib
+COPY --from=bob-ros2-build /usr/local/lib/python3/dist-packages/ /usr/local/lib/python3/dist-packages/
+COPY --from=opencv /usr/lib/python3 /usr/lib/python3
 COPY --from=opencv /usr/local/lib/libopencv_*.so /usr/local/lib
 COPY --from=bob-ros2-build /usr/local/lib/libboblib.a /usr/local/lib
 COPY --from=bob-ros2-build /usr/local/lib/python3/dist-packages/ /usr/local/lib/python3/dist-packages/
