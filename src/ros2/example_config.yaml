@@ -38,9 +38,11 @@ basic_config:
 # Advanced configuration for nodes
 #   Nodes more advanced configuration to have fine control over the nodes
 #   behavior
+# !!! CHANGING BELOW CAN BREAK BOB, PLAY WITH CAUTION !!!
 #########################################################################
 advanced_config:
   camera_node:
+    mask_timer_seconds: 5
     privacy_mask_file: 'assets/masks/privacy-mask.jpg'
     privacy_mask_override_service_topic: 'bob/mask/privacy/override'
     image_publish_topic: 'bob/frames/allsky/original'

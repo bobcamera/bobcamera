@@ -57,6 +57,7 @@ struct CameraWorkerParams
     std::string mask_filename;
     int simulator_num_objects;
     bool simulator_enable;
+    int mask_timer_seconds;
 };
 
 class CameraWorker
@@ -92,7 +93,7 @@ public:
             }
 
             mask_worker_ptr_ = std::make_unique<MaskWorker>(node_, [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat & mask){mask_timer_callback(detection_mask_result, mask);});
-            mask_worker_ptr_->init(5, params_.mask_filename);
+            mask_worker_ptr_->init(params_.mask_timer_seconds, params_.mask_filename);
 
             open_camera();
             start_capture();

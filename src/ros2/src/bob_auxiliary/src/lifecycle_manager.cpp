@@ -140,7 +140,7 @@ private:
 
     rclcpp::TimerBase::SharedPtr timer_nodes_;
     std::map<std::string, NodeStatusManager> lifecycle_nodes_;
-    std::set<std::string> non_lifecycle_running_nodes_;
+    // std::set<std::string> non_lifecycle_running_nodes_;
     std::vector<std::string> running_nodes_;
 
     void timer_callback()
@@ -177,7 +177,7 @@ private:
 
         // Removing from our node map and set
         std::erase_if(lifecycle_nodes_, [&deleted_values](const auto& pair) {return deleted_values.contains(pair.first);});
-        std::erase_if(non_lifecycle_running_nodes_, [&deleted_values](const auto& node_name) {return deleted_values.contains(node_name);});
+        // std::erase_if(non_lifecycle_running_nodes_, [&deleted_values](const auto& node_name) {return deleted_values.contains(node_name);});
 
         for (const auto & node_name : new_values)
         {
@@ -191,7 +191,7 @@ private:
             else
             {
                 RCLCPP_INFO(get_logger(), "Node %s is NOT lifecycle", node_name.c_str());
-                non_lifecycle_running_nodes_.emplace(node_name);
+                // non_lifecycle_running_nodes_.emplace(node_name);
             }
         }
         running_nodes_ = current_running_nodes;

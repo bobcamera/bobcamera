@@ -94,9 +94,10 @@ private:
         try
         {
             std::vector<cv::Rect> bboxes;
+            bboxes.reserve(bounding_boxes_msg->detections.size());
             for (const auto &bbox2D : bounding_boxes_msg->detections)
             {
-                bboxes.push_back(cv::Rect(bbox2D.x, bbox2D.y, bbox2D.width, bbox2D.height));
+                bboxes.emplace_back(bbox2D.x, bbox2D.y, bbox2D.width, bbox2D.height);
             }
 
             video_tracker_.update_trackers(bboxes);

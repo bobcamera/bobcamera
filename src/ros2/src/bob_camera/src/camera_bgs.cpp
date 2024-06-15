@@ -149,6 +149,14 @@ private:
                 }
             ),
             ParameterLifeCycleNode::ActionParam(
+                rclcpp::Parameter("mask_timer_seconds", 5), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    camera_params_ptr_->mask_timer_seconds = static_cast<int>(param.as_int());
+                    bgs_params_ptr_->mask_timer_seconds = static_cast<int>(param.as_int());
+                }
+            ),
+            ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("usb_camera_resolution", std::vector<long>()), 
                 [this](const rclcpp::Parameter& param) 
                 {

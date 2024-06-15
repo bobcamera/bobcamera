@@ -44,6 +44,7 @@ struct BackgroundSubtractorWorkerParams
     bool mask_enable_override = true;
     std::string mask_filename;
     int resize_height;
+    int mask_timer_seconds;
 };
 
 class BackgroundSubtractorWorker
@@ -58,7 +59,7 @@ public:
     void init()
     {
         mask_worker_ptr_ = std::make_unique<MaskWorker>(node_, [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat & mask){mask_timer_callback(detection_mask_result, mask);});
-        mask_worker_ptr_->init(5, params_.mask_filename);
+        mask_worker_ptr_->init(params_.mask_timer_seconds, params_.mask_filename);
     }
 
     void init_bgs(const std::string & bgs)
