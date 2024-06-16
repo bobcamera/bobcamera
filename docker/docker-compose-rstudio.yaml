@@ -27,6 +27,18 @@ services:
   #  devices:
   #    - /dev/video0:/dev/video0 
 
+  rstudio:
+    image: dceoy/rstudio-server:latest
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8787:8787"
+    volumes: 
+      - ${PWD}/assets/recordings:/home/rstudio/recordings
+    working_dir: "/home/rstudio dceoy/rstudio-server"
+    depends_on:
+      - bob
+
 volumes:
   assets:
     driver: local

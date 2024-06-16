@@ -123,11 +123,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends wget tar \
 # MWG: This docker stage is used to build the ros2 dev environment
 ###################################################################
 FROM ros:jazzy AS bob-ros2-dev
-ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.12/:/usr/local/lib/python3.12/dist-packages/:/opt/ros/${ROS_DISTRO}/lib/python3.12/site-packages
+ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.12/:/usr/local/lib/python3.12/dist-packages/
 ENV PATH=$PATH:/root/.local/bin
 ENV DEBIAN_FRONTEND=noninteractive
 ENV COLCON_PREFIX_PATH=/opt/ros/${ROS_DISTRO}
 ENV LANG=en_GB.UTF-8
+ARG USERNAME=ros
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
 # Copy the compiled libs
 COPY --from=opencv /usr/local/lib/libopencv_* /usr/local/lib
 COPY --from=opencv /usr/local/lib/cmake /usr/local/lib/cmake
@@ -142,12 +145,10 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
         locales tzdata sudo bash-completion libjsoncpp-dev libboost-python-dev libboost-system-dev libtbb-dev \
         pip pipx \
         ros-${ROS_DISTRO}-vision-msgs ros-${ROS_DISTRO}-image-transport \
-        python3-pillow python3-pymongo python3-tornado python3-cairosvg\
+        python3-pillow python3-pymongo python3-tornado python3-cairosvg \
     # Install ONVIF library so we can get camera details using the ONVIF protocol
     && mv /usr/lib/python3.12/EXTERNALLY-MANAGED /usr/lib/python3.12/EXTERNALLY-MANAGED.old \
     && pip install --upgrade onvif2_zeep \
-    # Install the library used to convert the svg mask to a PNG and then a JPG
-    # && pip install cairosvg \    
     # Install QHY SDK
     && cd /opt/sdk_qhy && bash install.sh \
     # Install the libs locally
@@ -159,19 +160,19 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     && locale-gen en_GB.UTF-8 \
     && update-locale LC_ALL=en_GB.UTF-8 LANG=en_GB.UTF-8 \
     && dpkg-reconfigure --frontend noninteractive tzdata \
-    # Create ros user and modify exists uid 1000 if exists
-    && if ! getent group 1000 > /dev/null; then \
-        groupadd -g 1000 ros; \
+    # Create ros user and modify exists uid ${USER_GID} if exists
+    && if ! getent group ${USER_GID} > /dev/null; then \
+        groupadd -g ${USER_GID} ${USERNAME}; \
     fi \
-    && USER_WITH_UID_1000=$(getent passwd 1000 | cut -d: -f1) \
-    && if [ -n "$USER_WITH_UID_1000" ]; then \
-        usermod -u 10000 $USER_WITH_UID_1000; \
+    && USER_WITH_UID=$(getent passwd ${USER_UID} | cut -d: -f1) \
+    && if [ -n "$USER_WITH_UID" ]; then \
+        usermod -u 10000 $USER_WITH_UID; \
     fi \
-    && useradd -s /bin/bash --uid 1000 --gid 1000 -m ros \
-    && echo ros ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/ros \
-    && chmod 0440 /etc/sudoers.d/ros \
-    && echo "export DISPLAY=:0" >> /home/ros/.bashrc \
-    && echo "source /opt/ros/${ROS_DISTRO}/setup.sh" >> /home/ros/.bashrc
+    && useradd -s /bin/bash --uid ${USER_UID} --gid ${USER_GID} -m ${USERNAME} \
+    && echo ${USERNAME} ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/${USERNAME} \
+    && chmod 0440 /etc/sudoers.d/${USERNAME} \
+    && echo "export DISPLAY=:0" >> /home/${USERNAME}/.bashrc \
+    && echo "source /opt/ros/${ROS_DISTRO}/setup.sh" >> /home/${USERNAME}/.bashrc
 # Building new ros-${ROS_DISTRO}-vision-opencv
 WORKDIR /opt/ros2_ws
 RUN mkdir -p /opt/ros2_ws/src \
@@ -192,7 +193,6 @@ RUN mkdir -p /opt/ros2_ws/src \
 FROM bob-ros2-dev AS bob-ros2-build
 COPY src/ros2 /workspaces/bobcamera/src/ros2
 COPY src/boblib /workspaces/bobcamera/src/boblib
-COPY src/boblib /workspaces/bobcamera/src/boblib
 WORKDIR /workspaces/bobcamera/src/ros2
 RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash \
     && source /opt/ros2_ws/install/setup.bash \
@@ -209,19 +209,15 @@ RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash \
 # docker buildx build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-prod:1.2.7 -t bobcamera/bob-ros2-prod:latest --target bob-ros2-prod
 # docker buildx build --progress=plain --push --platform linux/amd64,linux/arm64 -f Dockerfile . -t bobcamera/bob-ros2-prod:1.2.7 -t bobcamera/bob-ros2-prod:latest --target bob-ros2-prod
 # docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY -v ~/Source/bobcamera/bobcamera/assets:/workspaces/bobcamera/src/ros2/assets/ bobcamera/bob-ros2-prod:1.2.3 bash
+
 ###################################################################################
 # MWG: This docker stage is used to construct the image with the build artifacts 
 # outputted from the build stage above
 ###################################################################################
 FROM ros:jazzy-ros-core AS bob-ros2-prod
-ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.10/:/usr/local/lib/python3/dist-packages/:/opt/ros/${ROS_DISTRO}/lib/python3.10/site-packages
-ENV PATH=/opt/ros/${ROS_DISTRO}/bin:$PATH
+ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.12/:/usr/local/lib/python3.12/dist-packages/
 ENV DEBIAN_FRONTEND=noninteractive
-ENV AMENT_PREFIX_PATH=/opt/ros/${ROS_DISTRO}
 ENV COLCON_PREFIX_PATH=/opt/ros/${ROS_DISTRO}
-ENV LD_LIBRARY_PATH=/opt/ros/${ROS_DISTRO}/lib
-ENV ROS_PYTHON_VERSION=3
-ENV ROS_VERSION=2
 ENV LANG=en_GB.UTF-8
 ARG USERNAME=ros
 ARG USER_UID=1000
@@ -229,12 +225,9 @@ ARG USER_GID=$USER_UID
 # Copy the compiled libs
 COPY --from=opencv /usr/local/lib/libopencv_*.so /usr/local/lib
 COPY --from=bob-ros2-build /usr/local/lib/libboblib.a /usr/local/lib
-COPY --from=bob-ros2-build /usr/local/lib/python3/dist-packages/ /usr/local/lib/python3/dist-packages/
+COPY --from=bob-ros2-build /usr/local/lib/python3.12/dist-packages/ /usr/local/lib/python3.12/dist-packages/
 COPY --from=opencv /usr/lib/python3 /usr/lib/python3
 COPY --from=opencv /usr/local/lib/libopencv_*.so /usr/local/lib
-COPY --from=bob-ros2-build /usr/local/lib/libboblib.a /usr/local/lib
-COPY --from=bob-ros2-build /usr/local/lib/python3/dist-packages/ /usr/local/lib/python3/dist-packages/
-COPY --from=opencv /usr/lib/python3 /usr/lib/python3
 COPY --from=qhy /opt/sdk_qhy /opt/sdk_qhy/
 COPY media/fisheye_videos /workspaces/bobcamera/media/fisheye_videos
 COPY --from=bob-ros2-build /workspaces/bobcamera/src/ros2/assets /workspaces/bobcamera/src/ros2/assets
@@ -250,13 +243,10 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     libhdf5-dev libatlas-base-dev \
     libboost-python-dev libboost-system-dev libtbb-dev \        
     ros-${ROS_DISTRO}-vision-msgs ros-${ROS_DISTRO}-image-transport \
-    && pip install Pillow \
-    && pip install pymongo \
-    && pip install tornado \
+    python3-pillow python3-pymongo python3-tornado python3-cairosvg \
     # Install ONVIF library so we can get camera details using the ONVIF protocol
-    && pip install onvif2_zeep \
-    # Install the library used to convert the svg mask to a PNG and then a JPG
-    && pip install cairosvg \    
+    && mv /usr/lib/python3.12/EXTERNALLY-MANAGED /usr/lib/python3.12/EXTERNALLY-MANAGED.old \
+    && pip install --upgrade onvif2_zeep \
     # Install QHY SDK
     && cd /opt/sdk_qhy && bash install.sh \
     # Install the libs locally
@@ -264,15 +254,27 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     # cleaning
     && apt-get autoclean && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /opt/sdk_qhy \
-    && groupadd --gid $USER_GID $USERNAME \
-    && useradd -s /bin/bash --uid $USER_UID --gid $USER_GID -m $USERNAME \
-    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME\
-    && chmod 0440 /etc/sudoers.d/$USERNAME \
-    && echo "export DISPLAY=:0" >> /home/$USERNAME/.bashrc
+    # user related install
+    && locale-gen en_GB.UTF-8 \
+    && update-locale LC_ALL=en_GB.UTF-8 LANG=en_GB.UTF-8 \
+    && dpkg-reconfigure --frontend noninteractive tzdata \
+    # Create ros user and modify exists uid ${USER_GID} if exists
+    && if ! getent group ${USER_GID} > /dev/null; then \
+        groupadd -g ${USER_GID} ${USERNAME}; \
+    fi \
+    && USER_WITH_UID=$(getent passwd ${USER_UID} | cut -d: -f1) \
+    && if [ -n "$USER_WITH_UID" ]; then \
+        usermod -u 10000 $USER_WITH_UID; \
+    fi \
+    && useradd -s /bin/bash --uid ${USER_UID} --gid ${USER_GID} -m ${USERNAME} \
+    && echo ${USERNAME} ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/${USERNAME} \
+    && chmod 0440 /etc/sudoers.d/${USERNAME} \
+    && echo "export DISPLAY=:0" >> /home/${USERNAME}/.bashrc \
+    && echo "source /opt/ros/${ROS_DISTRO}/setup.sh" >> /home/${USERNAME}/.bashrc
 WORKDIR /workspaces/bobcamera/src/ros2
 COPY entrypoint.sh /
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["ros2", "launch", "bob_launch", "application_launch.py"]
+CMD ["ros2", "launch", "bob_launch", "dynamic_launch.py"]
 
 
 # Navigate to http://localhost:8080 or http://127.0.0.1:8080 to view web output
