@@ -173,8 +173,8 @@ advanced_config:
 
   mask_webapi_node:
     masks_folder: 'assets/masks'
-    width: 1920
-    height: 1080
+    width: 0
+    height: 0
 
 #########################################################################
 # Launch nodes configuration

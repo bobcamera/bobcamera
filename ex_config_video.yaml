@@ -108,7 +108,7 @@ advanced_config:
     tracking_topic: 'bob/tracker/tracking'
     camera_info_topic: bob/camera/all_sky/camera_info
     prefix: ''
-    
+
   annotated_frame_provider_node:
     tracking_status_message: False
     resize_height: 960
@@ -173,8 +173,8 @@ advanced_config:
 
   mask_webapi_node:
     masks_folder: 'assets/masks'
-    width: 1920
-    height: 1080
+    width: 0
+    height: 0
 
 #########################################################################
 # Launch nodes configuration

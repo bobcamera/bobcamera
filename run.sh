@@ -15,7 +15,7 @@ while :; do
             #--env-file .env  \
             #up
         break
-    elif [ "$response_lower" = "with rstudio" ] || [ "$response_lower" = "e" ]; then
+    elif [ "$response_lower" = "with rstudio" ] || [ "$response_lower" = "r" ]; then
         echo "Running docker compose using Excl rStudio option"
         docker compose  \
             --file ./docker/docker-compose-rstudio.yaml  \
