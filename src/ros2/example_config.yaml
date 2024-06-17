@@ -186,6 +186,7 @@ advanced_config:
 #   There are standalone parameters:
 #     namespace: the namespace to run BOB
 #     rosbridge: True to enable rosbridge frontend connection, False otherwise
+#     lifecycle: True to enable lifecycle manager, False otherwise (suggested to leave it True or BOB will not work)
 #
 #   The Node Containers are executables that will run nodes in the same
 #   process, they have the advantage of using intra process communication
@@ -212,7 +213,8 @@ advanced_config:
 #     remappings: the topics remappings
 #
 #   Standalone nodes are usually Python nodes that cannot go inside the
-#   container, they have the following configuration:
+#   container or C++ nodes that were compiled as executables, they have 
+#   the following configuration:
 #     package: the package where the node is located (usually directory)
 #     executable: the name usually in entry_points of the setup.py
 #     name: the name you want this node to have
