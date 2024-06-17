@@ -7,105 +7,118 @@
 #include <rclcpp_components/register_node_macro.hpp>
 #include <cv_bridge/cv_bridge.hpp>
 #include <sensor_msgs/msg/image.hpp>
-#include <sensor_msgs/msg/compressed_image.hpp>
-#include <sensor_msgs/msg/region_of_interest.hpp>
 #include <bob_interfaces/msg/tracking.hpp>
 
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 
-#include "annotated_frame/annotated_frame_creator.hpp"
-#include "parameter_node.hpp"
-#include "image_utils.hpp"
+#include <parameter_lifecycle_node.hpp>
+#include <image_utils.hpp>
 #include <visibility_control.h>
 
-#include <rclcpp/experimental/executors/events_executor/events_executor.hpp>
+#include "annotated_frame/annotated_frame_creator.hpp"
 
 class AnnotatedFrameProvider 
-    : public ParameterNode
+    : public ParameterLifeCycleNode
 {
 public:
     COMPOSITION_PUBLIC
     explicit AnnotatedFrameProvider(const rclcpp::NodeOptions & options)
-        : ParameterNode("annotated_frame_provider_node", options)
+        : ParameterLifeCycleNode("annotated_frame_provider_node", options)
         , annotated_frame_creator_(std::map<std::string, std::string>())
-        , enable_tracking_status_(true)
     {
-        timer_ = create_wall_timer(std::chrono::seconds(1), [this](){ init(); });
+    }
+
+    CallbackReturn on_configure(const rclcpp_lifecycle::State &)
+    {
+        RCLCPP_INFO(get_logger(), "Configuring");
+
+        init();
+
+        return CallbackReturn::SUCCESS;
     }
 
 private:
     rclcpp::QoS pub_qos_profile_{10};
+    rclcpp::QoS sub_qos_profile_{10};
 
-    std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> sub_masked_frame_;
-    std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::Tracking>> sub_tracking_;
+    std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image, rclcpp_lifecycle::LifecycleNode>> sub_masked_frame_;
+    std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::Tracking, rclcpp_lifecycle::LifecycleNode>> sub_tracking_;
     std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::Tracking>> time_synchronizer_;
 
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_annotated_frame_;
     AnnotatedFrameCreator annotated_frame_creator_;
-    rclcpp::TimerBase::SharedPtr timer_;
-
-    std::unique_ptr<RosCvImageMsg> ros_cv_annotated_frame_;
 
     bool enable_tracking_status_;
 
-    std::unique_ptr<RosCvImageMsg> roscv_image_resize_msg_ptr;
     int resize_height_;
     std::string image_resized_publish_topic_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_resized_publisher_;
 
     void init()
     {
-        RCLCPP_INFO(get_logger(), "Initializing AnnotatedFrameProvider");
-
-        timer_->cancel();
-
         pub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
         pub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
         pub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
 
-        rclcpp::QoS sub_qos_profile{10};
-        sub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
-        sub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
-        sub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
-        auto rmw_qos_profile = sub_qos_profile.get_rmw_qos_profile();
+        sub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
+        sub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
+        sub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
+
+        enable_tracking_status_ = true;
 
         declare_node_parameters();
-
-        sub_masked_frame_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(shared_from_this(), "bob/frames/allsky/original/resized", rmw_qos_profile);
-        sub_tracking_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::Tracking>>(shared_from_this(), "bob/tracker/tracking/resized", rmw_qos_profile);
-        pub_annotated_frame_ = create_publisher<sensor_msgs::msg::Image>("bob/frames/annotated", pub_qos_profile_);
+        
         time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::Tracking>>(*sub_masked_frame_, *sub_tracking_, 10);
         time_synchronizer_->registerCallback(&AnnotatedFrameProvider::callback, this);
     }
 
     void declare_node_parameters()
     {
-        std::vector<ParameterNode::ActionParam> params = {
-            ParameterNode::ActionParam(
-                rclcpp::Parameter("tracking_status_message", false), 
-                [this](const rclcpp::Parameter& param) {enable_tracking_status_ = param.as_bool();}
+        std::vector<ParameterLifeCycleNode::ActionParam> params = {
+            ParameterLifeCycleNode::ActionParam(
+                rclcpp::Parameter("annotated_frame_publisher_topic", "bob/frames/annotated"), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    pub_annotated_frame_ = create_publisher<sensor_msgs::msg::Image>(param.as_string(), pub_qos_profile_);
+                    image_resized_publish_topic_ = param.as_string() + "/resized";
+                }
             ),                     
-            ParameterNode::ActionParam(
-                rclcpp::Parameter("image_resized_publish_topic", "bob/frames/allsky/original/resized"), 
-                [this](const rclcpp::Parameter& param) {
-                    image_resized_publish_topic_ = param.as_string();
-                    if (!image_resized_publish_topic_.empty())
+            ParameterLifeCycleNode::ActionParam(
+                rclcpp::Parameter("camera_frame_topic", "bob/frames/allsky/original/resized"), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    sub_masked_frame_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image, rclcpp_lifecycle::LifecycleNode>>(shared_from_this(), param.as_string(), sub_qos_profile_.get_rmw_qos_profile());
+                }
+            ),                     
+            ParameterLifeCycleNode::ActionParam(
+                rclcpp::Parameter("tracking_topic", "bob/tracker/tracking/resized"), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    sub_tracking_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::Tracking, rclcpp_lifecycle::LifecycleNode>>(shared_from_this(), param.as_string(), sub_qos_profile_.get_rmw_qos_profile());
+                }
+            ),                     
+            ParameterLifeCycleNode::ActionParam(
+                rclcpp::Parameter("tracking_status_message", false), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    enable_tracking_status_ = param.as_bool();
+                }
+            ),                     
+            ParameterLifeCycleNode::ActionParam(
+                rclcpp::Parameter("resize_height", 960), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    resize_height_ = static_cast<int>(param.as_int());
+                    if (resize_height_ > 0)
                     {
                         image_resized_publisher_ = create_publisher<sensor_msgs::msg::Image>(image_resized_publish_topic_, pub_qos_profile_);
                     }
                     else
                     {
                         image_resized_publisher_.reset();
-                        RCLCPP_INFO(get_logger(), "Resizer topic disabled");
+                        RCLCPP_DEBUG(get_logger(), "Resizer topic disabled");
                     }
-                }
-            ),
-            ParameterNode::ActionParam(
-                rclcpp::Parameter("resize_height", 960), 
-                [this](const rclcpp::Parameter& param) 
-                {
-                    resize_height_ = static_cast<int>(param.as_int());
                 }
             ),
         };
@@ -134,7 +147,7 @@ private:
 
     inline void publish_resized_frame(const std::shared_ptr<sensor_msgs::msg::Image> & annotated_frame_msg, const cv::Mat & img) const
     {
-        if (!image_resized_publisher_ || (count_subscribers(image_resized_publish_topic_) <= 0))
+        if (!image_resized_publisher_ || (resize_height_ <= 0) || (count_subscribers(image_resized_publish_topic_) <= 0))
         {
             return;
         }
@@ -153,15 +166,5 @@ private:
         }
     }
 };
-
-int main(int argc, char **argv)
-{
-    rclcpp::init(argc, argv);
-    rclcpp::experimental::executors::EventsExecutor executor;
-    executor.add_node(std::make_shared<AnnotatedFrameProvider>(rclcpp::NodeOptions()));
-    executor.spin();
-    rclcpp::shutdown();
-    return 0;
-}
 
 RCLCPP_COMPONENTS_REGISTER_NODE(AnnotatedFrameProvider)

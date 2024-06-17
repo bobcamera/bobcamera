@@ -1,20 +1,27 @@
 #pragma once
-#ifndef __PARAMETER_NODE_H__
-#define __PARAMETER_NODE_H__
+#ifndef __PARAMETER_LIFECYCLE_NODE_H__
+#define __PARAMETER_LIFECYCLE_NODE_H__
 
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 
 #include <rclcpp/rclcpp.hpp>
+#include <rcl_interfaces/msg/set_parameters_result.hpp>
+
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 #include <rclcpp_lifecycle/state.hpp>
 #include <rclcpp_lifecycle/transition.hpp>
-#include <rcl_interfaces/msg/set_parameters_result.hpp>
+#include <lifecycle_msgs/msg/state.hpp>
+#include <lifecycle_msgs/msg/transition.hpp>
+#include <lifecycle_msgs/srv/change_state.hpp>
+#include <lifecycle_msgs/srv/get_state.hpp>
 
-class ParameterNode
-    : public rclcpp::Node
+class ParameterLifeCycleNode
+    : public rclcpp_lifecycle::LifecycleNode
 {
 public:
+    using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
+
     struct ActionParam 
     {
         rclcpp::Parameter parameter;
@@ -27,15 +34,15 @@ public:
         {}
     };
 
-    explicit ParameterNode(const std::string & node_name)
-        : ParameterNode(node_name, *default_options())
+    explicit ParameterLifeCycleNode(const std::string & node_name)
+        : ParameterLifeCycleNode(node_name, *default_options())
     {
     }
 
-    explicit ParameterNode(const std::string &node_name, const rclcpp::NodeOptions & options)
-        : rclcpp::Node(node_name, options)
+    explicit ParameterLifeCycleNode(const std::string &node_name, const rclcpp::NodeOptions & options)
+        : rclcpp_lifecycle::LifecycleNode(node_name, options)
     {
-        parameters_callback_handle_ = add_on_set_parameters_callback(std::bind(&ParameterNode::param_change_callback_method, this, std::placeholders::_1));
+        parameters_callback_handle_ = add_on_set_parameters_callback([this](const std::vector<rclcpp::Parameter> & parameters){return param_change_callback_method(parameters);});
     }
 
     static std::string generate_uuid()
@@ -105,4 +112,4 @@ private:
     }
 };
 
-#endif // __PARAMETER_NODE_H__
+#endif // __PARAMETER_LIFECYCLE_NODE_H__

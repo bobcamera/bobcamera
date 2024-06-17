@@ -8,7 +8,7 @@
 
 #include <opencv2/opencv.hpp>
 
-#include "parameter_node.hpp"
+#include "parameter_lifecycle_node.hpp"
 
 class MaskWorker
 {
@@ -20,7 +20,7 @@ public:
         NoChange
     };
 
-    explicit MaskWorker(ParameterNode & node
+    explicit MaskWorker(ParameterLifeCycleNode & node
                         , const std::function<void(MaskCheckType result, const cv::Mat &)> & user_callback = nullptr)
         : node_(node)
         , user_callback_(user_callback)
@@ -38,7 +38,7 @@ public:
 
 private:
     int mask_timer_seconds_;
-    ParameterNode & node_;
+    ParameterLifeCycleNode & node_;
     std::function<void(MaskCheckType result, const cv::Mat &)> user_callback_;
 
     std::string mask_filename_;

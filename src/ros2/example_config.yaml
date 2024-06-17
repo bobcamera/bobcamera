@@ -1,0 +1,325 @@
+#########################################################################
+# Basic configuration for nodes
+#   This is the basic configuration, where most of the users need to worry
+#########################################################################
+basic_config:
+  camera_node:
+    source_type: 'VIDEO_FILE' # USB_CAMERA | VIDEO_FILE | RTSP_STREAM
+    rtsp_uri: ''              # Pattern: rtsp://{name of the user}:{password of user}@{IP-Address}:{Port Number}/{Path}
+                              # Example Hikvision: rtsp://peter:pAsSwOrD123427@12.8.9.3:554/Streaming/Channels/101
+                              # Example Amcrest and Dahua: rtsp://user:password@0.0.0.0:554/cam/realmonitor?channel=1&subtype=0
+    onvif_host: ''
+    onvif_port: 0
+    onvif_user: ''
+    onvif_password: ''
+    usb_camera_resolution: [640, 480] # Resolution for USB Camera [WIDTH, HEIGHT]
+    videos:                     # List of videos to display in sequence if source_type is VIDEO_FILE
+      - /workspaces/bobcamera/media/fisheye_videos/mike-drone.mp4
+      - /workspaces/bobcamera/media/fisheye_videos/mikeg-30min.mp4
+    resize_height: 960          # 0 to disable resize publish
+    simulator: True             # True for including simulated objects, False otherwise
+    simulator_num_objects: 15   # Number of simulated objects if the simulator parameter is True
+    bgs_sensitivity: 'low_c'    # Initial sensitivity configuration based on the 'bgs_json_params' in the advanced config section
+    bgs_type: 'vibe'            # The background subtractor to use: 'vibe' | 'wmv'
+
+  allsky_recorder_node:
+    codec: 'avc1'
+    video_fps: 15.0
+    seconds_save: 2
+    #pipeline: 'appsrc ! videoconvert ! openh264enc bitrate=10240000 qp-min=10 qp-max=51 ! h264parse ! mp4mux ! filesink location='
+    
+  multi_frame_viewer_node:
+    topics: 
+      - '/bob/frames/annotated/resized/compressed'
+      - '/bob/frames/allsky/original/resized/compressed'
+      - '/bob/frames/foreground_mask/resized/compressed'
+
+#########################################################################
+# Advanced configuration for nodes
+#   Nodes more advanced configuration to have fine control over the nodes
+#   behavior
+# !!! CHANGING BELOW CAN BREAK BOB, PLAY WITH CAUTION !!!
+#########################################################################
+advanced_config:
+  camera_node:
+    mask_timer_seconds: 5
+    privacy_mask_file: 'assets/masks/privacy-mask.jpg'
+    privacy_mask_override_service_topic: 'bob/mask/privacy/override'
+    image_publish_topic: 'bob/frames/allsky/original'
+    image_info_publish_topic: 'bob/camera/all_sky/image_info'
+    camera_info_publish_topic: 'bob/camera/all_sky/camera_info'
+    camera_settings_client_topic: 'bob/camera/settings'
+    fps_update_client_topic: 'bob/config/update/fps'
+    bgs_publish_topic: 'bob/frames/foreground_mask'
+    bgs_detection_topic: 'bob/detection/allsky/boundingboxes'
+    bgs_detection_state_topic: 'bob/detection/detector_state'
+    bgs_mask_file: 'assets/masks/detection-mask.jpg'
+    bgs_mask_override_service_topic: 'bob/mask/detection/override'
+    bgs_json_params: '[
+                    { "name": "low",
+                      "sensitivity": {
+                        "vibe": {"threshold": 65, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8}, 
+                        "wmv": {"enableWeight": true, "enableThreshold": true, "threshold": 50.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}, 
+                        "blob": {"sizeThreshold": 10, "areaThreshold": 100, "minDistance": 100, "maxBlobs": 25}, 
+                        "median_filter": false}},
+                    { "name": "medium",
+                      "sensitivity": {
+                        "vibe": {"threshold": 45, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 4}, 
+                        "wmv": {"enableWeight": true, "enableThreshold": true, "threshold": 30.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}, 
+                        "blob": {"sizeThreshold": 6, "areaThreshold": 36, "minDistance": 36, "maxBlobs": 25}, 
+                        "median_filter": false}},
+                    { "name": "high",
+                      "sensitivity": {
+                        "vibe": {"threshold": 30, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4}, 
+                        "wmv": {"enableWeight": true, "enableThreshold": true, "threshold": 15.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}, 
+                        "blob": {"sizeThreshold": 4, "areaThreshold": 16, "minDistance": 16, "maxBlobs": 25}, 
+                        "median_filter": false}},    
+                    { "name": "low_c",
+                      "sensitivity": {
+                        "vibe": {"threshold": 65, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8}, 
+                        "wmv": {"enableWeight": true, "enableThreshold": true, "threshold": 50.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}, 
+                        "blob": {"sizeThreshold": 10, "areaThreshold": 100, "minDistance": 100, "maxBlobs": 25}, 
+                        "median_filter": true}},
+                    { "name": "medium_c",
+                      "sensitivity": {
+                        "vibe": {"threshold": 45, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4}, 
+                        "wmv": {"enableWeight": true, "enableThreshold": true, "threshold": 25.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}, 
+                        "blob": {"sizeThreshold": 6, "areaThreshold": 36, "minDistance": 36, "maxBlobs": 25}, 
+                        "median_filter": true}},
+                    { "name": "high_c",
+                      "sensitivity": {
+                        "vibe": {"threshold": 25, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4}, 
+                        "wmv": {"enableWeight": true, "enableThreshold": true, "threshold": 15.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}, 
+                        "blob": {"sizeThreshold": 4, "areaThreshold": 16, "minDistance": 16, "maxBlobs": 25}, 
+                        "median_filter": true}}
+                  ]'
+
+  track_provider_node:
+    bounding_boxes_subscription_topic: 'bob/detection/allsky/boundingboxes'
+    tracker_publisher_topic: 'bob/tracker/tracking'
+    resize_height: 960
+
+  allsky_recorder_node:
+    recordings_directory: 'assets/recordings'
+    recording_request_service_topic: 'bob/recording/update'
+    state_publisher_topic: 'bob/recording/state'
+    img_topic: 'bob/frames/allsky/original'
+    fg_img_topic: 'bob/frames/foreground_mask'
+    tracking_topic: 'bob/tracker/tracking'
+    camera_info_topic: bob/camera/all_sky/camera_info
+    prefix: ''
+
+  annotated_frame_provider_node:
+    tracking_status_message: False
+    resize_height: 960
+    annotated_frame_publisher_topic: 'bob/frames/annotated'
+    camera_frame_topic: 'bob/frames/allsky/original/resized'
+    tracking_topic: 'bob/tracker/tracking/resized'
+
+  annotated_frame_compressor_node:
+    compressed_frame_subscriber_topic: 'bob/frames/annotated/resized'
+    compressed_frame_publisher_topic: 'bob/frames/annotated/resized/compressed'
+    compression_quality: 75
+
+  detection_masked_compressor_node:
+    compressed_frame_subscriber_topic: 'bob/frames/allsky/original/resized'
+    compressed_frame_publisher_topic: 'bob/frames/allsky/original/resized/compressed'
+    compression_quality: 75
+
+  foreground_mask_compressor_node:
+    compressed_frame_subscriber_topic: 'bob/frames/foreground_mask/resized'
+    compressed_frame_publisher_topic: 'bob/frames/foreground_mask/resized/compressed'
+    compression_quality: 75
+
+  day_night_classifier_node:
+    observer_timer_interval: 90
+    observer_day_night_brightness_threshold: 95
+
+  cloud_estimator_node:
+    observer_timer_interval: 90
+
+  star_mask_node:
+    detection_mask_file: 'assets/masks/detection-mask.jpg'
+    detection_mask_backup_file: 'assets/masks/detection-mask-backup.jpg'
+    observer_timer_interval: 90
+    observer_cross_correlation_threshold: 0.5
+
+  monitoring_status_aggregator_node:
+    observer_tracker_monitor_busy_interval: 5
+    observer_tracker_monitor_idle_interval: 60
+    observer_tracker_aggregation_interval: 1
+    observer_tracking_profile_busy_switch_threshold: 5
+    observer_tracker_sample_set: 5
+
+  track_sensitivity_monitor_node:
+    monitoring_subscription_topic: 'bob/monitoring/status'
+    bgs_node: 'camera_node'
+    check_interval: 10
+    sensitivity_increase_count_threshold: 5
+    sensitivity: 'medium_c'
+    star_mask_enabled: True    
+
+  allsky_recorder_monitoring_node:
+    check_interval: 5
+
+  onvif_service_node:
+    onvif_wsdl_path: 'assets/wsdl'
+
+  info_webapi_node:
+    application_version: '1.3.1'
+    frame_width: 0
+    frame_height: 0
+    video_fps: 15.0
+
+  mask_webapi_node:
+    masks_folder: 'assets/masks'
+    width: 0
+    height: 0
+
+#########################################################################
+# Launch nodes configuration
+#   Here is what containers and nodes will be launched by this
+#   configuration file, you can add, change and delete nodes/containers
+#   as you want, the 'name' of the node should also be the same in the
+#   configuration above.(basic/advanced)
+#
+#   There are standalone parameters:
+#     namespace: the namespace to run BOB
+#     rosbridge: True to enable rosbridge frontend connection, False otherwise
+#     lifecycle: True to enable lifecycle manager, False otherwise (suggested to leave it True or BOB will not work)
+#
+#   The Node Containers are executables that will run nodes in the same
+#   process, they have the advantage of using intra process communication
+#   so no network overhead between nodes, they have the following
+#   configuration:
+#     name: the name you want to give this container
+#     executable: the type of the executable created, we have two:
+#                 - 'component_container' is a single threaded container,
+#                     should be used when we have simple nodes or nodes
+#                     need to be single-threaded (like visual nodes)    
+#                 - 'component_container_mt' is a multi-threaded 
+#                     container, used for performance and better thread
+#                     distribution
+#     output: where the output of the messages will go, three available:
+#             - 'screen' log only to screen
+#             - 'log' log to file
+#             - 'both' log to screen and file
+#
+#   Nodes inside the containers should be libraries in c++, they have the
+#   following configuration:
+#     package: the package where the node is located (usually directory)
+#     plugin: the c++ name of the class with the namespace
+#     name: the name you want this node to have
+#     remappings: the topics remappings
+#
+#   Standalone nodes are usually Python nodes that cannot go inside the
+#   container or C++ nodes that were compiled as executables, they have 
+#   the following configuration:
+#     package: the package where the node is located (usually directory)
+#     executable: the name usually in entry_points of the setup.py
+#     name: the name you want this node to have
+#     remappings: the topics remappings
+#     output: where the output of the messages will go, three available:
+#             - 'screen' log only to screen
+#             - 'log' log to file
+#             - 'both' log to screen and file
+#     
+#########################################################################
+launch:
+  namespace: ''
+  rosbridge: True
+  lifecycle: True
+
+  node_containers:
+    - name: Kernel
+      executable: component_container_mt
+      output: both 
+      nodes:
+        - package: bob_camera
+          plugin: CameraBGS
+          name: camera_node
+          remappings: []
+        - package: bob_tracking
+          plugin: TrackProvider
+          name: track_provider_node
+          remappings: []
+        - package: bob_recorder
+          plugin: RecordManager
+          name: allsky_recorder_node
+          remappings: []
+        - package: bob_image_processing
+          plugin: AnnotatedFrameProvider
+          name: annotated_frame_provider_node
+          remappings: []
+        - package: bob_image_processing
+          plugin: FrameCompressor
+          name: annotated_frame_compressor_node
+          remappings: []
+        - package: bob_image_processing
+          plugin: FrameCompressor
+          name: detection_masked_compressor_node
+          remappings: []
+        - package: bob_image_processing
+          plugin: FrameCompressor
+          name: foreground_mask_compressor_node
+          remappings: []
+    - name: Display
+      executable: component_container # Has to be single-threaded because of OpenCV display
+      output: both
+      nodes:
+        - package: bob_visualizers
+          plugin: FrameViewer
+          name: multi_frame_viewer_node
+          remappings: []
+    - name: Monitor
+      executable: component_container_mt
+      output: both
+      nodes:
+        - package: bob_image_processing
+          plugin: TrackSensitivityMonitor
+          name: track_sensitivity_monitor_node
+          remappings: []
+        - package: bob_recorder
+          plugin: RecordingMonitor
+          name: allsky_recorder_monitoring_node
+          remappings: []
+        
+  standalone_nodes:
+    - package: bob_observer
+      executable: day_night_classifier
+      name: day_night_classifier_node
+      remappings:
+        - 'bob/observer_frame/source': 'bob/frames/allsky/original/resized'
+      output: screen
+    - package: bob_observer
+      executable: cloud_estimator
+      name: cloud_estimator_node
+      remappings:
+        - 'bob/observer_frame/source': 'bob/frames/allsky/original/resized'
+      output: screen
+    - package: bob_observer
+      executable: star_mask
+      name: star_mask_node
+      remappings:
+        - 'bob/observer_frame/source': '/bob/frames/allsky/original/resized'
+      output: screen
+    - package: bob_monitor
+      executable: monitoring_status_aggregator
+      name: monitoring_status_aggregator_node
+      remappings: []
+      output: screen
+    - package: bob_monitor
+      executable: onvif_service
+      name: onvif_service_node
+      remappings: []
+      output: screen
+    - package: bob_webapi
+      executable: info_webapi
+      name: info_webapi_node
+      remappings: []
+      output: screen
+    - package: bob_webapi
+      executable: mask_webapi
+      name: mask_webapi_node
+      remappings: []
+      output: screen

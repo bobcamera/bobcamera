@@ -25,6 +25,7 @@ find_package(rcl_interfaces REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(boblib REQUIRED)
 find_package(bob_interfaces REQUIRED)
+find_package(rclcpp_lifecycle REQUIRED)
 
 include_directories(${OpenCV_INCLUDE_DIRS})
 include_directories(
@@ -42,7 +43,7 @@ ENDIF()
 add_library(track_provider_node SHARED src/track_provider.cpp src/sort/kalman_filter.cpp src/sort/sort_tracker.cpp src/sort/track.cpp)
 target_compile_definitions(track_provider_node PRIVATE "COMPOSITION_BUILDING_DLL")
 target_link_libraries(track_provider_node PUBLIC boblib)
-ament_target_dependencies(track_provider_node PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV rclcpp_components bob_interfaces)
+ament_target_dependencies(track_provider_node PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV rclcpp_components rclcpp_lifecycle bob_interfaces)
 rclcpp_components_register_nodes(track_provider_node "TrackProvider")
 install(TARGETS track_provider_node DESTINATION lib)
 

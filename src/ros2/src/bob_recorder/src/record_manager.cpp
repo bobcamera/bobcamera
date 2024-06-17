@@ -8,29 +8,34 @@
 #include <message_filters/time_synchronizer.h>
 #include <rclcpp_components/register_node_macro.hpp>
 #include <sensor_msgs/msg/image.hpp>
-#include <sensor_msgs/msg/region_of_interest.hpp>
 #include <visibility_control.h>
 #include "bob_camera/msg/camera_info.hpp"
 #include "bob_interfaces/msg/tracking.hpp"
 #include "bob_interfaces/msg/recording_state.hpp"
 #include "bob_interfaces/srv/recording_request.hpp"
-#include "parameter_node.hpp"
+#include "parameter_lifecycle_node.hpp"
 #include "image_utils.hpp"
 #include "image_recorder.hpp"
 #include "json_recorder.hpp"
 #include "video_recorder.hpp"
 
-#include <rclcpp/experimental/executors/events_executor/events_executor.hpp>
-
 class RecordManager 
-    : public ParameterNode 
+    : public ParameterLifeCycleNode 
 {
 public:
     COMPOSITION_PUBLIC
     explicit RecordManager(const rclcpp::NodeOptions& options)
-    : ParameterNode("recorder_manager", options)
+        : ParameterLifeCycleNode("recorder_manager", options)
     {
-        one_shot_timer_ = create_wall_timer(std::chrono::seconds(1), [this]() {init();});
+    }
+
+    CallbackReturn on_configure(const rclcpp_lifecycle::State &)
+    {
+        RCLCPP_INFO(get_logger(), "Configuring");
+
+        init();
+
+        return CallbackReturn::SUCCESS;
     }
 
 private:
@@ -44,8 +49,13 @@ private:
 
     void init()
     {
-        one_shot_timer_.reset();
-        RCLCPP_INFO(get_logger(), "Initializing RecordManager");
+        pub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
+        pub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
+        pub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
+
+        sub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
+        sub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
+        sub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
 
         current_state_ = RecordingStateEnum::BeforeStart;
         prev_frame_width_ = 0;
@@ -53,31 +63,11 @@ private:
 
         declare_node_parameters();
 
-        rclcpp::QoS pub_qos_profile{10};
-        pub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
-        pub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
-        pub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
-
-        rclcpp::QoS sub_qos_profile{10};
-        sub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
-        sub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
-        sub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
-        auto rmw_qos_profile = sub_qos_profile.get_rmw_qos_profile();
-        
-        recording_request_service_= create_service<bob_interfaces::srv::RecordingRequest>("bob/recording/update",
-            [this](const std::shared_ptr<bob_interfaces::srv::RecordingRequest::Request> request, std::shared_ptr<bob_interfaces::srv::RecordingRequest::Response> response)
-                {change_recording_enabled_request(request, response);});
-
-        state_publisher_ = create_publisher<bob_interfaces::msg::RecordingState>("bob/recording/state", pub_qos_profile);
-        sub_frame_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(shared_from_this(), img_topic_, rmw_qos_profile);
-        sub_fg_frame_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(shared_from_this(), fg_img_topic_, rmw_qos_profile);
-        sub_tracking_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::Tracking>>(shared_from_this(), tracking_topic_, rmw_qos_profile);
-        sub_camera_info_ = std::make_shared<message_filters::Subscriber<bob_camera::msg::CameraInfo>>(shared_from_this(), camera_info_topic_, rmw_qos_profile);
-
         time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image, 
             bob_interfaces::msg::Tracking, bob_camera::msg::CameraInfo>>(*sub_frame_, *sub_fg_frame_, *sub_tracking_, *sub_camera_info_, 10);
         time_synchronizer_->registerCallback(&RecordManager::process_recordings, this);
 
+        // TODO: Recreate this when fps or seconds save change
         img_recorder_ = std::make_unique<ImageRecorder>(total_pre_frames_);
         json_recorder_ = std::make_unique<JsonRecorder>(total_pre_frames_);
         video_recorder_ = std::make_unique<VideoRecorder>(total_pre_frames_);
@@ -155,8 +145,8 @@ private:
 
     void declare_node_parameters() 
     {
-        std::vector<ParameterNode::ActionParam> params = {
-            ParameterNode::ActionParam(
+        std::vector<ParameterLifeCycleNode::ActionParam> params = {
+            ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("recordings_directory", "."), 
                 [this](const rclcpp::Parameter& param) 
                 {
@@ -164,35 +154,76 @@ private:
                     create_dir(recordings_directory_);
                 }
             ),
-            ParameterNode::ActionParam(
+            ParameterLifeCycleNode::ActionParam(
+                rclcpp::Parameter("recording_request_service_topic", "bob/recording/update"), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    recording_request_service_ = create_service<bob_interfaces::srv::RecordingRequest>(param.as_string(),
+                            [this](const std::shared_ptr<bob_interfaces::srv::RecordingRequest::Request> request, std::shared_ptr<bob_interfaces::srv::RecordingRequest::Response> response)
+                                {change_recording_enabled_request(request, response);});
+                }
+            ),
+            ParameterLifeCycleNode::ActionParam(
+                rclcpp::Parameter("state_publisher_topic", "bob/recording/state"), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    state_publisher_ = create_publisher<bob_interfaces::msg::RecordingState>(param.as_string(), pub_qos_profile_);
+                }
+            ),
+            ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("img_topic", "bob/frames/allsky/original"), 
-                [this](const rclcpp::Parameter& param) {img_topic_ = param.as_string();}
+                [this](const rclcpp::Parameter& param) 
+                {
+                    img_topic_ = param.as_string();
+                    sub_frame_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image, rclcpp_lifecycle::LifecycleNode>>(shared_from_this(), img_topic_, sub_qos_profile_.get_rmw_qos_profile());
+                }
             ),
-            ParameterNode::ActionParam(
+            ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("tracking_topic", "bob/tracker/tracking"), 
-                [this](const rclcpp::Parameter& param) {tracking_topic_ = param.as_string();}
+                [this](const rclcpp::Parameter& param) 
+                {
+                    tracking_topic_ = param.as_string();
+                    sub_tracking_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::Tracking, rclcpp_lifecycle::LifecycleNode>>(shared_from_this(), tracking_topic_, sub_qos_profile_.get_rmw_qos_profile());
+                }
             ),
-            ParameterNode::ActionParam(
+            ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("fg_img_topic", "bob/frames/foreground_mask"), 
-                [this](const rclcpp::Parameter& param) {fg_img_topic_ = param.as_string();}
+                [this](const rclcpp::Parameter& param) 
+                {
+                    fg_img_topic_ = param.as_string();
+                    sub_fg_frame_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image, rclcpp_lifecycle::LifecycleNode>>(shared_from_this(), fg_img_topic_, sub_qos_profile_.get_rmw_qos_profile());
+                }
             ),
-            ParameterNode::ActionParam(
+            ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("camera_info_topic", "bob/camera/all_sky/camera_info"), 
-                [this](const rclcpp::Parameter& param) {camera_info_topic_ = param.as_string();}
+                [this](const rclcpp::Parameter& param)
+                {
+                    camera_info_topic_ = param.as_string();
+                    sub_camera_info_ = std::make_shared<message_filters::Subscriber<bob_camera::msg::CameraInfo, rclcpp_lifecycle::LifecycleNode>>(shared_from_this(), camera_info_topic_, sub_qos_profile_.get_rmw_qos_profile());
+                }
             ),
-            ParameterNode::ActionParam(
+            ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("prefix", "video"), 
-                [this](const rclcpp::Parameter& param) {prefix_str_ = param.as_string();}
+                [this](const rclcpp::Parameter& param) 
+                {
+                    prefix_str_ = param.as_string();
+                }
             ),            
-            ParameterNode::ActionParam(
+            ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("codec", "avc1"), 
-                [this](const rclcpp::Parameter& param) {codec_str_ = param.as_string();}
+                [this](const rclcpp::Parameter& param)
+                {
+                    codec_str_ = param.as_string();
+                }
             ),
-            ParameterNode::ActionParam(
+            ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("pipeline", "appsrc ! videoconvert ! x264enc ! mp4mux ! filesink location="), 
-                [this](const rclcpp::Parameter& param) {pipeline_str_ = param.as_string();}
+                [this](const rclcpp::Parameter& param)
+                {
+                    pipeline_str_ = param.as_string();
+                }
             ),            
-            ParameterNode::ActionParam(
+            ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("video_fps", 30.0), 
                 [this](const rclcpp::Parameter& param) 
                 {
@@ -200,7 +231,7 @@ private:
                     total_pre_frames_ = (size_t)(number_seconds_save_ * video_fps_);
                 }
             ),
-            ParameterNode::ActionParam(
+            ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("seconds_save", 2), 
                 [this](const rclcpp::Parameter& param) 
                 {
@@ -368,6 +399,8 @@ private:
         response->success = true;
     }
 
+    rclcpp::QoS pub_qos_profile_{10};
+    rclcpp::QoS sub_qos_profile_{10};
     std::unique_ptr<ImageRecorder> img_recorder_;
     std::unique_ptr<VideoRecorder> video_recorder_;
     std::unique_ptr<JsonRecorder> json_recorder_;
@@ -389,10 +422,10 @@ private:
     std::string prefix_str_;
     rclcpp::Service<bob_interfaces::srv::RecordingRequest>::SharedPtr recording_request_service_;
     rclcpp::Publisher<bob_interfaces::msg::RecordingState>::SharedPtr state_publisher_;    
-    std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> sub_frame_;
-    std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> sub_fg_frame_;
-    std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::Tracking>> sub_tracking_;
-    std::shared_ptr<message_filters::Subscriber<bob_camera::msg::CameraInfo>> sub_camera_info_;
+    std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image, rclcpp_lifecycle::LifecycleNode>> sub_frame_;
+    std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image, rclcpp_lifecycle::LifecycleNode>> sub_fg_frame_;
+    std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::Tracking, rclcpp_lifecycle::LifecycleNode>> sub_tracking_;
+    std::shared_ptr<message_filters::Subscriber<bob_camera::msg::CameraInfo, rclcpp_lifecycle::LifecycleNode>> sub_camera_info_;
     std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image,
     bob_interfaces::msg::Tracking, bob_camera::msg::CameraInfo>> time_synchronizer_;
 
@@ -404,15 +437,5 @@ private:
     int prev_frame_height_;
     bool recording_;
 };
-
-int main(int argc, char **argv) 
-{
-    rclcpp::init(argc, argv);
-    rclcpp::experimental::executors::EventsExecutor executor;
-    executor.add_node(std::make_shared<RecordManager>(rclcpp::NodeOptions()));
-    executor.spin();
-    rclcpp::shutdown();
-    return 0;
-}
 
 RCLCPP_COMPONENTS_REGISTER_NODE(RecordManager)

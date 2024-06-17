@@ -4,33 +4,21 @@
 export MY_UID="$(id -u)" 
 export MY_GID="$(id -g)" 
 
+cp $1 ./temp_config.yaml
+
 while :; do 
-    read -p "Select d(efault), e(xcl rstudio), t(est) or m(ain) to specify which compose option to run?" runOption
+    read -p "Select d(efault) or r(with rstudio) to specify which compose option to run? " runOption
     response_lower=$(echo "$runOption" | tr '[:upper:]' '[:lower:]')
     if [ "$response_lower" = "default" ] || [ "$response_lower" = "d" ]; then
         echo "Running docker compose using Default option"
-        docker compose  \
-            --file ./docker/docker-compose.yaml  \
-            --env-file .env  \
-            up
+        docker compose --file ./docker/docker-compose.yaml up  
+            #--env-file .env  \
+            #up
         break
-    elif [ "$response_lower" = "excl rstudio" ] || [ "$response_lower" = "e" ]; then
+    elif [ "$response_lower" = "with rstudio" ] || [ "$response_lower" = "r" ]; then
         echo "Running docker compose using Excl rStudio option"
         docker compose  \
-            --file ./docker/docker-compose-rstudioless.yaml  \
-            --env-file .env  \
-            up
-        break
-    elif [ "$response_lower" = "test" ] || [ "$response_lower" = "t" ]; then
-        echo "Running docker compose using Test option"
-        docker compose  \
-            --file ./docker/docker-compose-demo.yaml  \
-            up
-        break
-    elif [ "$response_lower" = "main" ] || [ "$response_lower" = "m" ]; then
-        echo "Running docker compose using latest Developer Main Branch option"
-        docker compose  \
-            --file ./docker/docker-compose-developer.yaml  \
+            --file ./docker/docker-compose-rstudio.yaml  \
             --env-file .env  \
             up
         break

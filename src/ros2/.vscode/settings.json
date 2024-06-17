@@ -76,7 +76,12 @@
         "typeinfo": "cpp",
         "variant": "cpp",
         "*.ipp": "cpp",
-        "filesystem": "cpp"
+        "filesystem": "cpp",
+        "charconv": "cpp",
+        "source_location": "cpp",
+        "format": "cpp",
+        "span": "cpp",
+        "stdfloat": "cpp"
     },
     "cSpell.words": [
         "rclcpp"

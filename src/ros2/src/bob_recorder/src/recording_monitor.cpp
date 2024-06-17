@@ -1,8 +1,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
-#include <rclcpp/experimental/executors/events_executor/events_executor.hpp>
 
-#include "parameter_node.hpp"
+#include "parameter_lifecycle_node.hpp"
 
 #include <visibility_control.h>
 
@@ -10,12 +9,12 @@
 #include "bob_interfaces/msg/monitoring_status.hpp"
 
 class RecordingMonitor
-    : public ParameterNode
+    : public ParameterLifeCycleNode
 {
 public:
     COMPOSITION_PUBLIC
     explicit RecordingMonitor(const rclcpp::NodeOptions & options)
-        : ParameterNode("recording_monitor_node", options)
+        : ParameterLifeCycleNode("recording_monitor_node", options)
         , pub_qos_profile_(10)
         , sub_qos_profile_(10)
     {
@@ -61,8 +60,8 @@ private:
 
     void declare_node_parameters()
     {
-        std::vector<ParameterNode::ActionParam> params = {
-            ParameterNode::ActionParam(
+        std::vector<ParameterLifeCycleNode::ActionParam> params = {
+            ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("check_interval", 5), 
                 [this](const rclcpp::Parameter& param) { check_interval_ = param.as_int(); }
             ),
@@ -144,14 +143,14 @@ private:
     }
 };
 
-int main(int argc, char **argv)
-{
-    rclcpp::init(argc, argv);
-    rclcpp::experimental::executors::EventsExecutor executor;
-    executor.add_node(std::make_shared<RecordingMonitor>(rclcpp::NodeOptions()));
-    executor.spin();
-    rclcpp::shutdown();
-    return 0;
-}
+// int main(int argc, char **argv)
+// {
+//     rclcpp::init(argc, argv);
+//     rclcpp::experimental::executors::EventsExecutor executor;
+//     executor.add_node(std::make_shared<RecordingMonitor>(rclcpp::NodeOptions()));
+//     executor.spin();
+//     rclcpp::shutdown();
+//     return 0;
+// }
 
 RCLCPP_COMPONENTS_REGISTER_NODE(RecordingMonitor)

@@ -17,6 +17,7 @@
     <depend>message_filters</depend>
     <depend>bob_interfaces</depend>
     <depend>bob_image_processing</depend>
+    <depend>rclcpp_lifecycle</depend>
 
     <export>
         <build_type>ament_cmake</build_type>

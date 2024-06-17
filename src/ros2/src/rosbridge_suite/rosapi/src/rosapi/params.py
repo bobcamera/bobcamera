@@ -38,7 +38,7 @@ import rclpy
 from rcl_interfaces.msg import Parameter, ParameterType, ParameterValue
 from rcl_interfaces.srv import ListParameters
 from ros2node.api import get_absolute_node_name
-from ros2param.api import call_get_parameters, call_set_parameters, get_parameter_value
+from ros2param.api import call_get_parameters, call_set_parameters, get_value
 from rosapi.proxy import get_nodes
 
 """ Methods to interact with the param server.  Values have to be passed
@@ -112,7 +112,7 @@ def _set_param(node_name, name, value, parameter_type=None):
     parameter = Parameter()
     parameter.name = name
     if parameter_type is None:
-        parameter.value = get_parameter_value(string_value=value)
+        parameter.value = get_value(string_value=value)
     else:
         parameter.value = ParameterValue()
         parameter.value.type = parameter_type

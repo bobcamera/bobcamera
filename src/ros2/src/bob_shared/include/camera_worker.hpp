@@ -10,7 +10,6 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include <sensor_msgs/msg/image.hpp>
-#include <sensor_msgs/msg/region_of_interest.hpp>
 
 #include <bob_interfaces/srv/camera_settings.hpp>
 #include <bob_interfaces/srv/config_entry_update.hpp>
@@ -19,7 +18,7 @@
 #include <bob_camera/msg/camera_info.hpp>
 
 #include <image_utils.hpp>
-#include <parameter_node.hpp>
+#include <parameter_lifecycle_node.hpp>
 #include <object_simulator.hpp>
 #include <mask_worker.hpp>
 
@@ -29,15 +28,19 @@ struct CameraWorkerParams
     {
         USB_CAMERA,
         VIDEO_FILE,
-        RTSP_STREAM
+        RTSP_STREAM,
+        UNKNOWN
     };
 
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_resized_publisher;
     rclcpp::Publisher<bob_camera::msg::ImageInfo>::SharedPtr image_info_publisher;
     rclcpp::Publisher<bob_camera::msg::CameraInfo>::SharedPtr camera_info_publisher;
+    rclcpp::Client<bob_interfaces::srv::CameraSettings>::SharedPtr camera_settings_client;
+    rclcpp::Client<bob_interfaces::srv::ConfigEntryUpdate>::SharedPtr fps_update_client;
 
     int camera_id;
+    std::vector<long> usb_resolution;
     int resize_height;
     std::vector<std::string> videos;
     std::string image_publish_topic;
@@ -54,12 +57,13 @@ struct CameraWorkerParams
     std::string mask_filename;
     int simulator_num_objects;
     bool simulator_enable;
+    int mask_timer_seconds;
 };
 
 class CameraWorker
 {
 public:
-    explicit CameraWorker(ParameterNode & node
+    explicit CameraWorker(ParameterLifeCycleNode & node
                         , CameraWorkerParams & params
                         , const std::function<void(const std_msgs::msg::Header &, const cv::Mat &)> & user_callback = nullptr)
         : node_(node)
@@ -75,43 +79,103 @@ public:
 
     void init()
     {
-        current_video_idx_ = 0;
-        run_ = false;
-        fps_ = 25.0;
-        mask_enabled_ = false;
-
-        if (params_.simulator_enable)
+        try
         {
-            object_simulator_ptr_ = std::make_unique<ObjectSimulator>(params_.simulator_num_objects);
+            current_video_idx_ = 0;
+            run_ = false;
+            fps_ = 25.0;
+            mask_enabled_ = false;
+            is_open_ = false;
+
+            if (params_.simulator_enable)
+            {
+                object_simulator_ptr_ = std::make_unique<ObjectSimulator>(params_.simulator_num_objects);
+            }
+
+            mask_worker_ptr_ = std::make_unique<MaskWorker>(node_, [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat & mask){mask_timer_callback(detection_mask_result, mask);});
+            mask_worker_ptr_->init(params_.mask_timer_seconds, params_.mask_filename);
+
+            open_camera();
+            start_capture();
         }
-
-        mask_worker_ptr_ = std::make_unique<MaskWorker>(node_, [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat & mask){mask_timer_callback(detection_mask_result, mask);});
-        mask_worker_ptr_->init(5, params_.mask_filename);
-
-        camera_settings_client_ = node_.create_client<bob_interfaces::srv::CameraSettings>("bob/camera/settings");
-        fps_update_client_ = node_.create_client<bob_interfaces::srv::ConfigEntryUpdate>("bob/config/update/fps");
-
-        open_camera();
-        start_capture();
+        catch (const std::exception& e)
+        {
+            RCLCPP_ERROR(node_.get_logger(), "Exception: %s", e.what());
+            throw;
+        }
+        catch (...) 
+        {
+            RCLCPP_ERROR(node_.get_logger(), "Unknown exception caught");
+            throw;
+        }
     }
 
+    bool is_open() const
+    {
+        return is_open_;
+    }
+
+    void open_camera()
+    {
+        switch (params_.source_type)
+        {
+            case CameraWorkerParams::SourceType::USB_CAMERA:
+            {
+                RCLCPP_INFO(node_.get_logger(), "Camera %d opening", params_.camera_id);
+                video_capture_.open(params_.camera_id);
+                set_camera_resolution();
+            }
+            break;
+
+            case CameraWorkerParams::SourceType::VIDEO_FILE:
+            {
+                const auto & video_path = params_.videos[current_video_idx_];
+                RCLCPP_INFO(node_.get_logger(), "Video '%s' opening", video_path.c_str());
+                video_capture_.open(video_path);
+            }
+            break;
+
+            case CameraWorkerParams::SourceType::RTSP_STREAM:
+            {
+                RCLCPP_INFO(node_.get_logger(), "RTSP Stream '%s' opening", params_.rtsp_uri.c_str());
+                video_capture_.open(params_.rtsp_uri);
+            }
+            break;
+
+            default:
+                RCLCPP_ERROR(node_.get_logger(), "Unknown SOURCE_TYPE");
+                return;
+        }
+
+        if (video_capture_.isOpened())
+        {
+            is_open_ = true;
+            fps_ = video_capture_.get(cv::CAP_PROP_FPS);
+            RCLCPP_INFO(node_.get_logger(), "fps: %f", fps_);
+
+            create_camera_info_msg();
+        }
+        else
+        {
+            is_open_ = false;
+        }
+    }    
+
 private:
-    ParameterNode & node_;
+    ParameterLifeCycleNode & node_;
     CameraWorkerParams & params_;
 
     std::unique_ptr<MaskWorker> mask_worker_ptr_;
 
     std::function<void(const std_msgs::msg::Header &, const cv::Mat &)> user_callback_;
     
-    rclcpp::Client<bob_interfaces::srv::CameraSettings>::SharedPtr camera_settings_client_;
-    rclcpp::Client<bob_interfaces::srv::ConfigEntryUpdate>::SharedPtr fps_update_client_;
-
     cv::VideoCapture video_capture_;
     bob_camera::msg::CameraInfo camera_info_msg_;
     std::jthread capture_thread_;
     uint32_t current_video_idx_;
     bool run_;
     double fps_;
+    bool is_open_;
     std::unique_ptr<ObjectSimulator> object_simulator_ptr_;
 
     bool mask_enabled_;
@@ -123,42 +187,61 @@ private:
 
         std::unique_ptr<RosCvImageMsg> roscv_image_msg_ptr = RosCvImageMsg::create(video_capture_);
 
+        int retries = 0;
         while (run_)
         {
             try
             {
-                if (!video_capture_.read(*roscv_image_msg_ptr->image_ptr))
+                if (!video_capture_.read(roscv_image_msg_ptr->get_image()))
                 {
-                    current_video_idx_ = current_video_idx_ >= (params_.videos.size() - 1) ? 0 : current_video_idx_ + 1;
-                    open_camera();
-                    roscv_image_msg_ptr = RosCvImageMsg::create(video_capture_);
-                    video_capture_.read(*roscv_image_msg_ptr->image_ptr);
+                    if (params_.source_type == CameraWorkerParams::SourceType::VIDEO_FILE)
+                    {
+                        current_video_idx_ = current_video_idx_ >= (params_.videos.size() - 1) ? 0 : current_video_idx_ + 1;
+                        open_camera();
+                        roscv_image_msg_ptr = RosCvImageMsg::create(video_capture_);
+                        continue;
+                    }
+                    else
+                    {
+                        if (++retries > 5)
+                        {
+                            RCLCPP_ERROR(node_.get_logger(), "Could not open VIDEO SOURCE");
+                            run_ = false;
+                        }
+                        continue;
+                    }
                 }
+                if (roscv_image_msg_ptr->recreate_if_invalid())
+                {
+                    RCLCPP_INFO(node_.get_logger(), "ImageMsg recreated");
+                }
+
+                retries = 0;
 
                 if (params_.simulator_enable)
                 {
-                    object_simulator_ptr_->move(*roscv_image_msg_ptr->image_ptr);
+                    object_simulator_ptr_->move(roscv_image_msg_ptr->get_image());
                 }
 
-                apply_mask(*roscv_image_msg_ptr->image_ptr);
+                apply_mask(roscv_image_msg_ptr->get_image());
 
                 roscv_image_msg_ptr->get_header().stamp = node_.now();
-                roscv_image_msg_ptr->get_header().frame_id = ParameterNode::generate_uuid();
+                roscv_image_msg_ptr->get_header().frame_id = ParameterLifeCycleNode::generate_uuid();
 
-                params_.image_publisher->publish(*roscv_image_msg_ptr->msg_ptr);
+                node_.publish_if_subscriber(params_.image_publisher, roscv_image_msg_ptr->get_msg());
 
                 publish_resized_frame(*roscv_image_msg_ptr);
 
-                publish_image_info(roscv_image_msg_ptr->get_header(), *roscv_image_msg_ptr->image_ptr);
+                publish_image_info(roscv_image_msg_ptr->get_header(), roscv_image_msg_ptr->get_image());
 
                 publish_camera_info(roscv_image_msg_ptr->get_header());
 
                 if (user_callback_)
                 {
-                    user_callback_(roscv_image_msg_ptr->get_header(), *roscv_image_msg_ptr->image_ptr);
+                    user_callback_(roscv_image_msg_ptr->get_header(), roscv_image_msg_ptr->get_image());
                 }
 
-                loop_rate.sleep();  
+                loop_rate.sleep();
             }
             catch (const std::exception& e)
             {
@@ -166,7 +249,13 @@ private:
                 rcutils_reset_error();
                 run_ = false;
             }
+            catch (...) 
+            {
+                RCLCPP_ERROR(node_.get_logger(), "Unknown exception caught");
+                run_ = false;
+            }
         }
+        RCLCPP_DEBUG(node_.get_logger(), "Leaving capture loop");
     }
 
     inline void apply_mask(cv::Mat & img)
@@ -188,22 +277,24 @@ private:
 
     inline void publish_resized_frame(const RosCvImageMsg & image_msg) const
     {
-        if (!params_.image_resized_publisher || (node_.count_subscribers(params_.image_resized_publish_topic) <= 0))
+        if (!params_.image_resized_publisher 
+            || (params_.resize_height <= 0)
+            || (node_.count_subscribers(params_.image_resized_publish_topic) <= 0))
         {
             return;
         }
         cv::Mat resized_img;
         if (params_.resize_height > 0)
         {
-            const auto frame_width = (int)(image_msg.image_ptr->size().aspectRatio() * (double)params_.resize_height);
-            cv::resize(*image_msg.image_ptr, resized_img, cv::Size(frame_width, params_.resize_height));
+            const auto frame_width = (int)(image_msg.get_image().size().aspectRatio() * (double)params_.resize_height);
+            cv::resize(image_msg.get_image(), resized_img, cv::Size(frame_width, params_.resize_height));
         }
         else
         {
-            resized_img = *image_msg.image_ptr;
+            resized_img = image_msg.get_image();
         }
 
-        auto resized_frame_msg = cv_bridge::CvImage(image_msg.msg_ptr->header, image_msg.msg_ptr->encoding, resized_img).toImageMsg();
+        auto resized_frame_msg = cv_bridge::CvImage(image_msg.get_header(), image_msg.get_msg().encoding, resized_img).toImageMsg();
         params_.image_resized_publisher->publish(*resized_frame_msg);            
     }
 
@@ -222,45 +313,7 @@ private:
         }
 	}
 
-    inline void open_camera()
-    {
-        switch (params_.source_type)
-        {
-            case CameraWorkerParams::SourceType::USB_CAMERA:
-            {
-                params_.camera_id = static_cast<int>(node_.get_parameter("camera_id").get_value<rclcpp::ParameterType::PARAMETER_INTEGER>());
-                RCLCPP_INFO(node_.get_logger(), "Camera %d opening", params_.camera_id);
-                video_capture_.open(params_.camera_id);
-                set_highest_resolution();
-            }
-            break;
-
-            case CameraWorkerParams::SourceType::VIDEO_FILE:
-            {
-                auto video_path = params_.videos[current_video_idx_];
-                RCLCPP_INFO(node_.get_logger(), "Video '%s' opening", video_path.c_str());
-                video_capture_.open(video_path);
-            }
-            break;
-
-            case CameraWorkerParams::SourceType::RTSP_STREAM:
-            {
-                RCLCPP_INFO(node_.get_logger(), "RTSP Stream '%s' opening", params_.rtsp_uri.c_str());
-                video_capture_.open(params_.rtsp_uri);
-            }
-            break;
-        }
-
-        if (video_capture_.isOpened())
-        {
-            fps_ = video_capture_.get(cv::CAP_PROP_FPS);
-            RCLCPP_INFO(node_.get_logger(), "fps: %f", fps_);
-
-            create_camera_info_msg();
-        }
-    }
-
-    inline bool set_highest_resolution()
+    inline bool set_camera_resolution()
     {
         static const std::vector<std::pair<int, int>> resolutions = 
         {
@@ -275,13 +328,29 @@ private:
             {320, 240}   // QVGA
         };
 
-        for (const auto & [width, height] : resolutions)
+        auto set_check_resolution = [this](long width, long height)
         {
             video_capture_.set(cv::CAP_PROP_FRAME_WIDTH, width);
             video_capture_.set(cv::CAP_PROP_FRAME_HEIGHT, height);
 
-            if ((video_capture_.get(cv::CAP_PROP_FRAME_WIDTH) == width) &&
-                (video_capture_.get(cv::CAP_PROP_FRAME_HEIGHT) == height))
+            return ((video_capture_.get(cv::CAP_PROP_FRAME_WIDTH) == width) &&
+                    (video_capture_.get(cv::CAP_PROP_FRAME_HEIGHT) == height));
+        };
+
+        // If we have the values defined, try setting
+        if (params_.usb_resolution.size() == 2)
+        {
+            auto success = set_check_resolution(params_.usb_resolution[0], params_.usb_resolution[1]);
+            if (success)
+            {
+                return true;
+            }
+        }
+        // If not, we set the highest resolution
+        for (const auto & [width, height] : resolutions)
+        {
+            auto success = set_check_resolution(params_.usb_resolution[0], params_.usb_resolution[1]);
+            if (success)
             {
                 RCLCPP_INFO(node_.get_logger(), "Setting resolution for %d x %d", width, height);
                 return true;
@@ -354,8 +423,7 @@ private:
             }
         };
 
-        // Send the request
-        auto result = camera_settings_client_->async_send_request(request, response_received_callback);
+        auto result = params_.camera_settings_client->async_send_request(request, response_received_callback);
     }
 
     inline void create_camera_info_msg()
@@ -429,7 +497,7 @@ private:
         };
 
         // Send the request
-        auto result = fps_update_client_->async_send_request(request, response_received_callback);
+        auto result = params_.fps_update_client->async_send_request(request, response_received_callback);
     }
 };
 
