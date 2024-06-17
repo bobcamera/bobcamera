@@ -155,8 +155,7 @@ def generate_launch_description():
 
     if (rosbridge_enable):
         ros_bridge_package_xml = os.path.join(get_package_share_directory('rosbridge_server'), 'launch/rosbridge_websocket_launch.xml')
-        rosbridge_launch = IncludeLaunchDescription(FrontendLaunchDescriptionSource(ros_bridge_package_xml))
-        launch_list.append(rosbridge_launch)
+        launch_list.append(IncludeLaunchDescription(FrontendLaunchDescriptionSource(ros_bridge_package_xml)))
 
     if (lifecycle_enable):
         launch_list.append(generate_lifecycle_manager(config, namespace, loglevel))

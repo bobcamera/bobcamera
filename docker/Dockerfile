@@ -230,7 +230,6 @@ COPY --from=opencv /usr/lib/python3 /usr/lib/python3
 COPY --from=opencv /usr/local/lib/libopencv_*.so /usr/local/lib
 COPY --from=qhy /opt/sdk_qhy /opt/sdk_qhy/
 COPY media/fisheye_videos /workspaces/bobcamera/media/fisheye_videos
-COPY --from=bob-ros2-build /workspaces/bobcamera/src/ros2/assets /workspaces/bobcamera/src/ros2/assets
 COPY --from=bob-ros2-build /workspaces/bobcamera/src/ros2/install /workspaces/bobcamera/src/ros2/install
 COPY --from=bob-ros2-build /workspaces/bobcamera/src/ros2/config /workspaces/bobcamera/src/ros2/config
 COPY --from=bob-ros2-build /workspaces/bobcamera/src/ros2/launch* /workspaces/bobcamera/src/ros2/
@@ -284,22 +283,3 @@ FROM php:8.3-apache AS bob-web-prod
 COPY src/web2/src /var/www/html/
 COPY src/web2/clear-cache.conf /etc/apache2/conf-available/
 RUN ln -s /etc/apache2/conf-available/clear-cache.conf /etc/apache2/conf-enabled/clear-cache.conf
-
-
-
-# ###################################################################
-# # https://lostindetails.com/articles/How-to-run-cron-inside-Docker#dockerfile
-# FROM bobcamera/bob-ros2-dev AS bob-crontab
-# COPY src/research /bob-research
-
-# RUN apt-get update && apt-get install cron -y && \
-#     chmod +x /bob-research/cron/run_heatmap.sh && \
-#     chmod +x /bob-research/cron/test_crontab.sh
-
-# ADD src/research/cron/crontab /etc/cron.d/bob-crontab
-
-# RUN chmod 0644 /etc/cron.d/bob-crontab && \
-#     crontab /etc/cron.d/bob-crontab
-
-# # Creating entry point for cron
-# ENTRYPOINT ["cron", "-f"]
