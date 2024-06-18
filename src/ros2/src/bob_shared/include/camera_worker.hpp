@@ -86,6 +86,11 @@ public:
             fps_ = 25.0;
             mask_enabled_ = false;
             is_open_ = false;
+            is_camera_info_auto_ = false;
+
+            camera_info_msg_.frame_height = 0;
+            camera_info_msg_.frame_width = 0;
+            camera_info_msg_.fps = 0;
 
             if (params_.simulator_enable)
             {
@@ -147,21 +152,25 @@ public:
                 return;
         }
 
-        if (video_capture_.isOpened())
+        is_open_ = video_capture_.isOpened();
+        if (is_open_)
         {
-            is_open_ = true;
             fps_ = video_capture_.get(cv::CAP_PROP_FPS);
-            RCLCPP_INFO(node_.get_logger(), "fps: %f", fps_);
+            cv_camera_width_ = static_cast<int>(video_capture_.get(cv::CAP_PROP_FRAME_WIDTH));
+            cv_camera_height_ = static_cast<int>(video_capture_.get(cv::CAP_PROP_FRAME_HEIGHT));
+            RCLCPP_INFO(node_.get_logger(), "Capture Info: %dx%d at %.2g FPS", cv_camera_width_, cv_camera_height_, fps_);
+            loop_rate_ptr_ = std::make_unique<rclcpp::WallRate>(fps_);
 
             create_camera_info_msg();
         }
         else
         {
-            is_open_ = false;
+            loop_rate_ptr_ = std::make_unique<rclcpp::WallRate>(UNKNOWN_DEVICE_FPS);
         }
     }    
 
 private:
+    static constexpr double UNKNOWN_DEVICE_FPS = 30.0;
     ParameterLifeCycleNode & node_;
     CameraWorkerParams & params_;
 
@@ -174,8 +183,12 @@ private:
     std::jthread capture_thread_;
     uint32_t current_video_idx_;
     bool run_;
-    double fps_;
+    std::unique_ptr<rclcpp::WallRate> loop_rate_ptr_;
+    float fps_;
+    int cv_camera_width_;
+    int cv_camera_height_;
     bool is_open_;
+    bool is_camera_info_auto_;
     std::unique_ptr<ObjectSimulator> object_simulator_ptr_;
 
     bool mask_enabled_;
@@ -183,8 +196,6 @@ private:
 
     void captureLoop()
     {
-        rclcpp::WallRate loop_rate(fps_);
-
         std::unique_ptr<RosCvImageMsg> roscv_image_msg_ptr = RosCvImageMsg::create(video_capture_);
 
         int retries = 0;
@@ -213,7 +224,16 @@ private:
                 }
                 if (roscv_image_msg_ptr->recreate_if_invalid())
                 {
-                    RCLCPP_INFO(node_.get_logger(), "ImageMsg recreated");
+                    RCLCPP_DEBUG(node_.get_logger(), "ImageMsg recreated");
+                }
+
+                // If we did not get the data from ONVIF
+                if (!is_camera_info_auto_)
+                {
+                    camera_info_msg_.fps = static_cast<float>(fps_);
+                    camera_info_msg_.frame_width = roscv_image_msg_ptr->get_image().size().width;
+                    camera_info_msg_.frame_height = roscv_image_msg_ptr->get_image().size().height;
+                    camera_info_msg_.is_color = roscv_image_msg_ptr->get_image().channels() >= 3;
                 }
 
                 retries = 0;
@@ -241,7 +261,7 @@ private:
                     user_callback_(roscv_image_msg_ptr->get_header(), roscv_image_msg_ptr->get_image());
                 }
 
-                loop_rate.sleep();
+                loop_rate_ptr_->sleep();
             }
             catch (const std::exception& e)
             {
@@ -405,9 +425,13 @@ private:
         params_.camera_info_publisher->publish(camera_info_msg_);
     }
 
-    void request_camera_settings(const std::string_view & host, int port, const std::string_view& user, const std::string_view& password,
-                                const std::function<void(const bob_interfaces::srv::CameraSettings::Response::SharedPtr&)> & user_callback) const
+    void request_camera_settings(const std::string_view & host, int port, const std::string_view & user, const std::string_view & password,
+                                const std::function<void(const bob_interfaces::srv::CameraSettings::Response::SharedPtr &)> & user_callback) const
     {
+        if (host.empty() || port == 0)
+        {
+            return;
+        }
         auto request = std::make_shared<bob_interfaces::srv::CameraSettings::Request>();
         request->host = host;
         request->port = port;
@@ -428,6 +452,7 @@ private:
 
     inline void create_camera_info_msg()
     {
+        is_camera_info_auto_ = false;
         if (params_.source_type == CameraWorkerParams::SourceType::RTSP_STREAM)
         {
             auto update_camera_info = [this](const bob_interfaces::srv::CameraSettings::Response::SharedPtr& response) 
@@ -443,6 +468,8 @@ private:
                 camera_info_msg_.frame_height = response->frame_height;
                 camera_info_msg_.fps = response->fps;
                 // ... other fields ... 
+                is_camera_info_auto_ = true;
+                loop_rate_ptr_ = std::make_unique<rclcpp::WallRate>(response->fps);
             };
             request_camera_settings(params_.onvif_host, params_.onvif_port, params_.onvif_user, params_.onvif_password, update_camera_info);
         } 

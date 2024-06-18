@@ -179,6 +179,7 @@ private:
         std::erase_if(lifecycle_nodes_, [&deleted_values](const auto& pair) {return deleted_values.contains(pair.first);});
         // std::erase_if(non_lifecycle_running_nodes_, [&deleted_values](const auto& node_name) {return deleted_values.contains(node_name);});
 
+        RCLCPP_DEBUG(get_logger(), "Running Nodes: %ld, New Nodes: %ld", current_running_nodes.size(), new_values.size());
         for (const auto & node_name : new_values)
         {
             auto services_and_types = get_service_names_and_types_by_node(node_name, "/");

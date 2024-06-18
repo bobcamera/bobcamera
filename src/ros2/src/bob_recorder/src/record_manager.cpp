@@ -281,6 +281,7 @@ private:
                 if (tracking_msg->state.trackable > 0) 
                 {
                     recording_ = true;
+                    video_fps_ = static_cast<double>(camera_info_msg->fps);
                     RCLCPP_INFO(get_logger(), "Starting track recording...");
                     current_state_ = RecordingStateEnum::BetweenEvents;
                     base_filename_ = generate_filename(image_msg);
