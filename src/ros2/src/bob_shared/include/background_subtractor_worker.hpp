@@ -54,12 +54,20 @@ public:
         : node_(node)
         , params_(params)
     {
+        mask_worker_ptr_ = std::make_unique<MaskWorker>(node_, [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat & mask){mask_timer_callback(detection_mask_result, mask);});
     }
 
     void init()
     {
-        mask_worker_ptr_ = std::make_unique<MaskWorker>(node_, [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat & mask){mask_timer_callback(detection_mask_result, mask);});
         mask_worker_ptr_->init(params_.mask_timer_seconds, params_.mask_filename);
+    }
+
+    void restart_mask()
+    {
+        if (mask_worker_ptr_)
+        {
+            mask_worker_ptr_->init(params_.mask_timer_seconds, params_.mask_filename);
+        }
     }
 
     void init_bgs(const std::string & bgs)
