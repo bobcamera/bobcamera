@@ -62,6 +62,15 @@ private:
         camera_worker_ptr_->init();
     }
 
+    void reopen_camera()
+    {
+        if ((camera_params_ptr_->source_type != CameraWorkerParams::SourceType::UNKNOWN)
+            && camera_worker_ptr_->is_open())
+        {
+            camera_worker_ptr_->open_camera();
+        }
+    }
+
     void declare_node_parameters()
     {
         std::vector<ParameterLifeCycleNode::ActionParam> params = 
@@ -153,7 +162,9 @@ private:
                 [this](const rclcpp::Parameter& param) 
                 {
                     camera_params_ptr_->mask_timer_seconds = static_cast<int>(param.as_int());
+                    camera_worker_ptr_->restart_mask();
                     bgs_params_ptr_->mask_timer_seconds = static_cast<int>(param.as_int());
+                    bgs_worker_ptr_->restart_mask();
                 }
             ),
             ParameterLifeCycleNode::ActionParam(
@@ -161,6 +172,10 @@ private:
                 [this](const rclcpp::Parameter& param) 
                 {
                     camera_params_ptr_->usb_resolution = param.as_integer_array();
+                    if (camera_params_ptr_->source_type == CameraWorkerParams::SourceType::USB_CAMERA)
+                    {
+                        reopen_camera();
+                    }
                 }
             ),
             ParameterLifeCycleNode::ActionParam(
@@ -186,11 +201,7 @@ private:
                         RCLCPP_ERROR(get_logger(), "Invalid source type: %s", type.c_str());
                     }
 
-                    if ((camera_params_ptr_->source_type != UNKNOWN)
-                        && camera_worker_ptr_->is_open())
-                    {
-                        camera_worker_ptr_->open_camera();
-                    }
+                    reopen_camera();
                 }
             ),
             ParameterLifeCycleNode::ActionParam(
@@ -198,10 +209,9 @@ private:
                 [this](const rclcpp::Parameter& param) 
                 {
                     camera_params_ptr_->camera_id = static_cast<int>(param.as_int());
-                    if ((camera_params_ptr_->source_type == CameraWorkerParams::SourceType::USB_CAMERA)
-                        && camera_worker_ptr_->is_open())
+                    if (camera_params_ptr_->source_type == CameraWorkerParams::SourceType::USB_CAMERA)
                     {
-                        camera_worker_ptr_->open_camera();
+                        reopen_camera();
                     }
                 }
             ),
@@ -210,21 +220,20 @@ private:
                 [this](const rclcpp::Parameter& param) 
                 {
                     camera_params_ptr_->videos = param.as_string_array();
-                    if ((camera_params_ptr_->source_type == CameraWorkerParams::SourceType::VIDEO_FILE)
-                        && camera_worker_ptr_->is_open())
+                    if (camera_params_ptr_->source_type == CameraWorkerParams::SourceType::VIDEO_FILE)
                     {
-                        camera_worker_ptr_->open_camera();
-                    }                }
+                        reopen_camera();
+                    }
+                }
             ),
             ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("rtsp_uri", ""), 
                 [this](const rclcpp::Parameter& param) 
                 {
                     camera_params_ptr_->rtsp_uri = param.as_string();
-                    if ((camera_params_ptr_->source_type == CameraWorkerParams::SourceType::RTSP_STREAM)
-                        && camera_worker_ptr_->is_open())
+                    if (camera_params_ptr_->source_type == CameraWorkerParams::SourceType::RTSP_STREAM)
                     {
-                        camera_worker_ptr_->open_camera();
+                        reopen_camera();
                     }                
                 }
             ),
@@ -233,10 +242,9 @@ private:
                 [this](const rclcpp::Parameter& param) 
                 {
                     camera_params_ptr_->onvif_host = param.as_string();
-                    if ((camera_params_ptr_->source_type == CameraWorkerParams::SourceType::RTSP_STREAM)
-                        && camera_worker_ptr_->is_open())
+                    if (camera_params_ptr_->source_type == CameraWorkerParams::SourceType::RTSP_STREAM)
                     {
-                        camera_worker_ptr_->open_camera();
+                        reopen_camera();
                     }                
                 }
             ),
@@ -245,10 +253,9 @@ private:
                 [this](const rclcpp::Parameter& param) 
                 {
                     camera_params_ptr_->onvif_port = static_cast<int>(param.as_int());
-                    if ((camera_params_ptr_->source_type == CameraWorkerParams::SourceType::RTSP_STREAM)
-                        && camera_worker_ptr_->is_open())
+                    if (camera_params_ptr_->source_type == CameraWorkerParams::SourceType::RTSP_STREAM)
                     {
-                        camera_worker_ptr_->open_camera();
+                        reopen_camera();
                     }                
                 }
             ),
@@ -257,10 +264,9 @@ private:
                 [this](const rclcpp::Parameter& param) 
                 {
                     camera_params_ptr_->onvif_user = param.as_string();
-                    if ((camera_params_ptr_->source_type == CameraWorkerParams::SourceType::RTSP_STREAM)
-                        && camera_worker_ptr_->is_open())
+                    if (camera_params_ptr_->source_type == CameraWorkerParams::SourceType::RTSP_STREAM)
                     {
-                        camera_worker_ptr_->open_camera();
+                        reopen_camera();
                     }                
                 }
             ),
@@ -269,10 +275,9 @@ private:
                 [this](const rclcpp::Parameter& param)
                 {
                     camera_params_ptr_->onvif_password = param.as_string();
-                    if ((camera_params_ptr_->source_type == CameraWorkerParams::SourceType::RTSP_STREAM)
-                        && camera_worker_ptr_->is_open())
+                    if (camera_params_ptr_->source_type == CameraWorkerParams::SourceType::RTSP_STREAM)
                     {
-                        camera_worker_ptr_->open_camera();
+                        reopen_camera();
                     }                
                 }
             ),
@@ -282,7 +287,11 @@ private:
             ),
             ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("privacy_mask_file", "mask.pgm"), 
-                [this](const rclcpp::Parameter& param) {camera_params_ptr_->mask_filename = param.as_string();}
+                [this](const rclcpp::Parameter& param) 
+                {
+                    camera_params_ptr_->mask_filename = param.as_string();
+                    camera_worker_ptr_->restart_mask();
+                }
             ),
             ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("bgs_json_params", ""), 
@@ -316,6 +325,7 @@ private:
                 [this](const rclcpp::Parameter& param) 
                 {
                     bgs_params_ptr_->mask_filename = param.as_string();
+                    bgs_worker_ptr_->restart_mask();
                 }
             ),
             ParameterLifeCycleNode::ActionParam(

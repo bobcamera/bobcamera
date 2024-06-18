@@ -70,6 +70,7 @@ public:
         , params_(params)
         , user_callback_(user_callback)
     {
+        mask_worker_ptr_ = std::make_unique<MaskWorker>(node_, [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat & mask){mask_timer_callback(detection_mask_result, mask);});
     }
 
     ~CameraWorker()
@@ -97,7 +98,6 @@ public:
                 object_simulator_ptr_ = std::make_unique<ObjectSimulator>(params_.simulator_num_objects);
             }
 
-            mask_worker_ptr_ = std::make_unique<MaskWorker>(node_, [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat & mask){mask_timer_callback(detection_mask_result, mask);});
             mask_worker_ptr_->init(params_.mask_timer_seconds, params_.mask_filename);
 
             open_camera();
@@ -112,6 +112,14 @@ public:
         {
             RCLCPP_ERROR(node_.get_logger(), "Unknown exception caught");
             throw;
+        }
+    }
+
+    void restart_mask()
+    {
+        if (mask_worker_ptr_)
+        {
+            mask_worker_ptr_->init(params_.mask_timer_seconds, params_.mask_filename);
         }
     }
 
@@ -153,20 +161,7 @@ public:
         }
 
         is_open_ = video_capture_.isOpened();
-        if (is_open_)
-        {
-            fps_ = video_capture_.get(cv::CAP_PROP_FPS);
-            cv_camera_width_ = static_cast<int>(video_capture_.get(cv::CAP_PROP_FRAME_WIDTH));
-            cv_camera_height_ = static_cast<int>(video_capture_.get(cv::CAP_PROP_FRAME_HEIGHT));
-            RCLCPP_INFO(node_.get_logger(), "Capture Info: %dx%d at %.2g FPS", cv_camera_width_, cv_camera_height_, fps_);
-            loop_rate_ptr_ = std::make_unique<rclcpp::WallRate>(fps_);
-
-            create_camera_info_msg();
-        }
-        else
-        {
-            loop_rate_ptr_ = std::make_unique<rclcpp::WallRate>(UNKNOWN_DEVICE_FPS);
-        }
+        update_capture_info();
     }    
 
 private:
@@ -193,6 +188,24 @@ private:
 
     bool mask_enabled_;
     cv::Mat privacy_mask_;
+
+    void update_capture_info()
+    {
+        if (is_open_)
+        {
+            fps_ = video_capture_.get(cv::CAP_PROP_FPS);
+            cv_camera_width_ = static_cast<int>(video_capture_.get(cv::CAP_PROP_FRAME_WIDTH));
+            cv_camera_height_ = static_cast<int>(video_capture_.get(cv::CAP_PROP_FRAME_HEIGHT));
+            RCLCPP_INFO(node_.get_logger(), "Capture Info: %dx%d at %.2g FPS", cv_camera_width_, cv_camera_height_, fps_);
+            loop_rate_ptr_ = std::make_unique<rclcpp::WallRate>(fps_);
+
+            create_camera_info_msg();
+        }
+        else
+        {
+            loop_rate_ptr_ = std::make_unique<rclcpp::WallRate>(UNKNOWN_DEVICE_FPS);
+        }        
+    }
 
     void captureLoop()
     {
@@ -225,6 +238,7 @@ private:
                 if (roscv_image_msg_ptr->recreate_if_invalid())
                 {
                     RCLCPP_DEBUG(node_.get_logger(), "ImageMsg recreated");
+                    update_capture_info();
                 }
 
                 // If we did not get the data from ONVIF
