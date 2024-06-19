@@ -81,7 +81,8 @@
         "source_location": "cpp",
         "format": "cpp",
         "span": "cpp",
-        "stdfloat": "cpp"
+        "stdfloat": "cpp",
+        "ranges": "cpp"
     },
     "cSpell.words": [
         "rclcpp"
