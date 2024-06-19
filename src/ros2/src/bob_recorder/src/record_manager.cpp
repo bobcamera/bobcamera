@@ -251,8 +251,6 @@ private:
     {
         try
         {          
-            std::unique_lock lock(buffer_mutex_);
-
             cv::Mat img;
             ImageUtils::convert_image_msg(image_msg, img, true);
 
@@ -409,7 +407,6 @@ private:
     std::string trackingTopic_;
     RecordingStateEnum current_state_;
     rclcpp::TimerBase::SharedPtr one_shot_timer_;
-    std::mutex buffer_mutex_;
     std::string recordings_directory_;
     std::string dated_directory_;
     std::string date_;
