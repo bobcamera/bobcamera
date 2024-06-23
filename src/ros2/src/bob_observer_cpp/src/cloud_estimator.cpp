@@ -23,15 +23,22 @@ public:
     explicit CloudEstimator(const rclcpp::NodeOptions & options) 
         : ParameterLifeCycleNode("cloud_estimator_node", options)
     {
-        declare_node_parameters();
+    }
+
+    CallbackReturn on_configure(const rclcpp_lifecycle::State &)
+    {
+        RCLCPP_INFO(get_logger(), "Configuring");
+
         init();
+
+        return CallbackReturn::SUCCESS;
     }
 
 private:
-    rclcpp::QoS sub_qos_profile_{10};
-    rclcpp::QoS pub_qos_profile_{10};
+    rclcpp::QoS sub_qos_profile_{4};
+    rclcpp::QoS pub_qos_profile_{4};
     int timer_interval_;
-    cv::Mat msg_image_;
+    cv::Mat image_;
     std::unique_ptr<DayTimeCloudEstimator> day_cloud_estimator_worker_ptr_;
     std::unique_ptr<NightTimeCloudEstimator> night_cloud_estimator_worker_ptr_;
     CloudEstimatorWorker::DayNightEnum day_night_;
@@ -44,8 +51,34 @@ private:
     {
         std::vector<ParameterLifeCycleNode::ActionParam> params = {
             ParameterLifeCycleNode::ActionParam(
+                rclcpp::Parameter("cloud_estimation_publish_topic", "bob/observer/cloud_estimation"), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    //pub_environment_data_ = create_publisher<bob_interfaces::msg::ObserverCloudEstimation>(param.as_string(), pub_qos_profile_);
+                }
+            ),
+            ParameterLifeCycleNode::ActionParam(
+                rclcpp::Parameter("camera_subscription_topic", "bob/observer_frame/source"), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    sub_camera_ = create_subscription<sensor_msgs::msg::Image>(param.as_string(), sub_qos_profile_,
+                                    [this](const sensor_msgs::msg::Image::SharedPtr img){camera_callback(img);});
+                }
+            ),
+            ParameterLifeCycleNode::ActionParam(
+                rclcpp::Parameter("day_night_subscription_topic", "bob/observer/day_night_classifier"), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    sub_environment_day_night_ = create_subscription<bob_interfaces::msg::ObserverDayNight>(param.as_string(), sub_qos_profile_,
+                                   [this](const bob_interfaces::msg::ObserverDayNight::SharedPtr odn){day_night_callback(odn);});
+                }
+            ),
+            ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("observer_timer_interval", 30), 
-                [this](const rclcpp::Parameter& param) {timer_interval_ = static_cast<int>(param.as_int());}
+                [this](const rclcpp::Parameter& param) 
+                {
+                    timer_interval_ = static_cast<int>(param.as_int());
+                }
             ),
         };
         add_action_parameters(params);
@@ -63,22 +96,17 @@ private:
 
         day_night_ = CloudEstimatorWorker::DayNightEnum::Unknown;
 
-        day_cloud_estimator_worker_ptr_ = std::make_unique<DayTimeCloudEstimator>();
-        night_cloud_estimator_worker_ptr_ = std::make_unique<NightTimeCloudEstimator>();
+        day_cloud_estimator_worker_ptr_ = std::make_unique<DayTimeCloudEstimator>(*this);
+        night_cloud_estimator_worker_ptr_ = std::make_unique<NightTimeCloudEstimator>(*this);
+
+        declare_node_parameters();
 
         timer_ = create_wall_timer(std::chrono::seconds(timer_interval_), [this](){cloud_sampler();});
-
-        pub_environment_data_ = create_publisher<bob_interfaces::msg::ObserverCloudEstimation>("bob/observer/cloud_estimation", pub_qos_profile_);
-
-        sub_camera_ = create_subscription<sensor_msgs::msg::Image>("bob/observer_frame/source", sub_qos_profile_,
-                [this](const sensor_msgs::msg::Image::SharedPtr img){camera_callback(img);});
-        sub_environment_day_night_ = create_subscription<bob_interfaces::msg::ObserverDayNight>("bob/observer/day_night_classifier", sub_qos_profile_,
-                [this](const bob_interfaces::msg::ObserverDayNight::SharedPtr odn){day_night_callback(odn);});
     }
 
     void camera_callback(const sensor_msgs::msg::Image::SharedPtr image_msg)
     {
-        ImageUtils::convert_image_msg(image_msg, msg_image_, true);
+        ImageUtils::convert_image_msg(image_msg, image_, true);
     }
 
     void day_night_callback(const bob_interfaces::msg::ObserverDayNight::SharedPtr odn)
@@ -88,7 +116,7 @@ private:
 
     void cloud_sampler()
     {
-        if (msg_image_.empty())
+        if (image_.empty())
         {
             return;
         }
@@ -102,14 +130,14 @@ private:
             {
                 case CloudEstimatorWorker::DayNightEnum::Day:
                 {
-                    std::tie(estimation, distribution) = day_cloud_estimator_worker_ptr_->estimate(msg_image_);
+                    std::tie(estimation, distribution) = day_cloud_estimator_worker_ptr_->estimate(image_);
                     RCLCPP_INFO(get_logger(), "Day time cloud estimation --> %f", estimation);
                 }
                 break;
 
                 case CloudEstimatorWorker::DayNightEnum::Night:
                 {
-                    std::tie(estimation, distribution) = night_cloud_estimator_worker_ptr_->estimate(msg_image_);
+                    std::tie(estimation, distribution) = night_cloud_estimator_worker_ptr_->estimate(image_);
                     RCLCPP_INFO(get_logger(), "Night time cloud estimation --> %f", estimation);
                 }
                 break;
@@ -124,7 +152,7 @@ private:
                 bob_interfaces::msg::ObserverCloudEstimation cloud_estimation_msg;
                 cloud_estimation_msg.percentage_cloud_cover = static_cast<float>(estimation);
                 cloud_estimation_msg.unimodal_cloud_cover = distribution;
-                pub_environment_data_->publish(cloud_estimation_msg);
+                //pub_environment_data_->publish(cloud_estimation_msg);
             }
         }
         catch (const std::exception & e)

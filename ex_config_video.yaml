@@ -176,6 +176,9 @@ advanced_config:
     width: 0
     height: 0
 
+  lifecycle_manager_node:
+    prune_time_seconds: 5
+
 #########################################################################
 # Launch nodes configuration
 #   Here is what containers and nodes will be launched by this

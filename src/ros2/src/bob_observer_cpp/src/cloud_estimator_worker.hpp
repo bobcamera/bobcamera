@@ -7,6 +7,7 @@
 #include <cmath>
 #include <vector>
 #include <algorithm>
+#include <ranges>
 
 class CloudEstimatorWorker 
 {
@@ -18,95 +19,110 @@ public:
         Night = 2
     };
 
-    explicit CloudEstimatorWorker() = default;
+    explicit CloudEstimatorWorker(ParameterLifeCycleNode & node)
+        : node_(node)
+    {
+    }
 
     virtual ~CloudEstimatorWorker() = default;
 
     virtual std::pair<double, bool> estimate(cv::Mat& frame) = 0;
 
 protected:
-    double find_threshold_mce(const cv::Mat& img, const cv::Mat& mask) const
+    ParameterLifeCycleNode & node_;
+
+    static double find_threshold_mce(const cv::Mat& img, const cv::Mat& mask)
     {
-        std::vector<float> StArray;
-        for (int i = 0; i < mask.rows; ++i) 
-        {
-            for (int j = 0; j < mask.cols; ++j) 
+        //cv::Mat img_double;        
+        //_img.convertTo(img_double, CV_64F);
+
+        // Extract the pixel values where mask is true
+        std::vector<double> StArray;
+        for (int i = 0; i < img.rows; ++i) {
+            for (int j = 0; j < img.cols; ++j) 
             {
-                if (mask.at<uchar>(i, j) != 0) 
+                if (mask.at<uchar>(i, j)) 
                 {
-                    StArray.push_back(img.at<float>(i, j));
+                    StArray.push_back(static_cast<double>(img.at<uchar>(i, j)));
                 }
             }
         }
 
-        int bins = 201;
-        std::vector<float> y(bins, 0.0f);
-        std::vector<float> x(bins);
-        for (int i = 0; i < bins; ++i) 
-        {
-            x[i] = -1.0f + static_cast<float>(i) * (2.0f / (static_cast<float>(bins) - 1.0f));
-        }
+        // Generate histogram bins
+        std::vector<double> x(201);
+        std::iota(x.begin(), x.end(), -1);
+        std::ranges::for_each(x, [](double& d) { d = (d + 1) / 100 - 1; });
 
+        std::vector<int> y(200, 0);
         for (const auto& val : StArray) 
         {
-            auto bin_idx = static_cast<int>((val + 1.0f) * (static_cast<float>(bins) - 1.0f) / 2.0f);
-            bin_idx = std::clamp(bin_idx, 0, bins - 1);
-            ++y[bin_idx];
+            auto it = std::ranges::lower_bound(x, val);
+            if (it != x.end() && it != x.begin()) 
+            {
+                ++y[std::distance(x.begin(), it) - 1];
+            }
         }
 
-        float MinValue = *std::ranges::min_element(StArray);
-        float MaxValue = *std::ranges::max_element(StArray);
+        double MinValue = *std::ranges::min_element(StArray);
+        double MaxValue = *std::ranges::max_element(StArray);
 
-        float t_int_decimal = std::midpoint(MinValue, MaxValue);
-        float t_int = std::ceil(t_int_decimal * 100) / 100;
-        auto index_of_t_int = std::ranges::min_element(x, 
-            [&](float a, float b) 
-            {
-                return std::abs(a - t_int) < std::abs(b - t_int);
-            }) - x.begin();
+        // Initial threshold estimation
+        double t_int_decimal = MinValue + ((MaxValue - MinValue) / 2);
+        double t_int = std::ceil(t_int_decimal * 100) / 100;
+        auto it_t_int = std::ranges::min_element(x, [t_int](double a, double b) { return std::abs(a - t_int) < std::abs(b - t_int); });
+        int index_of_t_int = std::distance(x.begin(), it_t_int);
 
-        float m0a = 0;
-        float m1a = 0;
-        float m0b = 0;
-        float m1b = 0;
-        for (long i = 0; i < index_of_t_int; ++i) 
+        // Calculate initial moments
+        double m0a = 0, m1a = 0;
+        for (int i = 0; i < index_of_t_int; ++i) 
         {
             m0a += y[i];
             m1a += x[i] * y[i];
         }
-        for (long i = index_of_t_int; i < bins - 1; ++i) 
+
+        double m0b = 0, m1b = 0;
+        for (int i = index_of_t_int; i < 200; ++i) 
         {
             m0b += y[i];
             m1b += x[i] * y[i];
         }
 
-        float mu_a = m1a / m0a;
-        float mu_b = m1b / m0b;
-        mu_a = std::abs(mu_a);
+        double mu_a = m1a / m0a;
+        double mu_b = m1b / m0b;
 
-        float diff = 5.0f;
-        float t_n = 0.0f;
-        float t_n_decimal = (mu_b - mu_a) / (std::log(mu_b) - std::log(mu_a));
+        if (mu_a < 0) 
+        {
+            mu_a = std::abs(mu_a);
+        }
+
+        double diff = 5;
+        double t_n = 0;
+
+        double t_n_decimal = (mu_b - mu_a) / (std::log(mu_b) - std::log(mu_a));
         if (!std::isnan(t_n_decimal)) 
         {
-            t_n = std::ceil(t_n_decimal * 100.0f) / 100.0f;
+            t_n = std::ceil(t_n_decimal * 100) / 100;
         }
 
         int iter = 1;
         while (true) 
         {
             t_int = t_n;
-            index_of_t_int = std::ranges::min_element(x, [&](float a, float b) {
-                    return std::abs(a - t_int) < std::abs(b - t_int);
-                }) - x.begin();
 
-            m0a = m1a = m0b = m1b = 0;
-            for (long i = 0; i < index_of_t_int; ++i) 
+            // Finding index of t_int
+            it_t_int = std::ranges::min_element(x, [t_int](double a, double b) { return std::abs(a - t_int) < std::abs(b - t_int); });
+            index_of_t_int = std::distance(x.begin(), it_t_int);
+
+            // Calculate moments for the new threshold
+            m0a = 0, m1a = 0;
+            for (int i = 0; i < index_of_t_int; ++i) 
             {
                 m0a += y[i];
                 m1a += x[i] * y[i];
             }
-            for (long i = index_of_t_int; i < bins - 1; ++i) 
+
+            m0b = 0, m1b = 0;
+            for (int i = index_of_t_int; i < 200; ++i) 
             {
                 m0b += y[i];
                 m1b += x[i] * y[i];
@@ -114,26 +130,33 @@ protected:
 
             mu_a = m1a / m0a;
             mu_b = m1b / m0b;
-            mu_a = std::abs(mu_a);
 
-            float t_nplus1_decimal = (mu_b - mu_a) / (std::log(mu_b) - std::log(mu_a));
+            if (mu_a < 0) 
+            {
+                mu_a = std::abs(mu_a);
+            }
+
+            double t_nplus1_decimal = (mu_b - mu_a) / (std::log(mu_b) - std::log(mu_a));
             if (!std::isnan(t_nplus1_decimal)) 
             {
-                float t_nplus1 = std::ceil(t_nplus1_decimal * 100) / 100;
+                double t_nplus1 = std::ceil(t_nplus1_decimal * 100) / 100;
+
                 diff = std::abs(t_nplus1 - t_n);
                 t_n = t_nplus1;
+
                 if (diff == 0) 
                 {
                     break;
                 }
-                iter++;
+
+                ++iter;
             }
         }
 
         return t_n;
     }
 
-    cv::Mat get_mask(const cv::Mat& frame)  const
+    static cv::Mat get_mask(const cv::Mat& frame)
     {
         cv::Mat gray_frame;
         cv::Mat mask;
@@ -147,8 +170,8 @@ class DayTimeCloudEstimator
     : public CloudEstimatorWorker 
 {
 public:
-    DayTimeCloudEstimator() 
-        : CloudEstimatorWorker() 
+    DayTimeCloudEstimator(ParameterLifeCycleNode & node) 
+        : CloudEstimatorWorker(node) 
     {}
 
     ~DayTimeCloudEstimator() override = default;
@@ -185,6 +208,7 @@ public:
         {
             cv::Mat ratio_mask;
             cv::threshold(b - r, ratio_mask, 30, 255, cv::THRESH_BINARY);
+            RCLCPP_INFO(node_.get_logger(), "estimate 5.1");
             int N_Cloud = cv::countNonZero(ratio_mask == 0);
             int N_Sky = cv::countNonZero(ratio_mask == 255);
             double ccr = (N_Cloud / static_cast<double>(N_Cloud + N_Sky)) * 100;
@@ -197,8 +221,8 @@ class NightTimeCloudEstimator
     : public CloudEstimatorWorker 
 {
 public:
-    NightTimeCloudEstimator() 
-        : CloudEstimatorWorker() 
+    NightTimeCloudEstimator(ParameterLifeCycleNode & node) 
+        : CloudEstimatorWorker(node) 
     {}
 
     ~NightTimeCloudEstimator() override = default;

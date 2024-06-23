@@ -41,7 +41,7 @@ public:
 private:
     rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::QoS sub_qos_profile_{2};
-    rclcpp::QoS pub_qos_profile_{10};
+    rclcpp::QoS pub_qos_profile_{5};
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscription_;
     rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr pub_compressed_frame_;
     std::string compressed_frame_subscriber_topic_;

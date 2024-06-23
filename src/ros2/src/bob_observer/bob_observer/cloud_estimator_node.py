@@ -31,8 +31,7 @@ class CloudEstimatorNode(Node):
 
     # setup services, publishers and subscribers    
     self.sub_camera = self.create_subscription(Image, 'bob/observer_frame/source', self.camera_callback, subscriber_qos_profile)
-    self.sub_environment_day_night = self.create_subscription(ObserverDayNight, 'bob/observer/day_night_classifier', 
-      self.day_night_callback, subscriber_qos_profile)
+    self.sub_environment_day_night = self.create_subscription(ObserverDayNight, 'bob/observer/day_night_classifier', self.day_night_callback, subscriber_qos_profile)
 
     self.get_logger().info(f'{self.get_name()} node is up and running.')
    

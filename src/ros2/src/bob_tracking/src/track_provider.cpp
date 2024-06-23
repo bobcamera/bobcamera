@@ -35,8 +35,8 @@ public:
     }
 
 private:
-    rclcpp::QoS pub_qos_profile_{10};
-    rclcpp::QoS sub_qos_profile_{10};
+    rclcpp::QoS pub_qos_profile_{4};
+    rclcpp::QoS sub_qos_profile_{4};
     rclcpp::Publisher<bob_interfaces::msg::Tracking>::SharedPtr pub_tracker_tracking_;
     rclcpp::Publisher<bob_interfaces::msg::Tracking>::SharedPtr pub_tracker_tracking_resized_;
     rclcpp::Subscription<bob_interfaces::msg::DetectorBBoxArray>::SharedPtr detector_bounding_boxes_subscription_;    

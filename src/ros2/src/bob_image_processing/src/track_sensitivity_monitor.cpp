@@ -17,8 +17,8 @@ public:
     COMPOSITION_PUBLIC
     explicit TrackSensitivityMonitor(const rclcpp::NodeOptions & options)
         : ParameterLifeCycleNode("track_sensitivity_monitor_node", options)
-        , pub_qos_profile_(10)
-        , sub_qos_profile_(10)
+        , pub_qos_profile_(4)
+        , sub_qos_profile_(4)
     {
     }
 

@@ -250,7 +250,7 @@ private:
                             const bob_camera::msg::CameraInfo::SharedPtr& camera_info_msg)
     {
         try
-        {          
+        {
             cv::Mat img;
             ImageUtils::convert_image_msg(image_msg, img, true);
 
@@ -398,7 +398,7 @@ private:
         response->success = true;
     }
 
-    rclcpp::QoS pub_qos_profile_{10};
+    rclcpp::QoS pub_qos_profile_{4};
     rclcpp::QoS sub_qos_profile_{10};
     std::unique_ptr<ImageRecorder> img_recorder_;
     std::unique_ptr<VideoRecorder> video_recorder_;

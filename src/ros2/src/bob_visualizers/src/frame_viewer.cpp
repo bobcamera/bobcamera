@@ -36,7 +36,7 @@ public:
     }
 
 private:
-    rclcpp::QoS sub_qos_profile_{10};
+    rclcpp::QoS sub_qos_profile_{4};
     rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscription_;
     rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr image_subscription_compressed_;
