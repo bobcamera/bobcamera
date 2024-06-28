@@ -12,6 +12,7 @@ basic_config:
     onvif_port: 0
     onvif_user: ''
     onvif_password: ''
+    camera_id: 0
     usb_camera_resolution: [640, 480] # Resolution for USB Camera [WIDTH, HEIGHT]
     videos:                     # List of videos to display in sequence if source_type is VIDEO_FILE
       - /workspaces/bobcamera/media/fisheye_videos/mike-drone.mp4

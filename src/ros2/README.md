@@ -43,13 +43,15 @@ Open a terminal session:
 
 #### Update RTSP cam details if you are using an RTSP camera
 
-* update the environment variables for both camera rtsp credentials and frame size in `./launch_application.sh`
-* set the BOB_SOURCE environment variable to be `"'rtsp'"`
+* copy the example_config.yaml to a file of your on: `cp example_config.yaml rtsp_config.yaml`
+* update the camera uri in your yaml file in the camera node: `rtsp_uri: 'YOUR_RTSP_URI'`
+* set the source variable to be `source_type: 'RTSP_STREAM'`
 
 #### Update USB cam details if you are using a USB camera
 
-* update the environment variables for the camera id in `./launch_application.sh`, default id is 0
-* set the BOB_SOURCE environment variable to be `"'usb'"`
+* copy the example_config.yaml to a file of your on: `cp example_config.yaml rtsp_config.yaml`
+* update the variables for the camera id in your yaml file: `camera_id: 0`
+* set the BOB_SOURCE environment variable to be `source_type: 'USB_CAMERA'`
 
 #### Build
 
@@ -57,7 +59,7 @@ Run the build script to build the application: `./build.sh`
 
 #### Launch
 
-Run the application launch script to launch the application: `./launch_application.sh`
+Run the application launch script to launch the application: `./launch_dynamic.sh <YAML FILE>`
 
 #### Note: If you run into an error similar to the following:
 
