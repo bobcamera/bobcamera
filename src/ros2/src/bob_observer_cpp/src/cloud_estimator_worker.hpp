@@ -22,66 +22,103 @@ public:
     explicit CloudEstimatorWorker(ParameterLifeCycleNode & node)
         : node_(node)
     {
+        x_ = linspace(start_, end_, num_bins_);
     }
 
     virtual ~CloudEstimatorWorker() = default;
 
-    virtual std::pair<double, bool> estimate(cv::Mat& frame) = 0;
+    virtual std::pair<double, bool> estimate(const cv::Mat& frame) = 0;
 
 protected:
     ParameterLifeCycleNode & node_;
+    const double start_ = -1.0;
+    const double end_ = 1.0;
+    const int num_bins_ = 201;
+    std::vector<double> x_;
 
-    static double find_threshold_mce(const cv::Mat& img, const cv::Mat& mask)
+    static std::vector<double> linspace(double start, double end, int num) 
     {
-        //cv::Mat img_double;        
-        //_img.convertTo(img_double, CV_64F);
+        std::vector<double> linspace_vector(num);
+        const double step = (end - start) / (num - 1);
+        
+        std::ranges::generate(linspace_vector, [n = 0, start, step]() mutable {
+            return start + n++ * step;
+        });
+        
+        return linspace_vector;
+    }
 
-        // Extract the pixel values where mask is true
-        std::vector<double> StArray;
-        for (int i = 0; i < img.rows; ++i) {
+    static void create_histogram(const cv::Mat& image, const cv::Mat& mask, const std::vector<double>& bins, std::vector<int>& histogram) 
+    {
+        // Ensure the histogram is empty and has the correct size
+        histogram.assign(bins.size() - 1, 0);
+
+        // Iterate through the image and mask
+        for (int i = 0; i < image.rows; ++i) {
+            for (int j = 0; j < image.cols; ++j) {
+                if (mask.at<uchar>(i, j) > 0) {  // Apply mask
+                    double pixel_value = image.at<double>(i, j);
+                    
+                    // Determine the bin for the pixel value
+                    for (size_t k = 1; k < bins.size(); ++k) {
+                        if (pixel_value < bins[k]) {
+                            ++histogram[k - 1];
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    double find_threshold_mce(const cv::Mat& img, const cv::Mat& mask)
+    {
+        auto & x = x_;
+        std::vector<int> y(num_bins_ - 1, 0);
+
+        const double one_over_bin_width = 1.0 / ((end_ - start_) / static_cast<double>(num_bins_ - 1));
+        double min_value = std::numeric_limits<double>::max();
+        double max_value = std::numeric_limits<double>::lowest();
+
+        // Iterate through the image and mask, create the histogram and the max and min values
+        for (int i = 0; i < img.rows; ++i) 
+        {
             for (int j = 0; j < img.cols; ++j) 
             {
-                if (mask.at<uchar>(i, j)) 
-                {
-                    StArray.push_back(static_cast<double>(img.at<uchar>(i, j)));
+                if (mask.at<uchar>(i, j) > 0) 
+                { 
+                    const double pixel_value = img.at<double>(i, j);
+
+                    // Ensure the pixel value is within the range
+                    if (pixel_value >= start_ && pixel_value <= end_) 
+                    {
+                        // Calculate the correct bin index
+                        const int bin_index = static_cast<int>((pixel_value - start_) * one_over_bin_width);
+                        ++y[bin_index];
+                    }
+                    min_value = std::min(min_value, pixel_value);
+                    max_value = std::max(max_value, pixel_value);
                 }
             }
         }
 
-        // Generate histogram bins
-        std::vector<double> x(201);
-        std::iota(x.begin(), x.end(), -1);
-        std::ranges::for_each(x, [](double& d) { d = (d + 1) / 100 - 1; });
+        const double t_int_decimal = min_value + ((max_value - min_value) / 2.0);
+        double t_int = std::ceil(t_int_decimal * 100.0) / 100.0;
 
-        std::vector<int> y(200, 0);
-        for (const auto& val : StArray) 
-        {
-            auto it = std::ranges::lower_bound(x, val);
-            if (it != x.end() && it != x.begin()) 
-            {
-                ++y[std::distance(x.begin(), it) - 1];
-            }
-        }
-
-        double MinValue = *std::ranges::min_element(StArray);
-        double MaxValue = *std::ranges::max_element(StArray);
-
-        // Initial threshold estimation
-        double t_int_decimal = MinValue + ((MaxValue - MinValue) / 2);
-        double t_int = std::ceil(t_int_decimal * 100) / 100;
-        auto it_t_int = std::ranges::min_element(x, [t_int](double a, double b) { return std::abs(a - t_int) < std::abs(b - t_int); });
-        int index_of_t_int = std::distance(x.begin(), it_t_int);
+        int index_of_t_int = static_cast<int>(((num_bins_ - 1) / (end_ - start_)) * (t_int - start_));
 
         // Calculate initial moments
-        double m0a = 0, m1a = 0;
+        double m0a = 0.0;
+        double m1a = 0.0;
         for (int i = 0; i < index_of_t_int; ++i) 
         {
             m0a += y[i];
             m1a += x[i] * y[i];
         }
 
-        double m0b = 0, m1b = 0;
-        for (int i = index_of_t_int; i < 200; ++i) 
+        double m0b = 0.0;
+        double m1b = 0.0;
+        for (int i = index_of_t_int; i < (num_bins_ - 1); ++i) 
         {
             m0b += y[i];
             m1b += x[i] * y[i];
@@ -95,23 +132,23 @@ protected:
             mu_a = std::abs(mu_a);
         }
 
-        double diff = 5;
-        double t_n = 0;
+        double diff = 5.0;
+        double t_n = 0.0;
 
         double t_n_decimal = (mu_b - mu_a) / (std::log(mu_b) - std::log(mu_a));
         if (!std::isnan(t_n_decimal)) 
         {
-            t_n = std::ceil(t_n_decimal * 100) / 100;
+            t_n = std::ceil(t_n_decimal * 100.0) / 100.0;
         }
 
-        int iter = 1;
-        while (true) 
+        int max_interactions = 1000;
+        int iter = 0;
+        while (iter < max_interactions) 
         {
             t_int = t_n;
 
             // Finding index of t_int
-            it_t_int = std::ranges::min_element(x, [t_int](double a, double b) { return std::abs(a - t_int) < std::abs(b - t_int); });
-            index_of_t_int = std::distance(x.begin(), it_t_int);
+            index_of_t_int = static_cast<int>(((num_bins_ - 1) / (end_ - start_)) * (t_int - start_));
 
             // Calculate moments for the new threshold
             m0a = 0, m1a = 0;
@@ -122,7 +159,7 @@ protected:
             }
 
             m0b = 0, m1b = 0;
-            for (int i = index_of_t_int; i < 200; ++i) 
+            for (int i = index_of_t_int; i < (num_bins_ - 1); ++i) 
             {
                 m0b += y[i];
                 m1b += x[i] * y[i];
@@ -139,7 +176,7 @@ protected:
             double t_nplus1_decimal = (mu_b - mu_a) / (std::log(mu_b) - std::log(mu_a));
             if (!std::isnan(t_nplus1_decimal)) 
             {
-                double t_nplus1 = std::ceil(t_nplus1_decimal * 100) / 100;
+                double t_nplus1 = std::ceil(t_nplus1_decimal * 100.0) / 100.0;
 
                 diff = std::abs(t_nplus1 - t_n);
                 t_n = t_nplus1;
@@ -148,8 +185,11 @@ protected:
                 {
                     break;
                 }
-
                 ++iter;
+            }
+            else
+            {
+                break;
             }
         }
 
@@ -176,12 +216,15 @@ public:
 
     ~DayTimeCloudEstimator() override = default;
 
-    std::pair<double, bool> estimate(cv::Mat& frame) override 
+    std::pair<double, bool> estimate(const cv::Mat & frame) override 
     {
         auto mask = get_mask(frame);
 
+        cv::Mat frame_f64;
+        frame.convertTo(frame_f64, CV_64F);
+
         std::vector<cv::Mat> bgr_channels;
-        cv::split(frame, bgr_channels);
+        cv::split(frame_f64, bgr_channels);
         cv::Mat b = bgr_channels[0];
         cv::Mat r = bgr_channels[2];
         r.setTo(1, r == 0);
@@ -193,6 +236,7 @@ public:
         cv::Scalar stddev;
         cv::meanStdDev(lambda_n, mean, stddev, mask);
         double std = stddev[0];
+        RCLCPP_INFO(node_.get_logger(), "std: %g", std);
 
         if (std > 0.03) 
         {
@@ -247,7 +291,7 @@ public:
         return cloud_feature_image_uint8;
     }
 
-    std::pair<double, bool> estimate(cv::Mat& frame) override 
+    std::pair<double, bool> estimate(const cv::Mat& frame) override 
     {
         auto mask = get_mask(frame);
         cv::Mat frame_gray;

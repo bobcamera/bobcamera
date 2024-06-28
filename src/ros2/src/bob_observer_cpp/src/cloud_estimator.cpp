@@ -95,6 +95,7 @@ private:
         pub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
 
         day_night_ = CloudEstimatorWorker::DayNightEnum::Unknown;
+        //day_night_ = CloudEstimatorWorker::DayNightEnum::Day;
 
         day_cloud_estimator_worker_ptr_ = std::make_unique<DayTimeCloudEstimator>(*this);
         night_cloud_estimator_worker_ptr_ = std::make_unique<NightTimeCloudEstimator>(*this);
