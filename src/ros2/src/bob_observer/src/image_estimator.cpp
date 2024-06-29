@@ -132,7 +132,7 @@ private:
 
         day_cloud_estimator_worker_ptr_ = std::make_unique<DayTimeCloudEstimator>(*this);
         night_cloud_estimator_worker_ptr_ = std::make_unique<NightTimeCloudEstimator>(*this);
-        day_night_classifier_worker_ptr_ = std::make_unique<DayNightClassifierWorker>();
+        day_night_classifier_worker_ptr_ = std::make_unique<DayNightClassifierWorker>(*this);
         mask_worker_ptr_ = std::make_unique<MaskWorker>(*this, [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat & mask){mask_timer_callback(detection_mask_result, mask);});
 
         declare_node_parameters();

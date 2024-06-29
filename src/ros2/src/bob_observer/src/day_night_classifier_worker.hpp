@@ -9,6 +9,11 @@
 class DayNightClassifierWorker
 {
 public:
+    explicit DayNightClassifierWorker(ParameterLifeCycleNode & node)
+        : node_(node)
+    {
+    }
+
     std::pair<DayNightEnum, int> estimate(const cv::Mat & frame, int threshold)
     {
         if (mask_enabled_ && (detection_mask_.size() != frame.size()))
@@ -35,13 +40,8 @@ public:
             }
         }
 
-        // // Add up all the pixel values in the V channel
-        // cv::Scalar sum_brightness = cv::sum(hsv_frame);
-
-        // // Extract average brightness feature from an HSV image
-        // // Find the average Value or brightness of an image
-        // int avg_brightness = static_cast<int>(sum_brightness[2] / frame.size().area());
         int avg_brightness = static_cast<int>(sum_brightness / num_pixels);
+        RCLCPP_INFO(node_.get_logger(), "Pixels used: %.2f%%, Avg. Brightness: %d", (num_pixels * 100.0) / (double)frame.size().area(), avg_brightness);
 
         if (avg_brightness > threshold)
         {
@@ -59,6 +59,7 @@ public:
     }    
 
 private:
+    ParameterLifeCycleNode & node_;
     bool mask_enabled_;
     cv::Mat detection_mask_;
 };
