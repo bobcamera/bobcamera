@@ -1,5 +1,11 @@
 #!/bin/bash
 
+if [ -z "$1" ]; then
+  echo "Error: No YAML file provided."
+  echo "Usage: $0 <YAML FILE>"
+  exit 1
+fi
+
 # Log level for Bob to help with debugging
 # Options: DEBUG, INFO, WARN, ERROR or FATAL
 export BOB_LOGLEVEL=${BOB_LOGLEVEL:-"INFO"}

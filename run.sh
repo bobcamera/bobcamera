@@ -1,5 +1,11 @@
 #!/bin/bash
 
+if [ -z "$1" ]; then
+  echo "Error: No YAML file provided."
+  echo "Usage: $0 <YAML FILE>"
+  exit 1
+fi
+
 #xdg-open http://localhost:8080 & MY_UID="$(id -u)" MY_GID="$(id -g)" docker compose up
 export MY_UID="$(id -u)" 
 export MY_GID="$(id -g)" 
