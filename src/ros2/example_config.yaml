@@ -133,8 +133,8 @@ advanced_config:
     compression_quality: 75
 
   image_estimator_node:
-    cloud_estimation_publish_topic: 'bob/observer/cloud_estimation'
     camera_subscription_topic: 'bob/frames/allsky/original/resized'
+    cloud_estimation_publish_topic: 'bob/observer/cloud_estimation'
     day_night_publish_topic: 'bob/observer/day_night_classifier'
     observer_timer_interval: 30
     observer_day_night_brightness_threshold: 95

@@ -9,19 +9,39 @@
 class DayNightClassifierWorker
 {
 public:
-    static std::pair<DayNightEnum, int> estimate(const cv::Mat & frame, int threshold)
+    std::pair<DayNightEnum, int> estimate(const cv::Mat & frame, int threshold)
     {
+        if (mask_enabled_ && (detection_mask_.size() != frame.size()))
+        {
+            cv::resize(detection_mask_, detection_mask_, frame.size());
+        }
+
         DayNightEnum result = DayNightEnum::Night;
 
         cv::Mat hsv_frame;
         cv::cvtColor(frame, hsv_frame, cv::COLOR_BGR2HSV);
 
-        // Add up all the pixel values in the V channel
-        cv::Scalar sum_brightness = cv::sum(hsv_frame);
+        double sum_brightness = 0.0;
+        double num_pixels = 0.0;
+        for (int i = 0; i < hsv_frame.rows; ++i)
+        {
+            for (int j = 0; j < hsv_frame.cols; ++j)
+            {
+                if (!mask_enabled_ || detection_mask_.at<uchar>(i, j) > 0)
+                {
+                    sum_brightness += (&hsv_frame.at<uchar>(i, j))[2];
+                    ++num_pixels;
+                }
+            }
+        }
 
-        // Extract average brightness feature from an HSV image
-        // Find the average Value or brightness of an image
-        int avg_brightness = static_cast<int>(sum_brightness[2] / frame.size().area());
+        // // Add up all the pixel values in the V channel
+        // cv::Scalar sum_brightness = cv::sum(hsv_frame);
+
+        // // Extract average brightness feature from an HSV image
+        // // Find the average Value or brightness of an image
+        // int avg_brightness = static_cast<int>(sum_brightness[2] / frame.size().area());
+        int avg_brightness = static_cast<int>(sum_brightness / num_pixels);
 
         if (avg_brightness > threshold)
         {
@@ -32,7 +52,15 @@ public:
         return std::make_pair(result, avg_brightness);
     }
 
+    void set_mask(const cv::Mat & mask)
+    {
+        detection_mask_ = mask;
+        mask_enabled_ = !detection_mask_.empty();
+    }    
+
 private:
+    bool mask_enabled_;
+    cv::Mat detection_mask_;
 };
 
 #endif

@@ -45,6 +45,7 @@ private:
     cv::Mat image_;
     std::unique_ptr<DayTimeCloudEstimator> day_cloud_estimator_worker_ptr_;
     std::unique_ptr<NightTimeCloudEstimator> night_cloud_estimator_worker_ptr_;
+    std::unique_ptr<DayNightClassifierWorker> day_night_classifier_worker_ptr_;
     int observer_day_night_brightness_threshold_;
     DayNightEnum day_night_;
     rclcpp::TimerBase::SharedPtr timer_;
@@ -131,6 +132,7 @@ private:
 
         day_cloud_estimator_worker_ptr_ = std::make_unique<DayTimeCloudEstimator>(*this);
         night_cloud_estimator_worker_ptr_ = std::make_unique<NightTimeCloudEstimator>(*this);
+        day_night_classifier_worker_ptr_ = std::make_unique<DayNightClassifierWorker>();
         mask_worker_ptr_ = std::make_unique<MaskWorker>(*this, [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat & mask){mask_timer_callback(detection_mask_result, mask);});
 
         declare_node_parameters();
@@ -161,6 +163,7 @@ private:
         }
         day_cloud_estimator_worker_ptr_->set_mask(detection_mask_);
         night_cloud_estimator_worker_ptr_->set_mask(detection_mask_);
+        day_night_classifier_worker_ptr_->set_mask(detection_mask_);
     }
 
     void camera_callback(const sensor_msgs::msg::Image::SharedPtr image_msg)
@@ -176,7 +179,7 @@ private:
 
     void day_night_classifier()
     {
-        auto [result, average_brightness] = DayNightClassifierWorker::estimate(image_, observer_day_night_brightness_threshold_);
+        auto [result, average_brightness] = day_night_classifier_worker_ptr_->estimate(image_, observer_day_night_brightness_threshold_);
         RCLCPP_INFO(get_logger(), "Day/Night classifier --> %d, %d", (int)result, average_brightness);
         day_night_ = result;
 

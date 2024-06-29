@@ -11,7 +11,9 @@ from ament_index_python.packages import get_package_share_directory
 def parse_yaml(file_path):
     try:
         with open(file_path, 'r') as file:
-            return yaml.safe_load(file)
+            content = file.read()
+            content = content.replace('\t', '  ')
+            return yaml.safe_load(content)
     except Exception as e:
         print(f"Error loading YAML file: {e}")
         return None
