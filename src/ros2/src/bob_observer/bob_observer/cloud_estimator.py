@@ -32,28 +32,29 @@ class CloudEstimator():
         x = self.x
         # self.logger.info(f'x: {x}')
         #self.logger.info(f'StArray: {StArray}')
-        y, _ = np.histogram(StArray, bins=x)
-        MinValue = np.min(StArray)
-        MaxValue = np.max(StArray)
-        #self.logger.info('Test 1')
+        # y2, _ = np.histogram(StArray, bins=x)
+        # MinValue2 = np.min(StArray)
+        # MaxValue2 = np.max(StArray)
+        # self.logger.info('Test 1')
 
         # # ####################################
-        # start = -1.0
-        # end = 1.0
-        # num_bins = 201
-        # MinValue = np.inf
-        # MaxValue = -np.inf
-        # one_over_bin_width = 1.0 / ((end - start) / (num_bins - 1))
-        # y = np.zeros(num_bins - 1, dtype=int)
-        # for value in StArray:
-        #     if start <= value < end:
-        #         # Calculate the correct bin index
-        #         bin_index = int((value - start) * one_over_bin_width)
-        #         y[bin_index] += 1
+        start = -1.0
+        end = 1.0
+        num_bins = 201
+        MinValue = np.inf
+        MaxValue = -np.inf
+        one_over_bin_width = 1.0 / ((end - start) / (num_bins - 1))
+        y = np.zeros(num_bins - 1, dtype=int)
+        for value in StArray:
+            if start <= value < end:
+                # Calculate the correct bin index
+                bin_index = int((value - start) * one_over_bin_width)
+                y[bin_index] += 1
 
-        #     MinValue = min(MinValue, value)
-        #     MaxValue = max(MaxValue, value)
-        #self.logger.info('Test 1')
+            MinValue = min(MinValue, value)
+            MaxValue = max(MaxValue, value)
+        # self.logger.info('Test 1')
+
         # ####################################
 
         # ####################################
@@ -155,13 +156,13 @@ class CloudEstimator():
         
                 diff = abs(t_nplus1 - t_n)
                 t_n = t_nplus1
-                self.logger.info(f'iter: {iter}, diff: {diff}, t_n: {t_n}')
+                # self.logger.info(f'iter: {iter}, diff: {diff}, t_n: {t_n}')
                 if diff == 0:
                     break
         
                 iter += 1
             else:
-                self.logger.info(f'iter: {iter}, is nan, t_n: {t_n}')
+                # self.logger.info(f'iter: {iter}, is nan, t_n: {t_n}')
                 break
 
         ThresholdValue = t_n

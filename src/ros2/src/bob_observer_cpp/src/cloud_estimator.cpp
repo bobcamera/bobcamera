@@ -95,7 +95,7 @@ private:
         pub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
 
         day_night_ = CloudEstimatorWorker::DayNightEnum::Unknown;
-        //day_night_ = CloudEstimatorWorker::DayNightEnum::Day;
+        day_night_ = CloudEstimatorWorker::DayNightEnum::Day;
 
         day_cloud_estimator_worker_ptr_ = std::make_unique<DayTimeCloudEstimator>(*this);
         night_cloud_estimator_worker_ptr_ = std::make_unique<NightTimeCloudEstimator>(*this);
@@ -112,7 +112,7 @@ private:
 
     void day_night_callback(const bob_interfaces::msg::ObserverDayNight::SharedPtr odn)
     {
-        day_night_ = CloudEstimatorWorker::DayNightEnum(odn->day_night_enum);
+        //day_night_ = CloudEstimatorWorker::DayNightEnum(odn->day_night_enum);
     }
 
     void cloud_sampler()
