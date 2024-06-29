@@ -9,30 +9,26 @@
 #include <algorithm>
 #include <ranges>
 
-#include "mask_worker.hpp"
+#include "day_night.hpp"
 
 class CloudEstimatorWorker 
 {
 public:
-    enum class DayNightEnum
-    {
-        Unknown = 0,
-        Day = 1,
-        Night = 2
-    };
-
     explicit CloudEstimatorWorker(ParameterLifeCycleNode & node)
         : node_(node)
     {
         x_ = linspace(start_, end_, num_bins_);
-        mask_worker_ptr_ = std::make_unique<MaskWorker>(node_, [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat & mask){mask_timer_callback(detection_mask_result, mask);});
-        mask_worker_ptr_->init(5, "assets/masks/detection-mask.jpg");
-        mask_enabled_ = true;
     }
 
     virtual ~CloudEstimatorWorker() = default;
 
     virtual std::pair<double, bool> estimate(const cv::Mat& frame) = 0;
+
+    void set_mask(const cv::Mat & mask)
+    {
+        detection_mask_ = mask;
+        mask_enabled_ = !detection_mask_.empty();
+    }
 
 protected:
     ParameterLifeCycleNode & node_;
@@ -40,32 +36,8 @@ protected:
     const double end_ = 1.0;
     const int num_bins_ = 201;
     std::vector<double> x_;
-    std::unique_ptr<MaskWorker> mask_worker_ptr_;
     bool mask_enabled_;
     cv::Mat detection_mask_;
-
-    void mask_timer_callback(MaskWorker::MaskCheckType detection_mask_result, const cv::Mat & mask)
-    {
-        if (detection_mask_result == MaskWorker::MaskCheckType::Enable)
-        {
-            if (!mask_enabled_)
-            {
-                mask_enabled_ = true;
-                RCLCPP_INFO(node_.get_logger(), "Detection Mask Enabled.");
-            }
-            else
-            {
-                RCLCPP_INFO(node_.get_logger(), "Detection Mask Changed.");
-            }
-            detection_mask_ = mask.clone();
-        }
-        else if ((detection_mask_result == MaskWorker::MaskCheckType::Disable) && mask_enabled_)
-        {
-            RCLCPP_INFO(node_.get_logger(), "Detection Mask Disabled.");
-            mask_enabled_ = false;
-            detection_mask_.release();
-        }
-    }
 
     static std::vector<double> linspace(double start, double end, int num) 
     {
@@ -79,30 +51,7 @@ protected:
         return linspace_vector;
     }
 
-    static void create_histogram(const cv::Mat& image, const cv::Mat& mask, const std::vector<double>& bins, std::vector<int>& histogram) 
-    {
-        // Ensure the histogram is empty and has the correct size
-        histogram.assign(bins.size() - 1, 0);
-
-        // Iterate through the image and mask
-        for (int i = 0; i < image.rows; ++i) {
-            for (int j = 0; j < image.cols; ++j) {
-                if (mask.at<uchar>(i, j) > 0) {  // Apply mask
-                    double pixel_value = image.at<double>(i, j);
-                    
-                    // Determine the bin for the pixel value
-                    for (size_t k = 1; k < bins.size(); ++k) {
-                        if (pixel_value < bins[k]) {
-                            ++histogram[k - 1];
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    double find_threshold_mce(const cv::Mat& img)//, const cv::Mat& mask)
+    double find_threshold_mce(const cv::Mat & img)
     {
         auto & x = x_;
         std::vector<int> y(num_bins_ - 1, 0);
@@ -116,7 +65,7 @@ protected:
         {
             for (int j = 0; j < img.cols; ++j) 
             {
-                if (detection_mask_.at<uchar>(i, j) > 0) 
+                if (!mask_enabled_ || (detection_mask_.at<uchar>(i, j) > 0))
                 { 
                     const double pixel_value = img.at<double>(i, j);
 
@@ -255,17 +204,20 @@ public:
         r.setTo(1, r == 0);
 
         cv::Mat lambda_n = (b - r) / (b + r);
-        lambda_n.setTo(0, detection_mask_ == 0);
+        if (mask_enabled_)
+        {
+            lambda_n.setTo(0, detection_mask_ == 0);
+        }
 
         cv::Scalar mean;
         cv::Scalar stddev;
-        cv::meanStdDev(lambda_n, mean, stddev, detection_mask_);
+        cv::meanStdDev(lambda_n, mean, stddev, mask_enabled_ ? detection_mask_ : cv::noArray());
         double std = stddev[0];
-        RCLCPP_INFO(node_.get_logger(), "std: %g", std);
+        //RCLCPP_INFO(node_.get_logger(), "std: %g", std);
 
         if (std > 0.03) 
         {
-            double threshold = find_threshold_mce(lambda_n);//, mask);
+            double threshold = find_threshold_mce(lambda_n);
             cv::Mat ratio_mask;
             cv::threshold(lambda_n, ratio_mask, threshold, 255, cv::THRESH_BINARY);
             int N_Cloud = cv::countNonZero(ratio_mask == 0);
@@ -277,7 +229,6 @@ public:
         {
             cv::Mat ratio_mask;
             cv::threshold(b - r, ratio_mask, 30, 255, cv::THRESH_BINARY);
-            RCLCPP_INFO(node_.get_logger(), "estimate 5.1");
             int N_Cloud = cv::countNonZero(ratio_mask == 0);
             int N_Sky = cv::countNonZero(ratio_mask == 255);
             double ccr = (N_Cloud / static_cast<double>(N_Cloud + N_Sky)) * 100;
@@ -318,14 +269,20 @@ public:
 
     std::pair<double, bool> estimate(const cv::Mat& frame) override 
     {
-        //auto mask = get_mask(frame);
+        if (mask_enabled_ && (detection_mask_.size() != frame.size()))
+        {
+            cv::resize(detection_mask_, detection_mask_, frame.size());
+        }
+
         cv::Mat frame_gray;
         cv::cvtColor(frame, frame_gray, cv::COLOR_BGR2GRAY);
 
         cv::Mat cloud_feature_image = generate_cloud_feature_image(frame_gray);
-        cloud_feature_image.setTo(0, detection_mask_ == 0);
+        if (mask_enabled_)
+        {
+            cloud_feature_image.setTo(0, detection_mask_ == 0);
+        }
 
-        //double otsu_threshold = cv::threshold(cloud_feature_image, cloud_feature_image, 0, 255, cv::THRESH_BINARY + cv::THRESH_OTSU);
         int N_Cloud = cv::countNonZero(cloud_feature_image == 255);
         int N_Sky = cv::countNonZero(cloud_feature_image == 0);
 
