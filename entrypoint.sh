@@ -6,6 +6,7 @@ source /opt/ros2_ws/install/setup.bash
 export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 export FASTRTPS_DEFAULT_PROFILES_FILE=/workspaces/bobcamera/src/ros2/config/fastdds.xml
 export RMW_FASTRTPS_USE_QOS_FROM_XML=1
+export ROS_LOG_DIR=/workspaces/bobcamera/src/ros2/app_log
 
 # Creating directories and copying wsdl files
 mkdir -p /workspaces/bobcamera/src/ros2/assets/config
