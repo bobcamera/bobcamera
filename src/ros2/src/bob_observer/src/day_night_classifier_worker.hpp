@@ -28,7 +28,7 @@ public:
 
         std::vector<cv::Mat> hsv_channels;
         cv::split(hsv_frame, hsv_channels);
-        cv::Mat v_channel = hsv_channels[2];
+        auto & v_channel = hsv_channels[2];
 
         double sum_brightness = 0.0;
         double num_pixels = 0.0;
@@ -48,18 +48,18 @@ public:
         if (num_pixels == 0) 
         {
             RCLCPP_WARN(node_.get_logger(), "No valid pixels found for brightness estimation.");
-            return std::make_pair(result, 0); 
+            return {result, 0};
         }
 
         int avg_brightness = static_cast<int>(sum_brightness / num_pixels);
-        RCLCPP_INFO(node_.get_logger(), "Pixels used: %.2f%%, Avg. Brightness: %d", (num_pixels * 100.0) / frame.total(), avg_brightness);
+        RCLCPP_DEBUG(node_.get_logger(), "Pixels used: %.2f%%, Avg. Brightness: %d", (num_pixels * 100.0) / frame.total(), avg_brightness);
 
         if (avg_brightness > threshold)
         {
             result = DayNightEnum::Day;
         }
 
-        return std::make_pair(result, avg_brightness);
+        return {result, avg_brightness};
     }
 
     void set_mask(const cv::Mat & mask)

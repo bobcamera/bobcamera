@@ -198,7 +198,7 @@ public:
         cv::Mat r = bgr_channels[2];
         r.setTo(1, r == 0); 
 
-        RCLCPP_INFO(node_.get_logger(), "Original size: %d", b.rows * b.cols);
+        RCLCPP_DEBUG(node_.get_logger(), "Original size: %d", b.rows * b.cols);
 
         // Find non-zero locations in the detection mask
         std::vector<cv::Point> estimationPoints;
@@ -214,7 +214,7 @@ public:
             r_est.at<double>(i) = r.at<double>(estimationPoints[i].y, estimationPoints[i].x);
         }
 
-        RCLCPP_INFO(node_.get_logger(), "New size: %d", b_est.rows * b_est.cols);
+        RCLCPP_DEBUG(node_.get_logger(), "New size: %d", b_est.rows * b_est.cols);
 
         // Do cloud estimation using the 1D arrays
         cv::Mat lambda_n = (b_est - r_est) / (b_est + r_est);
@@ -222,30 +222,23 @@ public:
         cv::Scalar mean;
         cv::Scalar stddev;
         cv::meanStdDev(lambda_n, mean, stddev);
-        double std = stddev[0];
-        RCLCPP_INFO(node_.get_logger(), "std: %g", std);
+        const double std = stddev[0];
 
+        const bool is_bimodal = std > 0.03;
+        cv::Mat ratio_mask;
         if (std > 0.03) 
         {
-            double threshold = find_threshold_mce(lambda_n);
-            cv::Mat ratio_mask;
+            const double threshold = find_threshold_mce(lambda_n);
             cv::threshold(lambda_n, ratio_mask, threshold, 255, cv::THRESH_BINARY);
-            int N_Cloud = cv::countNonZero(ratio_mask == 0);
-            int N_Sky = cv::countNonZero(ratio_mask == 255);
-            double ccr = (N_Cloud / static_cast<double>(N_Cloud + N_Sky)) * 100;
-            return {round(ccr * 100.0) / 100.0, false};
         } 
         else 
         {
-            cv::Mat ratio_mask;
             cv::threshold(b - r, ratio_mask, 30, 255, cv::THRESH_BINARY);
-            int N_Cloud = cv::countNonZero(ratio_mask == 0);
-            int N_Sky = cv::countNonZero(ratio_mask == 255);
-            double ccr = (N_Cloud / static_cast<double>(N_Cloud + N_Sky)) * 100;
-            return {round(ccr * 100.0) / 100.0, true};
         }
-
-        RCLCPP_INFO(node_.get_logger(), "estimate complete");
+        const double N_Cloud = static_cast<double>(cv::countNonZero(ratio_mask == 0));
+        const double N_Sky = static_cast<double>(cv::countNonZero(ratio_mask == 255));
+        const double ccr = (N_Cloud / (N_Cloud + N_Sky)) * 100.0;
+        return {round(ccr * 100.0) / 100.0, !is_bimodal};
     }
 };
 
