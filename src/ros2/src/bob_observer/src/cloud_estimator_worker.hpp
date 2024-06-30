@@ -233,7 +233,7 @@ public:
         } 
         else 
         {
-            cv::threshold(b - r, ratio_mask, 30, 255, cv::THRESH_BINARY);
+            cv::threshold(b_est - r_est, ratio_mask, 30, 255, cv::THRESH_BINARY);
         }
         const double N_Cloud = static_cast<double>(cv::countNonZero(ratio_mask == 0));
         const double N_Sky = static_cast<double>(cv::countNonZero(ratio_mask == 255));
