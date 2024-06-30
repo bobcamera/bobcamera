@@ -9,7 +9,7 @@ fi
 # Log level for Bob to help with debugging
 # Options: DEBUG, INFO, WARN, ERROR or FATAL
 export BOB_LOGLEVEL=${BOB_LOGLEVEL:-"INFO"}
-export RCUTILS_LOGGING_FILE_NAME=./bob.log
+export ROS_LOG_DIR=./app_log
 
 # Creating directories and copying wsdl files
 mkdir -p ./assets/config

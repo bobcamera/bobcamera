@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(bob_observer_cpp)
+project(bob_observer)
 
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 20)
@@ -37,12 +37,12 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
     add_definitions(-Wno-missing-braces)
 ENDIF()
 
-# CloudEstimator Node
-add_library(cloud_estimator_node SHARED src/cloud_estimator.cpp)
-target_compile_definitions(cloud_estimator_node PRIVATE "COMPOSITION_BUILDING_DLL")
-target_link_libraries(cloud_estimator_node PUBLIC boblib)
-ament_target_dependencies(cloud_estimator_node PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV bob_interfaces rclcpp_lifecycle rclcpp_components)
-rclcpp_components_register_nodes(cloud_estimator_node "CloudEstimator")
-install(TARGETS cloud_estimator_node DESTINATION lib)
+# ImageEstimator Node
+add_library(image_estimator_node SHARED src/image_estimator.cpp)
+target_compile_definitions(image_estimator_node PRIVATE "COMPOSITION_BUILDING_DLL")
+target_link_libraries(image_estimator_node PUBLIC boblib)
+ament_target_dependencies(image_estimator_node PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV bob_interfaces rclcpp_lifecycle rclcpp_components)
+rclcpp_components_register_nodes(image_estimator_node "ImageEstimator")
+install(TARGETS image_estimator_node DESTINATION lib)
 
 ament_package()

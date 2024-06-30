@@ -1,4 +1,5 @@
 import traceback as tb
+
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy, QoSHistoryPolicy
@@ -31,8 +32,7 @@ class CloudEstimatorNode(Node):
 
     # setup services, publishers and subscribers    
     self.sub_camera = self.create_subscription(Image, 'bob/observer_frame/source', self.camera_callback, subscriber_qos_profile)
-    self.sub_environment_day_night = self.create_subscription(ObserverDayNight, 'bob/observer/day_night_classifier', 
-      self.day_night_callback, subscriber_qos_profile)
+    self.sub_environment_day_night = self.create_subscription(ObserverDayNight, 'bob/observer/day_night_classifier', self.day_night_callback, subscriber_qos_profile)
 
     self.get_logger().info(f'{self.get_name()} node is up and running.')
    
@@ -43,6 +43,7 @@ class CloudEstimatorNode(Node):
     self.day_night = DayNightEnum(msg_day_night.day_night_enum)
 
   def cloud_sampler(self):
+    self.timer.cancel()
     
     if self.msg_image != None:
 
@@ -50,16 +51,15 @@ class CloudEstimatorNode(Node):
       distribution: bool = None
 
       try:
-
         match self.day_night:
           case DayNightEnum.Day:
             estimation, distribution = self.day_cloud_estimator.estimate(self.br.imgmsg_to_cv2(self.msg_image))
-            self.get_logger().info(f'{self.get_name()} Day time cloud estimation --> {estimation}')
+            self.get_logger().info(f'Day time cloud estimation --> {estimation}')
           case DayNightEnum.Night:
             estimation, _ = self.night_cloud_estimator.estimate(self.br.imgmsg_to_cv2(self.msg_image))
-            self.get_logger().info(f'{self.get_name()} Night time cloud estimation --> {estimation}')
+            self.get_logger().info(f'Night time cloud estimation --> {estimation}')
           case _:
-            self.get_logger().info(f'{self.get_name()} Unknown Day/Night classifier, ignore for now')
+            self.get_logger().info(f'Unknown Day/Night classifier, ignore for now')
             pass
         
         if estimation != None:
@@ -71,6 +71,8 @@ class CloudEstimatorNode(Node):
       except Exception as e:
         self.get_logger().error(f"Exception during cloud estimation sampler. Error: {e}.")
         self.get_logger().error(tb.format_exc())
+
+    self.timer.reset()
 
 def main(args=None):
 

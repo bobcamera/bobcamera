@@ -44,7 +44,7 @@ public:
     }
 
 private:
-    rclcpp::QoS qos_profile_{10}; 
+    rclcpp::QoS qos_profile_{4}; 
 
     std::unique_ptr<CameraWorkerParams> camera_params_ptr_;
     std::unique_ptr<CameraWorker> camera_worker_ptr_;

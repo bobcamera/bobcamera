@@ -1,6 +1,6 @@
 #pragma once
-#ifndef __TRACKING_STATE_HPP__
-#define __TRACKING_STATE_HPP__
+#ifndef __DAY_NIGHT_ENUM_HPP__
+#define __DAY_NIGHT_ENUM_HPP__
 
 enum DayNightEnum
 {

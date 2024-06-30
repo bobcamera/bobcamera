@@ -19,19 +19,76 @@ class CloudEstimator():
 
     def __init__(self):
         self.logger = rclpy.logging.get_logger('cloud_estimator')# .info(f'Running node {self.node.get_name()} via the node runner')
+        self.x = np.linspace(-1,1,201)
     
     # Method to estimate the cloudyness of the frame
     def estimate(self, frame):
         pass
    
     def find_threshold_mce(self, img, mask):
-        StArray = img[mask]
+        # self.logger.info('Test')
+        mask2 = mask.astype(bool)
+        StArray = img[mask2]
+        x = self.x
+        # self.logger.info(f'x: {x}')
+        #self.logger.info(f'StArray: {StArray}')
+        # y2, _ = np.histogram(StArray, bins=x)
+        # MinValue2 = np.min(StArray)
+        # MaxValue2 = np.max(StArray)
+        # self.logger.info('Test 1')
 
-        x = np.linspace(-1,1,201)
-        y, bins = np.histogram(StArray, bins=x)
+        # # ####################################
+        start = -1.0
+        end = 1.0
+        num_bins = 201
+        MinValue = np.inf
+        MaxValue = -np.inf
+        one_over_bin_width = 1.0 / ((end - start) / (num_bins - 1))
+        y = np.zeros(num_bins - 1, dtype=int)
+        for value in StArray:
+            if start <= value < end:
+                # Calculate the correct bin index
+                bin_index = int((value - start) * one_over_bin_width)
+                y[bin_index] += 1
 
-        MinValue = np.min(StArray)
-        MaxValue = np.max(StArray)
+            MinValue = min(MinValue, value)
+            MaxValue = max(MaxValue, value)
+        # self.logger.info('Test 1')
+
+        # ####################################
+
+        # ####################################
+        # start = -1.0
+        # end = 1.0
+        # num_bins = 201
+
+        # # Initialize the histogram bins and bin edges
+        # y = np.zeros(num_bins - 1, dtype=int)
+
+        # one_over_bin_width = 1.0 / ((end - start) / num_bins)
+        # MinValue = np.inf
+        # MaxValue = -np.inf
+        # img_width_range = range(img.shape[1])
+        # img_height_range = range(img.shape[0])
+
+        # # Iterate through the image and mask, create the histogram and the max and min values
+        # for i in img_height_range:
+        #     for j in img_width_range:
+        #         if mask[i, j] > 0:
+        #             pixel_value = img[i, j]
+
+        #             # Ensure the pixel value is within the range
+        #             if start <= pixel_value < end:
+        #                 # Calculate the correct bin index
+        #                 bin_index = int((pixel_value - start) * one_over_bin_width)
+        #                 y[bin_index] += 1
+
+        #             MinValue = min(MinValue, pixel_value)
+        #             MaxValue = max(MaxValue, pixel_value)
+        # self.logger.info('Test 1')
+        # ####################################
+
+
 
         t_int_decimal= MinValue+((MaxValue-MinValue)/2)
         t_int = np.ceil(t_int_decimal*100)/100
@@ -58,12 +115,15 @@ class CloudEstimator():
         diff=5
         t_n=0
 
+        #self.logger.info('Test 2')
         t_n_decimal=((mu_b-mu_a) /(np.log(mu_b)-np.log(mu_a)))
         if math.isnan(t_n_decimal) == False:
             t_n = np.ceil(t_n_decimal*100)/100; 
 
         iter = 1
-        while True:
+        max_iterations = 1000  # Safeguard to prevent infinite loop
+
+        while iter < max_iterations:
             t_int = t_n
         
             # Finding index of t_int
@@ -96,11 +156,14 @@ class CloudEstimator():
         
                 diff = abs(t_nplus1 - t_n)
                 t_n = t_nplus1
-        
+                # self.logger.info(f'iter: {iter}, diff: {diff}, t_n: {t_n}')
                 if diff == 0:
                     break
         
                 iter += 1
+            else:
+                # self.logger.info(f'iter: {iter}, is nan, t_n: {t_n}')
+                break
 
         ThresholdValue = t_n
 
@@ -119,7 +182,7 @@ class DayTimeCloudEstimator(CloudEstimator):
     
     # Method to estimate the cloudyness of the frame
     def estimate(self, frame):
-        # logger = rclpy.logging.get_logger('cloud_estimator')
+        logger = rclpy.logging.get_logger('cloud_estimator')
         mask = self.get_mask(frame)
         
         b, g, r = cv2.split(frame)
@@ -129,7 +192,7 @@ class DayTimeCloudEstimator(CloudEstimator):
         lambda_n = np.where(mask, (b - r) / (b + r), 0)
 
         std = np.std(lambda_n[mask == 255])
-        # logger.info(f'std: {std}')
+        #logger.info(f'std: {std}')
         if std > 0.03: # magic number, could maybe replace with Dip Test of modality
             # logger.info('Bimodal distribution')
             threshold = self.find_threshold_mce(lambda_n, mask)

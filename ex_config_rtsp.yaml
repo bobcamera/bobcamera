@@ -4,22 +4,24 @@
 #########################################################################
 basic_config:
   camera_node:
-    source_type: 'VIDEO_FILE' # USB_CAMERA | VIDEO_FILE | RTSP_STREAM
-    rtsp_uri: ''              # Pattern: rtsp://{name of the user}:{password of user}@{IP-Address}:{Port Number}/{Path}
-                              # Example Hikvision: rtsp://peter:pAsSwOrD123427@12.8.9.3:554/Streaming/Channels/101
-                              # Example Amcrest and Dahua: rtsp://user:password@0.0.0.0:554/cam/realmonitor?channel=1&subtype=0
+    source_type: 'RTSP_STREAM' # USB_CAMERA | VIDEO_FILE | RTSP_STREAM
+    # Pattern: rtsp_uri: 'rtsp://{name of the user}:{password of user}@{IP-Address}:{Port Number}/{Path}'
+    #   Example Hikvision: rtsp_uri: 'rtsp://peter:pAsSwOrD123427@12.8.9.3:554/Streaming/Channels/101'
+    #   Example Amcrest and Dahua: rtsp_uri: 'rtsp://user:password@0.0.0.0:554/cam/realmonitor?channel=1&subtype=0'
+    rtsp_uri: 'rtsp://bob:Bobuser$01@192.168.68.59:554/Streaming/Channels/101'
     onvif_host: ''
     onvif_port: 0
     onvif_user: ''
     onvif_password: ''
+    camera_id: 0
     usb_camera_resolution: [640, 480] # Resolution for USB Camera [WIDTH, HEIGHT]
     videos:                     # List of videos to display in sequence if source_type is VIDEO_FILE
       - /workspaces/bobcamera/media/fisheye_videos/mike-drone.mp4
       - /workspaces/bobcamera/media/fisheye_videos/mikeg-30min.mp4
     resize_height: 960          # 0 to disable resize publish
-    simulator: True             # True for including simulated objects, False otherwise
+    simulator: False             # True for including simulated objects, False otherwise
     simulator_num_objects: 15   # Number of simulated objects if the simulator parameter is True
-    bgs_sensitivity: 'low_c'    # Initial sensitivity configuration based on the 'bgs_json_params' in the advanced config section
+    bgs_sensitivity: 'high_c'    # Initial sensitivity configuration based on the 'bgs_json_params' in the advanced config section
     bgs_type: 'vibe'            # The background subtractor to use: 'vibe' | 'wmv'
 
   allsky_recorder_node:
@@ -131,18 +133,20 @@ advanced_config:
     compressed_frame_publisher_topic: 'bob/frames/foreground_mask/resized/compressed'
     compression_quality: 75
 
-  day_night_classifier_node:
-    observer_timer_interval: 90
+  image_estimator_node:
+    camera_subscription_topic: 'bob/frames/allsky/original/resized'
+    cloud_estimation_publish_topic: 'bob/observer/cloud_estimation'
+    day_night_publish_topic: 'bob/observer/day_night_classifier'
+    observer_timer_interval: 30
     observer_day_night_brightness_threshold: 95
+    mask_timer_seconds: 5
+    mask_file: 'assets/masks/detection-mask.jpg'
 
-  cloud_estimator_node:
-    observer_timer_interval: 90
-
-  star_mask_node:
-    detection_mask_file: 'assets/masks/detection-mask.jpg'
-    detection_mask_backup_file: 'assets/masks/detection-mask-backup.jpg'
-    observer_timer_interval: 90
-    observer_cross_correlation_threshold: 0.5
+  # star_mask_node:
+  #   detection_mask_file: 'assets/masks/detection-mask.jpg'
+  #   detection_mask_backup_file: 'assets/masks/detection-mask-backup.jpg'
+  #   observer_timer_interval: 90
+  #   observer_cross_correlation_threshold: 0.5
 
   monitoring_status_aggregator_node:
     observer_tracker_monitor_busy_interval: 5
@@ -166,7 +170,7 @@ advanced_config:
     onvif_wsdl_path: 'assets/wsdl'
 
   info_webapi_node:
-    application_version: '1.5.1'
+    application_version: '1.5.2'
     frame_width: 0
     frame_height: 0
     video_fps: 15.0
@@ -175,6 +179,9 @@ advanced_config:
     masks_folder: 'assets/masks'
     width: 0
     height: 0
+
+  lifecycle_manager_node:
+    prune_time_seconds: 5
 
 #########################################################################
 # Launch nodes configuration
@@ -283,26 +290,18 @@ launch:
           plugin: RecordingMonitor
           name: allsky_recorder_monitoring_node
           remappings: []
+        - package: bob_observer
+          plugin: ImageEstimator
+          name: image_estimator_node
+          remappings: []
         
   standalone_nodes:
-    - package: bob_observer
-      executable: day_night_classifier
-      name: day_night_classifier_node
-      remappings:
-        - 'bob/observer_frame/source': 'bob/frames/allsky/original/resized'
-      output: screen
-    - package: bob_observer
-      executable: cloud_estimator
-      name: cloud_estimator_node
-      remappings:
-        - 'bob/observer_frame/source': 'bob/frames/allsky/original/resized'
-      output: screen
-    - package: bob_observer
-      executable: star_mask
-      name: star_mask_node
-      remappings:
-        - 'bob/observer_frame/source': '/bob/frames/allsky/original/resized'
-      output: screen
+    # - package: bob_observer
+    #   executable: star_mask
+    #   name: star_mask_node
+    #   remappings:
+    #     - 'bob/observer_frame/source': '/bob/frames/allsky/original/resized'
+    #   output: screen
     - package: bob_monitor
       executable: monitoring_status_aggregator
       name: monitoring_status_aggregator_node

@@ -23,12 +23,12 @@ public:
     explicit LifecycleManager(const rclcpp::NodeOptions & options)
         : ParameterNode("lifecycle_service_client_node", options)
     {
-        declare_node_parameters();
         init();
     }
 
     void init()
     {
+        declare_node_parameters();
         timer_nodes_ = create_wall_timer(std::chrono::seconds(5), [this](){timer_callback();});
     }
 
@@ -36,10 +36,11 @@ private:
     class NodeStatusManager
     {
     public:
-        NodeStatusManager(const std::string & name, LifecycleManager::SharedPtr base_node)
+        NodeStatusManager(const std::string & name, LifecycleManager::SharedPtr base_node, int prune_time_seconds)
             : name_(name)
         {
             node_ = base_node->create_sub_node(name + "_manager");
+            prune_time_seconds_ = prune_time_seconds;
             state_.id = lifecycle_msgs::msg::State::PRIMARY_STATE_UNKNOWN;
             state_.label = "unknown";
             client_change_state_ = node_->create_client<lifecycle_msgs::srv::ChangeState>("/" + name + "/change_state");
@@ -120,11 +121,12 @@ private:
         void prune_requests()
         {
             std::vector<int64_t> pruned_requests;
-            size_t n_pruned_change = client_change_state_->prune_requests_older_than(std::chrono::system_clock::now() - std::chrono::seconds(5), &pruned_requests);
-            size_t n_pruned_get = client_change_state_->prune_requests_older_than(std::chrono::system_clock::now() - std::chrono::seconds(5), &pruned_requests);
+            size_t n_pruned_change = client_change_state_->prune_requests_older_than(std::chrono::system_clock::now() - std::chrono::seconds(prune_time_seconds_), &pruned_requests);
+            size_t n_pruned_get = client_change_state_->prune_requests_older_than(std::chrono::system_clock::now() - std::chrono::seconds(prune_time_seconds_), &pruned_requests);
             if (n_pruned_change || n_pruned_get) 
             {
-                RCLCPP_INFO(node_->get_logger(), "The server hasn't replied for more than 5s, %zu requests were discarded, the discarded requests numbers are:", n_pruned_change + n_pruned_get);
+                RCLCPP_INFO(node_->get_logger(), "The node '%s' didn't reply for more than %ds, %zu requests were discarded", 
+                    name_.c_str(), prune_time_seconds_, n_pruned_change + n_pruned_get);
             }
         }
 
@@ -136,8 +138,10 @@ private:
         LifecycleManager::SharedPtr node_;
         std::shared_ptr<lifecycle_msgs::srv::GetState_Request> get_request_;
         std::shared_ptr<lifecycle_msgs::srv::ChangeState_Request> change_request_;
+        int prune_time_seconds_;
     };
 
+    int prune_time_seconds_;
     rclcpp::TimerBase::SharedPtr timer_nodes_;
     std::map<std::string, NodeStatusManager> lifecycle_nodes_;
     // std::set<std::string> non_lifecycle_running_nodes_;
@@ -187,7 +191,7 @@ private:
             if (!services_and_types.empty() && services_and_types.contains("/" + node_name + "/change_state"))
             {
                 RCLCPP_INFO(get_logger(), "Node %s is lifecycle", node_name.c_str());
-                *lifecycle_nodes_.emplace(node_name, NodeStatusManager(node_name, shared_from_this())).first;
+                *lifecycle_nodes_.emplace(node_name, NodeStatusManager(node_name, shared_from_this(), prune_time_seconds_)).first;
             }
             else
             {
@@ -202,10 +206,10 @@ private:
     {
         std::vector<ParameterNode::ActionParam> params = {
             ParameterNode::ActionParam(
-                rclcpp::Parameter("lifecycle_nodes", std::vector<std::string>()), 
+                rclcpp::Parameter("prune_time_seconds", 5), 
                 [this](const rclcpp::Parameter& param) 
                 {
-                    auto lifecycle_nodes = param.as_string_array();
+                    prune_time_seconds_ = static_cast<int>(param.as_int());
                 }
             ),
         };
