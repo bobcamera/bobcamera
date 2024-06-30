@@ -27,7 +27,7 @@ IFS='.' read -r major minor patch <<< "$web_version"
 
 
 while :; do 
-    read -p "Select y(es) to increment the patch-number or n(o) to specify a version number." patchincrement
+    read -p "Select y(es) to increment the patch-number or n(o) to specify a version number. " patchincrement
     response_lower=$(echo "$patchincrement" | tr '[:upper:]' '[:lower:]')
     if [ "$response_lower" = "no" ] || [ "$response_lower" = "n" ]; then
         # Prompt the user for a version number
@@ -73,14 +73,6 @@ else
     echo "Failed to update version number - ./docker/docker-compose-rstudio.yaml."
 fi
 
-# Replace version number in docker-compose-demo.yaml
-if sed -i "s/bobcamera\/bob-web-prod:$web_version/bobcamera\/bob-web-prod:$version_number/" ./docker/docker-compose-demo.yaml && \
-   sed -i "s/bobcamera\/bob-ros2-prod:$bob_version/bobcamera\/bob-ros2-prod:$version_number/" ./docker/docker-compose-demo.yaml; then
-    echo "Version number successfully updated - ./docker/docker-compose-demo.yaml."
-else
-    echo "Failed to update version number - ./docker/docker-compose-demo.yaml."
-fi
-
 # Replace version number in ros2 dev Dockerfile
 if sed -i "s/FROM bobcamera\/bob-ros2-dev:$web_version/FROM bobcamera\/bob-ros2-dev:$version_number/" src/ros2/.devcontainer/Dockerfile; then
     echo "Version number successfully updated - ROS2 .devcontainer Dockerfile."
@@ -88,11 +80,18 @@ else
     echo "Failed to update version number - ROS2 .devcontainer Dockerfile."
 fi
 
-# Replace version number in app_config.yaml
-if sed -i "s/application_version: '$web_version'/application_version: '$version_number'/" src/ros2/src/bob_launch/config/app_config.yaml; then
-    echo "Version number successfully updated - launch/config/app_config.yaml."
+# Replace version number in example_config.yaml
+if sed -i "s/application_version: '$web_version'/application_version: '$version_number'/" src/ros2/example_config.yaml; then
+    echo "Version number successfully updated - example_config.yaml."
 else
-    echo "Failed to update version number - launch/config/app_config.yaml."
+    echo "Failed to update version number - example_config.yaml."
+fi
+
+# Replace version number in example_config.yaml
+if sed -i "s/application_version: '$web_version'/application_version: '$version_number'/" ex_config_rtsp.yaml; then
+    echo "Version number successfully updated - ex_config_rtsp.yaml."
+else
+    echo "Failed to update version number - ex_config_rtsp.yaml."
 fi
 
 echo ""
