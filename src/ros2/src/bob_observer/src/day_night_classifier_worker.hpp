@@ -26,26 +26,36 @@ public:
         cv::Mat hsv_frame;
         cv::cvtColor(frame, hsv_frame, cv::COLOR_BGR2HSV);
 
+        std::vector<cv::Mat> hsv_channels;
+        cv::split(hsv_frame, hsv_channels);
+        cv::Mat v_channel = hsv_channels[2];
+
         double sum_brightness = 0.0;
         double num_pixels = 0.0;
-        for (int i = 0; i < hsv_frame.rows; ++i)
+
+        for (int i = 0; i < v_channel.rows; ++i)
         {
-            for (int j = 0; j < hsv_frame.cols; ++j)
+            for (int j = 0; j < v_channel.cols; ++j)
             {
                 if (!mask_enabled_ || detection_mask_.at<uchar>(i, j) > 0)
                 {
-                    sum_brightness += (&hsv_frame.at<uchar>(i, j))[2];
+                    sum_brightness += v_channel.at<uchar>(i, j);
                     ++num_pixels;
                 }
             }
         }
 
+        if (num_pixels == 0) 
+        {
+            RCLCPP_WARN(node_.get_logger(), "No valid pixels found for brightness estimation.");
+            return std::make_pair(result, 0); 
+        }
+
         int avg_brightness = static_cast<int>(sum_brightness / num_pixels);
-        RCLCPP_INFO(node_.get_logger(), "Pixels used: %.2f%%, Avg. Brightness: %d", (num_pixels * 100.0) / (double)frame.size().area(), avg_brightness);
+        RCLCPP_INFO(node_.get_logger(), "Pixels used: %.2f%%, Avg. Brightness: %d", (num_pixels * 100.0) / frame.total(), avg_brightness);
 
         if (avg_brightness > threshold)
         {
-            // if the average brightness is above the threshold value, we classify it as "day"
             result = DayNightEnum::Day;
         }
 

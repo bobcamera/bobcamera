@@ -65,20 +65,15 @@ protected:
         {
             for (int j = 0; j < img.cols; ++j) 
             {
-                if (!mask_enabled_ || (detection_mask_.at<uchar>(i, j) > 0))
-                { 
-                    const double pixel_value = img.at<double>(i, j);
-
-                    // Ensure the pixel value is within the range
-                    if (pixel_value >= start_ && pixel_value <= end_) 
-                    {
-                        // Calculate the correct bin index
-                        const int bin_index = static_cast<int>((pixel_value - start_) * one_over_bin_width);
-                        ++y[bin_index];
-                    }
-                    min_value = std::min(min_value, pixel_value);
-                    max_value = std::max(max_value, pixel_value);
+                const double pixel_value = img.at<double>(i, j);
+                if (pixel_value >= start_ && pixel_value <= end_) 
+                {
+                    // Calculate the correct bin index
+                    const int bin_index = static_cast<int>((pixel_value - start_) * one_over_bin_width);
+                    ++y[bin_index];
                 }
+                min_value = std::min(min_value, pixel_value);
+                max_value = std::max(max_value, pixel_value);
             }
         }
 
@@ -201,19 +196,34 @@ public:
         cv::split(frame_f64, bgr_channels);
         cv::Mat b = bgr_channels[0];
         cv::Mat r = bgr_channels[2];
-        r.setTo(1, r == 0);
+        r.setTo(1, r == 0); 
 
-        cv::Mat lambda_n = (b - r) / (b + r);
-        if (mask_enabled_)
+        RCLCPP_INFO(node_.get_logger(), "Original size: %d", b.rows * b.cols);
+
+        // Find non-zero locations in the detection mask
+        std::vector<cv::Point> estimationPoints;
+        cv::findNonZero(detection_mask_, estimationPoints);
+
+        // Build 1D matrices for b and r using only valid pixels
+        cv::Mat b_est(estimationPoints.size(), 1, b.type());
+        cv::Mat r_est(estimationPoints.size(), 1, r.type());
+
+        for (size_t i = 0; i < estimationPoints.size(); ++i) 
         {
-            lambda_n.setTo(0, detection_mask_ == 0);
+            b_est.at<double>(i) = b.at<double>(estimationPoints[i].y, estimationPoints[i].x);
+            r_est.at<double>(i) = r.at<double>(estimationPoints[i].y, estimationPoints[i].x);
         }
+
+        RCLCPP_INFO(node_.get_logger(), "New size: %d", b_est.rows * b_est.cols);
+
+        // Do cloud estimation using the 1D arrays
+        cv::Mat lambda_n = (b_est - r_est) / (b_est + r_est);
 
         cv::Scalar mean;
         cv::Scalar stddev;
-        cv::meanStdDev(lambda_n, mean, stddev, mask_enabled_ ? detection_mask_ : cv::noArray());
+        cv::meanStdDev(lambda_n, mean, stddev);
         double std = stddev[0];
-        //RCLCPP_INFO(node_.get_logger(), "std: %g", std);
+        RCLCPP_INFO(node_.get_logger(), "std: %g", std);
 
         if (std > 0.03) 
         {
@@ -234,6 +244,8 @@ public:
             double ccr = (N_Cloud / static_cast<double>(N_Cloud + N_Sky)) * 100;
             return {round(ccr * 100.0) / 100.0, true};
         }
+
+        RCLCPP_INFO(node_.get_logger(), "estimate complete");
     }
 };
 
