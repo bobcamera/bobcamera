@@ -9,6 +9,7 @@ The application uses Docker and Docker Compose to run, at present we are still i
 
 ## The following steps will need to be performed in a linux terminal
 
+- Ubuntu 24.04 has been tested
 - Ubuntu 23.10 has been tested
 - Ubuntu 22.04 has been tested
 
@@ -40,9 +41,39 @@ sudo shutdown -r now
 cd ~/bobcamera
 ```
 ### 7. To start up BOB
+
+#### First-time
+##### Update RTSP cam details if you are using an RTSP camera
+
+* copy the ex_config_rtsp.yaml to a file of your on: 
 ```
-./run.sh
+cp ex_config_rtsp.yaml my_rtsp_config.yaml
 ```
+* open the yaml file with your prefeered text editor.
+```
+code my_rtsp_config.yaml
+```
+* update the camera uri in your yaml file in the camera node: `rtsp_uri: 'YOUR_RTSP_URI'`
+* set the source variable to be `source_type: 'RTSP_STREAM'`
+
+##### Update USB cam details if you are using a USB camera
+
+* copy the ex_config_rtsp.yaml to a file of your on: 
+```
+cp ex_config_rtsp.yaml my_usb_config.yaml
+```
+* open the yaml file with your prefeered text editor.
+```
+code my_usb_config.yaml
+```
+* update the variables for the camera id in your yaml file: `camera_id: 0`
+* set the BOB_SOURCE environment variable to be `source_type: 'USB_CAMERA'`
+
+#### To run
+```
+./run.sh <NAME_OF_YOUR_YAML_FILE>
+```
+
 ### 8. Use your system browser and navigate to [http://localhost:8080](http://localhost:8080)
 
 ### 9. To shut BOB down, type CTRL + C in the terminal
@@ -50,10 +81,8 @@ cd ~/bobcamera
 --- 
 ## Appendix: 
 
-### I. To change the configuration after initial setup please execute: 
-```
-./config.sh 
-```
+### I. To change the configuration: 
+ * Edit the YAML file you use.
 
 ### II. To update to the lastest version of bob please execute: 
 ```
@@ -62,13 +91,8 @@ git pull origin main
 
 ### III. Reset the config file to factory conditions: 
 ```
-cp .env.example .env
+cp ex_config.yaml my_config_file.yaml
 ```
-or
-```
-./setup.sh
-```
-and select "No" in the prompt. 
 
 -----
 
