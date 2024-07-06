@@ -272,6 +272,27 @@
         "Hindi": "फोरग्राउंड मास्क",
         "Serbian": "Maska Prednjeg Plana"
     },
+    "logview": {
+        "Spanish": "Máscara de Primer Plano",
+        "French": "Masque de Premier Plan",
+        "German": "Vordergrundmaske",
+        "NorwegianBokmal": "Forgrunnsmaske",
+        "NorwegianNynorsk": "Framgrunnsmaske",
+        "Portuguese": "Máscara de Primeiro Plano",
+        "Bengali": "ফরগ্রাউন্ড মাস্ক",
+        "Indonesian": "Masker Latar Depan",
+        "Italian": "Maschera in Primo Piano",
+        "Japanese": "前景マスク",
+        "Korean": "전경 마스크",
+        "Swahili": "Maski ya Mbele",
+        "Turkish": "Ön Plan Maskesi",
+        "Vietnamese": "Mặt Nạ Tiền Cảnh",
+        "Telugu": "ఫోర్‌గ్రౌండ్ మాస్క్",
+        "Marathi": "पृष्ठभूमि मुखवटा",
+        "Urdu": "پیش منظر ماسک",
+        "Hindi": "फोरग्राउंड मास्क",
+        "Serbian": "Maska Prednjeg Plana"
+    },
     "recordingNavigation": {
         "Spanish": "Navegación de Grabación",
         "French": "Navigation d'Enregistrement",

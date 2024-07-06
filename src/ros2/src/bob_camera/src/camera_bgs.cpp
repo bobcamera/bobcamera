@@ -12,8 +12,8 @@
 #include <image_utils.hpp>
 #include <visibility_control.h>
 
-#include <camera_worker.hpp>
-#include <background_subtractor_worker.hpp>
+#include "camera_worker.hpp"
+#include "background_subtractor_worker.hpp"
 
 class CameraBGS
     : public ParameterLifeCycleNode
@@ -31,12 +31,16 @@ public:
         bgs_params_ptr_ = std::make_unique<BackgroundSubtractorWorkerParams>();
 
         bgs_worker_ptr_ = std::make_unique<BackgroundSubtractorWorker>(*this, *bgs_params_ptr_);
-        camera_worker_ptr_ = std::make_unique<CameraWorker>(*this, *camera_params_ptr_, [this](const std_msgs::msg::Header & header, const cv::Mat & img){bgs_callback(header, img);});
+        camera_worker_ptr_ = std::make_unique<CameraWorker>(*this, *camera_params_ptr_, 
+            [this](const std_msgs::msg::Header & header, const cv::Mat & img)
+            {
+                bgs_worker_ptr_->image_callback(header, img);
+            });
     }
 
     CallbackReturn on_configure(const rclcpp_lifecycle::State &)
     {
-        RCLCPP_INFO(get_logger(), "Configuring");
+        log_info("Configuring");
 
         init();
 
@@ -44,16 +48,6 @@ public:
     }
 
 private:
-    rclcpp::QoS qos_profile_{4}; 
-
-    std::unique_ptr<CameraWorkerParams> camera_params_ptr_;
-    std::unique_ptr<CameraWorker> camera_worker_ptr_;
-    std::unique_ptr<BackgroundSubtractorWorkerParams> bgs_params_ptr_;
-    std::unique_ptr<BackgroundSubtractorWorker> bgs_worker_ptr_;
-
-    rclcpp::Service<bob_interfaces::srv::MaskOverrideRequest>::SharedPtr privacy_mask_override_service_;
-    rclcpp::Service<bob_interfaces::srv::MaskOverrideRequest>::SharedPtr bgs_mask_override_service_;
-
     void init()
     {
         declare_node_parameters();
@@ -198,7 +192,7 @@ private:
                     else
                     {
                         camera_params_ptr_->source_type = UNKNOWN;
-                        RCLCPP_ERROR(get_logger(), "Invalid source type: %s", type.c_str());
+                        log_error("Invalid source type: %s", type.c_str());
                     }
 
                     reopen_camera();
@@ -304,7 +298,7 @@ private:
                 rclcpp::Parameter("bgs_sensitivity", "medium_c"), 
                 [this](const rclcpp::Parameter& param) 
                 {
-                    RCLCPP_INFO(get_logger(), "Setting Sensitivity: %s", param.as_string().c_str());
+                    log_info("Setting Sensitivity: %s", param.as_string().c_str());
                     bgs_worker_ptr_->init_sensitivity(param.as_string());
                 }
             ),
@@ -312,7 +306,7 @@ private:
                 rclcpp::Parameter("bgs_type", "vibe"), 
                 [this](const rclcpp::Parameter& param) 
                 {
-                    RCLCPP_INFO(get_logger(), "Setting BGS: %s", param.as_string().c_str());
+                    log_info("Setting BGS: %s", param.as_string().c_str());
                     bgs_worker_ptr_->init_bgs(param.as_string());
                 }
             ),            
@@ -357,17 +351,12 @@ private:
                     {
                         camera_params_ptr_->image_resized_publisher.reset();
                         bgs_params_ptr_->image_resized_publisher.reset();
-                        RCLCPP_DEBUG(get_logger(), "Resizer topics disabled");
+                        log_debug("Resizer topics disabled");
                     }
                 }
             ),
         };
         add_action_parameters(params);
-    }
-
-    void bgs_callback(const std_msgs::msg::Header & header, const cv::Mat & img)
-    {
-        bgs_worker_ptr_->imageCallback(header, img);
     }
 
     void privacy_mask_override_request(const std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Request> request, 
@@ -376,11 +365,11 @@ private:
         camera_params_ptr_->mask_enable_override = request->mask_enabled;
         if (request->mask_enabled)
         {
-            RCLCPP_DEBUG(get_logger(), "Privacy mask Override set to: True");
+            log_debug("Privacy mask Override set to: True");
         }
         else
         {
-            RCLCPP_DEBUG(get_logger(), "Privacy mask Override set to: False");
+            log_debug("Privacy mask Override set to: False");
         }
         response->success = true;        
     }
@@ -391,14 +380,24 @@ private:
         bgs_params_ptr_->mask_enable_override = request->mask_enabled;
         if (request->mask_enabled)
         {
-            RCLCPP_DEBUG(get_logger(), "BGS Mask Override set to: True");
+            log_debug("BGS Mask Override set to: True");
         }
         else
         {
-            RCLCPP_DEBUG(get_logger(), "BGS mask Override set to: False");
+            log_debug("BGS mask Override set to: False");
         }
         response->success = true;        
     }
+
+    rclcpp::QoS qos_profile_{4}; 
+
+    std::unique_ptr<CameraWorkerParams> camera_params_ptr_;
+    std::unique_ptr<CameraWorker> camera_worker_ptr_;
+    std::unique_ptr<BackgroundSubtractorWorkerParams> bgs_params_ptr_;
+    std::unique_ptr<BackgroundSubtractorWorker> bgs_worker_ptr_;
+
+    rclcpp::Service<bob_interfaces::srv::MaskOverrideRequest>::SharedPtr privacy_mask_override_service_;
+    rclcpp::Service<bob_interfaces::srv::MaskOverrideRequest>::SharedPtr bgs_mask_override_service_;
 };
 
 RCLCPP_COMPONENTS_REGISTER_NODE(CameraBGS)

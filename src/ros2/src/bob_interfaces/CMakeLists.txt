@@ -41,6 +41,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/TrackTrajectory.msg"
   "msg/TrackDetection.msg"
   "msg/Tracking.msg"
+  "msg/LogMessage.msg"
   # "srv/BGSResetRequest.srv"
   "srv/ConfigEntryUpdate.srv"
   "srv/ApplicationInfo.srv"

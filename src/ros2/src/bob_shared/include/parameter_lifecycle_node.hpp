@@ -16,6 +16,8 @@
 #include <lifecycle_msgs/srv/change_state.hpp>
 #include <lifecycle_msgs/srv/get_state.hpp>
 
+#include <bob_interfaces/msg/log_message.hpp>
+
 class ParameterLifeCycleNode
     : public rclcpp_lifecycle::LifecycleNode
 {
@@ -43,6 +45,12 @@ public:
         : rclcpp_lifecycle::LifecycleNode(node_name, options)
     {
         parameters_callback_handle_ = add_on_set_parameters_callback([this](const std::vector<rclcpp::Parameter> & parameters){return param_change_callback_method(parameters);});
+        rclcpp::QoS qos_profile{4};
+        qos_profile.reliability(rclcpp::ReliabilityPolicy::Reliable);
+        qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
+        qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
+        log_publisher_ = create_publisher<bob_interfaces::msg::LogMessage>("bob/log", qos_profile);
+        log_index_ = 0;
     }
 
     static std::string generate_uuid()
@@ -59,6 +67,57 @@ public:
             return;
         }
         publisher->publish(message);
+    }
+
+    template <typename... Args>
+    void log_error(const std::string& format, Args... args) 
+    {
+        RCLCPP_ERROR(get_logger(), format.c_str(), args...);
+    }
+
+    template <typename... Args>
+    void log_info(const std::string& format, Args... args) 
+    {
+        RCLCPP_INFO(get_logger(), format.c_str(), args...);
+    }
+
+    template <typename... Args>
+    void log_debug(const std::string& format, Args... args) 
+    {
+        RCLCPP_DEBUG(get_logger(), format.c_str(), args...);
+    }
+
+    template <typename... Args>
+    void log_send_error(const std::string& format, Args... args) 
+    {
+        RCLCPP_ERROR(get_logger(), format.c_str(), args...);
+        send_log_message(RCUTILS_LOG_SEVERITY_ERROR, format, args...);
+    }
+
+    template <typename... Args>
+    void log_send_info(const std::string& format, Args... args) 
+    {
+        RCLCPP_INFO(get_logger(), format.c_str(), args...);
+        send_log_message(RCUTILS_LOG_SEVERITY_INFO, format, args...);
+    }
+
+    template <typename... Args>
+    void log_send_debug(const std::string& format, Args... args) 
+    {
+        RCLCPP_DEBUG(get_logger(), format.c_str(), args...);
+        send_log_message(RCUTILS_LOG_SEVERITY_DEBUG, format, args...);
+    }
+
+    template <typename... Args>
+    void send_log_message(rcl_log_severity_t severity, const std::string & str_format, Args... args)
+    {
+        bob_interfaces::msg::LogMessage log_msg;
+        log_msg.header.frame_id = std::to_string(++log_index_);
+        log_msg.header.stamp = now();
+        log_msg.node = get_name();
+        log_msg.severity = g_rcutils_log_severity_names[severity];
+        log_msg.message = format_c(str_format, args...);
+        log_publisher_->publish(log_msg);
     }
 
 protected:
@@ -88,16 +147,13 @@ protected:
     }
 
 private:
-    rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr parameters_callback_handle_;
-    std::map<std::string, ActionParam> parameters_map_;
-
     rcl_interfaces::msg::SetParametersResult param_change_callback_method(const std::vector<rclcpp::Parameter> & parameters)
     {
         rcl_interfaces::msg::SetParametersResult result;
         result.successful = true;
         for (auto & param : parameters)
         {
-            //RCLCPP_INFO(get_logger(), "Updating parameter: %s", param.get_name().c_str());
+            //log_info("Updating parameter: %s", param.get_name().c_str());
             update_action_param(param);
         }
         return result;
@@ -110,6 +166,28 @@ private:
 
         return options;
     }
+
+    template <typename... Args>
+    static std::string format_c(const std::string& format, Args... args) 
+    {
+        #pragma GCC diagnostic push
+        #pragma GCC diagnostic ignored "-Wformat-security"
+        size_t size = std::snprintf(nullptr, 0, format.c_str(), args...) + 1; // Extra space for '\0'
+        if (size <= 0) 
+        {
+            throw std::runtime_error("Error during formatting.");
+        }
+        
+        std::string buf(size, '\0');
+        std::snprintf(&buf[0], size, format.c_str(), args...);
+        #pragma GCC diagnostic pop
+        return buf;
+    }    
+
+    rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr parameters_callback_handle_;
+    std::map<std::string, ActionParam> parameters_map_;
+    rclcpp::Publisher<bob_interfaces::msg::LogMessage>::SharedPtr log_publisher_;
+    uint64_t log_index_;
 };
 
 #endif // __PARAMETER_LIFECYCLE_NODE_H__

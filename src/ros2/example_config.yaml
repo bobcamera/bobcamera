@@ -4,7 +4,7 @@
 #########################################################################
 basic_config:
   camera_node:
-    source_type: 'RTSP_STREAM' # USB_CAMERA | VIDEO_FILE | RTSP_STREAM
+    source_type: 'VIDEO_FILE' # USB_CAMERA | VIDEO_FILE | RTSP_STREAM
     # Pattern: rtsp_uri: 'rtsp://{name of the user}:{password of user}@{IP-Address}:{Port Number}/{Path}'
     #   Example Hikvision: rtsp_uri: 'rtsp://peter:pAsSwOrD123427@12.8.9.3:554/Streaming/Channels/101'
     #   Example Amcrest and Dahua: rtsp_uri: 'rtsp://user:password@0.0.0.0:554/cam/realmonitor?channel=1&subtype=0'
@@ -19,7 +19,7 @@ basic_config:
       - /workspaces/bobcamera/media/fisheye_videos/mike-drone.mp4
       - /workspaces/bobcamera/media/fisheye_videos/mikeg-30min.mp4
     resize_height: 960          # 0 to disable resize publish
-    simulator: False             # True for including simulated objects, False otherwise
+    simulator: True             # True for including simulated objects, False otherwise
     simulator_num_objects: 15   # Number of simulated objects if the simulator parameter is True
     bgs_sensitivity: 'high_c'    # Initial sensitivity configuration based on the 'bgs_json_params' in the advanced config section
     bgs_type: 'vibe'            # The background subtractor to use: 'vibe' | 'wmv'

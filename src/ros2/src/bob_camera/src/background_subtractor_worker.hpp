@@ -93,18 +93,18 @@ public:
     {
         if (sensitivity.empty() || (sensitivity.length() == 0))
         {
-            RCLCPP_DEBUG(node_.get_logger(), "Ignoring sensitivity change request, EMPTY VALUE");
+            node_.log_debug("Ignoring sensitivity change request, EMPTY VALUE");
             return false;
         }
         if (params_.sensitivity == sensitivity)
         {
-            RCLCPP_INFO(node_.get_logger(), "Ignoring sensitivity change request, NO CHANGE");
+            node_.log_info("Ignoring sensitivity change request, NO CHANGE");
             return false;            
         }
 
         if (!params_.sensitivity_collection.configs.contains(sensitivity))
         {
-            RCLCPP_ERROR(node_.get_logger(), "Unknown config specified: %s", sensitivity.c_str());
+            node_.log_error("Unknown config specified: %s", sensitivity.c_str());
             return false;
         }
 
@@ -132,7 +132,7 @@ public:
         bgsPtr->restart();
     }
 
-    void imageCallback(const std_msgs::msg::Header & header, const cv::Mat & img)
+    void image_callback(const std_msgs::msg::Header & header, const cv::Mat & img)
     {
         std::unique_lock lock(mutex);
         cv.wait(lock, [this] { return ready_; });
@@ -195,12 +195,12 @@ public:
         }
         catch (const std::exception & e)
         {
-            RCLCPP_ERROR(node_.get_logger(), "Exception: %s", e.what());
+            node_.log_error("Exception: %s", e.what());
             throw;
         }
         catch (...)
         {
-            RCLCPP_ERROR(node_.get_logger(), "Unknown Exception");
+            node_.log_error("Unknown Exception");
             throw;
         }
     }
@@ -286,17 +286,17 @@ private:
             if (!mask_enabled_)
             {
                 mask_enabled_ = true;
-                RCLCPP_INFO(node_.get_logger(), "Detection Mask Enabled.");
+                node_.log_info("Detection Mask Enabled.");
             }
             else
             {
-                RCLCPP_INFO(node_.get_logger(), "Detection Mask Changed.");
+                node_.log_info("Detection Mask Changed.");
             }
             detection_mask_ = mask.clone();
         }
         else if ((detection_mask_result == MaskWorker::MaskCheckType::Disable) && mask_enabled_)
         {
-            RCLCPP_INFO(node_.get_logger(), "Detection Mask Disabled.");
+            node_.log_info("Detection Mask Disabled.");
             mask_enabled_ = false;
             detection_mask_.release();
         }
