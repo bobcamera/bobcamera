@@ -1,8 +1,9 @@
 #include "include/kalman_filter.h"
 
-
-SORT::KalmanFilter::KalmanFilter(unsigned int num_states, unsigned int num_obs) :
-        num_states_(num_states), num_obs_(num_obs) {
+SORT::KalmanFilter::KalmanFilter(unsigned int num_states, unsigned int num_obs) 
+    : num_states_(num_states)
+    , num_obs_(num_obs) 
+{
     /*** Predict ***/
     // State vector
     x_ = Eigen::VectorXd::Zero(num_states);
@@ -38,15 +39,13 @@ SORT::KalmanFilter::KalmanFilter(unsigned int num_states, unsigned int num_obs) 
     count_ = 0;
 }
 
-
 void SORT::KalmanFilter::Coast() 
 {
     x_predict_ = F_ * x_;
     P_predict_ = (alpha_ * alpha_) * F_ * P_ * F_.transpose() + Q_;
 }
 
-
-std::tuple<double, double, double> SORT::KalmanFilter::covarianceEllipse(const Eigen::MatrixXd& P_predict, double deviations)
+std::tuple<double, double, double> SORT::KalmanFilter::covarianceEllipse(const Eigen::MatrixXd & P_predict, double deviations)
 {
     Eigen::JacobiSVD<Eigen::MatrixXd> svd(P_predict, Eigen::ComputeThinU | Eigen::ComputeThinV);
     Eigen::MatrixXd U = svd.matrixU();
@@ -56,9 +55,8 @@ std::tuple<double, double, double> SORT::KalmanFilter::covarianceEllipse(const E
     double width = deviations * sqrt(s(0));
     double height = deviations * sqrt(s(1));
 
-    return std::make_tuple(width, height, orientation);
+    return {width, height, orientation};
 }
-
 
 void SORT::KalmanFilter::Predict() 
 {
@@ -82,10 +80,8 @@ Eigen::VectorXd SORT::KalmanFilter::PredictionToObservation(const Eigen::VectorX
     return (H_*state);
 }
 
-
-void SORT::KalmanFilter::Update(const Eigen::VectorXd& z) 
+void SORT::KalmanFilter::Update(const Eigen::VectorXd & z) 
 {
-    
     Eigen::VectorXd z_predict = PredictionToObservation(x_predict_); // Predicted observation based on prior state
     Eigen::VectorXd y = z - z_predict; // Innovation: Difference between observed and predicted measurements
     Eigen::MatrixXd Ht = H_.transpose(); // Transposed observation matrix
@@ -93,12 +89,12 @@ void SORT::KalmanFilter::Update(const Eigen::VectorXd& z)
     NIS_ = y.transpose() * S.inverse() * y; // Normalized Innovation Squared: Measures consistency of filter
 
     // Basic adaptive filtering
-    if(NIS_ > eps_max_)
+    if (NIS_ > eps_max_)
     {
         Q_ *= Q_scale_factor_;
         count_ += 1;
     }
-    else if(count_ > 0)
+    else if (count_ > 0)
     {
         Q_ /= Q_scale_factor_;
         count_ -= 1;
@@ -139,26 +135,30 @@ void SORT::KalmanFilter::Update(const Eigen::VectorXd& z)
 
 // Quantifies how probable a given measurement (or observation) is, given the predicted state and the associated uncertainties
 // Not presently used
-float SORT::KalmanFilter::CalculateLogLikelihood(const Eigen::VectorXd& y, const Eigen::MatrixXd& S) {
-    float log_likelihood;
-
+float SORT::KalmanFilter::CalculateLogLikelihood(const Eigen::VectorXd & y, const Eigen::MatrixXd & S) 
+{
     // Note: Computing log(M.determinant()) in Eigen C++ is risky for large matrices since it may overflow or underflow.
     // compute the Cholesky decomposition of the innovation covariance matrix, because it is symmetric
     // S = L * L^T = U^T * U
     // then retrieve factor L in the decomposition
-    auto& L = S.llt().matrixL();
+    auto s_llt = S.llt();
+    auto & L = s_llt.matrixL();
 
     // find log determinant of innovation covariance matrix
     float log_determinant = 0;
-    for (unsigned int i = 0; i < S.rows(); i++)
+    for (unsigned int i = 0; i < S.rows(); ++i)
+    {
         log_determinant += log(L(i, i));
-    log_determinant *= 2;
+    }
+    log_determinant *= 2.0f;
 
     // log-likelihood expression for current iteration
-    log_likelihood = -0.5 * (y.transpose() * S.inverse() * y + num_obs_ * log(2 * M_PI) + log_determinant);
+    float log_likelihood = -0.5f * (y.transpose() * S.inverse() * y + num_obs_ * log(2 * M_PI) + log_determinant);
 
-    if (std::isnan(log_likelihood)) {
-    	log_likelihood = -1e50;
+    if (std::isnan(log_likelihood)) 
+    {
+    	// log_likelihood = -1e50;
+        log_likelihood = std::numeric_limits<float>::lowest();
 	}
 
 	return log_likelihood;

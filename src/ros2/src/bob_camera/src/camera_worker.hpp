@@ -19,8 +19,9 @@
 
 #include <image_utils.hpp>
 #include <parameter_lifecycle_node.hpp>
-#include <object_simulator.hpp>
+#include "object_simulator.hpp"
 #include <mask_worker.hpp>
+#include <circuit_breaker.hpp>
 
 struct CameraWorkerParams
 {
@@ -70,7 +71,11 @@ public:
         , params_(params)
         , user_callback_(user_callback)
     {
-        mask_worker_ptr_ = std::make_unique<MaskWorker>(node_, [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat & mask){mask_timer_callback(detection_mask_result, mask);});
+        mask_worker_ptr_ = std::make_unique<MaskWorker>(node_, 
+            [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat & mask)
+            {
+                mask_timer_callback(detection_mask_result, mask);
+            });
     }
 
     ~CameraWorker()
@@ -93,6 +98,8 @@ public:
             camera_info_msg_.frame_width = 0;
             camera_info_msg_.fps = 0;
 
+            circuit_breaker_ptr_ = std::make_unique<CircuitBreaker>(1000, 200, 10000);
+
             if (params_.simulator_enable)
             {
                 object_simulator_ptr_ = std::make_unique<ObjectSimulator>(params_.simulator_num_objects);
@@ -105,12 +112,12 @@ public:
         }
         catch (const std::exception& e)
         {
-            RCLCPP_ERROR(node_.get_logger(), "Exception: %s", e.what());
+            node_.log_error("camera_worker: init: Exception: %s", e.what());
             throw;
         }
         catch (...) 
         {
-            RCLCPP_ERROR(node_.get_logger(), "Unknown exception caught");
+            node_.log_error("camera_worker: init: Unknown exception");
             throw;
         }
     }
@@ -134,7 +141,7 @@ public:
         {
             case CameraWorkerParams::SourceType::USB_CAMERA:
             {
-                RCLCPP_INFO(node_.get_logger(), "Camera %d opening", params_.camera_id);
+                node_.log_send_info("Camera %d opening", params_.camera_id);
                 video_capture_.open(params_.camera_id);
                 set_camera_resolution();
             }
@@ -143,20 +150,20 @@ public:
             case CameraWorkerParams::SourceType::VIDEO_FILE:
             {
                 const auto & video_path = params_.videos[current_video_idx_];
-                RCLCPP_INFO(node_.get_logger(), "Video '%s' opening", video_path.c_str());
+                node_.log_send_info("Video '%s' opening", video_path.c_str());
                 video_capture_.open(video_path);
             }
             break;
 
             case CameraWorkerParams::SourceType::RTSP_STREAM:
             {
-                RCLCPP_INFO(node_.get_logger(), "RTSP Stream '%s' opening", params_.rtsp_uri.c_str());
+                node_.log_send_info("RTSP Stream '%s' opening", params_.rtsp_uri.c_str());
                 video_capture_.open(params_.rtsp_uri);
             }
             break;
 
             default:
-                RCLCPP_ERROR(node_.get_logger(), "Unknown SOURCE_TYPE");
+                node_.log_send_error("Unknown SOURCE_TYPE");
                 return;
         }
 
@@ -165,30 +172,6 @@ public:
     }    
 
 private:
-    static constexpr double UNKNOWN_DEVICE_FPS = 30.0;
-    ParameterLifeCycleNode & node_;
-    CameraWorkerParams & params_;
-
-    std::unique_ptr<MaskWorker> mask_worker_ptr_;
-
-    std::function<void(const std_msgs::msg::Header &, const cv::Mat &)> user_callback_;
-    
-    cv::VideoCapture video_capture_;
-    bob_camera::msg::CameraInfo camera_info_msg_;
-    std::jthread capture_thread_;
-    uint32_t current_video_idx_;
-    bool run_;
-    std::unique_ptr<rclcpp::WallRate> loop_rate_ptr_;
-    float fps_;
-    int cv_camera_width_;
-    int cv_camera_height_;
-    bool is_open_;
-    bool is_camera_info_auto_;
-    std::unique_ptr<ObjectSimulator> object_simulator_ptr_;
-
-    bool mask_enabled_;
-    cv::Mat privacy_mask_;
-
     void update_capture_info()
     {
         if (is_open_)
@@ -196,7 +179,7 @@ private:
             fps_ = video_capture_.get(cv::CAP_PROP_FPS);
             cv_camera_width_ = static_cast<int>(video_capture_.get(cv::CAP_PROP_FRAME_WIDTH));
             cv_camera_height_ = static_cast<int>(video_capture_.get(cv::CAP_PROP_FRAME_HEIGHT));
-            RCLCPP_INFO(node_.get_logger(), "Capture Info: %dx%d at %.2g FPS", cv_camera_width_, cv_camera_height_, fps_);
+            node_.log_send_info("Camera capture Info: %dx%d at %.2g FPS", cv_camera_width_, cv_camera_height_, fps_);
             loop_rate_ptr_ = std::make_unique<rclcpp::WallRate>(fps_);
 
             create_camera_info_msg();
@@ -207,15 +190,21 @@ private:
         }        
     }
 
-    void captureLoop()
+    void capture_loop()
     {
         std::unique_ptr<RosCvImageMsg> roscv_image_msg_ptr = RosCvImageMsg::create(video_capture_);
 
-        int retries = 0;
         while (run_)
         {
             try
             {
+                if (!circuit_breaker_ptr_->allow_request()) 
+                {
+                    node_.log_send_error("Could not acquire image, Waiting to connect to camera");
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+                    continue;
+                }
+
                 if (!video_capture_.read(roscv_image_msg_ptr->get_image()))
                 {
                     if (params_.source_type == CameraWorkerParams::SourceType::VIDEO_FILE)
@@ -223,21 +212,17 @@ private:
                         current_video_idx_ = current_video_idx_ >= (params_.videos.size() - 1) ? 0 : current_video_idx_ + 1;
                         open_camera();
                         roscv_image_msg_ptr = RosCvImageMsg::create(video_capture_);
-                        continue;
                     }
                     else
                     {
-                        if (++retries > 5)
-                        {
-                            RCLCPP_ERROR(node_.get_logger(), "Could not open VIDEO SOURCE");
-                            run_ = false;
-                        }
+                        circuit_breaker_ptr_->record_failure();
                         continue;
                     }
                 }
+                circuit_breaker_ptr_->record_success();
                 if (roscv_image_msg_ptr->recreate_if_invalid())
                 {
-                    RCLCPP_DEBUG(node_.get_logger(), "ImageMsg recreated");
+                    node_.log_debug("ImageMsg recreated");
                     update_capture_info();
                 }
 
@@ -249,8 +234,6 @@ private:
                     camera_info_msg_.frame_height = roscv_image_msg_ptr->get_image().size().height;
                     camera_info_msg_.is_color = roscv_image_msg_ptr->get_image().channels() >= 3;
                 }
-
-                retries = 0;
 
                 if (params_.simulator_enable)
                 {
@@ -277,19 +260,20 @@ private:
 
                 loop_rate_ptr_->sleep();
             }
-            catch (const std::exception& e)
+            catch (const std::exception & e)
             {
-                RCLCPP_ERROR(node_.get_logger(), "Exception: %s", e.what());
+                node_.log_send_error("CameraWorker: capture_loop: Exception: %s", e.what());
                 rcutils_reset_error();
-                run_ = false;
+                //run_ = false;
             }
             catch (...) 
             {
-                RCLCPP_ERROR(node_.get_logger(), "Unknown exception caught");
-                run_ = false;
+                node_.log_send_error("CameraWorker: capture_loop: Unknown exception");
+                rcutils_reset_error();
+                //run_ = false;
             }
         }
-        RCLCPP_DEBUG(node_.get_logger(), "Leaving capture loop");
+        node_.log_send_info("CameraWorker: Leaving capture_loop");
     }
 
     inline void apply_mask(cv::Mat & img)
@@ -335,7 +319,7 @@ private:
     void start_capture()
 	{
 		run_ = true;
-		capture_thread_ = std::jthread(&CameraWorker::captureLoop, this);
+		capture_thread_ = std::jthread(&CameraWorker::capture_loop, this);
 	}
 
 	void stop_capture()
@@ -386,7 +370,7 @@ private:
             auto success = set_check_resolution(params_.usb_resolution[0], params_.usb_resolution[1]);
             if (success)
             {
-                RCLCPP_INFO(node_.get_logger(), "Setting resolution for %d x %d", width, height);
+                node_.log_info("Setting resolution for %d x %d", width, height);
                 return true;
             }
         }
@@ -504,17 +488,17 @@ private:
             if (!mask_enabled_)
             {
                 mask_enabled_ = true;
-                RCLCPP_INFO(node_.get_logger(), "Privacy Mask Enabled.");
+                node_.log_send_info("CameraWorker: Privacy Mask Enabled.");
             }
             else
             {
-                RCLCPP_INFO(node_.get_logger(), "Privacy Mask Changed.");
+                node_.log_send_info("CameraWorker: Privacy Mask Changed.");
             }
             privacy_mask_ = mask.clone();
         }
         else if ((detection_mask_result == MaskWorker::MaskCheckType::Disable) && mask_enabled_)
         {
-            RCLCPP_INFO(node_.get_logger(), "Privacy Mask Disabled.");
+            node_.log_send_info("CameraWorker: Privacy Mask Disabled.");
             mask_enabled_ = false;
             privacy_mask_.release();
         }
@@ -540,6 +524,32 @@ private:
         // Send the request
         auto result = params_.fps_update_client->async_send_request(request, response_received_callback);
     }
+
+    static constexpr double UNKNOWN_DEVICE_FPS = 30.0;
+    ParameterLifeCycleNode & node_;
+    CameraWorkerParams & params_;
+
+    std::unique_ptr<MaskWorker> mask_worker_ptr_;
+
+    std::function<void(const std_msgs::msg::Header &, const cv::Mat &)> user_callback_;
+    
+    cv::VideoCapture video_capture_;
+    bob_camera::msg::CameraInfo camera_info_msg_;
+    std::jthread capture_thread_;
+    uint32_t current_video_idx_;
+    bool run_;
+    std::unique_ptr<rclcpp::WallRate> loop_rate_ptr_;
+    float fps_;
+    int cv_camera_width_;
+    int cv_camera_height_;
+    bool is_open_;
+    bool is_camera_info_auto_;
+    std::unique_ptr<ObjectSimulator> object_simulator_ptr_;
+
+    bool mask_enabled_;
+    cv::Mat privacy_mask_;
+
+    std::unique_ptr<CircuitBreaker> circuit_breaker_ptr_;
 };
 
 #endif

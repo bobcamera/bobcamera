@@ -25,13 +25,15 @@ public:
     COMPOSITION_PUBLIC
     explicit AnnotatedFrameProvider(const rclcpp::NodeOptions & options)
         : ParameterLifeCycleNode("annotated_frame_provider_node", options)
+        , pub_qos_profile_(10)
+        , sub_qos_profile_(10)
         , annotated_frame_creator_(std::map<std::string, std::string>())
     {
     }
 
     CallbackReturn on_configure(const rclcpp_lifecycle::State &)
     {
-        RCLCPP_INFO(get_logger(), "Configuring");
+        log_info("Configuring");
 
         init();
 
@@ -39,22 +41,6 @@ public:
     }
 
 private:
-    rclcpp::QoS pub_qos_profile_{10};
-    rclcpp::QoS sub_qos_profile_{10};
-
-    std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image, rclcpp_lifecycle::LifecycleNode>> sub_masked_frame_;
-    std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::Tracking, rclcpp_lifecycle::LifecycleNode>> sub_tracking_;
-    std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::Tracking>> time_synchronizer_;
-
-    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_annotated_frame_;
-    AnnotatedFrameCreator annotated_frame_creator_;
-
-    bool enable_tracking_status_;
-
-    int resize_height_;
-    std::string image_resized_publish_topic_;
-    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_resized_publisher_;
-
     void init()
     {
         pub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
@@ -117,7 +103,7 @@ private:
                     else
                     {
                         image_resized_publisher_.reset();
-                        RCLCPP_DEBUG(get_logger(), "Resizer topic disabled");
+                        log_send_info("Resizer topic disabled");
                     }
                 }
             ),
@@ -125,8 +111,8 @@ private:
         add_action_parameters(params);
     }
 
-    void callback(const sensor_msgs::msg::Image::SharedPtr& image_msg,
-                  const bob_interfaces::msg::Tracking::SharedPtr& tracking)
+    void callback(const sensor_msgs::msg::Image::SharedPtr & image_msg,
+                  const bob_interfaces::msg::Tracking::SharedPtr & tracking)
     {
         try
         {
@@ -139,32 +125,55 @@ private:
 
             publish_resized_frame(image_msg, img);
         }
-        catch (cv::Exception &cve)
+        catch (const std::exception & e)
         {
-            RCLCPP_ERROR(get_logger(), "Open CV exception: %s", cve.what());
+            log_send_error("callback: exception: %s", e.what());
         }        
     }
 
     inline void publish_resized_frame(const std::shared_ptr<sensor_msgs::msg::Image> & annotated_frame_msg, const cv::Mat & img) const
     {
-        if (!image_resized_publisher_ || (resize_height_ <= 0) || (count_subscribers(image_resized_publish_topic_) <= 0))
+        try
         {
-            return;
-        }
-        if ((resize_height_ > 0) && (resize_height_ != img.size().height))
-        {
-            cv::Mat resized_img;
-            const auto frame_width = (int)(img.size().aspectRatio() * (double)resize_height_);
-            cv::resize(img, resized_img, cv::Size(frame_width, resize_height_));
+            if (!image_resized_publisher_ || (resize_height_ <= 0) || (count_subscribers(image_resized_publish_topic_) <= 0))
+            {
+                return;
+            }
+            if ((resize_height_ > 0) && (resize_height_ != img.size().height))
+            {
+                cv::Mat resized_img;
+                const auto frame_width = (int)(img.size().aspectRatio() * (double)resize_height_);
+                cv::resize(img, resized_img, cv::Size(frame_width, resize_height_));
 
-            auto resized_frame_msg = cv_bridge::CvImage(annotated_frame_msg->header, annotated_frame_msg->encoding, resized_img).toImageMsg();
-            image_resized_publisher_->publish(*resized_frame_msg);
+                auto resized_frame_msg = cv_bridge::CvImage(annotated_frame_msg->header, annotated_frame_msg->encoding, resized_img).toImageMsg();
+                image_resized_publisher_->publish(*resized_frame_msg);
+            }
+            else
+            {
+                image_resized_publisher_->publish(*annotated_frame_msg);
+            }
         }
-        else
+        catch (const std::exception & e)
         {
-            image_resized_publisher_->publish(*annotated_frame_msg);
+            log_send_error("publish_resized_frame: exception: %s", e.what());
         }
     }
+
+    rclcpp::QoS pub_qos_profile_;
+    rclcpp::QoS sub_qos_profile_;
+
+    std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image, rclcpp_lifecycle::LifecycleNode>> sub_masked_frame_;
+    std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::Tracking, rclcpp_lifecycle::LifecycleNode>> sub_tracking_;
+    std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::Tracking>> time_synchronizer_;
+
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_annotated_frame_;
+    AnnotatedFrameCreator annotated_frame_creator_;
+
+    bool enable_tracking_status_;
+
+    int resize_height_;
+    std::string image_resized_publish_topic_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_resized_publisher_;
 };
 
 RCLCPP_COMPONENTS_REGISTER_NODE(AnnotatedFrameProvider)

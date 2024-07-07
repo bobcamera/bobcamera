@@ -22,17 +22,6 @@ public:
     }
     
 private:
-    rclcpp::TimerBase::SharedPtr interval_check_timer_;
-    rclcpp::Client<bob_interfaces::srv::RecordingRequest>::SharedPtr recording_change_client_;
-    rclcpp::Subscription<bob_interfaces::msg::MonitoringStatus>::SharedPtr monitoring_subscription_;
-
-    bool recording_enabled_;
-    int check_interval_;
-    bob_interfaces::msg::MonitoringStatus::SharedPtr status_msg_;
-
-    rclcpp::QoS pub_qos_profile_;
-    rclcpp::QoS sub_qos_profile_;
-
     void init()
     {
         sub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
@@ -129,28 +118,31 @@ private:
         {
             if (recording_enabled_)
             {
-                RCLCPP_INFO(get_logger(), "Successfully disabled recording");
+                log_info("Successfully disabled recording");
                 recording_enabled_ = false;
             }
             else
             {
-                RCLCPP_INFO(get_logger(), "Successfully enabled recording");
+                log_info("Successfully enabled recording");
                 recording_enabled_ = true;
             }
         }
         else
-            RCLCPP_WARN(get_logger(), "Recording change failed");
+        {
+            log_warn("Recording change failed");
+        }
     }
-};
 
-// int main(int argc, char **argv)
-// {
-//     rclcpp::init(argc, argv);
-//     rclcpp::experimental::executors::EventsExecutor executor;
-//     executor.add_node(std::make_shared<RecordingMonitor>(rclcpp::NodeOptions()));
-//     executor.spin();
-//     rclcpp::shutdown();
-//     return 0;
-// }
+    rclcpp::TimerBase::SharedPtr interval_check_timer_;
+    rclcpp::Client<bob_interfaces::srv::RecordingRequest>::SharedPtr recording_change_client_;
+    rclcpp::Subscription<bob_interfaces::msg::MonitoringStatus>::SharedPtr monitoring_subscription_;
+
+    bool recording_enabled_;
+    int check_interval_;
+    bob_interfaces::msg::MonitoringStatus::SharedPtr status_msg_;
+
+    rclcpp::QoS pub_qos_profile_;
+    rclcpp::QoS sub_qos_profile_;
+};
 
 RCLCPP_COMPONENTS_REGISTER_NODE(RecordingMonitor)

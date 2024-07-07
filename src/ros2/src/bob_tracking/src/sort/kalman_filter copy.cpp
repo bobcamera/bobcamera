@@ -38,13 +38,11 @@ SORT::KalmanFilter::KalmanFilter(unsigned int num_states, unsigned int num_obs) 
     count_ = 0;
 }
 
-
 void SORT::KalmanFilter::Coast() 
 {
     x_predict_ = F_ * x_;
     P_predict_ = pow(alpha_,2) * F_ * P_ * F_.transpose() + Q_;
 }
-
 
 std::tuple<double, double, double> SORT::KalmanFilter::covarianceEllipse(const Eigen::MatrixXd& P_predict, double deviations)
 {

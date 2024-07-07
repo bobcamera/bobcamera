@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+
+<html>
+
+    <head>
+        <title>Log Stream (Wide View)</title>
+
+        <meta charset="utf-8" />
+
+        <!-- JS Library Needed for Connecting to the ROS2 Environment -->
+        <script src="https://cdn.jsdelivr.net/npm/eventemitter2@6.4.9/lib/eventemitter2.min.js"></script>
+
+        <!-- JS Library Needed for Connecting to the ROS2 Environment -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/roslibjs/1.1.0/roslib.min.js"></script>
+
+        <script src="../lib/bob.js"></script>
+        <style>
+            #logWindow {
+                width: 100%;
+                height: auto;
+                border: 1px solid #ccc;
+                padding: 10px;
+                overflow-y: scroll;
+                margin: 20px auto;
+                font-family: Arial, sans-serif;
+            }
+            .log-entry {
+                margin: 5px 0;
+            }
+            .ERROR {
+                color: red;
+            }
+            .INFO {
+                color: blue;
+            }
+            .DEBUG {
+                color: green;
+            }
+            .WARNING {
+                color: orange;
+            }
+            .node {
+                font-weight: bold;
+                color: black;
+            }
+            .node {
+                font-weight: bold;
+                color: black;
+            }
+            .timeSpan {
+                color: black;
+            }
+        </style>
+    </head>
+
+    <body>
+
+        <div id="logWindow"></div>
+
+        <script type="text/javascript" type="text/javascript">
+
+            var ros = new ROSLIB.Ros();
+            rosConnect(ros, websocketsURL, true);
+
+            var topicStream = new ROSLIB.Topic({
+                ros: ros,
+                name: '/bob/log',
+                messageType: 'bob_interfaces/msg/LogMessage'
+            });
+
+            // Stream Messages Published From a ROS2 Topic (On each new message arrival, the function is called)
+            topicStream.subscribe(function (message) {
+                console.log(message);
+                addLogEntry(message.header.stamp, message.severity, message.node, message.message);
+            });
+
+            function addLogEntry(timestamp, severity, node, message) {
+                const logWindow = document.getElementById('logWindow');
+                const logEntry = document.createElement('div');
+                logEntry.classList.add('log-entry', severity);
+                
+                const nodeSpan = document.createElement('span');
+                nodeSpan.classList.add('node');
+                nodeSpan.textContent = `[${node}] `;
+                
+                const timeSpan = document.createElement('span');
+                timeSpan.classList.add('timeSpan');
+                timeSpan.textContent = `[${convertTimestamp(timestamp)}] `;
+                
+                const severitySpan = document.createElement('span');
+                severitySpan.classList.add(severity);
+                severitySpan.textContent = `[${severity}] `;
+                
+                const messageSpan = document.createElement('span');
+                messageSpan.textContent = message;
+                
+                logEntry.appendChild(timeSpan);
+                logEntry.appendChild(nodeSpan);
+                logEntry.appendChild(severitySpan);
+                logEntry.appendChild(messageSpan);
+                
+                logWindow.appendChild(logEntry);
+                logWindow.scrollTop = logWindow.scrollHeight; // Scroll to the bottom
+            }
+
+            function convertTimestamp(timestamp) {
+                const date = new Date(timestamp.sec * 1000 + Math.floor(timestamp.nanosec / 1000000));
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                const seconds = String(date.getSeconds()).padStart(2, '0');
+                const milliseconds = String(date.getMilliseconds()).padStart(3, '0');
+
+                return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${milliseconds}`;
+            }
+
+            window.onbeforeunload = function(event) {
+
+                console.log('Cleaning up resources...');
+
+                // Unsubscribe from the topic
+                if (topicStream) {
+                    topicStream.unsubscribe();
+                    console.log('Unsubscribed from topic.');
+                }
+
+                // Close the ROS2 connection
+                // ros.close();
+
+                // console.log('ROS connection closed.');
+
+                // Close the ROS2 connection
+                disconnectRos(ros);
+            }
+
+        </script>
+
+    </body>
+
+</html>

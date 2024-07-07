@@ -1,6 +1,5 @@
 #include "include/sort_tracker.h"
 
-
 SORT::Tracker::Tracker(rclcpp::Logger logger)
     : logger_(logger)
     , total_trackers_started_(0)
@@ -8,7 +7,6 @@ SORT::Tracker::Tracker(rclcpp::Logger logger)
     , max_coast_cycles_(50)
     , tracker_max_active_trackers_(100)
 {
-
 }
 
 // float SORT::Tracker::CalculateIou(const cv::Rect& rect1, const cv::Rect& rect2) 
@@ -25,7 +23,7 @@ SORT::Tracker::Tracker(rclcpp::Logger logger)
 //     return (float)interArea / (boxAArea + boxBArea - interArea);
 // }
 
-float SORT::Tracker::CalculateIou(const cv::Rect& rect1, const cv::Rect& rect2) 
+float SORT::Tracker::CalculateIou(const cv::Rect & rect1, const cv::Rect & rect2) 
 {
     const int right1 = rect1.x + rect1.width;
     const int right2 = rect2.x + rect2.width;
@@ -70,7 +68,7 @@ float SORT::Tracker::CalculateIou(const cv::Rect& rect1, const cv::Rect& rect2)
 //     return diou;
 // }
 
-float SORT::Tracker::CalculateDiou(const cv::Rect& rect1, const cv::Rect& rect2) 
+float SORT::Tracker::CalculateDiou(const cv::Rect & rect1, const cv::Rect & rect2) 
 {
     const float iou = CalculateIou(rect1, rect2);
 
@@ -203,7 +201,7 @@ void SORT::Tracker::AssociateDetectionsToTrackers(const std::vector<cv::Rect>& d
     }
 }
 
-void SORT::Tracker::update_trackers(const std::vector<cv::Rect> &detections)
+void SORT::Tracker::update_trackers(const std::vector<cv::Rect> & detections)
 {
     /*** Predict internal tracks from previous frame ***/
     std::vector<std::thread> predict_threads;

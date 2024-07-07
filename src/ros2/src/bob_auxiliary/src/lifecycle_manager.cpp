@@ -141,12 +141,6 @@ private:
         int prune_time_seconds_;
     };
 
-    int prune_time_seconds_;
-    rclcpp::TimerBase::SharedPtr timer_nodes_;
-    std::map<std::string, NodeStatusManager> lifecycle_nodes_;
-    // std::set<std::string> non_lifecycle_running_nodes_;
-    std::vector<std::string> running_nodes_;
-
     void timer_callback()
     {
         timer_nodes_->cancel();
@@ -215,6 +209,12 @@ private:
         };
         add_action_parameters(params);
     }
+
+    int prune_time_seconds_;
+    rclcpp::TimerBase::SharedPtr timer_nodes_;
+    std::map<std::string, NodeStatusManager> lifecycle_nodes_;
+    // std::set<std::string> non_lifecycle_running_nodes_;
+    std::vector<std::string> running_nodes_;
 };
 
 RCLCPP_COMPONENTS_REGISTER_NODE(LifecycleManager)

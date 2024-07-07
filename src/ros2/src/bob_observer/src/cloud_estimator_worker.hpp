@@ -198,7 +198,7 @@ public:
         cv::Mat r = bgr_channels[2];
         r.setTo(1, r == 0); 
 
-        RCLCPP_DEBUG(node_.get_logger(), "Original size: %d", b.rows * b.cols);
+        node_.log_debug("Original size: %d", b.rows * b.cols);
 
         // Find non-zero locations in the detection mask
         std::vector<cv::Point> estimationPoints;
@@ -214,7 +214,7 @@ public:
             r_est.at<double>(i) = r.at<double>(estimationPoints[i].y, estimationPoints[i].x);
         }
 
-        RCLCPP_DEBUG(node_.get_logger(), "New size: %d", b_est.rows * b_est.cols);
+        node_.log_debug("New size: %d", b_est.rows * b_est.cols);
 
         // Do cloud estimation using the 1D arrays
         cv::Mat lambda_n = (b_est - r_est) / (b_est + r_est);

@@ -21,6 +21,12 @@
                     "key": "foregroundMask",
                     "url": "iframe.php?file=html/2D-full-width-stream-forgroung-mask.html",
                     "icon": "bi-camera"
+                },
+                {
+                    "name": "Log Wide View",
+                    "key": "logview",
+                    "url": "iframe.php?file=html/2D-full-width-stream-log.html",
+                    "icon": "bi-camera"
                 }
             ]
         },

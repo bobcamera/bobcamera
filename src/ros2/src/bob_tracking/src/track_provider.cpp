@@ -21,13 +21,15 @@ public:
     COMPOSITION_PUBLIC
     explicit TrackProvider(const rclcpp::NodeOptions & options)
         : ParameterLifeCycleNode("frame_provider_node", options)
-        , video_tracker_(get_logger()) 
+        , pub_qos_profile_(4)
+        , sub_qos_profile_(4)        
+        , video_tracker_(get_logger())
     {
     }
 
     CallbackReturn on_configure(const rclcpp_lifecycle::State &)
     {
-        RCLCPP_INFO(get_logger(), "Configuring");
+        log_info("Configuring");
 
         init();
 
@@ -35,16 +37,6 @@ public:
     }
 
 private:
-    rclcpp::QoS pub_qos_profile_{4};
-    rclcpp::QoS sub_qos_profile_{4};
-    rclcpp::Publisher<bob_interfaces::msg::Tracking>::SharedPtr pub_tracker_tracking_;
-    rclcpp::Publisher<bob_interfaces::msg::Tracking>::SharedPtr pub_tracker_tracking_resized_;
-    rclcpp::Subscription<bob_interfaces::msg::DetectorBBoxArray>::SharedPtr detector_bounding_boxes_subscription_;    
-    SORT::Tracker video_tracker_;
-    int resize_height_;
-
-    friend std::shared_ptr<TrackProvider> std::make_shared<TrackProvider>();
-
     void init()
     {
         pub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
@@ -104,13 +96,13 @@ private:
 
             publish_tracking(bounding_boxes_msg->header, bounding_boxes_msg->image_height);
         }
-        catch (cv::Exception &cve)
+        catch (const std::exception & cve)
         {
-            RCLCPP_ERROR(get_logger(), "Open CV exception: %s", cve.what());
+            log_send_error("callback: exception: %s", cve.what());
         }        
     }
 
-    inline void publish_tracking(const std_msgs::msg::Header &header, int image_height)
+    inline void publish_tracking(const std_msgs::msg::Header & header, int image_height)
     {
         bob_interfaces::msg::Tracking tracking_msg;
         tracking_msg.header = header;
@@ -119,7 +111,7 @@ private:
         tracking_msg.state.started = video_tracker_.get_total_trackers_started();
         tracking_msg.state.ended = video_tracker_.get_total_trackers_finished();
 
-        for (const auto &tracker : video_tracker_.get_live_trackers())
+        for (const auto & tracker : video_tracker_.get_live_trackers())
         {
             add_track_detection(tracker, tracking_msg.detections);
             add_trajectory_detection(tracker, tracking_msg.trajectories);
@@ -166,7 +158,7 @@ private:
         pub_tracker_tracking_resized_->publish(tracking_msg_resized);
     }
 
-    inline void add_track_detection(const auto &tracker, std::vector<bob_interfaces::msg::TrackDetection> &detection_array) const
+    inline void add_track_detection(const auto & tracker, std::vector<bob_interfaces::msg::TrackDetection> & detection_array) const
     {
         auto bbox = tracker.get_bbox();
         vision_msgs::msg::BoundingBox2D bbox_msg;
@@ -180,23 +172,15 @@ private:
         detect_msg.state = (int)tracker.get_tracking_state();
         detect_msg.bbox = bbox_msg;
 
-        // auto result = tracker.get_ellipse(); 
-        // double semi_major_axis = std::get<0>(result);
-        // double semi_minor_axis = std::get<1>(result);
-        // double orientation = std::get<2>(result);
-        // detect_msg.covariance_ellipse_semi_major_axis = semi_major_axis;
-        // detect_msg.covariance_ellipse_semi_minor_axis = semi_minor_axis;
-        // detect_msg.covariance_ellipse_orientation = orientation;
-
         detection_array.push_back(detect_msg);
     }
 
-    inline void add_trajectory_detection(const auto &tracker, std::vector<bob_interfaces::msg::TrackTrajectory> &trajectory_array) const
+    inline void add_trajectory_detection(const auto & tracker, std::vector<bob_interfaces::msg::TrackTrajectory> & trajectory_array) const
     {
         bob_interfaces::msg::TrackTrajectory track_msg;
         track_msg.id = std::to_string(tracker.get_id()) + std::string("-") + std::to_string(tracker.get_tracking_state());
 
-        for (const auto &center_point : tracker.get_center_points())
+        for (const auto & center_point : tracker.get_center_points())
         {
             bob_interfaces::msg::TrackPoint point;
             point.center.x = center_point.first.x;
@@ -208,12 +192,12 @@ private:
         trajectory_array.push_back(track_msg);
     }
 
-    inline void add_prediction(const auto &tracker, std::vector<bob_interfaces::msg::TrackTrajectory> &prediction_array) const
+    inline void add_prediction(const auto & tracker, std::vector<bob_interfaces::msg::TrackTrajectory> & prediction_array) const
     {
         bob_interfaces::msg::TrackTrajectory track_msg;
         track_msg.id = std::to_string(tracker.get_id()) + std::string("-") + std::to_string(tracker.get_tracking_state());
 
-        for (const auto &center_point : tracker.get_predictor_center_points())
+        for (const auto & center_point : tracker.get_predictor_center_points())
         {
             bob_interfaces::msg::TrackPoint point;
             point.center.x = center_point.x;
@@ -223,6 +207,14 @@ private:
 
         prediction_array.push_back(track_msg);
     }
+
+    rclcpp::QoS pub_qos_profile_;
+    rclcpp::QoS sub_qos_profile_;
+    rclcpp::Publisher<bob_interfaces::msg::Tracking>::SharedPtr pub_tracker_tracking_;
+    rclcpp::Publisher<bob_interfaces::msg::Tracking>::SharedPtr pub_tracker_tracking_resized_;
+    rclcpp::Subscription<bob_interfaces::msg::DetectorBBoxArray>::SharedPtr detector_bounding_boxes_subscription_;    
+    SORT::Tracker video_tracker_;
+    int resize_height_;
 };
 
 RCLCPP_COMPONENTS_REGISTER_NODE(TrackProvider)

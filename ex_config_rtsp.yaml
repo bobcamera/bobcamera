@@ -16,8 +16,8 @@ basic_config:
     camera_id: 0
     usb_camera_resolution: [640, 480] # Resolution for USB Camera [WIDTH, HEIGHT]
     videos:                     # List of videos to display in sequence if source_type is VIDEO_FILE
-      - /workspaces/bobcamera/media/fisheye_videos/mike-drone.mp4
-      - /workspaces/bobcamera/media/fisheye_videos/mikeg-30min.mp4
+      - '/workspaces/bobcamera/media/fisheye_videos/mike-drone.mp4'
+      - '/workspaces/bobcamera/media/fisheye_videos/mikeg-30min.mp4'
     resize_height: 960          # 0 to disable resize publish
     simulator: False             # True for including simulated objects, False otherwise
     simulator_num_objects: 15   # Number of simulated objects if the simulator parameter is True
@@ -108,7 +108,7 @@ advanced_config:
     img_topic: 'bob/frames/allsky/original'
     fg_img_topic: 'bob/frames/foreground_mask'
     tracking_topic: 'bob/tracker/tracking'
-    camera_info_topic: bob/camera/all_sky/camera_info
+    camera_info_topic: 'bob/camera/all_sky/camera_info'
     prefix: ''
 
   annotated_frame_provider_node:
@@ -170,7 +170,7 @@ advanced_config:
     onvif_wsdl_path: 'assets/wsdl'
 
   info_webapi_node:
-    application_version: '1.5.2'
+    application_version: '1.5.3'
     frame_width: 0
     frame_height: 0
     video_fps: 15.0
@@ -270,14 +270,14 @@ launch:
           plugin: FrameCompressor
           name: foreground_mask_compressor_node
           remappings: []
-    # - name: Display
-    #   executable: component_container # Has to be single-threaded because of OpenCV display
-    #   output: both
-    #   nodes:
-    #     - package: bob_visualizers
-    #       plugin: FrameViewer
-    #       name: multi_frame_viewer_node
-    #       remappings: []
+    - name: Display
+      executable: component_container # Has to be single-threaded because of OpenCV display
+      output: both
+      nodes:
+        - package: bob_visualizers
+          plugin: FrameViewer
+          name: multi_frame_viewer_node
+          remappings: []
     - name: Monitor
       executable: component_container_mt
       output: both
