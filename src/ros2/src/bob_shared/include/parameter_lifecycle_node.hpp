@@ -104,41 +104,45 @@ public:
             return;
         }
         RCLCPP_ERROR(get_logger(), format.c_str(), args...);
-        send_log_message(RCUTILS_LOG_SEVERITY_ERROR, format, args...);
+        send_log_message(rclcpp::Logger::Level::Error, format, args...);
     }
 
     template <typename... Args>
     void log_send_warn(const std::string& format, Args... args) const
     {
         RCLCPP_WARN(get_logger(), format.c_str(), args...);
-        send_log_message(RCUTILS_LOG_SEVERITY_WARN, format, args...);
+        send_log_message(rclcpp::Logger::Level::Warn, format, args...);
     }
 
     template <typename... Args>
     void log_send_info(const std::string& format, Args... args) const
     {
         RCLCPP_INFO(get_logger(), format.c_str(), args...);
-        send_log_message(RCUTILS_LOG_SEVERITY_INFO, format, args...);
+        send_log_message(rclcpp::Logger::Level::Info, format, args...);
     }
 
     template <typename... Args>
     void log_send_debug(const std::string& format, Args... args) const 
     {
         RCLCPP_DEBUG(get_logger(), format.c_str(), args...);
-        send_log_message(RCUTILS_LOG_SEVERITY_DEBUG, format, args...);
+        send_log_message(rclcpp::Logger::Level::Debug, format, args...);
     }
 
     template <typename... Args>
-    void send_log_message(rcl_log_severity_t severity, const std::string & str_format, Args... args) const
+    void send_log_message(rclcpp::Logger::Level severity, const std::string & str_format, Args... args) const
     {
-        static uint64_t log_index_ = 0;
-        bob_interfaces::msg::LogMessage log_msg;
-        log_msg.header.frame_id = std::to_string(++log_index_);
-        log_msg.header.stamp = now();
-        log_msg.node = get_name();
-        log_msg.severity = g_rcutils_log_severity_names[severity];
-        log_msg.message = format_c(str_format, args...);
-        log_publisher_->publish(log_msg);
+
+        if (severity >= get_logger().get_effective_level())
+        {
+            static uint64_t log_index_ = 0;
+            bob_interfaces::msg::LogMessage log_msg;
+            log_msg.header.frame_id = std::to_string(++log_index_);
+            log_msg.header.stamp = now();
+            log_msg.node = get_name();
+            log_msg.severity = g_rcutils_log_severity_names[(int)severity];
+            log_msg.message = format_c(str_format, args...);
+            log_publisher_->publish(log_msg);
+        }
     }
 
 protected:
