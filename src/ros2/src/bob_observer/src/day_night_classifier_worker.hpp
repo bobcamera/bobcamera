@@ -47,12 +47,12 @@ public:
 
         if (num_pixels == 0) 
         {
-            RCLCPP_WARN(node_.get_logger(), "No valid pixels found for brightness estimation.");
+            node_.log_warn("No valid pixels found for brightness estimation.");
             return {result, 0};
         }
 
         int avg_brightness = static_cast<int>(sum_brightness / num_pixels);
-        RCLCPP_DEBUG(node_.get_logger(), "Pixels used: %.2f%%, Avg. Brightness: %d", (num_pixels * 100.0) / frame.total(), avg_brightness);
+        node_.log_debug("Pixels used: %.2f%%, Avg. Brightness: %d", (num_pixels * 100.0) / frame.total(), avg_brightness);
 
         if (avg_brightness > threshold)
         {

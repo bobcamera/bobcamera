@@ -26,12 +26,14 @@ public:
     COMPOSITION_PUBLIC
     explicit RecordManager(const rclcpp::NodeOptions& options)
         : ParameterLifeCycleNode("recorder_manager", options)
+        , pub_qos_profile_(4)
+        , sub_qos_profile_(10)
     {
     }
 
     CallbackReturn on_configure(const rclcpp_lifecycle::State &)
     {
-        RCLCPP_INFO(get_logger(), "Configuring");
+        log_info("Configuring");
 
         init();
 
@@ -87,7 +89,7 @@ private:
         return std::string(buffer.data());
     }
 
-    static bool create_dir(const std::string& path) 
+    static bool create_dir(const std::string & path) 
     {
         if (std::filesystem::path dirPath = path; !std::filesystem::exists(dirPath)) 
         {
@@ -96,20 +98,20 @@ private:
         return true;
     }
 
-    void create_subdirectory(const std::filesystem::path& parent, const std::string& subdirectory) const
+    void create_subdirectory(const std::filesystem::path & parent, const std::string & subdirectory) const
     {
         std::filesystem::path subDirPath = parent / subdirectory;
         if (std::filesystem::create_directory(subDirPath)) 
         {
-            RCLCPP_INFO(get_logger(), "Subdirectory created: %s", subDirPath.c_str());
+            log_info("Subdirectory created: %s", subDirPath.c_str());
         } 
         else 
         {
-            RCLCPP_ERROR(get_logger(), "Failed to create subdirectory: %s", subDirPath.c_str());
+            log_error("Failed to create subdirectory: %s", subDirPath.c_str());
         }
     }
     
-    bool create_dated_dir(const std::string& path) 
+    bool create_dated_dir(const std::string & path) 
     {
         std::filesystem::path dirPath = path;
 
@@ -119,7 +121,7 @@ private:
 
             if (std::filesystem::create_directory(dated_directory_)) 
             {
-                RCLCPP_INFO(get_logger(), "Dated directory created: %s", dated_directory_.c_str());
+                log_info("Dated directory created: %s", dated_directory_.c_str());
                 create_subdirectory(dated_directory_, "allsky");
                 create_subdirectory(dated_directory_, "heatmaps");
                 create_subdirectory(dated_directory_, "json");
@@ -127,15 +129,15 @@ private:
                 return true;
             } 
 
-            // RCLCPP_ERROR(get_logger(), "Failed to create dated directory: %s", dated_directory_.c_str());
+            // log_error("Failed to create dated directory: %s", dated_directory_.c_str());
             return false;
         } 
 
-        RCLCPP_INFO(get_logger(), "Parent recordings directory doesn't exist: %s", dirPath.c_str());
+        log_info("Parent recordings directory doesn't exist: %s", dirPath.c_str());
         return false;
     }
 
-    static std::string generate_filename(const sensor_msgs::msg::Image::SharedPtr& image_msg)
+    static std::string generate_filename(const sensor_msgs::msg::Image::SharedPtr & image_msg)
     {  
         auto stamp = rclcpp::Time(image_msg->header.stamp);
         std::ostringstream oss;
@@ -244,10 +246,10 @@ private:
     }
 
     // Callback function
-    void process_recordings(const sensor_msgs::msg::Image::SharedPtr& image_msg,
-                            const sensor_msgs::msg::Image::SharedPtr& image_fg_msg,
-                            const bob_interfaces::msg::Tracking::SharedPtr& tracking_msg,
-                            const bob_camera::msg::CameraInfo::SharedPtr& camera_info_msg)
+    void process_recordings(const sensor_msgs::msg::Image::SharedPtr & image_msg,
+                            const sensor_msgs::msg::Image::SharedPtr & image_fg_msg,
+                            const bob_interfaces::msg::Tracking::SharedPtr & tracking_msg,
+                            const bob_camera::msg::CameraInfo::SharedPtr & camera_info_msg)
     {
         try
         {
@@ -262,7 +264,7 @@ private:
             }
             else if (img.rows != prev_frame_height_ || img.cols != prev_frame_width_ )
             {
-                RCLCPP_INFO(get_logger(), "Frame dimensions changed. ");
+                log_info("Frame dimensions changed. ");
                 prev_frame_height_ = img.rows;
                 prev_frame_width_ = img.cols;
                 current_state_ = RecordingStateEnum::AfterEnd;
@@ -280,7 +282,7 @@ private:
                 {
                     recording_ = true;
                     video_fps_ = static_cast<double>(camera_info_msg->fps);
-                    RCLCPP_INFO(get_logger(), "Starting track recording...");
+                    log_info("Starting track recording...");
                     current_state_ = RecordingStateEnum::BetweenEvents;
                     base_filename_ = generate_filename(image_msg);
 
@@ -330,7 +332,7 @@ private:
                 if (current_end_frame_ == 0) 
                 {
                     recording_ = false;
-                    RCLCPP_INFO(get_logger(), "Ending track recording...");
+                    log_info("Ending track recording...");
                     std::string full_path = dated_directory_ + "/heatmaps/" + base_filename_ + ".jpg";
                     img_recorder_->write_image(full_path);
 
@@ -365,7 +367,7 @@ private:
                 if (recording_) 
                 {
                     recording_ = false;
-                    RCLCPP_INFO(get_logger(), "Ending track recording...");
+                    log_info("Ending track recording...");
                     std::string full_path = dated_directory_ + "/heatmaps/" + base_filename_ + ".jpg";
                     img_recorder_->write_image(full_path);
 
@@ -385,9 +387,9 @@ private:
             state.recording = recording_;
             state_publisher_->publish(state);
         }
-        catch (std::exception & e)
+        catch (const std::exception & e)
         {
-            RCLCPP_ERROR(get_logger(), "exception: %s", e.what());
+            log_send_error("exception: %s", e.what());
         }
     };
 
@@ -398,8 +400,8 @@ private:
         response->success = true;
     }
 
-    rclcpp::QoS pub_qos_profile_{4};
-    rclcpp::QoS sub_qos_profile_{10};
+    rclcpp::QoS pub_qos_profile_;
+    rclcpp::QoS sub_qos_profile_;
     std::unique_ptr<ImageRecorder> img_recorder_;
     std::unique_ptr<VideoRecorder> video_recorder_;
     std::unique_ptr<JsonRecorder> json_recorder_;

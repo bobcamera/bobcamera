@@ -26,12 +26,14 @@ public:
     COMPOSITION_PUBLIC
     explicit FrameCompressor(const rclcpp::NodeOptions & options) 
         : ParameterLifeCycleNode("frame_compressor_node", options)
+        , sub_qos_profile_(2)
+        , pub_qos_profile_(5)
     {
     }
 
     CallbackReturn on_configure(const rclcpp_lifecycle::State &)
     {
-        RCLCPP_INFO(get_logger(), "Configuring");
+        log_info("Configuring");
 
         init();
 
@@ -39,17 +41,6 @@ public:
     }
 
 private:
-    rclcpp::TimerBase::SharedPtr timer_;
-    rclcpp::QoS sub_qos_profile_{2};
-    rclcpp::QoS pub_qos_profile_{5};
-    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscription_;
-    rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr pub_compressed_frame_;
-    std::string compressed_frame_subscriber_topic_;
-    int compression_quality_;
-    std::vector<int> compression_params_;
-
-    friend std::shared_ptr<FrameCompressor> std::make_shared<FrameCompressor>();
-
     void init()
     {
         sub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
@@ -62,7 +53,7 @@ private:
 
         declare_node_parameters();
 
-        timer_ = create_wall_timer(std::chrono::seconds(2), [this]{check_subscribers();});
+        timer_ = create_wall_timer(std::chrono::seconds(2), [this](){check_subscribers();});
     }
 
     void declare_node_parameters()
@@ -81,7 +72,7 @@ private:
                 [this](const rclcpp::Parameter& param) 
                 {
                     pub_compressed_frame_ = create_publisher<sensor_msgs::msg::CompressedImage>(param.as_string(), pub_qos_profile_);
-                    RCLCPP_DEBUG(get_logger(), "Creating topic %s", pub_compressed_frame_->get_topic_name());
+                    log_debug("Creating topic %s", pub_compressed_frame_->get_topic_name());
                 }
             ),
             ParameterLifeCycleNode::ActionParam(
@@ -107,23 +98,23 @@ private:
             if ((num_subs > 0) && !image_subscription_)
             {
                 image_subscription_ = create_subscription<sensor_msgs::msg::Image>(compressed_frame_subscriber_topic_, sub_qos_profile_,
-                    [this](const sensor_msgs::msg::Image::SharedPtr image_msg){imageCallback(image_msg);});
-                RCLCPP_DEBUG(get_logger(), "Subscribing to %s", image_subscription_->get_topic_name());
+                    [this](const sensor_msgs::msg::Image::SharedPtr image_msg){image_callback(image_msg);});
+                log_debug("Subscribing to %s", image_subscription_->get_topic_name());
             } 
             else if ((num_subs <= 0) && image_subscription_) 
             {
-                RCLCPP_DEBUG(get_logger(), "Unsubscribing from %s", image_subscription_->get_topic_name());
+                log_debug("Unsubscribing from %s", image_subscription_->get_topic_name());
                 image_subscription_.reset();
             }
         }
-        catch(const std::exception& e)
+        catch (...)
         {
             // Ignoring, probably due to application closing
         }
         timer_->reset();
     }
 
-    void imageCallback(const sensor_msgs::msg::Image::SharedPtr image_msg) const
+    void image_callback(const sensor_msgs::msg::Image::SharedPtr image_msg) const
     {
         try
         {
@@ -140,11 +131,20 @@ private:
 
             pub_compressed_frame_->publish(compressed_image_msg);
         }
-        catch (cv::Exception &cve)
+        catch (const std::exception & e)
         {
-            RCLCPP_ERROR(get_logger(), "Open CV exception: %s", cve.what());
+            log_error("image_callback: exception: %s", e.what());
         }        
     }
+
+    rclcpp::TimerBase::SharedPtr timer_;
+    rclcpp::QoS sub_qos_profile_;
+    rclcpp::QoS pub_qos_profile_;
+    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscription_;
+    rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr pub_compressed_frame_;
+    std::string compressed_frame_subscriber_topic_;
+    int compression_quality_;
+    std::vector<int> compression_params_;
 };
 
 RCLCPP_COMPONENTS_REGISTER_NODE(FrameCompressor)

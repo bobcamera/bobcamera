@@ -71,7 +71,11 @@ public:
         , params_(params)
         , user_callback_(user_callback)
     {
-        mask_worker_ptr_ = std::make_unique<MaskWorker>(node_, [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat & mask){mask_timer_callback(detection_mask_result, mask);});
+        mask_worker_ptr_ = std::make_unique<MaskWorker>(node_, 
+            [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat & mask)
+            {
+                mask_timer_callback(detection_mask_result, mask);
+            });
     }
 
     ~CameraWorker()
@@ -108,12 +112,12 @@ public:
         }
         catch (const std::exception& e)
         {
-            node_.log_error("Exception: %s", e.what());
+            node_.log_error("camera_worker: init: Exception: %s", e.what());
             throw;
         }
         catch (...) 
         {
-            node_.log_error("Unknown exception caught");
+            node_.log_error("camera_worker: init: Unknown exception");
             throw;
         }
     }
@@ -186,20 +190,21 @@ private:
         }        
     }
 
-    void captureLoop()
+    void capture_loop()
     {
         std::unique_ptr<RosCvImageMsg> roscv_image_msg_ptr = RosCvImageMsg::create(video_capture_);
 
         while (run_)
         {
-            if (!circuit_breaker_ptr_->allow_request()) 
-            {
-                node_.log_send_error("Could not acquire image, Waiting to connect to camera");
-                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-                continue;
-            }
             try
             {
+                if (!circuit_breaker_ptr_->allow_request()) 
+                {
+                    node_.log_send_error("Could not acquire image, Waiting to connect to camera");
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+                    continue;
+                }
+
                 if (!video_capture_.read(roscv_image_msg_ptr->get_image()))
                 {
                     if (params_.source_type == CameraWorkerParams::SourceType::VIDEO_FILE)
@@ -255,19 +260,20 @@ private:
 
                 loop_rate_ptr_->sleep();
             }
-            catch (const std::exception& e)
+            catch (const std::exception & e)
             {
-                node_.log_send_error("Capture loop: Exception: %s", e.what());
+                node_.log_send_error("CameraWorker: capture_loop: Exception: %s", e.what());
                 rcutils_reset_error();
                 //run_ = false;
             }
             catch (...) 
             {
-                node_.log_send_error("Capture loop: Unknown exception caught");
+                node_.log_send_error("CameraWorker: capture_loop: Unknown exception");
+                rcutils_reset_error();
                 //run_ = false;
             }
         }
-        node_.log_send_info("Leaving capture loop");
+        node_.log_send_info("CameraWorker: Leaving capture_loop");
     }
 
     inline void apply_mask(cv::Mat & img)
@@ -313,7 +319,7 @@ private:
     void start_capture()
 	{
 		run_ = true;
-		capture_thread_ = std::jthread(&CameraWorker::captureLoop, this);
+		capture_thread_ = std::jthread(&CameraWorker::capture_loop, this);
 	}
 
 	void stop_capture()
@@ -482,17 +488,17 @@ private:
             if (!mask_enabled_)
             {
                 mask_enabled_ = true;
-                node_.log_info("Privacy Mask Enabled.");
+                node_.log_send_info("CameraWorker: Privacy Mask Enabled.");
             }
             else
             {
-                node_.log_info("Privacy Mask Changed.");
+                node_.log_send_info("CameraWorker: Privacy Mask Changed.");
             }
             privacy_mask_ = mask.clone();
         }
         else if ((detection_mask_result == MaskWorker::MaskCheckType::Disable) && mask_enabled_)
         {
-            node_.log_info("Privacy Mask Disabled.");
+            node_.log_send_info("CameraWorker: Privacy Mask Disabled.");
             mask_enabled_ = false;
             privacy_mask_.release();
         }

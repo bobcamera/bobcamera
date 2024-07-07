@@ -58,7 +58,7 @@ public:
         }
     }
 
-    void draw(cv::Mat &frame, cv::Scalar color) 
+    void draw(cv::Mat & frame, cv::Scalar color) 
     {
         cv::Point center(static_cast<int>(x_), static_cast<int>(y_));
         if (!occluder_.contains(center)) 

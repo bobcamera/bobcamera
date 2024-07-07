@@ -22,6 +22,7 @@ public:
     COMPOSITION_PUBLIC
     explicit CameraBGS(const rclcpp::NodeOptions & options)
         : ParameterLifeCycleNode("camera_bgs_node", options)
+        , qos_profile_(4)
     {
         qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
         qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
@@ -360,36 +361,36 @@ private:
     }
 
     void privacy_mask_override_request(const std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Request> request, 
-        std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Response> response)
+            std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Response> response)
     {
         camera_params_ptr_->mask_enable_override = request->mask_enabled;
         if (request->mask_enabled)
         {
-            log_debug("Privacy mask Override set to: True");
+            log_send_debug("Privacy mask Override set to: True");
         }
         else
         {
-            log_debug("Privacy mask Override set to: False");
+            log_send_debug("Privacy mask Override set to: False");
         }
         response->success = true;        
     }
 
     void bgs_mask_override_request(const std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Request> request, 
-        std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Response> response)
+            std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Response> response)
     {
         bgs_params_ptr_->mask_enable_override = request->mask_enabled;
         if (request->mask_enabled)
         {
-            log_debug("BGS Mask Override set to: True");
+            log_send_debug("BGS Mask Override set to: True");
         }
         else
         {
-            log_debug("BGS mask Override set to: False");
+            log_send_debug("BGS mask Override set to: False");
         }
         response->success = true;        
     }
 
-    rclcpp::QoS qos_profile_{4}; 
+    rclcpp::QoS qos_profile_; 
 
     std::unique_ptr<CameraWorkerParams> camera_params_ptr_;
     std::unique_ptr<CameraWorker> camera_worker_ptr_;

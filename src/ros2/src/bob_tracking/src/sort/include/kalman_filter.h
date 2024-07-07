@@ -5,9 +5,10 @@
 
 // abstract class for Kalman filter
 // implementation could be KF/EKF/UKF...
-namespace SORT {
-
-    class KalmanFilter {
+namespace SORT 
+{
+    class KalmanFilter 
+    {
     public:
         /**
          * user need to define H matrix & R matrix
@@ -86,5 +87,4 @@ namespace SORT {
 
         std::tuple<double, double, double> ellipse_;
     };
-
 }

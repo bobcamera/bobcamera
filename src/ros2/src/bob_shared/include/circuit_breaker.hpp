@@ -54,7 +54,7 @@ private:
     {
         if (current_reset_timeout_ < max_reset_timeout_) 
         {
-            current_reset_timeout_ = std::min(current_reset_timeout_ * increase_multiply_, max_reset_timeout_);
+            current_reset_timeout_ = std::min(static_cast<int>(current_reset_timeout_ * increase_multiply_), max_reset_timeout_);
         }
     }
 
@@ -65,7 +65,7 @@ private:
         HalfOpen
     };
 
-    const int increase_multiply_ = 2;
+    static constexpr float increase_multiply_ = 1.5;
     CircuitBreakerState state_;
     int failure_count_;
     int failure_threshold_;

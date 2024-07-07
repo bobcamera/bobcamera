@@ -50,7 +50,6 @@ public:
         qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
         qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
         log_publisher_ = create_publisher<bob_interfaces::msg::LogMessage>("bob/log", qos_profile);
-        log_index_ = 0;
     }
 
     static std::string generate_uuid()
@@ -70,47 +69,69 @@ public:
     }
 
     template <typename... Args>
-    void log_error(const std::string& format, Args... args) 
+    void log_error(const std::string& format, Args... args) const
     {
+        if (!rclcpp::ok())
+        {
+            return;
+        }
         RCLCPP_ERROR(get_logger(), format.c_str(), args...);
     }
 
     template <typename... Args>
-    void log_info(const std::string& format, Args... args) 
+    void log_warn(const std::string& format, Args... args) const
+    {
+        RCLCPP_WARN(get_logger(), format.c_str(), args...);
+    }
+
+    template <typename... Args>
+    void log_info(const std::string& format, Args... args) const
     {
         RCLCPP_INFO(get_logger(), format.c_str(), args...);
     }
 
     template <typename... Args>
-    void log_debug(const std::string& format, Args... args) 
+    void log_debug(const std::string& format, Args... args) const
     {
         RCLCPP_DEBUG(get_logger(), format.c_str(), args...);
     }
 
     template <typename... Args>
-    void log_send_error(const std::string& format, Args... args) 
+    void log_send_error(const std::string& format, Args... args) const
     {
+        if (!rclcpp::ok())
+        {
+            return;
+        }
         RCLCPP_ERROR(get_logger(), format.c_str(), args...);
         send_log_message(RCUTILS_LOG_SEVERITY_ERROR, format, args...);
     }
 
     template <typename... Args>
-    void log_send_info(const std::string& format, Args... args) 
+    void log_send_warn(const std::string& format, Args... args) const
+    {
+        RCLCPP_WARN(get_logger(), format.c_str(), args...);
+        send_log_message(RCUTILS_LOG_SEVERITY_WARN, format, args...);
+    }
+
+    template <typename... Args>
+    void log_send_info(const std::string& format, Args... args) const
     {
         RCLCPP_INFO(get_logger(), format.c_str(), args...);
         send_log_message(RCUTILS_LOG_SEVERITY_INFO, format, args...);
     }
 
     template <typename... Args>
-    void log_send_debug(const std::string& format, Args... args) 
+    void log_send_debug(const std::string& format, Args... args) const 
     {
         RCLCPP_DEBUG(get_logger(), format.c_str(), args...);
         send_log_message(RCUTILS_LOG_SEVERITY_DEBUG, format, args...);
     }
 
     template <typename... Args>
-    void send_log_message(rcl_log_severity_t severity, const std::string & str_format, Args... args)
+    void send_log_message(rcl_log_severity_t severity, const std::string & str_format, Args... args) const
     {
+        static uint64_t log_index_ = 0;
         bob_interfaces::msg::LogMessage log_msg;
         log_msg.header.frame_id = std::to_string(++log_index_);
         log_msg.header.stamp = now();
@@ -187,7 +208,6 @@ private:
     rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr parameters_callback_handle_;
     std::map<std::string, ActionParam> parameters_map_;
     rclcpp::Publisher<bob_interfaces::msg::LogMessage>::SharedPtr log_publisher_;
-    uint64_t log_index_;
 };
 
 #endif // __PARAMETER_LIFECYCLE_NODE_H__

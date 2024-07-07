@@ -124,6 +124,7 @@ public:
         median_filter_ = config.sensitivity.median_filter;
         ready_ = true;
         cv.notify_all();
+
         return true;
     }
 
@@ -195,40 +196,18 @@ public:
         }
         catch (const std::exception & e)
         {
-            node_.log_error("Exception: %s", e.what());
+            node_.log_send_error("bgs_worker: image_callback: exception: %s", e.what());
             throw;
         }
         catch (...)
         {
-            node_.log_error("Unknown Exception");
+            node_.log_send_error("bgs_worker: image_callback: Unknown Exception");
             throw;
         }
     }
 
 private:
-    ParameterLifeCycleNode & node_;
-
-    std::unique_ptr<MaskWorker> mask_worker_ptr_;
-
-    BackgroundSubtractorWorkerParams & params_;
-
-    bool mask_enabled_;
-    bool median_filter_;
-    std::unique_ptr<boblib::bgs::CoreBgs> bgsPtr{nullptr};
-    std::unique_ptr<boblib::blobs::ConnectedBlobDetection> blob_detector_ptr_{nullptr};
-    std::unique_ptr<boblib::bgs::VibeParams> vibe_params_;
-    std::unique_ptr<boblib::bgs::WMVParams> wmv_params_;
-    std::unique_ptr<boblib::blobs::ConnectedBlobDetectionParams> blob_params_;
-
-    std::unique_ptr<RosCvImageMsg> ros_cv_foreground_mask_;
-
-    cv::Mat detection_mask_;
-
-    bool ready_;
-    std::mutex mutex;
-    std::condition_variable cv;
-
-    inline void add_bboxes(bob_interfaces::msg::DetectorBBoxArray &bbox2D_array, const std::vector<cv::Rect> &bboxes)
+    inline void add_bboxes(bob_interfaces::msg::DetectorBBoxArray & bbox2D_array, const std::vector<cv::Rect> & bboxes)
     {
         for (const auto &bbox : bboxes)
         {
@@ -286,22 +265,43 @@ private:
             if (!mask_enabled_)
             {
                 mask_enabled_ = true;
-                node_.log_info("Detection Mask Enabled.");
+                node_.log_send_info("Detection Mask Enabled.");
             }
             else
             {
-                node_.log_info("Detection Mask Changed.");
+                node_.log_send_info("Detection Mask Changed.");
             }
             detection_mask_ = mask.clone();
         }
         else if ((detection_mask_result == MaskWorker::MaskCheckType::Disable) && mask_enabled_)
         {
-            node_.log_info("Detection Mask Disabled.");
+            node_.log_send_info("Detection Mask Disabled.");
             mask_enabled_ = false;
             detection_mask_.release();
         }
     }
-};
 
+    ParameterLifeCycleNode & node_;
+
+    std::unique_ptr<MaskWorker> mask_worker_ptr_;
+
+    BackgroundSubtractorWorkerParams & params_;
+
+    bool mask_enabled_;
+    bool median_filter_;
+    std::unique_ptr<boblib::bgs::CoreBgs> bgsPtr{nullptr};
+    std::unique_ptr<boblib::blobs::ConnectedBlobDetection> blob_detector_ptr_{nullptr};
+    std::unique_ptr<boblib::bgs::VibeParams> vibe_params_;
+    std::unique_ptr<boblib::bgs::WMVParams> wmv_params_;
+    std::unique_ptr<boblib::blobs::ConnectedBlobDetectionParams> blob_params_;
+
+    std::unique_ptr<RosCvImageMsg> ros_cv_foreground_mask_;
+
+    cv::Mat detection_mask_;
+
+    bool ready_;
+    std::mutex mutex;
+    std::condition_variable cv;
+};
 
 #endif

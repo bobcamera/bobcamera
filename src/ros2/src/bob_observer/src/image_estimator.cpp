@@ -26,12 +26,14 @@ public:
     COMPOSITION_PUBLIC
     explicit ImageEstimator(const rclcpp::NodeOptions & options) 
         : ParameterLifeCycleNode("cloud_estimator_node", options)
+        , sub_qos_profile_(4)
+        ,pub_qos_profile_(4)
     {
     }
 
     CallbackReturn on_configure(const rclcpp_lifecycle::State &)
     {
-        RCLCPP_INFO(get_logger(), "Configuring");
+        log_info("Configuring");
 
         init();
 
@@ -39,25 +41,6 @@ public:
     }
 
 private:
-    rclcpp::QoS sub_qos_profile_{4};
-    rclcpp::QoS pub_qos_profile_{4};
-    int timer_interval_;
-    cv::Mat image_;
-    std::unique_ptr<DayTimeCloudEstimator> day_cloud_estimator_worker_ptr_;
-    std::unique_ptr<NightTimeCloudEstimator> night_cloud_estimator_worker_ptr_;
-    std::unique_ptr<DayNightClassifierWorker> day_night_classifier_worker_ptr_;
-    int observer_day_night_brightness_threshold_;
-    DayNightEnum day_night_;
-    rclcpp::TimerBase::SharedPtr timer_;
-    rclcpp::Publisher<bob_interfaces::msg::ObserverCloudEstimation>::SharedPtr pub_cloud_data_;
-    rclcpp::Publisher<bob_interfaces::msg::ObserverDayNight>::SharedPtr pub_day_night_data_;
-    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub_camera_;
-    std::unique_ptr<MaskWorker> mask_worker_ptr_;
-    bool mask_enabled_;
-    cv::Mat detection_mask_;
-    int mask_timer_seconds_;
-    std::string mask_filename_;
-
     void declare_node_parameters()
     {
         std::vector<ParameterLifeCycleNode::ActionParam> params = {
@@ -147,17 +130,17 @@ private:
             if (!mask_enabled_)
             {
                 mask_enabled_ = true;
-                RCLCPP_INFO(get_logger(), "Detection Mask Enabled.");
+                log_send_info("Detection Mask Enabled.");
             }
             else
             {
-                RCLCPP_INFO(get_logger(), "Detection Mask Changed.");
+                log_send_info("Detection Mask Changed.");
             }
             detection_mask_ = mask.clone();
         }
         else if ((detection_mask_result == MaskWorker::MaskCheckType::Disable) && mask_enabled_)
         {
-            RCLCPP_INFO(get_logger(), "Detection Mask Disabled.");
+            log_send_info("Detection Mask Disabled.");
             mask_enabled_ = false;
             detection_mask_.release();
         }
@@ -179,14 +162,21 @@ private:
 
     void day_night_classifier()
     {
-        auto [result, average_brightness] = day_night_classifier_worker_ptr_->estimate(image_, observer_day_night_brightness_threshold_);
-        RCLCPP_INFO(get_logger(), "Day/Night classifier --> %d, %d", (int)result, average_brightness);
-        day_night_ = result;
+        try
+        {
+            auto [result, average_brightness] = day_night_classifier_worker_ptr_->estimate(image_, observer_day_night_brightness_threshold_);
+            log_debug("Day/Night classifier --> %d, %d", (int)result, average_brightness);
+            day_night_ = result;
 
-        auto day_night_msg = bob_interfaces::msg::ObserverDayNight();
-        day_night_msg.day_night_enum = static_cast<int>(result);
-        day_night_msg.avg_brightness = average_brightness;
-        pub_day_night_data_->publish(day_night_msg);
+            auto day_night_msg = bob_interfaces::msg::ObserverDayNight();
+            day_night_msg.day_night_enum = static_cast<int>(result);
+            day_night_msg.avg_brightness = average_brightness;
+            pub_day_night_data_->publish(day_night_msg);
+        }
+        catch (const std::exception & e)
+        {
+            log_send_error("Exception during cloud estimation sampler. Error: %s", e.what());
+        }
     }
 
     void cloud_sampler()
@@ -206,19 +196,19 @@ private:
                 case DayNightEnum::Day:
                 {
                     std::tie(estimation, distribution) = day_cloud_estimator_worker_ptr_->estimate(image_);
-                    RCLCPP_INFO(get_logger(), "Day time cloud estimation --> %f", estimation);
+                    log_info("Day time cloud estimation --> %f", estimation);
                 }
                 break;
 
                 case DayNightEnum::Night:
                 {
                     std::tie(estimation, distribution) = night_cloud_estimator_worker_ptr_->estimate(image_);
-                    RCLCPP_INFO(get_logger(), "Night time cloud estimation --> %f", estimation);
+                    log_info("Night time cloud estimation --> %f", estimation);
                 }
                 break;
 
                 default:
-                    RCLCPP_INFO(get_logger(), "Unknown Day/Night classifier, ignore for now");
+                    log_info("Unknown Day/Night classifier, ignore for now");
                     return;
             }
 
@@ -232,9 +222,28 @@ private:
         }
         catch (const std::exception & e)
         {
-            RCLCPP_ERROR(get_logger(), "Exception during cloud estimation sampler. Error: %s", e.what());
+            log_send_error("Exception during cloud estimation sampler. Error: %s", e.what());
         }
     }
+
+    rclcpp::QoS sub_qos_profile_;
+    rclcpp::QoS pub_qos_profile_;
+    int timer_interval_;
+    cv::Mat image_;
+    std::unique_ptr<DayTimeCloudEstimator> day_cloud_estimator_worker_ptr_;
+    std::unique_ptr<NightTimeCloudEstimator> night_cloud_estimator_worker_ptr_;
+    std::unique_ptr<DayNightClassifierWorker> day_night_classifier_worker_ptr_;
+    int observer_day_night_brightness_threshold_;
+    DayNightEnum day_night_;
+    rclcpp::TimerBase::SharedPtr timer_;
+    rclcpp::Publisher<bob_interfaces::msg::ObserverCloudEstimation>::SharedPtr pub_cloud_data_;
+    rclcpp::Publisher<bob_interfaces::msg::ObserverDayNight>::SharedPtr pub_day_night_data_;
+    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub_camera_;
+    std::unique_ptr<MaskWorker> mask_worker_ptr_;
+    bool mask_enabled_;
+    cv::Mat detection_mask_;
+    int mask_timer_seconds_;
+    std::string mask_filename_;
 };
 
 RCLCPP_COMPONENTS_REGISTER_NODE(ImageEstimator)

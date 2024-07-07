@@ -24,7 +24,7 @@ public:
 
     CallbackReturn on_configure(const rclcpp_lifecycle::State &)
     {
-        RCLCPP_INFO(get_logger(), "Configuring");
+        log_info("Configuring");
 
         init();
 
@@ -38,26 +38,6 @@ private:
         IncreaseSensitivity,
         LowerSensitivity
     };
-
-    rclcpp::TimerBase::SharedPtr interval_check_timer_;
-    rclcpp::Subscription<bob_interfaces::msg::MonitoringStatus>::SharedPtr monitoring_subscription_;
-
-    rclcpp::AsyncParametersClient::SharedPtr sensitivity_param_client_;
-
-    bob_interfaces::msg::MonitoringStatus::SharedPtr status_msg_;
-
-    std::string sensitivity_;
-    std::string proposed_sensitivity_;
-    int check_interval_;
-    SensitivityChangeActionEnum sensitivity_change_action_;
-    bool star_mask_enabled_;
-
-    int sensitivity_increase_count_threshold_;
-    int sensitivity_increase_check_counter_;
-    std::string change_reason_;
-
-    rclcpp::QoS pub_qos_profile_;
-    rclcpp::QoS sub_qos_profile_;
 
     void init()
     {
@@ -189,7 +169,7 @@ private:
                     {
                         sensitivity_change_action_ = Ignore;
 
-                        RCLCPP_DEBUG(get_logger(), "Tracking Auto Tune: IncreaseSensitivity triggered, counter %d of %d", 
+                        log_send_info("Tracking Auto Tune: IncreaseSensitivity triggered, counter %d of %d", 
                             sensitivity_increase_check_counter_, sensitivity_increase_count_threshold_);
                     }
                 }
@@ -227,12 +207,12 @@ private:
                         }
 
                         if (sensitivity_ != proposed_sensitivity_)
-                            RCLCPP_DEBUG(get_logger(), "Tracking Auto Tune: Stable conditions - increasing sensitivity");
-
+                        {
+                            log_send_info("Tracking Auto Tune: Stable conditions - increasing sensitivity");
+                        }
                         break;
 
                     case LowerSensitivity:
-
                         // reset the counter
                         sensitivity_increase_check_counter_ = 0;
 
@@ -254,12 +234,13 @@ private:
                         }
 
                         if (sensitivity_ != proposed_sensitivity_)
-                            RCLCPP_INFO(get_logger(), "Tracking Auto Tune: Unstable conditions - lowering sensitivity");
-
+                        {
+                            log_send_info("Tracking Auto Tune: Unstable conditions - lowering sensitivity");
+                        }
                         break;
 
                     case Ignore:
-                        //RCLCPP_INFO(get_logger(), "Tracking Action: Ignore");
+                        //log_debug("Tracking Action: Ignore");
                         break;
                 }
 
@@ -271,13 +252,12 @@ private:
         }
     }
 
-    void change_parameter_async(const std::string &param_name, const std::string &param_value) 
+    void change_parameter_async(const std::string & param_name, const std::string & param_value) 
     {
         // TODO: Move this into the base class so all param change requests can use the same code
-        //if (!sensitivity_param_client_->service_is_ready()) 
         if (!sensitivity_param_client_->wait_for_service(std::chrono::seconds(1)))
         {
-            RCLCPP_WARN(this->get_logger(), "Sensitivity parameter service not ready.");
+            log_warn("Sensitivity parameter service not ready.");
             return;
         }
 
@@ -299,7 +279,7 @@ private:
         }
         if (param_result)
         {            
-            RCLCPP_INFO(get_logger(), "Sensitivity change from: %s to %s completed - reason: %s", 
+            log_info("Sensitivity change from: %s to %s completed - reason: %s", 
                 sensitivity_.c_str(), proposed_sensitivity_.c_str(), change_reason_.c_str());
             
             // reset sensitivity tracking state
@@ -309,9 +289,29 @@ private:
         }
         else
         {
-            RCLCPP_WARN(get_logger(), "Sensitivity change failed");
+            log_warn("Sensitivity change failed");
         }
     }
+
+    rclcpp::TimerBase::SharedPtr interval_check_timer_;
+    rclcpp::Subscription<bob_interfaces::msg::MonitoringStatus>::SharedPtr monitoring_subscription_;
+
+    rclcpp::AsyncParametersClient::SharedPtr sensitivity_param_client_;
+
+    bob_interfaces::msg::MonitoringStatus::SharedPtr status_msg_;
+
+    std::string sensitivity_;
+    std::string proposed_sensitivity_;
+    int check_interval_;
+    SensitivityChangeActionEnum sensitivity_change_action_;
+    bool star_mask_enabled_;
+
+    int sensitivity_increase_count_threshold_;
+    int sensitivity_increase_check_counter_;
+    std::string change_reason_;
+
+    rclcpp::QoS pub_qos_profile_;
+    rclcpp::QoS sub_qos_profile_;
 };
 
 RCLCPP_COMPONENTS_REGISTER_NODE(TrackSensitivityMonitor)

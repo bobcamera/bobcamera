@@ -22,13 +22,13 @@ public:
     COMPOSITION_PUBLIC
     explicit FrameViewer(const rclcpp::NodeOptions & options) 
         : ParameterLifeCycleNode("frame_viewer_node", options)
-        , current_topic_{0}
+        , sub_qos_profile_(4)
     {
     }
 
     CallbackReturn on_configure(const rclcpp_lifecycle::State &)
     {
-        RCLCPP_INFO(get_logger(), "Configuring");
+        log_info("Configuring");
 
         init();
 
@@ -36,15 +36,6 @@ public:
     }
 
 private:
-    rclcpp::QoS sub_qos_profile_{4};
-    rclcpp::TimerBase::SharedPtr timer_;
-    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscription_;
-    rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr image_subscription_compressed_;
-    std::vector<std::string> topics_;
-    int current_topic_;
-
-    friend std::shared_ptr<FrameViewer> std::make_shared<FrameViewer>();
-
     void declare_node_parameters()
     {
         std::vector<ParameterLifeCycleNode::ActionParam> params = {
@@ -62,6 +53,8 @@ private:
         sub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
         sub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
 
+        current_topic_ = 0;
+
         declare_node_parameters();
 
         cv::namedWindow("Image Viewer", cv::WINDOW_NORMAL);
@@ -76,15 +69,11 @@ private:
         std::string specific_topic_name = topics_[current_topic_];
         auto topics_and_types = get_topic_names_and_types();
 
-        // for (const auto& topic_type : topics_and_types)
-        //     for (const auto &type : topic_type.second)
-        //         RCLCPP_INFO(this->get_logger(), "Topic: '%s' has type: '%s'", topic_type.first.c_str(), type.c_str());
-
         auto it = topics_and_types.find(specific_topic_name);
         if (it != topics_and_types.end()) 
         {
-            auto &topic_type = it->second[0];
-            RCLCPP_DEBUG(this->get_logger(), "Topic: '%s' has type: '%s'", it->first.c_str(), topic_type.c_str());
+            auto & topic_type = it->second[0];
+            log_debug("Topic: '%s' has type: '%s'", it->first.c_str(), topic_type.c_str());
             if (topic_type == "sensor_msgs/msg/CompressedImage")
             {
                 image_subscription_.reset();
@@ -100,12 +89,12 @@ private:
             else
             {
                 current_topic_ = current_topic_ < 0 ? topics_.size() - 1 : (current_topic_ >= (int)topics_.size() ? 0 : current_topic_);
-                RCLCPP_WARN(get_logger(), "Topic: '%s' has type: '%s' and is not supported", it->first.c_str(), topic_type.c_str());
+                log_warn("Topic: '%s' has type: '%s' and is not supported", it->first.c_str(), topic_type.c_str());
                 timer_->reset();
             }
             return;
         } 
-        RCLCPP_WARN(get_logger(), "Topic '%s' not found", specific_topic_name.c_str());
+        log_warn("Topic '%s' not found", specific_topic_name.c_str());
         timer_->reset();
     }
 
@@ -124,26 +113,32 @@ private:
         try 
         {
             cv::Mat img = cv::imdecode(cv::Mat(image_msg->data), cv::IMREAD_COLOR);
-
             if (img.empty()) 
             {
-                RCLCPP_ERROR(this->get_logger(), "Decoding failed.");
+                log_error("Decoding failed.");
                 return;
             } 
 
             display_image(img);
         } 
-        catch (const cv::Exception& e) 
+        catch (const std::exception & e) 
         {
-            RCLCPP_ERROR(this->get_logger(), "cv::Exception: %s", e.what());
+            log_error("image_callback_compressed: exception: %s", e.what());
         }
     }
 
     void image_callback(const sensor_msgs::msg::Image::SharedPtr image_msg)
     {
-        cv::Mat img;
-        ImageUtils::convert_image_msg(image_msg, img, true);
-        display_image(img);
+        try 
+        {
+            cv::Mat img;
+            ImageUtils::convert_image_msg(image_msg, img, true);
+            display_image(img);
+        } 
+        catch (const std::exception & e) 
+        {
+            log_error("image_callback: exception: %s", e.what());
+        }
     }
 
     void display_image(const cv::Mat & img)
@@ -163,16 +158,23 @@ private:
             if (topic_change)
             {
                 current_topic_ = current_topic_ < 0 ? topics_.size() - 1 : (current_topic_ >= (int)topics_.size() ? 0 : current_topic_);
-                RCLCPP_INFO(get_logger(), "Changing topic to %s", topics_[current_topic_].c_str());
+                log_info("Changing topic to %s", topics_[current_topic_].c_str());
                 subscribe_image_topic();
                 cv::displayStatusBar("Image Viewer", topics_[current_topic_], 0);
             }
         }
-        catch (cv::Exception &e)
+        catch (const std::exception & e)
         {
-            RCLCPP_ERROR(get_logger(), "CV exception: %s", e.what());
+            log_error("display_image: exception: %s", e.what());
         }
     }
+
+    rclcpp::QoS sub_qos_profile_;
+    rclcpp::TimerBase::SharedPtr timer_;
+    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscription_;
+    rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr image_subscription_compressed_;
+    std::vector<std::string> topics_;
+    int current_topic_;
 };
 
 RCLCPP_COMPONENTS_REGISTER_NODE(FrameViewer)
