@@ -39,6 +39,8 @@ public:
             });
     }
 
+    ~CameraBGS() = default;
+
     CallbackReturn on_configure(const rclcpp_lifecycle::State &)
     {
         log_info("Configuring");
@@ -59,6 +61,7 @@ private:
 
     void reopen_camera()
     {
+        // TODO: Validate individual types
         if ((camera_params_ptr_->source_type != CameraWorkerParams::SourceType::UNKNOWN)
             && camera_worker_ptr_->is_open())
         {
@@ -211,7 +214,8 @@ private:
                 }
             ),
             ParameterLifeCycleNode::ActionParam(
-                rclcpp::Parameter("videos", std::vector<std::string>({""})), 
+                // rclcpp::Parameter("videos", std::vector<std::string>({""})), 
+                rclcpp::Parameter("videos", std::vector<std::string>()), 
                 [this](const rclcpp::Parameter& param) 
                 {
                     camera_params_ptr_->videos = param.as_string_array();

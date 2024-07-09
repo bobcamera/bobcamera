@@ -72,21 +72,28 @@ public:
 
     void init_bgs(const std::string & bgs)
     {
-        ready_ = false;
-        if (bgs == "vibe")
+        try
         {
-            params_.bgs_type = BackgroundSubtractorWorkerParams::BGSType::Vibe;
+            ready_ = false;
+            if (bgs == "vibe")
+            {
+                params_.bgs_type = BackgroundSubtractorWorkerParams::BGSType::Vibe;
+            }
+            else
+            {
+                params_.bgs_type = BackgroundSubtractorWorkerParams::BGSType::WMV;
+            }
+            if (!params_.sensitivity.empty())
+            {
+                bgsPtr = createBGS(params_.bgs_type);
+            }
+            ready_ = true;
+            cv.notify_all();
         }
-        else
+        catch (const std::exception & e)
         {
-            params_.bgs_type = BackgroundSubtractorWorkerParams::BGSType::WMV;
+            node_.log_send_error("init_bgs: Exception: %s", e.what());
         }
-        if (!params_.sensitivity.empty())
-        {
-            bgsPtr = createBGS(params_.bgs_type);
-        }
-        ready_ = true;
-        cv.notify_all();
     }
 
     bool init_sensitivity(const std::string & sensitivity)
@@ -108,24 +115,32 @@ public:
             return false;
         }
 
-        ready_ = false;
-        params_.sensitivity = sensitivity;
+        try
+        {
+            ready_ = false;
+            params_.sensitivity = sensitivity;
 
-        SensitivityConfig & config = params_.sensitivity_collection.configs.at(sensitivity);
+            SensitivityConfig & config = params_.sensitivity_collection.configs.at(sensitivity);
 
-        wmv_params_ = std::make_unique<boblib::bgs::WMVParams>(config.sensitivity.wmv_enableWeight, config.sensitivity.wmv_enableThreshold, config.sensitivity.wmv_threshold, config.sensitivity.wmv_weight1, config.sensitivity.wmv_weight2, config.sensitivity.wmv_weight3);
-        vibe_params_ = std::make_unique<boblib::bgs::VibeParams>(config.sensitivity.vibe_threshold, config.sensitivity.vibe_bgSamples, config.sensitivity.vibe_requiredBGSamples, config.sensitivity.vibe_learningRate);
+            wmv_params_ = std::make_unique<boblib::bgs::WMVParams>(config.sensitivity.wmv_enableWeight, config.sensitivity.wmv_enableThreshold, config.sensitivity.wmv_threshold, config.sensitivity.wmv_weight1, config.sensitivity.wmv_weight2, config.sensitivity.wmv_weight3);
+            vibe_params_ = std::make_unique<boblib::bgs::VibeParams>(config.sensitivity.vibe_threshold, config.sensitivity.vibe_bgSamples, config.sensitivity.vibe_requiredBGSamples, config.sensitivity.vibe_learningRate);
 
-        bgsPtr = createBGS(params_.bgs_type);
+            bgsPtr = createBGS(params_.bgs_type);
 
-        blob_params_ = std::make_unique<boblib::blobs::ConnectedBlobDetectionParams>(config.sensitivity.blob_sizeThreshold, config.sensitivity.blob_areaThreshold, config.sensitivity.blob_minDistance, config.sensitivity.blob_maxBlobs);
-        blob_detector_ptr_ = std::make_unique<boblib::blobs::ConnectedBlobDetection>(*blob_params_);
+            blob_params_ = std::make_unique<boblib::blobs::ConnectedBlobDetectionParams>(config.sensitivity.blob_sizeThreshold, config.sensitivity.blob_areaThreshold, config.sensitivity.blob_minDistance, config.sensitivity.blob_maxBlobs);
+            blob_detector_ptr_ = std::make_unique<boblib::blobs::ConnectedBlobDetection>(*blob_params_);
 
-        median_filter_ = config.sensitivity.median_filter;
-        ready_ = true;
-        cv.notify_all();
+            median_filter_ = config.sensitivity.median_filter;
+            ready_ = true;
+            cv.notify_all();
 
-        return true;
+            return true;
+        }
+        catch (const std::exception & e)
+        {
+            node_.log_send_error("init_sensitivity: Exception: %s", e.what());
+            return false;
+        }
     }
 
     void restart()
@@ -197,12 +212,10 @@ public:
         catch (const std::exception & e)
         {
             node_.log_send_error("bgs_worker: image_callback: exception: %s", e.what());
-            throw;
         }
         catch (...)
         {
             node_.log_send_error("bgs_worker: image_callback: Unknown Exception");
-            throw;
         }
     }
 

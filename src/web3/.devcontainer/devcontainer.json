@@ -1,0 +1,45 @@
+{
+	"name": "Bob Player",
+	"build": {
+		"dockerfile": "Dockerfile",
+		"args": { 
+			"WORKSPACE": "${containerWorkspaceFolder}",            
+			// Update VARIANT to pick a PHP version: 8, 8.1, 8.0, 7, 7.4
+			// Append -bullseye or -buster to pin to an OS version.
+			// Use -bullseye variants on local on arm64/Apple Silicon.
+			"PHP_VERSION": "7.4"
+		}
+	},
+
+    "runArgs": [
+		"--privileged",
+        "--pid=host",
+		"--network=host"		
+    ],	
+
+    // Configure tool-specific properties.
+	"customizations": {
+		// Configure properties specific to VS Code.
+		"vscode": {
+			// Set *default* container specific settings.json values on container create.
+			"settings": { 
+				"php.executablePath": "/usr/local/bin/php"
+			},
+			
+			// Add the IDs of extensions you want installed when the container is created.
+			"extensions": [
+				"DEVSENSE.phptools-vscode",
+				"felixfbecker.php-intellisense"
+			]
+		}
+	},
+
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	"forwardPorts": [8000]
+
+	// Use 'postCreateCommand' to run commands after the container is created.
+	//"postCreateCommand": "composer install"
+
+	// Comment out to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
+	//"remoteUser": "vscode"
+}

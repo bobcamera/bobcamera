@@ -52,6 +52,8 @@ public:
         log_publisher_ = create_publisher<bob_interfaces::msg::LogMessage>("bob/log", qos_profile);
     }
 
+    virtual ~ParameterLifeCycleNode() = default;
+
     static std::string generate_uuid()
     {
         boost::uuids::random_generator uuid_generator;
@@ -155,7 +157,7 @@ protected:
         }
     }
 
-    void update_action_param(const rclcpp::Parameter &_param)
+    void update_action_param(const rclcpp::Parameter &_param) const
     {
         try
         {
@@ -165,14 +167,14 @@ protected:
                 it->second.action(_param);
             }
         }
-        catch (const std::exception& e)
+        catch (const std::exception & e)
         {
-            RCLCPP_ERROR(get_logger(), e.what());
+            log_send_error("update_action_param: param: %s, exception: %s", _param.get_name(), e.what());
         }
     }
 
 private:
-    rcl_interfaces::msg::SetParametersResult param_change_callback_method(const std::vector<rclcpp::Parameter> & parameters)
+    rcl_interfaces::msg::SetParametersResult param_change_callback_method(const std::vector<rclcpp::Parameter> & parameters) const
     {
         rcl_interfaces::msg::SetParametersResult result;
         result.successful = true;

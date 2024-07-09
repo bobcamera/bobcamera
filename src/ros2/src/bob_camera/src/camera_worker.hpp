@@ -70,6 +70,7 @@ public:
         : node_(node)
         , params_(params)
         , user_callback_(user_callback)
+        , is_initialized_(false)
     {
         mask_worker_ptr_ = std::make_unique<MaskWorker>(node_, 
             [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat & mask)
@@ -107,6 +108,8 @@ public:
 
             mask_worker_ptr_->init(params_.mask_timer_seconds, params_.mask_filename);
 
+            is_initialized_ = true;
+ 
             open_camera();
             start_capture();
         }
@@ -130,18 +133,27 @@ public:
         }
     }
 
+    bool is_initialized() const
+    {
+        return is_initialized_;
+    }
+
     bool is_open() const
     {
         return is_open_;
     }
 
-    void open_camera()
+    bool open_camera()
     {
+        if (!is_initialized())
+        {
+            return false;
+        }
         switch (params_.source_type)
         {
             case CameraWorkerParams::SourceType::USB_CAMERA:
             {
-                node_.log_send_info("Camera %d opening", params_.camera_id);
+                node_.log_send_info("Trying to open camera %d", params_.camera_id);
                 video_capture_.open(params_.camera_id);
                 set_camera_resolution();
             }
@@ -150,25 +162,35 @@ public:
             case CameraWorkerParams::SourceType::VIDEO_FILE:
             {
                 const auto & video_path = params_.videos[current_video_idx_];
-                node_.log_send_info("Video '%s' opening", video_path.c_str());
+                node_.log_send_info("Trying to open video '%s'", video_path.c_str());
                 video_capture_.open(video_path);
             }
             break;
 
             case CameraWorkerParams::SourceType::RTSP_STREAM:
             {
-                node_.log_send_info("RTSP Stream '%s' opening", params_.rtsp_uri.c_str());
+                node_.log_send_info("Trying to open RTSP Stream '%s'", params_.rtsp_uri.c_str());
                 video_capture_.open(params_.rtsp_uri);
             }
             break;
 
             default:
                 node_.log_send_error("Unknown SOURCE_TYPE");
-                return;
+                return false;
         }
 
         is_open_ = video_capture_.isOpened();
-        update_capture_info();
+        if (is_open_)
+        {
+            node_.log_send_info("Stream is open.");
+            update_capture_info();
+        }
+        else
+        {
+            node_.log_send_error("Could not open stream.");
+        }
+
+        return is_open_;
     }    
 
 private:
@@ -179,7 +201,7 @@ private:
             fps_ = video_capture_.get(cv::CAP_PROP_FPS);
             cv_camera_width_ = static_cast<int>(video_capture_.get(cv::CAP_PROP_FRAME_WIDTH));
             cv_camera_height_ = static_cast<int>(video_capture_.get(cv::CAP_PROP_FRAME_HEIGHT));
-            node_.log_send_info("Camera capture Info: %dx%d at %.2g FPS", cv_camera_width_, cv_camera_height_, fps_);
+            node_.log_send_info("Stream capture Info: %dx%d at %.2g FPS", cv_camera_width_, cv_camera_height_, fps_);
             loop_rate_ptr_ = std::make_unique<rclcpp::WallRate>(fps_);
 
             create_camera_info_msg();
@@ -196,6 +218,12 @@ private:
 
         while (run_)
         {
+            if (!is_initialized())
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(200));
+                continue;
+            }
+
             try
             {
                 if (!circuit_breaker_ptr_->allow_request()) 
@@ -207,17 +235,36 @@ private:
 
                 if (!video_capture_.read(roscv_image_msg_ptr->get_image()))
                 {
+                    // TODO: Move this out to a function and simplify
                     if (params_.source_type == CameraWorkerParams::SourceType::VIDEO_FILE)
                     {
                         current_video_idx_ = current_video_idx_ >= (params_.videos.size() - 1) ? 0 : current_video_idx_ + 1;
-                        open_camera();
-                        roscv_image_msg_ptr = RosCvImageMsg::create(video_capture_);
+                        if (open_camera())
+                        {
+                            roscv_image_msg_ptr = RosCvImageMsg::create(video_capture_);
+                        }
+                        else
+                        {
+                            circuit_breaker_ptr_->record_failure();
+                        }
+                    }
+                    else if (!video_capture_.isOpened())
+                    {
+                        if (open_camera())
+                        {
+                            roscv_image_msg_ptr = RosCvImageMsg::create(video_capture_);
+                        }
+                        else
+                        {
+                            circuit_breaker_ptr_->record_failure();
+                        }
                     }
                     else
                     {
+                        
                         circuit_breaker_ptr_->record_failure();
-                        continue;
                     }
+                    continue;
                 }
                 circuit_breaker_ptr_->record_success();
                 if (roscv_image_msg_ptr->recreate_if_invalid())
@@ -544,6 +591,7 @@ private:
     int cv_camera_height_;
     bool is_open_;
     bool is_camera_info_auto_;
+    bool is_initialized_;
     std::unique_ptr<ObjectSimulator> object_simulator_ptr_;
 
     bool mask_enabled_;
