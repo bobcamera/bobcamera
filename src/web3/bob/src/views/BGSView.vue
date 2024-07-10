@@ -6,10 +6,11 @@
 
 <script>
 export default {
-  name: 'Annotated View',
+  name: 'BGS View',
   data() {
     return {
       connected: false,
+      message: null,
       ros: null,
       listener: null,
     };
@@ -17,7 +18,7 @@ export default {
   mounted() {
     this.connectRosWebSocket();
   },
-  beforeRouteLeave (to, from, next) {
+  beforeRouteLeave(to, from, next) {
     this.disconnectRosWebSocket();
     next();
   },
@@ -39,14 +40,16 @@ export default {
         // Create a new ROS topic listener
         this.listener = new ROSLIB.Topic({
           ros: this.ros,
-          name: 'bob/frames/annotated/resized/compressed',
+          name: 'bob/frames/foreground_mask/resized/compressed',
           messageType: 'sensor_msgs/msg/CompressedImage',
         });
 
         // Subscribe to the topic
         this.listener.subscribe((message) => {
+          this.message = message.data;
           const imageElement = this.$refs.imageDisplayWindow;
           imageElement.src = "data:image/jpeg;base64," + message.data;
+          //console.log('Message received:', message.data);
         });
       });
 

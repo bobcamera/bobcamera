@@ -3,9 +3,9 @@
     <div class="menu">
       <div v-for="section in menuData" :key="section.title" class="menu-section">
         <div class="section-title">{{ section.title }}</div>
-        <a v-for="item in section.items" :key="item.name" :href="item.link" class="menu-item">
+        <router-link v-for="item in section.items" :key="item.name" :to="item.link" class="menu-item">
           <i :class="['menu-icon', item.icon]"></i> {{ item.name }}
-        </a>
+        </router-link>
       </div>
     </div>
   </aside>
@@ -36,12 +36,12 @@ export default {
   border-width: 1;
 }
 .menu {
-    width: 200px;
+    width: 190px;
   }
   .menu-item {
     display: flex;
     align-items: center;
-    padding: 10px;
+    padding: 5px 10px;
     text-decoration: none;
     color: #007bff;
   }
@@ -52,7 +52,7 @@ export default {
     margin-right: 10px;
   }
   .section-title {
-    padding: 10px;
+    padding: 5px 10px;
     font-weight: bold;
     color: #6c757d;
   }

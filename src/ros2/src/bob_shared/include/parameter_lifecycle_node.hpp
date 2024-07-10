@@ -133,7 +133,6 @@ public:
     template <typename... Args>
     void send_log_message(rclcpp::Logger::Level severity, const std::string & str_format, Args... args) const
     {
-
         if (severity >= get_logger().get_effective_level())
         {
             static uint64_t log_index_ = 0;
@@ -170,6 +169,10 @@ protected:
         catch (const std::exception & e)
         {
             log_send_error("update_action_param: param: %s, exception: %s", _param.get_name(), e.what());
+        }
+        catch (...)
+        {
+            log_send_error("update_action_param: param: %s, unknown exception", _param.get_name());
         }
     }
 

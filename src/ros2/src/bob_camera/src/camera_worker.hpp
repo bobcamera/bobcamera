@@ -99,7 +99,7 @@ public:
             camera_info_msg_.frame_width = 0;
             camera_info_msg_.fps = 0;
 
-            circuit_breaker_ptr_ = std::make_unique<CircuitBreaker>(1000, 200, 10000);
+            circuit_breaker_ptr_ = std::make_unique<CircuitBreaker>(1000, 10, 10000);
 
             if (params_.simulator_enable)
             {
@@ -216,7 +216,7 @@ private:
     {
         std::unique_ptr<RosCvImageMsg> roscv_image_msg_ptr = RosCvImageMsg::create(video_capture_);
 
-        while (run_)
+        while (run_ && rclcpp::ok())
         {
             if (!is_initialized())
             {
@@ -248,20 +248,12 @@ private:
                             circuit_breaker_ptr_->record_failure();
                         }
                     }
-                    else if (!video_capture_.isOpened())
+                    else if (open_camera())
                     {
-                        if (open_camera())
-                        {
-                            roscv_image_msg_ptr = RosCvImageMsg::create(video_capture_);
-                        }
-                        else
-                        {
-                            circuit_breaker_ptr_->record_failure();
-                        }
+                        roscv_image_msg_ptr = RosCvImageMsg::create(video_capture_);
                     }
                     else
                     {
-                        
                         circuit_breaker_ptr_->record_failure();
                     }
                     continue;

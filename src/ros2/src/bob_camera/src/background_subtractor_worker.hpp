@@ -72,9 +72,10 @@ public:
 
     void init_bgs(const std::string & bgs)
     {
+        ready_ = false;
+
         try
         {
-            ready_ = false;
             if (bgs == "vibe")
             {
                 params_.bgs_type = BackgroundSubtractorWorkerParams::BGSType::Vibe;
@@ -87,36 +88,49 @@ public:
             {
                 bgsPtr = createBGS(params_.bgs_type);
             }
-            ready_ = true;
-            cv.notify_all();
         }
         catch (const std::exception & e)
         {
             node_.log_send_error("init_bgs: Exception: %s", e.what());
         }
+        catch (...)
+        {
+            node_.log_send_error("init_bgs: Unknown exception");
+        }
+
+        ready_ = true;
+        cv.notify_all();
     }
 
-    bool init_sensitivity(const std::string & sensitivity)
+    void restart()
     {
-        if (sensitivity.empty() || (sensitivity.length() == 0))
-        {
-            node_.log_debug("Ignoring sensitivity change request, EMPTY VALUE");
-            return false;
-        }
-        if (params_.sensitivity == sensitivity)
-        {
-            node_.log_info("Ignoring sensitivity change request, NO CHANGE");
-            return false;            
-        }
+        bgsPtr->restart();
+    }
 
-        if (!params_.sensitivity_collection.configs.contains(sensitivity))
-        {
-            node_.log_error("Unknown config specified: %s", sensitivity.c_str());
-            return false;
-        }
-
+    void init_sensitivity(const std::string & sensitivity)
+    {
+        std::unique_lock<std::mutex> lock(mutex);
+        cv.wait(lock, [this] { return !processing_; });
+        
         try
         {
+            if (sensitivity.empty() || (sensitivity.length() == 0))
+            {
+                node_.log_debug("Ignoring sensitivity change request, EMPTY VALUE");
+                return;
+            }
+            if (params_.sensitivity == sensitivity)
+            {
+                node_.log_info("Ignoring sensitivity change request, NO CHANGE");
+                return;
+            }
+
+            if (!params_.sensitivity_collection.configs.contains(sensitivity))
+            {
+                node_.log_error("Unknown config specified: %s", sensitivity.c_str());
+                return;
+            }
+
             ready_ = false;
             params_.sensitivity = sensitivity;
 
@@ -131,27 +145,25 @@ public:
             blob_detector_ptr_ = std::make_unique<boblib::blobs::ConnectedBlobDetection>(*blob_params_);
 
             median_filter_ = config.sensitivity.median_filter;
-            ready_ = true;
-            cv.notify_all();
-
-            return true;
         }
         catch (const std::exception & e)
         {
             node_.log_send_error("init_sensitivity: Exception: %s", e.what());
-            return false;
         }
-    }
-
-    void restart()
-    {
-        bgsPtr->restart();
+        catch (...)
+        {
+            node_.log_send_error("init_sensitivity: Unknown exception");
+        }
+        ready_ = true;
+        cv.notify_all();
     }
 
     void image_callback(const std_msgs::msg::Header & header, const cv::Mat & img)
     {
         std::unique_lock lock(mutex);
         cv.wait(lock, [this] { return ready_; });
+
+        processing_ = true;
 
         try
         {
@@ -217,6 +229,9 @@ public:
         {
             node_.log_send_error("bgs_worker: image_callback: Unknown Exception");
         }
+
+        processing_ = false;
+        cv.notify_all();
     }
 
 private:
@@ -312,9 +327,10 @@ private:
 
     cv::Mat detection_mask_;
 
-    bool ready_;
-    std::mutex mutex;
     std::condition_variable cv;
+    std::mutex mutex;
+    bool ready_ = false;
+    bool processing_ = false;
 };
 
 #endif

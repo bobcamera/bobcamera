@@ -42,10 +42,9 @@ export default {
         {
           title: "STREAMING",
           items: [
-            { name: "Info Panel", link: "#", icon: "bi-camera" },
+            { name: "Info Panel", link: "/", icon: "bi-camera" },
             { name: "Wide View", link: "#", icon: "bi-camera" },
-            { name: "Foreground Mask", link: "#", icon: "bi-camera" },
-            { name: "Log Wide View", link: "#", icon: "bi-camera" }
+            { name: "Foreground Mask", link: "/bgs", icon: "bi-camera" }
           ]
         },
         {
@@ -115,6 +114,8 @@ export default {
 
 .sidebar {
   width: 200px;
+  min-width: 200px;
+  overflow: hidden;
 }
 
 .features {
