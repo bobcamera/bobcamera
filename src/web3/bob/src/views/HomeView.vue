@@ -67,6 +67,7 @@ export default {
       }
       if (this.ros) {
         this.ros.close();
+        this.ros = null;
       }
     },
   },
