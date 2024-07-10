@@ -196,19 +196,19 @@ private:
                 case DayNightEnum::Day:
                 {
                     std::tie(estimation, distribution) = day_cloud_estimator_worker_ptr_->estimate(image_);
-                    log_info("Day time cloud estimation --> %f", estimation);
+                    log_debug("Day time cloud estimation --> %f", estimation);
                 }
                 break;
 
                 case DayNightEnum::Night:
                 {
                     std::tie(estimation, distribution) = night_cloud_estimator_worker_ptr_->estimate(image_);
-                    log_info("Night time cloud estimation --> %f", estimation);
+                    log_debug("Night time cloud estimation --> %f", estimation);
                 }
                 break;
 
                 default:
-                    log_info("Unknown Day/Night classifier, ignore for now");
+                    log_debug("Unknown Day/Night classifier, ignore for now");
                     return;
             }
 

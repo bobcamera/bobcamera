@@ -73,59 +73,33 @@ public:
     void init_bgs(const std::string & bgs)
     {
         ready_ = false;
-        if (bgs == "vibe")
+
+        try
         {
-            params_.bgs_type = BackgroundSubtractorWorkerParams::BGSType::Vibe;
+            if (bgs == "vibe")
+            {
+                params_.bgs_type = BackgroundSubtractorWorkerParams::BGSType::Vibe;
+            }
+            else
+            {
+                params_.bgs_type = BackgroundSubtractorWorkerParams::BGSType::WMV;
+            }
+            if (!params_.sensitivity.empty())
+            {
+                bgsPtr = createBGS(params_.bgs_type);
+            }
         }
-        else
+        catch (const std::exception & e)
         {
-            params_.bgs_type = BackgroundSubtractorWorkerParams::BGSType::WMV;
+            node_.log_send_error("init_bgs: Exception: %s", e.what());
         }
-        if (!params_.sensitivity.empty())
+        catch (...)
         {
-            bgsPtr = createBGS(params_.bgs_type);
+            node_.log_send_error("init_bgs: Unknown exception");
         }
+
         ready_ = true;
         cv.notify_all();
-    }
-
-    bool init_sensitivity(const std::string & sensitivity)
-    {
-        if (sensitivity.empty() || (sensitivity.length() == 0))
-        {
-            node_.log_debug("Ignoring sensitivity change request, EMPTY VALUE");
-            return false;
-        }
-        if (params_.sensitivity == sensitivity)
-        {
-            node_.log_info("Ignoring sensitivity change request, NO CHANGE");
-            return false;            
-        }
-
-        if (!params_.sensitivity_collection.configs.contains(sensitivity))
-        {
-            node_.log_error("Unknown config specified: %s", sensitivity.c_str());
-            return false;
-        }
-
-        ready_ = false;
-        params_.sensitivity = sensitivity;
-
-        SensitivityConfig & config = params_.sensitivity_collection.configs.at(sensitivity);
-
-        wmv_params_ = std::make_unique<boblib::bgs::WMVParams>(config.sensitivity.wmv_enableWeight, config.sensitivity.wmv_enableThreshold, config.sensitivity.wmv_threshold, config.sensitivity.wmv_weight1, config.sensitivity.wmv_weight2, config.sensitivity.wmv_weight3);
-        vibe_params_ = std::make_unique<boblib::bgs::VibeParams>(config.sensitivity.vibe_threshold, config.sensitivity.vibe_bgSamples, config.sensitivity.vibe_requiredBGSamples, config.sensitivity.vibe_learningRate);
-
-        bgsPtr = createBGS(params_.bgs_type);
-
-        blob_params_ = std::make_unique<boblib::blobs::ConnectedBlobDetectionParams>(config.sensitivity.blob_sizeThreshold, config.sensitivity.blob_areaThreshold, config.sensitivity.blob_minDistance, config.sensitivity.blob_maxBlobs);
-        blob_detector_ptr_ = std::make_unique<boblib::blobs::ConnectedBlobDetection>(*blob_params_);
-
-        median_filter_ = config.sensitivity.median_filter;
-        ready_ = true;
-        cv.notify_all();
-
-        return true;
     }
 
     void restart()
@@ -133,10 +107,63 @@ public:
         bgsPtr->restart();
     }
 
+    void init_sensitivity(const std::string & sensitivity)
+    {
+        std::unique_lock<std::mutex> lock(mutex);
+        cv.wait(lock, [this] { return !processing_; });
+        
+        try
+        {
+            if (sensitivity.empty() || (sensitivity.length() == 0))
+            {
+                node_.log_debug("Ignoring sensitivity change request, EMPTY VALUE");
+                return;
+            }
+            if (params_.sensitivity == sensitivity)
+            {
+                node_.log_info("Ignoring sensitivity change request, NO CHANGE");
+                return;
+            }
+
+            if (!params_.sensitivity_collection.configs.contains(sensitivity))
+            {
+                node_.log_error("Unknown config specified: %s", sensitivity.c_str());
+                return;
+            }
+
+            ready_ = false;
+            params_.sensitivity = sensitivity;
+
+            SensitivityConfig & config = params_.sensitivity_collection.configs.at(sensitivity);
+
+            wmv_params_ = std::make_unique<boblib::bgs::WMVParams>(config.sensitivity.wmv_enableWeight, config.sensitivity.wmv_enableThreshold, config.sensitivity.wmv_threshold, config.sensitivity.wmv_weight1, config.sensitivity.wmv_weight2, config.sensitivity.wmv_weight3);
+            vibe_params_ = std::make_unique<boblib::bgs::VibeParams>(config.sensitivity.vibe_threshold, config.sensitivity.vibe_bgSamples, config.sensitivity.vibe_requiredBGSamples, config.sensitivity.vibe_learningRate);
+
+            bgsPtr = createBGS(params_.bgs_type);
+
+            blob_params_ = std::make_unique<boblib::blobs::ConnectedBlobDetectionParams>(config.sensitivity.blob_sizeThreshold, config.sensitivity.blob_areaThreshold, config.sensitivity.blob_minDistance, config.sensitivity.blob_maxBlobs);
+            blob_detector_ptr_ = std::make_unique<boblib::blobs::ConnectedBlobDetection>(*blob_params_);
+
+            median_filter_ = config.sensitivity.median_filter;
+        }
+        catch (const std::exception & e)
+        {
+            node_.log_send_error("init_sensitivity: Exception: %s", e.what());
+        }
+        catch (...)
+        {
+            node_.log_send_error("init_sensitivity: Unknown exception");
+        }
+        ready_ = true;
+        cv.notify_all();
+    }
+
     void image_callback(const std_msgs::msg::Header & header, const cv::Mat & img)
     {
         std::unique_lock lock(mutex);
         cv.wait(lock, [this] { return ready_; });
+
+        processing_ = true;
 
         try
         {
@@ -197,13 +224,14 @@ public:
         catch (const std::exception & e)
         {
             node_.log_send_error("bgs_worker: image_callback: exception: %s", e.what());
-            throw;
         }
         catch (...)
         {
             node_.log_send_error("bgs_worker: image_callback: Unknown Exception");
-            throw;
         }
+
+        processing_ = false;
+        cv.notify_all();
     }
 
 private:
@@ -299,9 +327,10 @@ private:
 
     cv::Mat detection_mask_;
 
-    bool ready_;
-    std::mutex mutex;
     std::condition_variable cv;
+    std::mutex mutex;
+    bool ready_ = false;
+    bool processing_ = false;
 };
 
 #endif

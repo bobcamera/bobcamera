@@ -26,8 +26,8 @@ public:
 
     void set_mask(const cv::Mat & mask)
     {
+        mask_enabled_ = !mask.empty();
         detection_mask_ = mask;
-        mask_enabled_ = !detection_mask_.empty();
     }
 
 protected:
@@ -184,7 +184,11 @@ public:
 
     std::pair<double, bool> estimate(const cv::Mat & frame) override 
     {
-        if (mask_enabled_ && (detection_mask_.size() != frame.size()))
+        if (detection_mask_.empty())
+        {
+            detection_mask_ = cv::Mat::ones(frame.size(), CV_8U);
+        }
+        if (detection_mask_.size() != frame.size())
         {
             cv::resize(detection_mask_, detection_mask_, frame.size());
         }
@@ -274,7 +278,11 @@ public:
 
     std::pair<double, bool> estimate(const cv::Mat& frame) override 
     {
-        if (mask_enabled_ && (detection_mask_.size() != frame.size()))
+        if (detection_mask_.empty())
+        {
+            detection_mask_ = cv::Mat::ones(frame.size(), CV_8U);
+        }
+        if (detection_mask_.size() != frame.size())
         {
             cv::resize(detection_mask_, detection_mask_, frame.size());
         }
