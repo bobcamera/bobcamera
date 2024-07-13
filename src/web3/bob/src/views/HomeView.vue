@@ -1,75 +1,76 @@
 <template>
-  <main>
-    <img ref="imageDisplayWindow" id="imageDisplayWindow" style="width: 100%"/>
+  <main id="main" class="default-theme">
+    <splitpanes vertical class="default-theme">
+      <pane size="80" class="default-theme">
+        <div style="height: 100%;">
+            <img ref="imageDisplayWindow" id="imageDisplayWindow" style="width: 100%"/>
+        </div>
+      </pane>
+      <pane size="20" class="default-theme">
+        <Features class="default-theme" />
+      </pane>
+    </splitpanes>
   </main>
 </template>
 
 <script>
+import config from '@/config';
+import Features from '../components/Features.vue';
+import { Splitpanes, Pane } from 'splitpanes'
+import 'splitpanes/dist/splitpanes.css'
+
 export default {
   name: 'Annotated View',
   data() {
     return {
-      connected: false,
-      ros: null,
-      listener: null,
+      bob: null,
     };
   },
-  mounted() {
-    this.connectRosWebSocket();
+  components: {
+    Features,
+    Splitpanes,
+    Pane
   },
-  beforeRouteLeave (to, from, next) {
-    this.disconnectRosWebSocket();
+  mounted() {
+    this.bob = new BobRos(config.websocketsUrl);
+    this.bob.connect(true);
+    this.bob.subscribeTopic('bob/frames/annotated/resized/compressed', 'sensor_msgs/msg/CompressedImage',
+        (message) => {
+          try {
+            const imageElement = this.$refs.imageDisplayWindow;
+            imageElement.src = "data:image/jpeg;base64," + message.data;
+          } catch (error) {
+            // Ignore, lost connection
+        }
+        });
+  },
+  beforeRouteLeave(to, from, next) {
+    this.bob.disconnect();
     next();
   },
   beforeDestroy() {
-    this.disconnectRosWebSocket();
+    this.bob.disconnect();
   },
   methods: {
-    connectRosWebSocket() {
-      // Create a new ROS connection
-      this.ros = new ROSLIB.Ros({
-        url: 'ws://localhost:9090',
-      });
-
-      // Handle connection open
-      this.ros.on('connection', () => {
-        this.connected = true;
-        console.log('ROS connection opened');
-
-        // Create a new ROS topic listener
-        this.listener = new ROSLIB.Topic({
-          ros: this.ros,
-          name: 'bob/frames/annotated/resized/compressed',
-          messageType: 'sensor_msgs/msg/CompressedImage',
-        });
-
-        // Subscribe to the topic
-        this.listener.subscribe((message) => {
-          const imageElement = this.$refs.imageDisplayWindow;
-          imageElement.src = "data:image/jpeg;base64," + message.data;
-        });
-      });
-
-      // Handle connection close
-      this.ros.on('close', () => {
-        this.connected = false;
-        console.log('ROS connection closed');
-      });
-
-      // Handle errors
-      this.ros.on('error', (error) => {
-        console.error('ROS connection error:', error);
-      });
-    },
-    disconnectRosWebSocket() {
-      if (this.listener) {
-        this.listener.unsubscribe();
-      }
-      if (this.ros) {
-        this.ros.close();
-        this.ros = null;
-      }
-    },
   },
 };
 </script>
+
+<style scoped>
+#main {
+    height: 100%;
+}
+.splitpanes__pane {
+  display: flex;
+  justify-content: center;
+  align-items: top;
+  box-shadow: 0 0 3px rgba(0, 0, 0, .2) inset;
+}
+
+.features {
+  flex: 1;
+  overflow-y: auto;
+  height: auto;
+  width: 200px;
+}
+</style>

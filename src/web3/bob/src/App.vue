@@ -5,7 +5,6 @@
       <pane size="80" class="default-theme">
         <Sidebar class="default-theme" :menuData="menuData" />
         <MainContent class="default-theme" />
-        <Features class="default-theme" />
       </pane>
       <pane size="20" class="default-theme">
         <Footer class="default-theme" />
@@ -20,7 +19,6 @@ import { RouterLink, RouterView } from 'vue-router'
 import Header from './components/Header.vue';
 import Sidebar from './components/Sidebar.vue';
 import MainContent from './components/MainContent.vue';
-import Features from './components/Features.vue';
 import Footer from './components/Footer.vue';
 import { Splitpanes, Pane } from 'splitpanes'
 import 'splitpanes/dist/splitpanes.css'
@@ -31,7 +29,6 @@ export default {
     Header,
     Sidebar,
     MainContent,
-    Features,
     Footer,
     Splitpanes,
     Pane
@@ -42,37 +39,36 @@ export default {
         {
           title: "STREAMING",
           items: [
-            { name: "Info Panel", link: "/", icon: "bi-camera" },
-            { name: "Wide View", link: "#", icon: "bi-camera" },
-            { name: "Foreground Mask", link: "/bgs", icon: "bi-camera" }
+            { name: "Info Panel", link: "/", external: false, icon: "bi-camera" },
+            { name: "Foreground Mask", link: "/bgs", external: false, icon: "bi-camera" }
           ]
         },
         {
           title: "MASK CONTROL",
           items: [
-            { name: "Privacy Mask", link: "#", icon: "bi-mask" },
-            { name: "Detection Mask", link: "#", icon: "bi-mask" }
+            { name: "Privacy Mask", link: "#", external: false, icon: "bi-mask" },
+            { name: "Detection Mask", link: "#", external: false, icon: "bi-mask" }
           ]
         },
         {
           title: "RECORDINGS",
           items: [
-            { name: "Recording Navigation", link: "#", icon: "bi-camera-video" }
+            { name: "Recording Navigation", link: "#", external: false, icon: "bi-camera-video" }
           ]
         },
         {
           title: "SUPPORT",
           items: [
-            { name: "Youtube", link: "#", icon: "bi-youtube" },
-            { name: "Facebook", link: "#", icon: "bi-facebook" }
+            { name: "Youtube", link: "https://www.youtube.com/@BobUniversalObjectTracker", external: true, icon: "bi-youtube" },
+            { name: "Facebook", link: "https://www.facebook.com/groups/7533264616717176", external: true, icon: "bi-facebook" }
           ]
         },
         {
           title: "GITHUB",
           items: [
-            { name: "Code", link: "#", icon: "bi-github" },
-            { name: "Report Bug", link: "#", icon: "bi-github" },
-            { name: "Request Feature", link: "#", icon: "bi-github" }
+            { name: "Code", link: "https://github.com/bobcamera/bobcamera", external: true, icon: "bi-github" },
+            { name: "Report Bug", link: "https://github.com/bobcamera/bobcamera/issues/new/choose", external: true, icon: "bi-github" },
+            { name: "Request Feature", link: "https://github.com/bobcamera/bobcamera/issues/new/choose", external: true, icon: "bi-github" }
           ]
         }
       ]
@@ -116,10 +112,6 @@ export default {
   width: 200px;
   min-width: 200px;
   overflow: hidden;
-}
-
-.features {
-  width: 200px;
 }
 
 .main-content {
