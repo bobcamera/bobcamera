@@ -2,9 +2,9 @@
 	"name": "Bob Vue",
 	"build": {
 		"dockerfile": "Dockerfile",
-		"args": { 
-			"WORKSPACE": "${containerWorkspaceFolder}",            
-		}
+		// "args": { 
+		// 	"WORKSPACE": "${containerWorkspaceFolder}",            
+		// }
 	},
 
     "runArgs": [
