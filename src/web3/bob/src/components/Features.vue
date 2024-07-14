@@ -1,5 +1,5 @@
 <template>
-  <aside class="features">
+  <aside>
     <ul>
       <li v-for="feature in features" :key="feature">{{ feature }}</li>
     </ul>
@@ -18,18 +18,3 @@ export default {
   },
 };
 </script>
-
-<style>
-.features {
-  background-color: #eaeaea;
-  padding: 20px;
-  overflow-y: auto;
-}
-.features ul {
-  list-style: none;
-  padding: 0;
-}
-.features li {
-  margin: 10px 0;
-}
-</style>

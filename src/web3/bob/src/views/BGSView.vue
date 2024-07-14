@@ -1,5 +1,5 @@
 <template>
-  <main>
+  <main class="main-content">
     <img ref="imageDisplayWindow" id="imageDisplayWindow" style="width: 100%"/>
   </main>
 </template>

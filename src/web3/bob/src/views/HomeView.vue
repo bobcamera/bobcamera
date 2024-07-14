@@ -1,23 +1,23 @@
 <template>
-  <main id="main" class="default-theme">
-    <splitpanes vertical class="default-theme">
-      <pane size="80" class="default-theme">
-        <div style="height: 100%;">
-            <img ref="imageDisplayWindow" id="imageDisplayWindow" style="width: 100%"/>
+  <main class="main-content">
+    <Splitter :gutterSize="8">
+      <SplitterPanel class="flex items-center justify-center" :size="80">
+        <div class="imgDisplayDiv">
+            <img ref="imageDisplayWindow" id="imageDisplayWindow" class="imgDisplay" />
         </div>
-      </pane>
-      <pane size="20" class="default-theme">
-        <Features class="default-theme" />
-      </pane>
-    </splitpanes>
+      </SplitterPanel>
+      <SplitterPanel class="flex items-center justify-center features" :size="20">
+        <Features class="features" />
+      </SplitterPanel>
+    </Splitter>
   </main>
 </template>
 
 <script>
 import config from '@/config';
 import Features from '../components/Features.vue';
-import { Splitpanes, Pane } from 'splitpanes'
-import 'splitpanes/dist/splitpanes.css'
+import Splitter from 'primevue/splitter';
+import SplitterPanel from 'primevue/splitterpanel';
 
 export default {
   name: 'Annotated View',
@@ -28,8 +28,8 @@ export default {
   },
   components: {
     Features,
-    Splitpanes,
-    Pane
+    Splitter,
+    SplitterPanel
   },
   mounted() {
     this.bob = new BobRos(config.websocketsUrl);
@@ -41,7 +41,7 @@ export default {
             imageElement.src = "data:image/jpeg;base64," + message.data;
           } catch (error) {
             // Ignore, lost connection
-        }
+          }
         });
   },
   beforeRouteLeave(to, from, next) {
@@ -55,22 +55,3 @@ export default {
   },
 };
 </script>
-
-<style scoped>
-#main {
-    height: 100%;
-}
-.splitpanes__pane {
-  display: flex;
-  justify-content: center;
-  align-items: top;
-  box-shadow: 0 0 3px rgba(0, 0, 0, .2) inset;
-}
-
-.features {
-  flex: 1;
-  overflow-y: auto;
-  height: auto;
-  width: 200px;
-}
-</style>

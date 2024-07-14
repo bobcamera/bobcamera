@@ -1,15 +1,15 @@
 <template>
-  <div id="app" class="default-theme">
-    <Header class="default-theme" />
-    <splitpanes horizontal class="default-theme">
-      <pane size="80" class="default-theme">
-        <Sidebar class="default-theme" :menuData="menuData" />
-        <MainContent class="default-theme" />
-      </pane>
-      <pane size="20" class="default-theme">
-        <Footer class="default-theme" />
-      </pane>
-    </splitpanes>
+  <div id="bob-app" class="bob-app">
+    <Header class="header" />
+    <Splitter layout="vertical" :gutterSize="8">
+      <SplitterPanel class="flex items-center justify-center" :size="85">
+        <Sidebar :menuData="menuData" class="sidebar" />
+        <MainContent class="main-content" />
+      </SplitterPanel>
+      <SplitterPanel class="flex items-center justify-center" :size="15">
+        <Footer class="footer" />
+      </SplitterPanel>
+    </Splitter>
   </div>
 </template>
 
@@ -20,8 +20,8 @@ import Header from './components/Header.vue';
 import Sidebar from './components/Sidebar.vue';
 import MainContent from './components/MainContent.vue';
 import Footer from './components/Footer.vue';
-import { Splitpanes, Pane } from 'splitpanes'
-import 'splitpanes/dist/splitpanes.css'
+import Splitter from 'primevue/splitter';
+import SplitterPanel from 'primevue/splitterpanel';
 
 export default {
   name: 'App',
@@ -30,8 +30,8 @@ export default {
     Sidebar,
     MainContent,
     Footer,
-    Splitpanes,
-    Pane
+    Splitter,
+    SplitterPanel
   },
   data() {
     return {
@@ -77,45 +77,3 @@ export default {
 }
 </script>
 
-<style scoped>
-#app {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  width: 100vw;
-  margin: 0;
-  overflow: hidden;
-}
-
-.splitpanes__pane {
-  display: flex;
-  justify-content: center;
-  align-items: top;
-  box-shadow: 0 0 3px rgba(0, 0, 0, .2) inset;
-}
-
-.header {
-  flex-shrink: 0;
-}
-
-.footer {
-  width: 100%;
-  height: 100%; /* Fixed height for the footer */
-}
-
-.sidebar, .main-content, .features {
-  flex: 1;
-  overflow-y: auto;
-}
-
-.sidebar {
-  width: 200px;
-  min-width: 200px;
-  overflow: hidden;
-}
-
-.main-content {
-  flex: 4;
-  width: 100%;
-}
-</style>
