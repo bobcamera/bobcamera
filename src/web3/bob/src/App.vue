@@ -1,15 +1,12 @@
 <template>
   <div id="bob-app" class="bob-app">
-    <Header class="header" />
-    <Splitter layout="vertical" :gutterSize="8">
-      <SplitterPanel class="flex items-center justify-center" :size="85">
-        <Sidebar :menuData="menuData" class="sidebar" />
+      <Header />
+      <div class="p-splitterpanel">
+        <!-- <Sidebar :menuData="menuData" v-model:visible="menuVisible" /> -->
+        <!-- <Button icon="pi pi-arrow-right" @click="menuVisible = true" style="margin: 10px; background-color: var(--p-content-hover-background);" /> -->
         <MainContent class="main-content" />
-      </SplitterPanel>
-      <SplitterPanel class="flex items-center justify-center" :size="15">
-        <Footer class="footer" />
-      </SplitterPanel>
-    </Splitter>
+      </div>
+      <Footer class="footer" />
   </div>
 </template>
 
@@ -20,8 +17,6 @@ import Header from './components/Header.vue';
 import Sidebar from './components/Sidebar.vue';
 import MainContent from './components/MainContent.vue';
 import Footer from './components/Footer.vue';
-import Splitter from 'primevue/splitter';
-import SplitterPanel from 'primevue/splitterpanel';
 
 export default {
   name: 'App',
@@ -30,11 +25,10 @@ export default {
     Sidebar,
     MainContent,
     Footer,
-    Splitter,
-    SplitterPanel
   },
   data() {
     return {
+      menuVisible: false,
       menuData: [
         {
           title: "STREAMING",

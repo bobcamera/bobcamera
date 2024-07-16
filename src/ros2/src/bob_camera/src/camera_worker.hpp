@@ -90,7 +90,7 @@ public:
         {
             current_video_idx_ = 0;
             run_ = false;
-            fps_ = 25.0;
+            fps_ = UNKNOWN_DEVICE_FPS;
             mask_enabled_ = false;
             is_open_ = false;
             is_camera_info_auto_ = false;
@@ -99,7 +99,7 @@ public:
             camera_info_msg_.frame_width = 0;
             camera_info_msg_.fps = 0;
 
-            circuit_breaker_ptr_ = std::make_unique<CircuitBreaker>(1000, 10, 10000);
+            circuit_breaker_ptr_ = std::make_unique<CircuitBreaker>(CIRCUIT_BREAKER_MAX_RETRIES, CIRCUIT_BREAKER_INITIAL_TIMEOUT, CIRCUIT_BREAKER_MAX_TIMEOUT);
 
             if (params_.simulator_enable)
             {
@@ -565,6 +565,10 @@ private:
     }
 
     static constexpr double UNKNOWN_DEVICE_FPS = 30.0;
+    static constexpr int CIRCUIT_BREAKER_MAX_RETRIES = 10;
+    static constexpr int CIRCUIT_BREAKER_INITIAL_TIMEOUT = 10;
+    static constexpr int CIRCUIT_BREAKER_MAX_TIMEOUT = 10;
+
     ParameterLifeCycleNode & node_;
     CameraWorkerParams & params_;
 
@@ -574,9 +578,12 @@ private:
     
     cv::VideoCapture video_capture_;
     bob_camera::msg::CameraInfo camera_info_msg_;
-    std::jthread capture_thread_;
-    uint32_t current_video_idx_;
+
     bool run_;
+    std::jthread capture_thread_;
+
+    uint32_t current_video_idx_;
+    
     std::unique_ptr<rclcpp::WallRate> loop_rate_ptr_;
     float fps_;
     int cv_camera_width_;

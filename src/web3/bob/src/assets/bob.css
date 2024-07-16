@@ -91,12 +91,12 @@ body {
 .sidebar {
   flex: 1;
   overflow-y: auto;
-  width: 220px;
-  min-width: 220px;
-  max-width: 250px;
+  /* width: 280px;
+  min-width: 280px;
+  max-width: 280px; */
   overflow: hidden;
   background-color: var(--p-content-hover-background);
-  padding: 20px;
+  padding: 10px;
   overflow-y: auto;
   border-color: rgb(222, 226, 230);
   border-width: 1;  
@@ -129,7 +129,13 @@ body {
 }
 
 .main-content {
-  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: top;
+  box-shadow: 0 0 3px var(--p-content-borderColor) inset;
+  background-color: var(--p-content-background);
+  height: 100%;
+
   overflow-y: auto;
   flex: 4;
   width: 100%;

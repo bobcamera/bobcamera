@@ -1,12 +1,12 @@
 <template>
   <div>
-      <Button label="Toggle Color Scheme" @click="toggleColorScheme()" />
+      <button label="Toggle Color Scheme" @click="toggleColorScheme()" />
   </div>
 </template>
   
 <script setup>
   import { ref } from 'vue';
-  import Button from 'primevue/button';
+  // import Button from 'primevue/button';
 
   const toggleColorScheme = () => {
     const element = document.querySelector('html');

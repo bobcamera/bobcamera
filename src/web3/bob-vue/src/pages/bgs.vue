@@ -1,15 +1,17 @@
 <template>
-  <main class="main-content">
-    <div class="imgDisplayDiv">
-      <img ref="imageDisplayWindow" id="imageDisplayWindow" class="imgDisplay" />
+  <div>
+    <div>
+      <img ref="imageDisplayWindow" id="imageDisplayWindow" class="imgDisplay" style="max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;" />
     </div>
-    <Features class="features" />
-  </main>
+    <!-- <Features class="features" /> -->
+  </div>
 </template>
 
 <script>
 import config from '@/config';
-import Features from '../components/Features.vue';
+// import Features from '../components/Features.vue';
 
 export default {
   name: 'Annotated View',
@@ -18,13 +20,10 @@ export default {
       bob: null,
     };
   },
-  components: {
-    Features,
-  },
   mounted() {
     this.bob = new BobRos(config.websocketsUrl);
     this.bob.connect(true);
-    this.bob.subscribeTopic('bob/frames/annotated/resized/compressed', 'sensor_msgs/msg/CompressedImage',
+    this.bob.subscribeTopic('bob/frames/foreground_mask/resized/compressed', 'sensor_msgs/msg/CompressedImage',
         (message) => {
           try {
             const imageElement = this.$refs.imageDisplayWindow;
@@ -45,3 +44,4 @@ export default {
   },
 };
 </script>
+
