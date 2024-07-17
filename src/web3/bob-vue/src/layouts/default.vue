@@ -18,7 +18,7 @@ export default {
         {
           title: "STREAMING",
           items: [
-            { name: "Info Panel", link: "/", external: false, icon: "mdi-video" },
+            { name: "Tracking Feed", link: "/", external: false, icon: "mdi-video" },
             { name: "Foreground Mask", link: "/bgs", external: false, icon: "mdi-video-image" }
           ]
         },

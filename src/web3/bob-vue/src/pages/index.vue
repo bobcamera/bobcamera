@@ -17,14 +17,16 @@
               <v-col>
                 <v-row align="center" no-gutters>
                   <v-icon class="mr-2">mdi-camera</v-icon>
+                  {{ cameraFps.toFixed(2) }} fps
                   <v-spacer></v-spacer>
-                  <span class="detail">{{ cameraFps }} fps ({{ frameSize.width }}x{{ frameSize.height }})</span>
+                  <span class="detail">{{ frameSize.width }}x{{ frameSize.height }}</span>
                 </v-row>
                 <v-divider class="my-3"></v-divider>
                 <v-row align="center" no-gutters>
                   <v-icon class="mr-2">mdi-monitor</v-icon>
+                  {{ fps.toFixed(2) }} fps
                   <v-spacer></v-spacer>
-                  <span class="detail">{{ fps.toFixed(2) }} fps ({{ compressedSize.width }}x{{ compressedSize.height }})</span>
+                  <span class="detail">{{ compressedSize.width }}x{{ compressedSize.height }}</span>
                 </v-row>
               </v-col>
             </v-row>
