@@ -129,7 +129,7 @@ private:
             return;
         }
 
-        float adjust = (float)resize_height_ / (float)image_height;
+        const double adjust = (double)resize_height_ / (double)image_height;
 
         bob_interfaces::msg::Tracking tracking_msg_resized(tracking_msg);
         for (auto & detect : tracking_msg_resized.detections)

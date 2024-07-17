@@ -23,7 +23,7 @@ export default {
   mounted() {
     this.bob = new BobRos(config.websocketsUrl);
     this.bob.connect(true);
-    this.bob.subscribeTopic('bob/frames/foreground_mask/resized/compressed', 'sensor_msgs/msg/CompressedImage',
+    this.bob.subscribeTopic(config.bgsTopic.topic, config.bgsTopic.type,
         (message) => {
           try {
             const imageElement = this.$refs.imageDisplayWindow;
