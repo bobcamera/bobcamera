@@ -46,8 +46,7 @@ export default {
           title: "GITHUB",
           items: [
             { name: "Code", link: "https://github.com/bobcamera/bobcamera", external: true, icon: "mdi-github" },
-            { name: "Report Bug", link: "https://github.com/bobcamera/bobcamera/issues/new/choose", external: true, icon: "mdi-github" },
-            { name: "Request Feature", link: "https://github.com/bobcamera/bobcamera/issues/new/choose", external: true, icon: "mdi-github" }
+            { name: "Report Bug/Feature", link: "https://github.com/bobcamera/bobcamera/issues/new/choose", external: true, icon: "mdi-github" },
           ]
         },
         {
