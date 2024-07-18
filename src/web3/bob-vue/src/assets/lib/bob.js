@@ -1,12 +1,15 @@
 class BobRos {
     constructor(urlBob) {
         this.url = urlBob;
-        this.ros = new ROSLIB.Ros();
+        this.ros = null;
         this.hasListeners = false;
         this.subscribedTopics = [];
     };
 
     connect(retry=false) {
+        if (!this.ros) {
+            this.ros = new ROSLIB.Ros();
+        }
         if (this.ros.isConnected) {
             return;
         }
@@ -18,15 +21,19 @@ class BobRos {
 
             this.ros.on('error', (error) => {
                 console.log('Error connecting to websocket server:', error);
-                this.ros.isConnected = false;
+                if (this.ros) {
+                    this.ros.isConnected = false;
+                }
             });
 
             this.ros.on('close', () => {
                 console.log('Connection to websocket server closed.');
-                this.ros.isConnected = false;
-                if (retry) {
-                    console.log('Connection lost, attempting to reconnect...');
-                    setTimeout(() => this.connect(retry), 1000);
+                if (this.ros) {
+                    this.ros.isConnected = false;
+                    if (retry) {
+                        console.log('Connection lost, attempting to reconnect...');
+                        setTimeout(() => this.connect(retry), 1000);
+                    }
                 }
             });
 
@@ -40,6 +47,7 @@ class BobRos {
         if (this.ros && this.ros.isConnected) {
             this.unsubscribeTopics();
             this.ros.close();
+            this.ros = null;
             console.log('Disconnected.');
         } else {
             console.log('No active ROS connection to disconnect.');

@@ -96,6 +96,9 @@
       this.bob.disconnect();
       next();
     },
+    beforeUnmount() {
+      this.bob.disconnect();
+    },
     beforeDestroy() {
       this.bob.disconnect();
     },
