@@ -24,7 +24,7 @@ public:
         : ParameterLifeCycleNode("camera_bgs_node", options)
         , qos_profile_(4)
     {
-        qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
+        qos_profile_.reliability(rclcpp::ReliabilityPolicy::Reliable);
         qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
         qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
 

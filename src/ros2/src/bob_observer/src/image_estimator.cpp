@@ -106,7 +106,7 @@ private:
         sub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
         sub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
 
-        pub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
+        pub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::Reliable);
         pub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
         pub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
 
