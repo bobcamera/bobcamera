@@ -2,7 +2,7 @@
   <div ref="divImage" class="image-container">
     <img ref="imageDisplayWindow" id="imageDisplayWindow" class="background-image" />
     <div ref="overlayPanels" class="div-overlay-panels">
-    <v-expansion-panels ref="overlayPanels" class="overlay-panels">
+    <v-expansion-panels ref="overlayPanels" class="overlay-panels" v-show="displayOverlay">
       <v-expansion-panel class="overlay-panel">
         <v-expansion-panel-title>
           <v-row align="center" no-gutters>
@@ -15,13 +15,13 @@
         <v-expansion-panel-text>
           <v-row>
             <v-col>
-              <v-row align="center" no-gutters>
-                <v-icon class="mr-2">mdi-camera</v-icon>
+              <v-row align="center" no-gutters v-show="infoTopic">
+                <v-icon class="mr-2">mdi-video</v-icon>
                 {{ cameraFps.toFixed(2) }} fps
                 <v-spacer></v-spacer>
                 <span class="detail">{{ frameSize.width }}x{{ frameSize.height }}</span>
               </v-row>
-              <v-divider class="my-3"></v-divider>
+              <v-divider class="my-3" v-show="infoTopic"></v-divider>
               <v-row align="center" no-gutters>
                 <v-icon class="mr-2">mdi-monitor</v-icon>
                 {{ fps.toFixed(2) }} fps
@@ -61,8 +61,12 @@ export default {
     },
     infoTopic: {
       type: String,
-      required: true
+      default: null
     },
+    displayOverlay: {
+      type: Boolean,
+      default: true
+    }
   },
   mounted() {
     this.bob = new BobRos(config.websocketsUrl);
@@ -86,16 +90,18 @@ export default {
           // Ignore, lost connection
         }
       });
-    this.bob.subscribeTopic(this.infoTopic, 'bob_camera/msg/CameraInfo',
-      (message) => {
-        try {
-          // console.log(message)
-          this.frameSize = { width: message.frame_width, height: message.frame_height }
-          this.cameraFps = message.fps
-        } catch (error) {
-          // Ignore, lost connection
-        }
-      });
+    if (this.infoTopic) {
+      this.bob.subscribeTopic(this.infoTopic, 'bob_camera/msg/CameraInfo',
+        (message) => {
+          try {
+            // console.log(message)
+            this.frameSize = { width: message.frame_width, height: message.frame_height }
+            this.cameraFps = message.fps
+          } catch (error) {
+            // Ignore, lost connection
+          }
+        });
+    }
   },
   beforeUnmount() {
     this.bob.disconnect();
