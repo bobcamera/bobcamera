@@ -149,12 +149,13 @@ public:
         {
             return false;
         }
+        const std::vector<int> params = {cv::CAP_PROP_HW_ACCELERATION, cv::VIDEO_ACCELERATION_ANY};
         switch (params_.source_type)
         {
             case CameraWorkerParams::SourceType::USB_CAMERA:
             {
                 node_.log_send_info("Trying to open camera %d", params_.camera_id);
-                video_capture_.open(params_.camera_id);
+                video_capture_.open(params_.camera_id, cv::CAP_ANY, params);
                 set_camera_resolution();
             }
             break;
@@ -163,14 +164,14 @@ public:
             {
                 const auto & video_path = params_.videos[current_video_idx_];
                 node_.log_send_info("Trying to open video '%s'", video_path.c_str());
-                video_capture_.open(video_path);
+                video_capture_.open(video_path, cv::CAP_ANY, params);
             }
             break;
 
             case CameraWorkerParams::SourceType::RTSP_STREAM:
             {
                 node_.log_send_info("Trying to open RTSP Stream '%s'", params_.rtsp_uri.c_str());
-                video_capture_.open(params_.rtsp_uri);
+                video_capture_.open(params_.rtsp_uri, cv::CAP_ANY, params);
             }
             break;
 
@@ -184,6 +185,8 @@ public:
         {
             node_.log_send_info("Stream is open.");
             update_capture_info();
+            last_camera_connect_ = node_.now();
+            initial_camera_connect_ = (initial_camera_connect_.seconds() == 0 && initial_camera_connect_.nanoseconds() == 0) ? last_camera_connect_ : initial_camera_connect_;
         }
         else
         {
@@ -459,6 +462,8 @@ private:
         }
 
         camera_info_msg_.header = header;
+        camera_info_msg_.initial_connection = initial_camera_connect_;
+        camera_info_msg_.last_connection = last_camera_connect_;
         params_.camera_info_publisher->publish(camera_info_msg_);
     }
 
@@ -597,6 +602,9 @@ private:
     cv::Mat privacy_mask_;
 
     std::unique_ptr<CircuitBreaker> circuit_breaker_ptr_;
+
+    rclcpp::Time initial_camera_connect_;
+    rclcpp::Time last_camera_connect_;
 };
 
 #endif

@@ -1,5 +1,5 @@
 <template>
-  <FrameDisplay :cameraTopic="cameraTopic" :infoTopic="cameraInfo" />
+  <FrameDisplay viewName="Foreground View" :cameraTopic="cameraTopic" :infoTopic="cameraInfo" :displayOverlay=true />
 </template>
 
 <script>

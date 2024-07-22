@@ -1,5 +1,5 @@
 <template>
-  <FrameDisplay :cameraTopic="cameraTopic" :infoTopic="cameraInfo" :displayOverlay=true /> 
+  <FrameDisplay viewName="Annotated View" :cameraTopic="cameraTopic" :infoTopic="cameraInfo" :displayOverlay=true /> 
 </template>
 
 <script>

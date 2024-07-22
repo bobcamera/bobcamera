@@ -19,14 +19,15 @@ export default {
           title: "STREAMING",
           items: [
             { name: "Tracking Feed", link: "/", external: false, icon: "mdi-video" },
-            { name: "Foreground Mask", link: "/bgs", external: false, icon: "mdi-video-image" }
+            { name: "Foreground Mask", link: "/bgs", external: false, icon: "mdi-video-image" },
+            { name: "Camera View", link: "/cameraView", external: false, icon: "mdi-video" },
           ]
         },
         {
           title: "MASK CONTROL",
           items: [
             { name: "Privacy Mask", link: "#", external: false, icon: "mdi-drama-masks" },
-            { name: "Detection Mask", link: "#", external: false, icon: "mdi-transition-masked" }
+            { name: "Detection Mask", link: "/maskBgs", external: false, icon: "mdi-transition-masked" }
           ]
         },
         {
