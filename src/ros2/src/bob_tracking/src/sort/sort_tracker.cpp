@@ -157,7 +157,8 @@ void SORT::Tracker::AssociateDetectionsToTrackers(const std::vector<cv::Rect>& d
                                             float iou_threshold) 
 {
     // Set all detection as unmatched if no tracks existing
-    if (tracks.empty()) {
+    if (tracks.empty()) 
+    {
         unmatched_det.reserve(detection.size());
         unmatched_det.insert(unmatched_det.end(), detection.begin(), detection.end());
         return;
@@ -168,9 +169,11 @@ void SORT::Tracker::AssociateDetectionsToTrackers(const std::vector<cv::Rect>& d
     std::vector<std::vector<float>> association(detection.size(), std::vector<float>(tracks.size()));
 
     // row - detection, column - tracks
-    for (size_t i = 0; i < detection.size(); ++i) {
+    for (size_t i = 0; i < detection.size(); ++i) 
+    {
         size_t j = 0;
-        for (const auto& trk : tracks) {
+        for (const auto& trk : tracks) 
+        {
             iou_matrix[i][j] = CalculateDiou(detection[i], trk.second.get_bbox());
             ++j;
         }
@@ -179,13 +182,17 @@ void SORT::Tracker::AssociateDetectionsToTrackers(const std::vector<cv::Rect>& d
     // Find association
     HungarianMatching(iou_matrix, detection.size(), tracks.size(), association);
 
-    for (size_t i = 0; i < detection.size(); ++i) {
+    for (size_t i = 0; i < detection.size(); ++i) 
+    {
         bool matched_flag = false;
         size_t j = 0;
-        for (const auto& trk : tracks) {
-            if (0 == association[i][j]) {
+        for (const auto& trk : tracks) 
+        {
+            if (association[i][j] == 0) 
+            {
                 // Filter out matched with low IOU
-                if (iou_matrix[i][j] >= iou_threshold) {
+                if (iou_matrix[i][j] >= iou_threshold) 
+                {
                     matched[trk.first] = detection[i];
                     matched_flag = true;
                 }
@@ -195,7 +202,8 @@ void SORT::Tracker::AssociateDetectionsToTrackers(const std::vector<cv::Rect>& d
             ++j;
         }
         // if detection cannot match with any tracks
-        if (!matched_flag) {
+        if (!matched_flag) 
+        {
             unmatched_det.push_back(detection[i]);
         }
     }
@@ -245,13 +253,16 @@ void SORT::Tracker::update_trackers(const std::vector<cv::Rect> & detections)
     /*** Create new tracks for unmatched detections ***/
     for (const auto &det : unmatched_det) 
     {
-        if (tracks_.size() < tracker_max_active_trackers_) {
+        if (tracks_.size() < tracker_max_active_trackers_) 
+        {
             Track tracker(logger_);
             tracker.init(det);
             total_trackers_started_++; 
             tracker.set_id(total_trackers_started_);
             tracks_[total_trackers_started_] = tracker;
-        } else {
+        }
+        else
+        {
             RCLCPP_WARN(logger_, "Reached max number of trackers: %zu", tracker_max_active_trackers_);
             break;
         }
@@ -267,7 +278,7 @@ void SORT::Tracker::update_trackers(const std::vector<cv::Rect> & detections)
         } 
         else 
         {
-            it++;
+            ++it;
         }
     }
 }

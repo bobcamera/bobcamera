@@ -26,3 +26,5 @@ ParamLimits temperature_limits
 int32 frame_width
 int32 frame_height
 float32 fps
+builtin_interfaces/Time initial_connection
+builtin_interfaces/Time last_connection

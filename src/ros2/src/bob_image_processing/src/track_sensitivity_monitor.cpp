@@ -169,7 +169,7 @@ private:
                     {
                         sensitivity_change_action_ = Ignore;
 
-                        log_send_info("Tracking Auto Tune: IncreaseSensitivity triggered, counter %d of %d", 
+                        log_send_debug("Tracking Auto Tune: IncreaseSensitivity triggered, counter %d of %d", 
                             sensitivity_increase_check_counter_, sensitivity_increase_count_threshold_);
                     }
                 }
