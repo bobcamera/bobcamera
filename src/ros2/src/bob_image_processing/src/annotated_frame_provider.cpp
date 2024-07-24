@@ -1,25 +1,20 @@
 #include <string>
-
+#include <memory>
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
-
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
 #include <cv_bridge/cv_bridge.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <bob_interfaces/msg/tracking.hpp>
-
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
-
 #include <parameter_lifecycle_node.hpp>
 #include <image_utils.hpp>
 #include <visibility_control.h>
-
 #include "annotated_frame/annotated_frame_creator.hpp"
 
-class AnnotatedFrameProvider 
-    : public ParameterLifeCycleNode
+class AnnotatedFrameProvider : public ParameterLifeCycleNode
 {
 public:
     COMPOSITION_PUBLIC
@@ -31,7 +26,7 @@ public:
     {
     }
 
-    CallbackReturn on_configure(const rclcpp_lifecycle::State &)
+    CallbackReturn on_configure(const rclcpp_lifecycle::State &) override
     {
         log_info("Configuring");
 
@@ -111,8 +106,8 @@ private:
         add_action_parameters(params);
     }
 
-    void callback(const sensor_msgs::msg::Image::SharedPtr & image_msg,
-                  const bob_interfaces::msg::Tracking::SharedPtr & tracking)
+    void callback(const sensor_msgs::msg::Image::SharedPtr& image_msg,
+                  const bob_interfaces::msg::Tracking::SharedPtr& tracking)
     {
         try
         {
@@ -125,13 +120,13 @@ private:
 
             publish_resized_frame(image_msg, img);
         }
-        catch (const std::exception & e)
+        catch (const std::exception& e)
         {
             log_send_error("callback: exception: %s", e.what());
         }        
     }
 
-    inline void publish_resized_frame(const std::shared_ptr<sensor_msgs::msg::Image> & annotated_frame_msg, const cv::Mat & img) const
+    void publish_resized_frame(const sensor_msgs::msg::Image::SharedPtr& annotated_frame_msg, const cv::Mat& img) const
     {
         try
         {
@@ -142,7 +137,7 @@ private:
             if ((resize_height_ > 0) && (resize_height_ != img.size().height))
             {
                 cv::Mat resized_img;
-                const auto frame_width = (int)(img.size().aspectRatio() * (double)resize_height_);
+                const auto frame_width = static_cast<int>(img.size().aspectRatio() * static_cast<double>(resize_height_));
                 cv::resize(img, resized_img, cv::Size(frame_width, resize_height_));
 
                 auto resized_frame_msg = cv_bridge::CvImage(annotated_frame_msg->header, annotated_frame_msg->encoding, resized_img).toImageMsg();
@@ -153,7 +148,7 @@ private:
                 image_resized_publisher_->publish(*annotated_frame_msg);
             }
         }
-        catch (const std::exception & e)
+        catch (const std::exception& e)
         {
             log_send_error("publish_resized_frame: exception: %s", e.what());
         }
@@ -169,9 +164,9 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_annotated_frame_;
     AnnotatedFrameCreator annotated_frame_creator_;
 
-    bool enable_tracking_status_;
+    bool enable_tracking_status_ = true;
 
-    int resize_height_;
+    int resize_height_ = 960;
     std::string image_resized_publish_topic_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_resized_publisher_;
 };

@@ -1,27 +1,25 @@
 #pragma once
-#ifndef __BACKGROUND_SUBTRACTOR_WORKER_H__
-#define __BACKGROUND_SUBTRACTOR_WORKER_H__
 
+#include <string>
 #include <filesystem>
-
+#include <mutex>
+#include <condition_variable>
 #include <cv_bridge/cv_bridge.hpp>
-
+#include <sensor_msgs/msg/image.hpp>
+#include <bob_interfaces/msg/detector_state.hpp>
+#include <bob_interfaces/msg/detector_b_box_array.hpp>
+#include <boblib/api/bgs/bgs.hpp>
+#include <boblib/api/bgs/WeightedMovingVariance/WeightedMovingVarianceUtils.hpp>
+#include <boblib/api/blobs/connectedBlobDetection.hpp>
 #include "parameter_lifecycle_node.hpp"
 #include "image_utils.hpp"
 #include "background_subtractor_companion.hpp"
 #include "mask_worker.hpp"
+//#include "sensitivity_config_collection.hpp"
 
-#include <sensor_msgs/msg/image.hpp>
-
-#include <bob_interfaces/msg/detector_state.hpp>
-#include <bob_interfaces/msg/detector_b_box_array.hpp>
-
-#include <boblib/api/bgs/bgs.hpp>
-#include <boblib/api/bgs/WeightedMovingVariance/WeightedMovingVarianceUtils.hpp>
-#include <boblib/api/blobs/connectedBlobDetection.hpp>
-
-struct BackgroundSubtractorWorkerParams
+class BackgroundSubtractorWorkerParams
 {
+public:
     enum class BGSType
     {
         Unknown,
@@ -29,48 +27,89 @@ struct BackgroundSubtractorWorkerParams
         WMV
     };
 
-    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher;
-    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_resized_publisher;
-    rclcpp::Publisher<bob_interfaces::msg::DetectorBBoxArray>::SharedPtr detection_publisher;
-    rclcpp::Publisher<bob_interfaces::msg::DetectorState>::SharedPtr state_publisher;
+    // Constructor
+    BackgroundSubtractorWorkerParams() = default;
 
-    std::string image_publish_topic;
-    std::string image_resized_publish_topic;
-    std::string detection_publish_topic;
-    std::string detection_state_publish_topic;
-    BGSType bgs_type;
-    std::string sensitivity;
-    SensitivityConfigCollection sensitivity_collection;
-    bool mask_enable_override = true;
-    std::string mask_filename;
-    int resize_height;
-    int mask_timer_seconds;
+    // Getters
+    [[nodiscard]] const auto& get_image_publisher() const { return image_publisher_; }
+    [[nodiscard]] const auto& get_image_resized_publisher() const { return image_resized_publisher_; }
+    [[nodiscard]] const auto& get_detection_publisher() const { return detection_publisher_; }
+    [[nodiscard]] const auto& get_state_publisher() const { return state_publisher_; }
+
+    [[nodiscard]] const auto& get_image_publish_topic() const { return image_publish_topic_; }
+    [[nodiscard]] const auto& get_image_resized_publish_topic() const { return image_resized_publish_topic_; }
+    [[nodiscard]] const auto& get_detection_publish_topic() const { return detection_publish_topic_; }
+    [[nodiscard]] const auto& get_detection_state_publish_topic() const { return detection_state_publish_topic_; }
+    [[nodiscard]] BGSType get_bgs_type() const { return bgs_type_; }
+    [[nodiscard]] const auto& get_sensitivity() const { return sensitivity_; }
+    [[nodiscard]] const auto& get_sensitivity_collection() const { return sensitivity_collection_; }
+    [[nodiscard]] bool get_mask_enable_override() const { return mask_enable_override_; }
+    [[nodiscard]] const auto& get_mask_filename() const { return mask_filename_; }
+    [[nodiscard]] int get_resize_height() const { return resize_height_; }
+    [[nodiscard]] int get_mask_timer_seconds() const { return mask_timer_seconds_; }
+
+    // Setters
+    void set_image_publisher(const rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr& publisher) { image_publisher_ = publisher; }
+    void set_image_resized_publisher(const rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr& publisher) { image_resized_publisher_ = publisher; }
+    void set_detection_publisher(const rclcpp::Publisher<bob_interfaces::msg::DetectorBBoxArray>::SharedPtr& publisher) { detection_publisher_ = publisher; }
+    void set_state_publisher(const rclcpp::Publisher<bob_interfaces::msg::DetectorState>::SharedPtr& publisher) { state_publisher_ = publisher; }
+
+    void set_image_publish_topic(const std::string& topic) { image_publish_topic_ = topic; }
+    void set_image_resized_publish_topic(const std::string& topic) { image_resized_publish_topic_ = topic; }
+    void set_detection_publish_topic(const std::string& topic) { detection_publish_topic_ = topic; }
+    void set_detection_state_publish_topic(const std::string& topic) { detection_state_publish_topic_ = topic; }
+    void set_bgs_type(BGSType type) { bgs_type_ = type; }
+    void set_sensitivity(const std::string& sensitivity) { sensitivity_ = sensitivity; }
+    void set_sensitivity_collection(const SensitivityConfigCollection& collection) { sensitivity_collection_ = collection; }
+    void set_sensitivity_collection(const std::string& json_collection) { sensitivity_collection_.set_configs(json_collection); }
+    void set_mask_enable_override(bool enable) { mask_enable_override_ = enable; }
+    void set_mask_filename(const std::string& filename) { mask_filename_ = filename; }
+    void set_resize_height(int height) { resize_height_ = height; }
+    void set_mask_timer_seconds(int seconds) { mask_timer_seconds_ = seconds; }
+
+private:
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_resized_publisher_;
+    rclcpp::Publisher<bob_interfaces::msg::DetectorBBoxArray>::SharedPtr detection_publisher_;
+    rclcpp::Publisher<bob_interfaces::msg::DetectorState>::SharedPtr state_publisher_;
+
+    std::string image_publish_topic_;
+    std::string image_resized_publish_topic_;
+    std::string detection_publish_topic_;
+    std::string detection_state_publish_topic_;
+    BGSType bgs_type_{BGSType::Unknown};
+    std::string sensitivity_;
+    SensitivityConfigCollection sensitivity_collection_;
+    bool mask_enable_override_{true};
+    std::string mask_filename_;
+    int resize_height_{};
+    int mask_timer_seconds_{};
 };
 
 class BackgroundSubtractorWorker
 {
 public:
-    BackgroundSubtractorWorker(ParameterLifeCycleNode & node, BackgroundSubtractorWorkerParams & params)
+    BackgroundSubtractorWorker(ParameterLifeCycleNode& node, BackgroundSubtractorWorkerParams& params)
         : node_(node)
         , params_(params)
-    {
-        mask_worker_ptr_ = std::make_unique<MaskWorker>(node_, [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat & mask){mask_timer_callback(detection_mask_result, mask);});
-    }
+        , mask_worker_ptr_(std::make_unique<MaskWorker>(node_, 
+            [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat& mask) { mask_timer_callback(detection_mask_result, mask); }))
+    {}
 
     void init()
     {
-        mask_worker_ptr_->init(params_.mask_timer_seconds, params_.mask_filename);
+        mask_worker_ptr_->init(params_.get_mask_timer_seconds(), params_.get_mask_filename());
     }
 
     void restart_mask()
     {
         if (mask_worker_ptr_)
         {
-            mask_worker_ptr_->init(params_.mask_timer_seconds, params_.mask_filename);
+            mask_worker_ptr_->init(params_.get_mask_timer_seconds(), params_.get_mask_filename());
         }
     }
 
-    void init_bgs(const std::string & bgs)
+    void init_bgs(const std::string& bgs)
     {
         ready_ = false;
 
@@ -78,18 +117,18 @@ public:
         {
             if (bgs == "vibe")
             {
-                params_.bgs_type = BackgroundSubtractorWorkerParams::BGSType::Vibe;
+                params_.set_bgs_type(BackgroundSubtractorWorkerParams::BGSType::Vibe);
             }
             else
             {
-                params_.bgs_type = BackgroundSubtractorWorkerParams::BGSType::WMV;
+                params_.set_bgs_type(BackgroundSubtractorWorkerParams::BGSType::WMV);
             }
-            if (!params_.sensitivity.empty())
+            if (!params_.get_sensitivity().empty())
             {
-                bgsPtr = createBGS(params_.bgs_type);
+                bgs_ptr_ = create_bgs(params_.get_bgs_type());
             }
         }
-        catch (const std::exception & e)
+        catch (const std::exception& e)
         {
             node_.log_send_error("init_bgs: Exception: %s", e.what());
         }
@@ -99,54 +138,60 @@ public:
         }
 
         ready_ = true;
-        cv.notify_all();
+        cv_.notify_all();
     }
 
     void restart()
     {
-        bgsPtr->restart();
+        bgs_ptr_->restart();
     }
 
-    void init_sensitivity(const std::string & sensitivity)
+    void init_sensitivity(const std::string& sensitivity)
     {
-        std::unique_lock<std::mutex> lock(mutex);
-        cv.wait(lock, [this] { return !processing_; });
-        
+        std::unique_lock<std::mutex> lock(mutex_);
+        cv_.wait(lock, [this] { return !processing_; });
+
         try
         {
-            if (sensitivity.empty() || (sensitivity.length() == 0))
+            if (sensitivity.empty())
             {
                 node_.log_debug("Ignoring sensitivity change request, EMPTY VALUE");
                 return;
             }
-            if (params_.sensitivity == sensitivity)
+            if (params_.get_sensitivity() == sensitivity)
             {
                 node_.log_info("Ignoring sensitivity change request, NO CHANGE");
                 return;
             }
 
-            if (!params_.sensitivity_collection.configs.contains(sensitivity))
+            if (!params_.get_sensitivity_collection().get_configs().contains(sensitivity))
             {
                 node_.log_error("Unknown config specified: %s", sensitivity.c_str());
                 return;
             }
 
             ready_ = false;
-            params_.sensitivity = sensitivity;
+            params_.set_sensitivity(sensitivity);
 
-            SensitivityConfig & config = params_.sensitivity_collection.configs.at(sensitivity);
+            const auto& config = params_.get_sensitivity_collection().get_configs().at(sensitivity);
 
-            wmv_params_ = std::make_unique<boblib::bgs::WMVParams>(config.sensitivity.wmv_enableWeight, config.sensitivity.wmv_enableThreshold, config.sensitivity.wmv_threshold, config.sensitivity.wmv_weight1, config.sensitivity.wmv_weight2, config.sensitivity.wmv_weight3);
-            vibe_params_ = std::make_unique<boblib::bgs::VibeParams>(config.sensitivity.vibe_threshold, config.sensitivity.vibe_bgSamples, config.sensitivity.vibe_requiredBGSamples, config.sensitivity.vibe_learningRate);
+            wmv_params_ = std::make_unique<boblib::bgs::WMVParams>(
+                config.sensitivity.wmv_enable_weight, config.sensitivity.wmv_enable_threshold, config.sensitivity.wmv_threshold, 
+                config.sensitivity.wmv_weight1, config.sensitivity.wmv_weight2, config.sensitivity.wmv_weight3);
+            vibe_params_ = std::make_unique<boblib::bgs::VibeParams>(
+                config.sensitivity.vibe_threshold, config.sensitivity.vibe_bg_samples, config.sensitivity.vibe_required_bg_samples, 
+                config.sensitivity.vibe_learning_rate);
 
-            bgsPtr = createBGS(params_.bgs_type);
+            bgs_ptr_ = create_bgs(params_.get_bgs_type());
 
-            blob_params_ = std::make_unique<boblib::blobs::ConnectedBlobDetectionParams>(config.sensitivity.blob_sizeThreshold, config.sensitivity.blob_areaThreshold, config.sensitivity.blob_minDistance, config.sensitivity.blob_maxBlobs);
+            blob_params_ = std::make_unique<boblib::blobs::ConnectedBlobDetectionParams>(
+                config.sensitivity.blob_size_threshold, config.sensitivity.blob_area_threshold, config.sensitivity.blob_min_distance, 
+                config.sensitivity.blob_max_blobs);
             blob_detector_ptr_ = std::make_unique<boblib::blobs::ConnectedBlobDetection>(*blob_params_);
 
             median_filter_ = config.sensitivity.median_filter;
         }
-        catch (const std::exception & e)
+        catch (const std::exception& e)
         {
             node_.log_send_error("init_sensitivity: Exception: %s", e.what());
         }
@@ -155,13 +200,13 @@ public:
             node_.log_send_error("init_sensitivity: Unknown exception");
         }
         ready_ = true;
-        cv.notify_all();
+        cv_.notify_all();
     }
 
-    void image_callback(const std_msgs::msg::Header & header, const cv::Mat & img)
+    void image_callback(const std_msgs::msg::Header& header, const cv::Mat& img)
     {
-        std::unique_lock lock(mutex);
-        cv.wait(lock, [this] { return ready_; });
+        std::unique_lock lock(mutex_);
+        cv_.wait(lock, [this] { return ready_; });
 
         processing_ = true;
 
@@ -188,9 +233,9 @@ public:
                 cv::resize(detection_mask_, detection_mask_, gray_img.size());
             }
 
-            bgsPtr->apply(gray_img, ros_cv_foreground_mask_->get_image(), mask_enabled_ ? detection_mask_ : cv::Mat());
+            bgs_ptr_->apply(gray_img, ros_cv_foreground_mask_->get_image(), mask_enabled_ ? detection_mask_ : cv::Mat());
 
-            node_.publish_if_subscriber(params_.image_publisher, ros_cv_foreground_mask_->get_msg());
+            node_.publish_if_subscriber(params_.get_image_publisher(), ros_cv_foreground_mask_->get_msg());
 
             publish_resized_frame(*ros_cv_foreground_mask_);
 
@@ -200,7 +245,7 @@ public:
             }
 
             bob_interfaces::msg::DetectorState state;
-            state.sensitivity = params_.sensitivity;
+            state.sensitivity = params_.get_sensitivity();
             bob_interfaces::msg::DetectorBBoxArray bbox2D_array;
             bbox2D_array.header = header;
             bbox2D_array.image_width = gray_img.size().width;
@@ -218,10 +263,10 @@ public:
                 state.max_blobs_reached = true;
             }
 
-            node_.publish_if_subscriber(params_.state_publisher, state);
-            node_.publish_if_subscriber(params_.detection_publisher, bbox2D_array);            
+            node_.publish_if_subscriber(params_.get_state_publisher(), state);
+            node_.publish_if_subscriber(params_.get_detection_publisher(), bbox2D_array);
         }
-        catch (const std::exception & e)
+        catch (const std::exception& e)
         {
             node_.log_send_error("bgs_worker: image_callback: exception: %s", e.what());
         }
@@ -231,13 +276,13 @@ public:
         }
 
         processing_ = false;
-        cv.notify_all();
+        cv_.notify_all();
     }
 
 private:
-    inline void add_bboxes(bob_interfaces::msg::DetectorBBoxArray & bbox2D_array, const std::vector<cv::Rect> & bboxes)
+    void add_bboxes(bob_interfaces::msg::DetectorBBoxArray& bbox2D_array, const std::vector<cv::Rect>& bboxes)
     {
-        for (const auto &bbox : bboxes)
+        for (const auto& bbox : bboxes)
         {
             bob_interfaces::msg::DetectorBBox bbox_msg;
             bbox_msg.x = bbox.x;
@@ -248,9 +293,9 @@ private:
         }
     }
 
-    std::unique_ptr<boblib::bgs::CoreBgs> createBGS(BackgroundSubtractorWorkerParams::BGSType _type)
+    std::unique_ptr<boblib::bgs::CoreBgs> create_bgs(BackgroundSubtractorWorkerParams::BGSType type)
     {
-        switch (_type)
+        switch (type)
         {
         case BackgroundSubtractorWorkerParams::BGSType::Vibe:
             return std::make_unique<boblib::bgs::Vibe>(*vibe_params_);
@@ -261,20 +306,20 @@ private:
         }
     }
 
-    inline void publish_resized_frame(const RosCvImageMsg & image_msg)
+    void publish_resized_frame(const RosCvImageMsg& image_msg)
     {
-        if (!params_.image_resized_publisher 
-            || (params_.resize_height <= 0)
-            || (node_.count_subscribers(params_.image_resized_publisher->get_topic_name()) <= 0))
+        if (!params_.get_image_resized_publisher()
+            || (params_.get_resize_height() <= 0)
+            || (node_.count_subscribers(params_.get_image_resized_publisher()->get_topic_name()) <= 0))
         {
             return;
         }
         cv::Mat resized_img;
-        if (params_.resize_height > 0)
+        if (params_.get_resize_height() > 0)
         {
-            const double aspect_ratio = (double)image_msg.get_image().size().width / (double)image_msg.get_image().size().height;
-            const int frame_height = params_.resize_height;
-            const auto frame_width = (int)(aspect_ratio * (double)frame_height);
+            const double aspect_ratio = static_cast<double>(image_msg.get_image().size().width) / image_msg.get_image().size().height;
+            const int frame_height = params_.get_resize_height();
+            const auto frame_width = static_cast<int>(aspect_ratio * frame_height);
             cv::resize(image_msg.get_image(), resized_img, cv::Size(frame_width, frame_height));
         }
         else
@@ -283,10 +328,10 @@ private:
         }
 
         auto resized_frame_msg = cv_bridge::CvImage(image_msg.get_header(), image_msg.get_msg().encoding, resized_img).toImageMsg();
-        params_.image_resized_publisher->publish(*resized_frame_msg);            
+        params_.get_image_resized_publisher()->publish(*resized_frame_msg);
     }
 
-    void mask_timer_callback(MaskWorker::MaskCheckType detection_mask_result, const cv::Mat & mask)
+    void mask_timer_callback(MaskWorker::MaskCheckType detection_mask_result, const cv::Mat& mask)
     {
         if (detection_mask_result == MaskWorker::MaskCheckType::Enable)
         {
@@ -309,15 +354,14 @@ private:
         }
     }
 
-    ParameterLifeCycleNode & node_;
+    ParameterLifeCycleNode& node_;
+    BackgroundSubtractorWorkerParams& params_;
 
     std::unique_ptr<MaskWorker> mask_worker_ptr_;
 
-    BackgroundSubtractorWorkerParams & params_;
-
-    bool mask_enabled_;
-    bool median_filter_;
-    std::unique_ptr<boblib::bgs::CoreBgs> bgsPtr{nullptr};
+    bool mask_enabled_{false};
+    bool median_filter_{false};
+    std::unique_ptr<boblib::bgs::CoreBgs> bgs_ptr_{nullptr};
     std::unique_ptr<boblib::blobs::ConnectedBlobDetection> blob_detector_ptr_{nullptr};
     std::unique_ptr<boblib::bgs::VibeParams> vibe_params_;
     std::unique_ptr<boblib::bgs::WMVParams> wmv_params_;
@@ -327,10 +371,8 @@ private:
 
     cv::Mat detection_mask_;
 
-    std::condition_variable cv;
-    std::mutex mutex;
-    bool ready_ = false;
-    bool processing_ = false;
+    std::condition_variable cv_;
+    std::mutex mutex_;
+    bool ready_{false};
+    bool processing_{false};
 };
-
-#endif

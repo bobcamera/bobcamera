@@ -8,6 +8,8 @@
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/image_encodings.hpp>
 #include <rcpputils/endian.hpp>
+#include <rcpputils/endian.hpp>
+#include <rclcpp/rclcpp.hpp>
 
 class ImageUtils 
 {
@@ -78,6 +80,12 @@ public:
         msg_ptr_->header = header;
     }
 
+    void set_header(const rclcpp::Time & time, const std::string & id)
+    {
+        msg_ptr_->header.stamp = time;
+        msg_ptr_->header.frame_id = id;
+    }
+    
     cv::Mat & get_image() const
     {
         return *image_ptr_;
