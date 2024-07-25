@@ -119,22 +119,25 @@ private:
         try
         {
             cv::Mat image;
-            ImageUtils::convert_image_msg(image_msg, image, true);            
-
-            std::vector<uchar> compressed_image;
-            cv::imencode(".jpg", image, compressed_image, compression_params_);            
+            ImageUtils::convert_image_msg(image_msg, image, false);            
 
             sensor_msgs::msg::CompressedImage compressed_image_msg;
             compressed_image_msg.header = image_msg->header;
             compressed_image_msg.format = "jpeg";
-            compressed_image_msg.data = compressed_image;
+            compressed_image_msg.data.reserve(image.total() * image.elemSize() / 2);
+
+            cv::imencode(".jpg", image, compressed_image_msg.data, compression_params_);            
 
             pub_compressed_frame_->publish(compressed_image_msg);
         }
         catch (const std::exception & e)
         {
             log_error("image_callback: exception: %s", e.what());
-        }        
+        }
+        catch (...)
+        {
+            log_error("image_callback: unknown exception");
+        }
     }
 
     rclcpp::TimerBase::SharedPtr timer_;

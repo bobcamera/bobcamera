@@ -1,6 +1,4 @@
 #pragma once
-#ifndef __PARAMETER_LIFECYCLE_NODE_H__
-#define __PARAMETER_LIFECYCLE_NODE_H__
 
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
@@ -218,5 +216,3 @@ private:
     std::map<std::string, ActionParam> parameters_map_;
     rclcpp::Publisher<bob_interfaces::msg::LogMessage>::SharedPtr log_publisher_;
 };
-
-#endif // __PARAMETER_LIFECYCLE_NODE_H__

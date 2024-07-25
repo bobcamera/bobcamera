@@ -1,6 +1,4 @@
 #pragma once
-#ifndef __CIRCUIT_BREAKER_H__
-#define __CIRCUIT_BREAKER_H__
 
 #include <chrono>
 
@@ -35,7 +33,7 @@ public:
     {
         state_ = CircuitBreakerState::Closed;
         failure_count_ = 0;
-        current_reset_timeout_ = initial_reset_timeout_; // Reset the timeout on success
+        current_reset_timeout_ = initial_reset_timeout_;
     }
 
     void record_failure() 
@@ -74,5 +72,3 @@ private:
     int current_reset_timeout_;
     std::chrono::steady_clock::time_point last_failure_time_;
 };
-
-#endif
