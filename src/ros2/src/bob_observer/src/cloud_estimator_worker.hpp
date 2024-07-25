@@ -1,6 +1,4 @@
 #pragma once
-#ifndef __CLOUD_ESTIMATOR_WORKER_H__
-#define __CLOUD_ESTIMATOR_WORKER_H__
 
 #include <opencv2/opencv.hpp>
 #include <rclcpp/rclcpp.hpp>
@@ -8,6 +6,7 @@
 #include <vector>
 #include <algorithm>
 #include <ranges>
+#include <limits>
 
 #include "day_night.hpp"
 
@@ -16,15 +15,18 @@ class CloudEstimatorWorker
 public:
     explicit CloudEstimatorWorker(ParameterLifeCycleNode & node)
         : node_(node)
-    {
-        x_ = linspace(start_, end_, num_bins_);
-    }
+        , start_(-1.0)
+        , end_(1.0)
+        , num_bins_(201)
+        , x_(linspace(start_, end_, num_bins_))
+        , mask_enabled_(false)
+    {}
 
     virtual ~CloudEstimatorWorker() = default;
 
     virtual std::pair<double, bool> estimate(const cv::Mat& frame) = 0;
 
-    void set_mask(const cv::Mat & mask)
+    void set_mask(const cv::Mat& mask)
     {
         mask_enabled_ = !mask.empty();
         detection_mask_ = mask;
@@ -32,28 +34,28 @@ public:
 
 protected:
     ParameterLifeCycleNode & node_;
-    const double start_ = -1.0;
-    const double end_ = 1.0;
-    const int num_bins_ = 201;
+    const double start_;
+    const double end_;
+    const std::size_t num_bins_;
     std::vector<double> x_;
     bool mask_enabled_;
     cv::Mat detection_mask_;
 
-    static std::vector<double> linspace(double start, double end, int num) 
+    static std::vector<double> linspace(double start, double end, std::size_t num) 
     {
         std::vector<double> linspace_vector(num);
         const double step = (end - start) / (num - 1);
         
-        std::ranges::generate(linspace_vector, [n = 0, start, step]() mutable {
+        std::ranges::generate(linspace_vector, [=, n = 0]() mutable {
             return start + n++ * step;
         });
         
         return linspace_vector;
     }
 
-    double find_threshold_mce(const cv::Mat & img)
+    double find_threshold_mce(const cv::Mat& img)
     {
-        auto & x = x_;
+        auto& x = x_;
         std::vector<int> y(num_bins_ - 1, 0);
 
         const double one_over_bin_width = 1.0 / ((end_ - start_) / static_cast<double>(num_bins_ - 1));
@@ -85,7 +87,7 @@ protected:
         // Calculate initial moments
         double m0a = 0.0;
         double m1a = 0.0;
-        for (int i = 0; i < index_of_t_int; ++i) 
+        for (std::size_t i = 0; i < static_cast<std::size_t>(index_of_t_int); ++i) 
         {
             m0a += y[i];
             m1a += x[i] * y[i];
@@ -93,7 +95,7 @@ protected:
 
         double m0b = 0.0;
         double m1b = 0.0;
-        for (int i = index_of_t_int; i < (num_bins_ - 1); ++i) 
+        for (std::size_t i = static_cast<std::size_t>(index_of_t_int); i < num_bins_ - 1; ++i) 
         {
             m0b += y[i];
             m1b += x[i] * y[i];
@@ -116,7 +118,7 @@ protected:
             t_n = std::ceil(t_n_decimal * 100.0) / 100.0;
         }
 
-        int max_interactions = 1000;
+        const int max_interactions = 1000;
         int iter = 0;
         while (iter < max_interactions) 
         {
@@ -127,14 +129,14 @@ protected:
 
             // Calculate moments for the new threshold
             m0a = 0, m1a = 0;
-            for (int i = 0; i < index_of_t_int; ++i) 
+            for (std::size_t i = 0; i < static_cast<std::size_t>(index_of_t_int); ++i) 
             {
                 m0a += y[i];
                 m1a += x[i] * y[i];
             }
 
             m0b = 0, m1b = 0;
-            for (int i = index_of_t_int; i < (num_bins_ - 1); ++i) 
+            for (std::size_t i = static_cast<std::size_t>(index_of_t_int); i < num_bins_ - 1; ++i) 
             {
                 m0b += y[i];
                 m1b += x[i] * y[i];
@@ -182,7 +184,7 @@ public:
 
     ~DayTimeCloudEstimator() override = default;
 
-    std::pair<double, bool> estimate(const cv::Mat & frame) override 
+    std::pair<double, bool> estimate(const cv::Mat& frame) override 
     {
         if (detection_mask_.empty())
         {
@@ -205,17 +207,17 @@ public:
         node_.log_debug("Original size: %d", b.rows * b.cols);
 
         // Find non-zero locations in the detection mask
-        std::vector<cv::Point> estimationPoints;
-        cv::findNonZero(detection_mask_, estimationPoints);
+        std::vector<cv::Point> estimation_points;
+        cv::findNonZero(detection_mask_, estimation_points);
 
         // Build 1D matrices for b and r using only valid pixels
-        cv::Mat b_est(estimationPoints.size(), 1, b.type());
-        cv::Mat r_est(estimationPoints.size(), 1, r.type());
+        cv::Mat b_est(estimation_points.size(), 1, b.type());
+        cv::Mat r_est(estimation_points.size(), 1, r.type());
 
-        for (size_t i = 0; i < estimationPoints.size(); ++i) 
+        for (std::size_t i = 0; i < estimation_points.size(); ++i) 
         {
-            b_est.at<double>(i) = b.at<double>(estimationPoints[i].y, estimationPoints[i].x);
-            r_est.at<double>(i) = r.at<double>(estimationPoints[i].y, estimationPoints[i].x);
+            b_est.at<double>(i) = b.at<double>(estimation_points[i].y, estimation_points[i].x);
+            r_est.at<double>(i) = r.at<double>(estimation_points[i].y, estimation_points[i].x);
         }
 
         node_.log_debug("New size: %d", b_est.rows * b_est.cols);
@@ -239,10 +241,10 @@ public:
         {
             cv::threshold(b_est - r_est, ratio_mask, 30, 255, cv::THRESH_BINARY);
         }
-        const double N_Cloud = static_cast<double>(cv::countNonZero(ratio_mask == 0));
-        const double N_Sky = static_cast<double>(cv::countNonZero(ratio_mask == 255));
-        const double ccr = (N_Cloud / (N_Cloud + N_Sky)) * 100.0;
-        return {round(ccr * 100.0) / 100.0, !is_bimodal};
+        const double n_cloud = static_cast<double>(cv::countNonZero(ratio_mask == 0));
+        const double n_sky = static_cast<double>(cv::countNonZero(ratio_mask == 255));
+        const double ccr = (n_cloud / (n_cloud + n_sky)) * 100.0;
+        return {std::round(ccr * 100.0) / 100.0, !is_bimodal};
     }
 };
 
@@ -296,12 +298,10 @@ public:
             cloud_feature_image.setTo(0, detection_mask_ == 0);
         }
 
-        int N_Cloud = cv::countNonZero(cloud_feature_image == 255);
-        int N_Sky = cv::countNonZero(cloud_feature_image == 0);
+        const int n_cloud = cv::countNonZero(cloud_feature_image == 255);
+        const int n_sky = cv::countNonZero(cloud_feature_image == 0);
 
-        double ccr = (N_Cloud / static_cast<double>(N_Cloud + N_Sky)) * 100;
-        return {round(ccr * 100.0) / 100.0, true};
+        const double ccr = (n_cloud / static_cast<double>(n_cloud + n_sky)) * 100;
+        return {std::round(ccr * 100.0) / 100.0, true};
     }
 };
-
-#endif

@@ -27,7 +27,7 @@ public:
     explicit ImageEstimator(const rclcpp::NodeOptions & options) 
         : ParameterLifeCycleNode("cloud_estimator_node", options)
         , sub_qos_profile_(4)
-        ,pub_qos_profile_(4)
+        , pub_qos_profile_(4)
     {
     }
 
