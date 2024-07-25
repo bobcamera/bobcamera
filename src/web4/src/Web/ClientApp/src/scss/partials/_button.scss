@@ -1,0 +1,42 @@
+.button {
+    &.primary {
+        background-color: $primary-button;
+        &:hover {
+            background-color: $primary-button-hover;
+        }
+        &:focus {
+            background-color: $primary-button-focus;
+            color: white;
+        }
+    }
+
+    &.secondary {
+        background-color: $secondary-button;
+        &:hover {
+            background-color: $secondary-button-hover;
+        }
+        &:focus {
+            background-color: $secondary-button-focus;
+            color: white;
+        }
+    }
+
+    &.icon-button {
+        padding: 7px;
+
+        &[class^="ico-"],
+        &[class*=" ico-"] {
+            font-size: rem-calc(26);
+
+        }
+        &.active {
+            background: white;
+
+            &[class^="ico-"],
+            &[class*=" ico-"] {
+                z-index: 1001;
+                position: relative;
+            }
+        }
+    }
+}

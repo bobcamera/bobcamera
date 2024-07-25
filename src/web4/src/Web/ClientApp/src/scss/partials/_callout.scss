@@ -1,0 +1,79 @@
+.callout-wrap{
+  @include grid-row;
+}
+.callout {
+  // @include grid-column(11,0);
+  // @include grid-column-position(1);
+  &.info {
+    border: 2px solid $info;
+
+    .countdown {
+      background: $info;
+      color: white;
+    }
+  }
+
+  .countdown {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: auto;
+    width: rem-calc(40);
+    font-size: rem-calc(28);
+    overflow: hidden;
+
+    ul {
+      text-align: center;
+      list-style: none;
+      padding: 0;
+      margin: 25% 0 0;
+      width: 100%;
+      top: 0;
+      position: relative;
+
+      li{
+        line-height: rem-calc(40);
+      }
+    }
+
+    &:before,
+    &:after {
+      content: '';
+      position: absolute;
+      width: 100%;
+      height: 35%;
+      background: red;
+      z-index: 9;
+
+    }
+
+    &:before {
+      top: 0;
+      @include linear-gradient(to top, rgba($info, 0) 0%, rgba($info, 1) 100%);
+    }
+
+    &:after {
+      bottom: 0;
+      @include linear-gradient(to bottom, rgba($info, 0) 0%, rgba($info, 1) 100%);
+    }
+  }
+
+  callout-countdown + .callout-text{
+    padding-left: rem-calc(40);
+  }
+
+  .callout-text{
+    font-size: rem-calc(16);
+
+    p:last-child{
+      margin-bottom: 0;
+    }
+  }
+
+  .close-button{
+    top: rem-calc(3);
+    right: rem-calc(3);
+    line-height: rem-calc(18);
+  }
+}

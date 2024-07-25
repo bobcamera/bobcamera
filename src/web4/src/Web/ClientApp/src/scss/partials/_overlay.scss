@@ -1,0 +1,47 @@
+body.overlay{
+    overflow: hidden;
+}
+
+div.overlay{
+    position: fixed;
+    top: $header-top-bar-height;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    z-index: 999;
+    overflow: auto;
+    background: rgba($secondary-grey, .9);
+
+    .overlay-content{
+        @include grid-row;
+        position: relative;
+        z-index: 9;
+        padding: 100px 50px;
+        color: white;
+
+        h2{
+            color: white;
+        }
+
+        table{
+            color: black;
+
+            &.conflicts{
+              table-layout: fixed;
+
+              th, td {
+
+                  overflow: hidden;
+                  width: 33.33333%;
+              }
+
+            }
+        }
+
+        table.conflicts{
+
+        }
+    }
+
+}

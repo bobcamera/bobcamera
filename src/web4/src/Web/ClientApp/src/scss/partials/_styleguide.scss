@@ -1,0 +1,19 @@
+.icongrid{
+  @include grid-row;
+  .icon-col{
+    @include grid-column(3);
+    text-align: center;
+
+    [class^="ico-"],
+    [class*=" ico-"] {
+      font-size: rem-calc(40);
+      padding: 40px;
+    }
+  }
+}
+.title-meta{
+  @include grid-row;
+  .meta{
+    @include grid-column(12);
+  }
+}

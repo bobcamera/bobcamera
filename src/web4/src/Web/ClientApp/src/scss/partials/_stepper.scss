@@ -1,0 +1,68 @@
+.number{
+  @include grid-column(5, 0);
+  &.nosuffix{
+    @include grid-column(3, 0);
+  }
+  .input-group-label{
+
+  }
+  .input-group-label{
+    background-color: white;
+    border-left: 0;
+  }
+  input {
+    // width: 75px;
+    float: left;
+    margin-bottom: 0;
+  }
+
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input[type=number] {
+    -moz-appearance:textfield;
+  }
+  .stepper-buttons{
+    width: 80px;
+    float: left;
+  }
+  .stepper-button{
+    border: 1px solid $medium-gray;
+    border-left: 0;
+    display: inline-block;
+    float: left;
+    background: lighten($medium-gray, 10%);
+    color: darken($secondary-grey-2, 30%);
+    font-size: rem-calc(26);
+    outline: 0;
+    cursor: pointer;
+    height: 41px;
+    line-height: 41px;
+    width: 40px;
+    text-align: center;
+
+    &:hover{
+      border-color: darken($secondary-grey-2, 30%);
+      background: darken($secondary-grey-2, 15%);
+      color: $white;
+    }
+
+    &:active {
+      background: darken($secondary-grey-2, 40%);
+      color: $white;
+    }
+    &.disabled{
+      cursor: not-allowed;
+      color: darken($secondary-grey-2, 10%);
+      &:hover{
+        background: lighten($medium-gray, 10%);
+          color: darken($secondary-grey-2, 10%);
+        border-color: $medium-gray;
+      }
+    }
+  }
+
+}

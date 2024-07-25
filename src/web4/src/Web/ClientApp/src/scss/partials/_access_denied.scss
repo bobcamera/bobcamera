@@ -1,0 +1,125 @@
+body {
+  &.access-denied {
+    // background-image: url('../img/access-denied-bg.jpg');
+    background-size: cover;
+
+    .main-center {
+      .main-page {
+        padding-top: 60px;
+
+        .access-denied {
+
+          .first,
+          .second {
+            min-height: 454px;
+          }
+        }
+      }
+    }
+  }
+
+  a {
+    &.mailto {
+      color: $primary-grey;
+      border-bottom: 2px solid $primary-yellow;
+    }
+  }
+}
+.main-center {
+  &.full{
+    @include grid-column(8, 0);
+    @include grid-column-offset(2);
+    @include grid-column-end;
+
+
+    .access-denied{
+      @include grid-row;
+      padding-bottom: 20px;
+      .first{
+        @include grid-column(8,0);
+        @include grid-column-position(center);
+        background-color: white;
+        @extend .shadow;
+        z-index:2;
+        position: relative;
+
+        .content{
+          padding: 60px 40px 40px 40px;
+          h1{
+            text-transform: uppercase;
+            font-weight: bold;
+          }
+          p{
+            font-size: rem-calc(21);
+          }
+        }
+      }
+      .second{
+        @include grid-column(4,0);
+        background-color: $primary-yellow;
+        z-index:1;
+        position: relative;
+
+        .content{
+          padding: 40px 0 26px 26px;
+          h2{
+            padding-left: 25px;
+            padding-right: 25px;
+            font-size: rem-calc(24);
+            font-weight: bold;
+          }
+          ul{
+            padding: 0;
+            margin: 0;
+
+            li{
+              list-style: none;
+              border-bottom: 1px solid $html-background;
+              font-size: rem-calc(18);
+              margin-left: 17px;
+              &:last-child{
+                border-bottom: 0;
+              }
+              &.section-title{
+                font-weight: bold;
+                font-size: rem-calc(25);
+                border-bottom: 1px solid shade($html-background, 10%);
+                margin-left: 0;
+              }
+
+
+              a{
+                width: 100%;
+                display: block;
+                color: $primary-grey;
+                padding: 17px 25px;
+                vertical-align: middle;
+                &.is-active{
+                  background-color: $primary-yellow;
+                  em{
+
+                    color: $primary-grey;
+                  }
+                }
+                &:hover{
+                  background-color: white;
+                  em{
+
+                    color: $primary-grey;
+                  }
+                }
+                em{
+                  font-size: rem-calc(22);
+                  vertical-align: middle;
+                  color: $primary-grey;
+                  // float: right;
+
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

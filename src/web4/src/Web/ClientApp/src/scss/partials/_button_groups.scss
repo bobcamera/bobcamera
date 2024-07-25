@@ -1,0 +1,15 @@
+.button-group{
+
+  .button{
+    background-color: white;
+    margin-right: 4px;
+    &.active{
+      background-color: $primary-yellow
+    }
+  }
+}
+
+.parentCrewQuestion {
+	min-width: 50%;
+	float: left;
+}

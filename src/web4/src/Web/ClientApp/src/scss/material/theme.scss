@@ -1,0 +1,30 @@
+//@use '@ng-matero/extensions' as mtx;
+@use '@angular/material' as mat;
+
+@import '@angular/material/theming';
+@include mat-core();
+
+// Typography
+$custom-typography: mat-typography-config(
+  $font-family: 'Helvetica Regular, Helvetica, Arial, san-serif',
+  $button: mat-typography-level(14px, 14px, 400),
+  $headline: mat-typography-level(24px, 48px, 400),
+  $body-1: mat-typography-level(14px, 24px, 400)
+);
+
+@include angular-material-typography($custom-typography);
+
+// Default colors
+
+//$qna-dark: rgb(13, 36, 44);
+//$qna-light: rgb(102, 213, 239);
+
+$bob-primary: mat-palette($mat-indigo, 800, 100, 900);
+$bob-accent:  mat-palette($mat-grey, 300, A100, A400);
+// The warn palette is optional (defaults to red).
+$bob-warn: mat-palette($mat-red, 600);
+
+$bob-theme: mat-light-theme($bob-primary, $bob-accent, $bob-warn);
+
+@include angular-material-theme($bob-theme);
+//@include mtx.all-component-themes($bob-theme);

@@ -1,0 +1,16 @@
+.ng2-datetime-wrapper{
+    .form-inline{
+        .input-group{
+            &.date{
+                width: rem-calc(214);
+            }
+            
+            &.timepicker{
+                width: rem-calc(214);
+                .input-group-addon{
+                    display: none;
+                }
+            }
+        }
+    }
+}

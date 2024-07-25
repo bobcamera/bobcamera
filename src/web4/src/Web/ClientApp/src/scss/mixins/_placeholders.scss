@@ -1,0 +1,31 @@
+.arrow_box {
+	position: relative;
+}
+.arrow_box:after {
+	top: 100%;
+	left: 50%;
+	border: solid transparent;
+	content: " ";
+	height: 0;
+	width: 0;
+	position: absolute;
+	pointer-events: none;
+	border-color: rgba(136, 183, 213, 0);
+	border-top-color: $primary-yellow;
+	border-width: 10px;
+	margin-left: -10px;
+}
+.shadow{
+	box-shadow: 2px 2px 26px -2px rgba(0,0,0,0.75);
+}
+.standard-transition-all{
+	transition: all 0.3s ease-out;
+}
+
+.full-width-row{
+	@include grid-row;
+	width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: none;
+}

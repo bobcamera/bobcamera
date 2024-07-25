@@ -1,0 +1,28 @@
+.group-switch-tabs{
+  @include grid-row;
+  @include grid-column-collapse;
+  .group-switch-tab{
+    // @include grid-column(6,0);
+    // text-align: center;
+    .button{
+      @extend .standard-transition-all; 
+      float: left;
+      cursor:pointer;
+      background: transparent;
+      font-weight: bold;
+      font-size: rem-calc(18);
+      margin-bottom: 0;
+      border-bottom: 5px solid transparent;
+      height: $group-switch-height;
+      color: tint($primary-grey,40%);
+      &:hover{
+        color: $primary-grey;
+        border-bottom: 5px solid tint($primary-yellow, 60%);
+      }
+      &.active{
+        color: $primary-grey;
+        border-bottom: 5px solid $primary-yellow;
+      }
+    }
+  }
+}

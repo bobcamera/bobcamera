@@ -1,0 +1,131 @@
+.form-control .control .elements{
+    .mapElement{
+        .dms-wrapper{
+            // @include grid-column(10, 0);
+            // @include grid-column-position(1);
+            // @include grid-column-end;
+            margin-bottom:10px;
+            padding: rem-calc(0 55);
+            .elements{
+
+              //padding-left: 48px!important;
+              //@include grid-column-position(1);
+
+              @include grid-column(6,0);
+              &.left{
+
+              }
+              &.right{
+
+              }
+            }
+            .error-text{
+                @include grid-column(11,0);
+                @include grid-column-position(1);
+                @include grid-column-end;
+                padding-left: 0;
+                font-size: rem-calc(13);
+                font-style: italic;
+            }
+            .help-text{
+
+                @include grid-column(11,0);
+                @include grid-column-position(1);
+                @include grid-column-end;
+                padding-left: 0;
+                //@include grid-column-position(1);
+            }
+
+        }
+
+        .leaflet-control-layers-expanded {
+
+
+          label{
+              left: auto;
+              width: auto;
+              margin-bottom: 0px;
+
+
+              input[type="checkbox"],
+              input[type="radio"]{
+                margin-left: 0 !important;
+
+              }
+          }
+
+        }
+
+
+        .map-disclaimer{
+          background-color: $primary-grey;
+          color: white;
+          padding: rem-calc(5);
+          @extend .full-width-row;
+          p{
+            margin-bottom: 0;
+            font-size: rem-calc(11);
+            &.notice{
+              text-transform: uppercase;
+              @include grid-column(8,0);
+            }
+            &.notice-credits{
+              float: right;
+              @include grid-column(4,0);
+              text-align: right;
+              a{
+                color: white;
+                text-decoration: underline;
+                white-space: nowrap;
+              }
+            }
+          }
+          .notice-message{
+            @include grid-row;
+            p, ul{
+              font-size: rem-calc(14);
+            }
+            p{
+              margin-bottom: rem-calc(10);
+            }
+            .wrap{
+              @include grid-column(12,0);
+              padding: rem-calc(20);
+            }
+          }
+        }
+
+    }
+    .map-input-wrapper{
+
+      .leaflet-control-layers-list{
+          .leaflet-control-layers-base{
+            label{
+              display: block;
+              float: none;
+            }
+          }
+          .leaflet-control-layers-separator{
+
+          }
+          .leaflet-control-layers-overlays{
+            label{
+              display: block;
+              float: none;
+            }
+          }
+      }
+    }
+}
+.leaflet-control-layers-base,
+.leaflet-control-layers-separator,
+.leaflet-control-layers-overlays {
+  width: 100%;
+  position: relative;
+  display: block;
+  float: left;
+}
+
+.leaflet-control-layers-list{
+  width: 170px;
+}

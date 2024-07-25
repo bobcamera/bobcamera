@@ -1,0 +1,36 @@
+:host {
+    box-sizing: border-box;
+    display: block;
+    height: 100%;
+}
+
+.app-container {
+    position: fixed;
+    display: flex;
+    flex-direction: column;
+    //overflow: hidden; /* Disable scroll */
+}
+
+.app-sidebar {
+    position: fixed;
+    //z-index: 1000; /* Ensure that your app's content doesn't overlap the toolbar */
+    overflow-x: hidden; /* Disable horizontal scroll */
+    width: 350px;
+    height: 100%;    
+}
+
+.app-content {
+    flex: 1;
+    overflow: auto;
+}
+
+
+
+.example-card {
+    max-width: 400px;
+  }
+  
+  .example-header-image {
+    background-image: url('https://material.angular.io/assets/img/examples/shiba1.jpg');
+    background-size: cover;
+  }

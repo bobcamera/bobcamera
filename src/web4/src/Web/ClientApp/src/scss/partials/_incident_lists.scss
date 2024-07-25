@@ -1,0 +1,307 @@
+ul{
+  &.steps{
+    margin: 0;
+    padding: 0;
+    @include grid-row;
+    @include grid-layout(5, 'li');
+    padding: 30px;
+    li{
+      list-style: none;
+      font-weight: bold;
+
+      em{
+        border-radius: 50%;
+        background: tint($primary-grey, 80%);
+        display: block;
+        float: left;
+        width: 30px;
+        height: 30px;
+        color: tint($primary-grey, 50%);
+        text-align: center;
+        margin-right: 10px;
+        padding-top: 2px;
+        font-style: normal;
+      }
+      span{
+        display: block;
+        float: left;
+        color: tint($primary-grey, 50%);
+      }
+
+      &.is-active{
+        em{
+          border-radius: 50%;
+          background: $primary-yellow;
+          display: block;
+          width: 30px;
+          height: 30px;
+          color: $primary-grey;
+          text-align: center;
+        }
+        span{
+          color: $primary-grey;
+        }
+      }
+    }
+  }
+}
+
+.incidents {
+
+  .list {
+    margin: rem-calc(20 0 20 0);
+    ul {
+      margin: 0;
+      li {
+        list-style: none;;
+        border-left: 6px solid tint($primary-grey, 80%);
+        &.item {
+          @extend .full-width-row;
+          @extend .standard-transition-all;
+          background: white;
+          z-index: 9;
+          position: relative;
+          margin-bottom: rem-calc(3);
+          padding: rem-calc(8 0);
+
+          font-size: rem-calc(16);
+          .common {
+            font-weight: bold;
+            padding: rem-calc(5 12);
+            display: block;
+            float: right;
+            background-color:  tint($primary-yellow, 50%);
+          }
+          &.unread {
+            border-left: 6px solid $primary-yellow;
+          }
+
+          h4 {
+            margin-bottom: 0;
+          }
+          &:hover {
+
+            @extend .shadow;
+            z-index: 10;
+          }
+
+
+          a {
+            span {
+              &.first {
+                @include grid-column(12,0);
+                color: $primary-grey;
+              }
+              &.initial-container {
+                color: white;
+                float: right;
+                .initials {
+                  float: right;
+                  background: tint($primary-grey, 60%);
+                  border-radius: 50%;
+                  margin-top: rem-calc(4);
+                  padding-top: rem-calc(8);
+                  margin-left:  rem-calc(15);
+                  font-weight: bold;
+                  display: block;
+                  width:  rem-calc(40);
+                  height:  rem-calc(40);
+                  text-align: center;
+                  vertical-align: middle;
+                  font-size: rem-calc(15);
+                  @extend .standard-transition-all;;
+                  &:hover{
+                    background-color: $primary-grey;
+                  }
+                }
+              }
+            }
+          }
+
+          // 1st level
+          .incident-date-time{
+            border-left: 1px solid $html-background;
+            @include grid-column(1);
+            min-height: 52px;
+            .main-center.processing-page &{
+              @include grid-column(2);
+            }
+            .date{
+              font-weight: bold;
+              display: block;
+            }
+            .time{
+              display: block;
+              color: tint($secondary-grey, 20%);
+            }
+          }
+          // 1st level
+          .incident-type{
+            @include grid-column(3);
+            min-height: 52px;
+            .main-center.processing-page &{
+              @include grid-column(4);
+            }
+            .assignment-id{
+              @include grid-column(10,0);
+              .id{
+                display: block;
+                color: tint($primary-grey, 50%);
+              }
+            }
+            .group-icon{
+              @include grid-column(2,0);
+              text-align:left;
+              padding-top: rem-calc(10);
+
+              span[class^="ico-"], span[class*=" ico-"]{
+                font-size: rem-calc(28);
+                color: tint($primary-grey, 60%);
+              }
+
+            }
+            .assignment-type{
+              font-weight: bold;
+              display: block;
+            }
+          }
+
+          // 1st level
+          .incident-info{
+            @include grid-column(8);
+            border-left: 1px solid $html-background;
+            min-height: 52px;
+            vertical-align: top;
+
+            .main-center.processing-page &{
+              @include grid-column(6);
+            }
+            .incident-details{
+              @include grid-column(8,0);
+              .title{
+                font-weight: bold;
+                display: block;
+              }
+              .meta{
+                color: tint($primary-grey, 50%);
+                display: block;
+              }
+            }
+
+            .incident-icons{
+              @include grid-column(4,0);
+              text-align: right;
+              // @include grid-layout(5, '.icon');
+              .icon{
+                display: inline-block;
+                width: rem-calc(23);
+                text-align: center;
+                color: tint($primary-grey, 80%);
+                font-weight: bold;
+                vertical-align: top;
+                &.present{
+                  color: tint($secondary-grey, 20%);
+                }
+                em{
+                  width: rem-calc(23);
+                  text-align: center;
+                  display: block;
+                  font-size: rem-calc(23);
+                }
+              }
+            }
+
+            // .meta{
+            //   @include grid-layout(3, '.meta-tag');
+            //   .meta-tag{
+            //     color: tint($secondary-grey, 20%);
+            //     &.date{
+            //       font-weight: bold;
+            //       color: $primary-grey;
+            //     }
+            //   }
+            // }
+          }
+
+
+        }
+      }
+    }
+  }
+}
+.incident-summaries{
+  background: $primary-grey;
+}
+.incident-summary{
+  @include grid-row;
+
+  .summary{
+    @include grid-column(10);
+    @include grid-column-position(1);
+
+    border-bottom:  2px solid tint($primary-grey, 50%);
+    color: tint($primary-grey, 50%);
+    padding-top: 10px;
+    padding-bottom: 10px;
+    p{
+      margin-bottom: 0;
+    }
+    .summary-title{
+      text-align: right;
+    }
+    .summary-count{
+      text-align: right;
+      font-size: rem-calc(30);
+    }
+  }
+}
+.pagination{
+  text-align: center;
+  li{
+    background: white;
+    margin-right: 3px;
+    a{
+      //@extend .standard-transition-all;
+      transition: background-color 0.3s ease-out;
+      padding: rem-calc(12 23);
+
+      &:hover{
+        background: $primary-yellow;
+      }
+    }
+    &.ellipsis{
+      padding: rem-calc(12 23);
+      &:after{
+        padding: 0;
+      }
+    }
+    &.disabled{
+      padding: rem-calc(12 23);
+      &:hover{
+        background: white !important;
+      }
+    }
+    &.pagination-previous{
+      margin-right: 20px;
+    }
+    &.pagination-next{
+      margin-left: 20px;
+    }
+    &.current{
+      color: $primary-grey;
+
+    }
+  }
+  .current{
+    padding: rem-calc(12 23);
+    color: $secondary-grey;
+  }
+}
+.callout{
+  &.warning{
+    &.no-incidents{
+      margin-top: 20px;
+      background-color: tint($primary-yellow, 50%);
+    }
+  }
+}

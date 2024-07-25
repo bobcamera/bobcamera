@@ -1,0 +1,31 @@
+// Palette
+$primary-yellow: rgb(102, 213, 239);
+$primary-grey: rgb(54,66,74);
+
+$secondary-red: rgb(221,35,48);
+$secondary-orange: rgb(255,141,0);
+$secondary-green: rgb(114,178,0);
+$secondary-blue: rgb(0,186,230);
+
+// Greys
+$secondary-grey:rgb(54, 66, 74);
+$secondary-grey-2:rgb(213, 214, 210);
+$secondary-grey-3: rgb(115, 123, 129);
+
+// Shades,tints, opacities
+$primary-yellow-opc: rgba($primary-yellow, 0.2);
+
+// Structural
+$html-background: rgb(234,234,232);
+$top-bar-bakcground: rgb(13, 36, 44);
+
+// Alerts/Callouts
+$info: rgb(52, 200, 236);
+
+$primary-button: $primary-yellow;
+$primary-button-hover: darken($primary-button, 20%);
+$primary-button-focus: darken($primary-button, 40%);
+
+$secondary-button: $secondary-grey-2;
+$secondary-button-hover: darken($secondary-button, 20%);
+$secondary-button-focus: darken($secondary-button, 40%);
