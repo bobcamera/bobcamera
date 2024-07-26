@@ -10,7 +10,9 @@ import { RecordingRoutingModule } from './recordings-routing.module';
 
 import { TestComponentComponent } from './components';
 
-import { RecordingIndexComponent} from './containers';
+import { RecordingIndexComponent } from './containers';
+
+import { RecordingService } from './services';
 
 import * as fromRecording from './state';
 
@@ -20,7 +22,7 @@ export const COMPONENTS = [TestComponentComponent];
 
 export const ENTRY_COMPONENTS = [];
 
-export const PROVIDERS = [];
+export const PROVIDERS = [RecordingService];
 
 export const EFFECTS = [fromRecording.RecordingEffects];
 

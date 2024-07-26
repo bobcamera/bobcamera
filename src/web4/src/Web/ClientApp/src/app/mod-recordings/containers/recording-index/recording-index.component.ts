@@ -7,9 +7,10 @@ import * as MainActions from '../../../mod-main/state/main.actions';
 import * as RecordingActions from '../../state/recording.actions';
 
 import { MainState } from '../../../mod-main/state/main.reducer';
-import { RecordingState, getRecordingHeading, getRecordingMessage } from '../../state/recording.reducer';
+import { RecordingState, getRecordingHeading, getRecordingMessage, getRecordingItems } from '../../state/recording.reducer';
 
 import { NotificationType, NotificationModel } from '../../../mod-main/models';
+import { RecordingQuery, RecordingDto } from '../../models';
 
 @Component({
   selector: 'bob-recording-index',
@@ -34,8 +35,18 @@ export class RecordingIndexComponent implements OnInit, OnDestroy {
     .pipe(takeUntil(this._ngUnsubscribe$), filter(message => !!message))
     .subscribe((message: string) => {
       let notificationModel: NotificationModel = { type: NotificationType.Information, message: message };
-      this.mainStore.dispatch(MainActions.Notification({ notification: notificationModel }));      
+      this.mainStore.dispatch(MainActions.Notification({ notification: notificationModel }));
+      this.store.dispatch(RecordingActions.clearMessage());
     });
+
+    this.store.select(getRecordingItems)
+    .pipe(takeUntil(this._ngUnsubscribe$), filter(items => !!items))
+    .subscribe((items: RecordingDto[]) => {
+      if (items.length > 0) {
+        let notificationModel: NotificationModel = { type: NotificationType.Information, message: `${items.length} recordings loaded` };
+        this.mainStore.dispatch(MainActions.Notification({ notification: notificationModel }));
+      }
+    });    
   }
 
   public ngOnDestroy(): void {
@@ -47,7 +58,11 @@ export class RecordingIndexComponent implements OnInit, OnDestroy {
     this.store.dispatch(RecordingActions.setMessage({message: message}));
   }
 
-  clearMessage() {
-    this.store.dispatch(RecordingActions.clearMessage());
+  loadRecords() {
+    this.store.dispatch(RecordingActions.getRecordings({query: <RecordingQuery>{directory: ''}}));
+  }
+
+  deleteRecording() {
+    this.store.dispatch(RecordingActions.deleteRecording({data: <RecordingDto>{id: 1, file: '1.txt'}}));
   }
 }

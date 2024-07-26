@@ -25,12 +25,16 @@
                 <span>{{(this._heading$ | async)}}</span>
                 <span></span>
                 <span class="flex-spacer">&nbsp;</span>
-                <button mat-icon-button matTooltip="Send message" (click)="setMessage('Hello World')">
+                <button mat-icon-button matTooltip="Load Recordings" (click)="loadRecords()">
                     <mat-icon>autorenew</mat-icon>
                 </button>
-                <button mat-icon-button matTooltip="Clear message" (click)="clearMessage()">
-                    <mat-icon>cancel_presentation</mat-icon>
-                </button>                
+                <button mat-icon-button matTooltip="Delete Recording" (click)="deleteRecording()">
+                    <mat-icon>delete</mat-icon>
+                </button>
+                <mat-divider></mat-divider>
+                <button mat-icon-button matTooltip="Send message" (click)="setMessage('Hello World')">
+                    <mat-icon>chat</mat-icon>
+                </button>
             </mat-toolbar-row>
         </mat-toolbar>
         <router-outlet></router-outlet>
