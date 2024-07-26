@@ -71,14 +71,20 @@ dotnet test
 To learn more about the template go to the [project website](https://github.com/jasontaylordev/CleanArchitecture). Here you can find additional guidance, request new features, report a bug, and discuss the template with other users.
 
 
-## Other commands that were used
+## Migrations
+
+### Install dotnet-ef
 dotnet tool install --global dotnet-ef --version 8.*
 
+### List existing migrations
 /root/.dotnet/tools/dotnet-ef migrations list --project ./src/Infrastructure --startup-project ./src/Web
 
+### Add a new migration called RecordingMigration
 /root/.dotnet/tools/dotnet-ef migrations add "RecordingMigration" --project ./src/Infrastructure --startup-project ./src/Web --output-dir Data/Migrations
 
+### Undo migrations from the database up to InitialCreate i.e. only have InitialCreate applied
 /root/.dotnet/tools/dotnet-ef database update "00000000000000_InitialCreate" --project ./src/Infrastructure --startup-
 project ./src/Web
 
+### Remove migrations from the project
 /root/.dotnet/tools/dotnet-ef migrations remove --project ./src/Infrastructure --startup-project ./src/Web
