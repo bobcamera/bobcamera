@@ -8,7 +8,7 @@ basic_config:
     # Pattern: rtsp_uri: 'rtsp://{name of the user}:{password of user}@{IP-Address}:{Port Number}/{Path}'
     #   Example Hikvision: rtsp_uri: 'rtsp://peter:pAsSwOrD123427@12.8.9.3:554/Streaming/Channels/101'
     #   Example Amcrest and Dahua: rtsp_uri: 'rtsp://user:password@0.0.0.0:554/cam/realmonitor?channel=1&subtype=0'
-    rtsp_uri: 'rtsp://bob:Bobuser$01@192.168.68.59:554/Streaming/Channels/101'
+    rtsp_uri: 'rtsp://bob:Bobuser$01@192.168.68.54:554/Streaming/Channels/101'
     onvif_host: ''
     onvif_port: 0
     onvif_user: ''
@@ -170,7 +170,7 @@ advanced_config:
     onvif_wsdl_path: 'assets/wsdl'
 
   info_webapi_node:
-    application_version: '1.5.5'
+    application_version: '1.5.7'
     frame_width: 0
     frame_height: 0
     video_fps: 15.0
