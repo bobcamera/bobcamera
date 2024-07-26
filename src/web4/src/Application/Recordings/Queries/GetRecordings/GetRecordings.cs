@@ -20,10 +20,15 @@ public class GetRecordingsQueryHandler : IRequestHandler<GetRecordingsQuery, Lis
 
     public async Task<List<RecordingDto>> Handle(GetRecordingsQuery request, CancellationToken cancellationToken)
     {
-        var list = new List<RecordingDto>();
+        /*var list = new List<RecordingDto>();
         list.Add(new RecordingDto(){ Id = 1, Filename = "1.txt" });
         list.Add(new RecordingDto(){ Id = 2, Filename = "2.txt" });
         list.Add(new RecordingDto(){ Id = 3, Filename = "3.txt" });
-        return await Task.FromResult(list);
+        return await Task.FromResult(list);*/
+        return await _context.Recordings
+            .AsNoTracking()            
+            .ProjectTo<RecordingDto>(_mapper.ConfigurationProvider)
+            .OrderBy(x => x.Id)
+            .ToListAsync(cancellationToken);
     }
 }

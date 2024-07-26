@@ -105,5 +105,24 @@ public class ApplicationDbContextInitialiser
 
             await _context.SaveChangesAsync();
         }
+
+        if (!_context.Recordings.Any())
+        {
+            _context.Recordings.AddRange
+            (
+                [
+                    new Recording { File = "1.mpg" },
+                    new Recording { File = "2.mpg" },
+                    new Recording { File = "3.mpg" },
+                    new Recording { File = "4.mpg" },
+                    new Recording { File = "5.mpg" },
+                    new Recording { File = "6.mpg" },
+                    new Recording { File = "7.mpg" },
+                    new Recording { File = "8.mpg" }
+                ]
+            );
+
+            await _context.SaveChangesAsync();
+        }
     }
 }

@@ -20,7 +20,8 @@
 		"vscode": {
 			"extensions": [
 				"ms-dotnettools.csdevkit",
-				"ms-dotnettools.csharp"
+				"ms-dotnettools.csharp",
+				"qwtel.sqlite-viewer"
 			]
 		}
 	}

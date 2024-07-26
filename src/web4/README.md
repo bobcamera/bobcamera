@@ -1,6 +1,6 @@
 ﻿# bob_web4
 
-The project was generated using the [Clean.Architecture.Solution.Template](https://github.com/jasontaylordev/bob_web4) version 8.0.5.
+The project was generated using the [Clean.Architecture.Solution.Template](https://github.com/jasontaylordev/CleanArchitecture) version 8.0.5.
 
 ## Build
 
@@ -69,3 +69,16 @@ dotnet test
 
 ## Help
 To learn more about the template go to the [project website](https://github.com/jasontaylordev/CleanArchitecture). Here you can find additional guidance, request new features, report a bug, and discuss the template with other users.
+
+
+## Other commands that were used
+dotnet tool install --global dotnet-ef --version 8.*
+
+/root/.dotnet/tools/dotnet-ef migrations list --project ./src/Infrastructure --startup-project ./src/Web
+
+/root/.dotnet/tools/dotnet-ef migrations add "RecordingMigration" --project ./src/Infrastructure --startup-project ./src/Web --output-dir Data/Migrations
+
+/root/.dotnet/tools/dotnet-ef database update "00000000000000_InitialCreate" --project ./src/Infrastructure --startup-
+project ./src/Web
+
+/root/.dotnet/tools/dotnet-ef migrations remove --project ./src/Infrastructure --startup-project ./src/Web
