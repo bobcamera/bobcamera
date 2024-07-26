@@ -74,17 +74,27 @@ To learn more about the template go to the [project website](https://github.com/
 ## Migrations
 
 ### Install dotnet-ef
+```bash
 dotnet tool install --global dotnet-ef --version 8.*
+```
 
 ### List existing migrations
+```bash
 /root/.dotnet/tools/dotnet-ef migrations list --project ./src/Infrastructure --startup-project ./src/Web
+```
 
 ### Add a new migration called RecordingMigration
+```bash
 /root/.dotnet/tools/dotnet-ef migrations add "RecordingMigration" --project ./src/Infrastructure --startup-project ./src/Web --output-dir Data/Migrations
+```
 
 ### Undo migrations from the database up to InitialCreate i.e. only have InitialCreate applied
+```bash
 /root/.dotnet/tools/dotnet-ef database update "00000000000000_InitialCreate" --project ./src/Infrastructure --startup-
 project ./src/Web
+```
 
 ### Remove migrations from the project
+```bash
 /root/.dotnet/tools/dotnet-ef migrations remove --project ./src/Infrastructure --startup-project ./src/Web
+```
