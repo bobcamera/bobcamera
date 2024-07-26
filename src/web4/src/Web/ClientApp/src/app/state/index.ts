@@ -6,6 +6,7 @@ import { environment } from '../../environments/environment';
 
 import * as fromMain from '../mod-main/state'
 import * as fromVision from '../mod-vision/state'
+import * as fromRecording from '../mod-recordings/state'
 
 import { RouterStateUrl } from '../mod-main/services';
 
@@ -13,6 +14,7 @@ export interface State {
   router: fromRouter.RouterReducerState<RouterStateUrl>;
   main: fromMain.MainState;
   vision: fromVision.VisionState;
+  recording: fromRecording.RecordingState;
 }
 
 export const rootReducers = new InjectionToken<ActionReducerMap<State, Action>>('Root reducers token', {
@@ -20,6 +22,7 @@ export const rootReducers = new InjectionToken<ActionReducerMap<State, Action>>(
     router: fromRouter.routerReducer,
     main: fromMain.mainReducer,
     vision: fromVision.visionReducer,
+    recording: fromRecording.recordingReducer,
   }),
 });
 

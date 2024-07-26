@@ -4,7 +4,7 @@ import { Subject, Observable } from 'rxjs';
 import { takeUntil, filter } from 'rxjs/operators';
 
 import * as MainActions from '../../../mod-main/state/main.actions';
-import * as VisionActions from '../../state/recording.actions';
+import * as RecordingActions from '../../state/recording.actions';
 
 import { MainState } from '../../../mod-main/state/main.reducer';
 import { RecordingState, getRecordingHeading, getRecordingMessage } from '../../state/recording.reducer';
@@ -44,10 +44,10 @@ export class RecordingIndexComponent implements OnInit, OnDestroy {
   }
 
   setMessage(message: string) {
-    this.store.dispatch(VisionActions.setMessage({message: message}));
+    this.store.dispatch(RecordingActions.setMessage({message: message}));
   }
 
   clearMessage() {
-    this.store.dispatch(VisionActions.clearMessage());
+    this.store.dispatch(RecordingActions.clearMessage());
   }
 }
