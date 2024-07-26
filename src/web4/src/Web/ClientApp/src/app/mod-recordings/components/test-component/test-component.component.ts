@@ -2,8 +2,8 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Store} from '@ngrx/store';
 import { Subject } from 'rxjs';
 
-import * as VisionActions from '../../state/vision.actions';
-import { VisionState} from '../../state/vision.reducer';
+import * as RecordingActions from '../../state/recording.actions';
+import { RecordingState} from '../../state/recording.reducer';
 
 @Component({
   selector: 'bob-test-component',
@@ -16,11 +16,11 @@ export class TestComponentComponent implements OnInit, OnDestroy {
 
   private _ngUnsubscribe$: Subject<void> = new Subject<void>();
 
-  constructor(private store: Store<VisionState>) {
+  constructor(private store: Store<RecordingState>) {
   }
 
   ngOnInit(): void {
-    this.store.dispatch(VisionActions.setHeading({ heading: 'Vision Test Component' }));
+    this.store.dispatch(RecordingActions.setHeading({ heading: 'Recording Test Component' }));
   }
 
   public ngOnDestroy(): void {
