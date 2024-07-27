@@ -355,6 +355,37 @@
         }
       }
     },
+    "/api/Vision": {
+      "get": {
+        "tags": [
+          "Vision"
+        ],
+        "operationId": "GetCamera",
+        "parameters": [
+          {
+            "name": "CameraName",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CameraDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/WeatherForecasts": {
       "get": {
         "tags": [
@@ -620,6 +651,27 @@
           "title": {
             "type": "string",
             "nullable": true
+          }
+        }
+      },
+      "CameraDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "cameraName": {
+            "type": "string",
+            "nullable": true
+          },
+          "fps": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "recording": {
+            "type": "boolean"
+          },
+          "randomNumber": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },

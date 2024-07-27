@@ -9,14 +9,17 @@
     <mat-card-content>
 
         <mat-sidenav-container class="example-container" autosize>
-            <mat-sidenav #sidenav mode="side" position="end" [(opened)]="opened">
+            <mat-sidenav #sidenav mode="side" position="end" [(opened)]="opened" (openedChange)="onOpenedChange($event)">
                 <mat-card>
                     <mat-card-header>
-                        <mat-card-title>Shiba Inu</mat-card-title>
-                        <mat-card-subtitle>Dog Breed</mat-card-subtitle>
+                        <mat-card-title>Camera Details</mat-card-title>
+                        <mat-card-subtitle>{{(_cameraDetails$ | async)?.cameraName}}</mat-card-subtitle>
                     </mat-card-header>
                     <mat-card-content>
-                        Content
+                        <div>Name: {{(_cameraDetails$ | async)?.cameraName}}</div>
+                        <div>FPS: {{(_cameraDetails$ | async)?.fps}}</div>
+                        <div>Recording: {{(_cameraDetails$ | async)?.recording}}</div>
+                        <div>Random Number: {{(_cameraDetails$ | async)?.randomNumber}}</div>
                     </mat-card-content>
                 </mat-card>
             </mat-sidenav>

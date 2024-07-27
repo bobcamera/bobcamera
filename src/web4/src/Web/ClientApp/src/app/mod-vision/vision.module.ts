@@ -8,6 +8,8 @@ import { MainModule } from '../mod-main';
 
 import { VisionRoutingModule } from './vision-routing.module';
 
+import { VisionService } from './services';
+
 import { TestComponentComponent } from './components';
 
 import { VisionIndexComponent} from './containers';
@@ -20,7 +22,7 @@ export const COMPONENTS = [TestComponentComponent];
 
 export const ENTRY_COMPONENTS = [];
 
-export const PROVIDERS = [];
+export const PROVIDERS = [VisionService];
 
 export const EFFECTS = [fromVision.VisionEffects];
 
