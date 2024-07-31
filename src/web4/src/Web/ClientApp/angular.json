@@ -27,7 +27,8 @@
             "polyfills": "src/polyfills.ts",
             "tsConfig": "tsconfig.app.json",
             "allowedCommonJsDependencies": [
-              "oidc-client"
+              "oidc-client",
+              "roslib"
             ],
             "assets": [
               "src/assets"

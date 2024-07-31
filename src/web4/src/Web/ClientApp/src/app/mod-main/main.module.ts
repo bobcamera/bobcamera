@@ -7,7 +7,7 @@ import { EffectsModule } from '@ngrx/effects';
 
 import { UiModule } from '../mod-ui';
 
-import { NotificationPublisher, NotificationHandler, ErrorService, ApiServiceBase } from './services';
+import { NotificationPublisher, NotificationHandler, ErrorService, ApiServiceBase, RosLibServiceBase, SvgService } from './services';
 import { AppRootComponent, NotFoundPageComponent, AccessDeniedPageComponent } from './containers';
 import { NavItemComponent } from './components';
 
@@ -17,7 +17,7 @@ export const COMPONENTS = [NavItemComponent];
 export const ENTRY_COMPONENTS = []
 export const CONTAINERS = [AppRootComponent, NotFoundPageComponent, AccessDeniedPageComponent];
 export const PIPE_PROVIDERS = []
-export const PROVIDERS = [NotificationPublisher, NotificationHandler, ErrorService, ApiServiceBase ];
+export const PROVIDERS = [NotificationPublisher, NotificationHandler, ErrorService, ApiServiceBase, RosLibServiceBase, SvgService ];
 export const GUARDS = []
 export const PIPES = [];
 export const EFFECTS = [fromMain.MainEffects];
