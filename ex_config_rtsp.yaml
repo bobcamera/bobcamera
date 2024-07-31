@@ -9,10 +9,6 @@ basic_config:
     #   Example Hikvision: rtsp_uri: 'rtsp://peter:pAsSwOrD123427@12.8.9.3:554/Streaming/Channels/101'
     #   Example Amcrest and Dahua: rtsp_uri: 'rtsp://user:password@0.0.0.0:554/cam/realmonitor?channel=1&subtype=0'
     rtsp_uri: 'rtsp://bob:Bobuser$01@192.168.68.54:554/Streaming/Channels/101'
-    onvif_host: ''
-    onvif_port: 0
-    onvif_user: ''
-    onvif_password: ''
     camera_id: 0
     usb_camera_resolution: [640, 480] # Resolution for USB Camera [WIDTH, HEIGHT]
     videos:                     # List of videos to display in sequence if source_type is VIDEO_FILE
@@ -44,6 +40,10 @@ basic_config:
 #########################################################################
 advanced_config:
   camera_node:
+    onvif_host: ''
+    onvif_port: 0
+    onvif_user: ''
+    onvif_password: ''  
     mask_timer_seconds: 5
     privacy_mask_file: 'assets/masks/privacy-mask.jpg'
     privacy_mask_override_service_topic: 'bob/mask/privacy/override'
