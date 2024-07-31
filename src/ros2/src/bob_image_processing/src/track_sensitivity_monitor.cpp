@@ -53,7 +53,7 @@ private:
 
         declare_node_parameters();
 
-        interval_check_timer_ = create_wall_timer(std::chrono::seconds(check_interval_), 
+        interval_check_timer_ = create_wall_timer(std::chrono::seconds(check_interval_),
             [this](){interval_check_timer_callback();});
     }
 
@@ -61,44 +61,44 @@ private:
     {
         std::vector<ParameterLifeCycleNode::ActionParam> params = {
             ParameterLifeCycleNode::ActionParam(
-                rclcpp::Parameter("monitoring_subscription_topic", "bob/monitoring/status"), 
-                [this](const rclcpp::Parameter& param) 
+                rclcpp::Parameter("monitoring_subscription_topic", "bob/monitoring/status"),
+                [this](const rclcpp::Parameter& param)
                 {
                     monitoring_subscription_ = create_subscription<bob_interfaces::msg::MonitoringStatus>(param.as_string(), sub_qos_profile_,
                             [this](const bob_interfaces::msg::MonitoringStatus::SharedPtr status_msg){status_callback(status_msg);});
                 }
-            ),            
+            ),
             ParameterLifeCycleNode::ActionParam(
-                rclcpp::Parameter("bgs_node", "rtsp_camera_node"), 
-                [this](const rclcpp::Parameter& param) 
+                rclcpp::Parameter("bgs_node", "rtsp_camera_node"),
+                [this](const rclcpp::Parameter& param)
                 {
-                    sensitivity_param_client_ = std::make_shared<rclcpp::AsyncParametersClient>(this, param.as_string()); 
+                    sensitivity_param_client_ = std::make_shared<rclcpp::AsyncParametersClient>(this, param.as_string());
                 }
-            ),            
+            ),
             ParameterLifeCycleNode::ActionParam(
-                rclcpp::Parameter("sensitivity", "medium_c"), 
-                [this](const rclcpp::Parameter& param) 
-                { 
+                rclcpp::Parameter("sensitivity", "medium_c"),
+                [this](const rclcpp::Parameter& param)
+                {
                     sensitivity_ = param.as_string();
                     proposed_sensitivity_ = param.as_string();
                 }
             ),
             ParameterLifeCycleNode::ActionParam(
-                rclcpp::Parameter("check_interval", 30), 
+                rclcpp::Parameter("check_interval", 30),
                 [this](const rclcpp::Parameter& param) { check_interval_ = param.as_int(); }
             ),
             ParameterLifeCycleNode::ActionParam(
-                rclcpp::Parameter("sensitivity_increase_count_threshold", 5), 
-                [this](const rclcpp::Parameter& param) 
-                { 
+                rclcpp::Parameter("sensitivity_increase_count_threshold", 5),
+                [this](const rclcpp::Parameter& param)
+                {
                     sensitivity_increase_count_threshold_ = param.as_int();
                     sensitivity_increase_check_counter_ = 0;
                 }
             ),
             ParameterLifeCycleNode::ActionParam(
-                rclcpp::Parameter("star_mask_enabled", true), 
+                rclcpp::Parameter("star_mask_enabled", true),
                 [this](const rclcpp::Parameter& param) { star_mask_enabled_ = param.as_bool(); }
-            ),            
+            ),
         };
         add_action_parameters(params);
     }
@@ -114,17 +114,16 @@ private:
         // --------------------------------
         // 1. Wait for a day/night determination before we do anything
         // 2. Lower sensitivity immediately if max blobs
-        // 3. Increase sensitivity past medium only during the day, if set to high and its night, lower to medium. 
+        // 3. Increase sensitivity past medium only during the day, if set to high and its night, lower to medium.
         //    If we have a star mask enabled then night sensitivity can be set to high or high_c as well.
         // 4. Lower sensitivity immediately if we have bimodal cloud cover and cloud cover is between 10% and 90%
         // 5. Increase sensitivity after a number of iterations, currently set to 5
         // ----------------------------------------------------------------
-        // Look into a rules engine e.g.: https://www.clipsrules.net/ 
+        // Look into a rules engine e.g.: https://www.clipsrules.net/
         // ----------------------------------------------------------------
-
         if (status_msg_)
         {
-            change_reason_ = "";            
+            change_reason_ = "";
 
             // Rule 1
             if (status_msg_->day_night_enum > 0)
@@ -164,95 +163,77 @@ private:
                 // Rule 5
                 if (sensitivity_change_action_ == IncreaseSensitivity)
                 {
-                    sensitivity_increase_check_counter_++;                        
+                    sensitivity_increase_check_counter_++;
                     if(sensitivity_increase_check_counter_ < sensitivity_increase_count_threshold_)
                     {
                         sensitivity_change_action_ = Ignore;
 
-                        log_send_debug("Tracking Auto Tune: IncreaseSensitivity triggered, counter %d of %d", 
+                        log_send_debug("Tracking Auto Tune: IncreaseSensitivity triggered, counter %d of %d",
                             sensitivity_increase_check_counter_, sensitivity_increase_count_threshold_);
                     }
                 }
 
-                switch (sensitivity_change_action_)
-                {                
-                    case IncreaseSensitivity:
-
-                        // reset the counter
-                        sensitivity_increase_check_counter_ = 0;                       
-
-                        if (sensitivity_ == "low")
-                        {
-                            proposed_sensitivity_ = "medium";
-                        }
-                        else if (sensitivity_ == "medium")
-                        {        
-                            // Rule 3
-                            if (status_msg_->day_night_enum == 1 || (star_mask_enabled_ && status_msg_->day_night_enum == 2))
-                            {
-                                proposed_sensitivity_ = "high";
-                            }
-                        }
-                        else if (sensitivity_ == "low_c")
-                        {
-                            proposed_sensitivity_ = "medium_c";
-                        }
-                        else if (sensitivity_ == "medium_c")
-                        {
-                            // Rule 3
-                            if (status_msg_->day_night_enum == 1 || (star_mask_enabled_ && status_msg_->day_night_enum == 2))
-                            {
-                                proposed_sensitivity_ = "high_c";
-                            }
-                        }
-
-                        if (sensitivity_ != proposed_sensitivity_)
-                        {
-                            log_send_info("Tracking Auto Tune: Stable conditions - increasing sensitivity");
-                        }
-                        break;
-
-                    case LowerSensitivity:
-                        // reset the counter
-                        sensitivity_increase_check_counter_ = 0;
-
-                        if (sensitivity_ == "medium")
-                        {
-                            proposed_sensitivity_ = "low";
-                        }
-                        else if (sensitivity_ == "high")
-                        {
-                            proposed_sensitivity_ = "medium";
-                        }
-                        else if (sensitivity_ == "medium_c")
-                        {
-                            proposed_sensitivity_ = "low_c";
-                        }
-                        else if (sensitivity_ == "high_c")
-                        {
-                            proposed_sensitivity_ = "medium_c";
-                        }
-
-                        if (sensitivity_ != proposed_sensitivity_)
-                        {
-                            log_send_info("Tracking Auto Tune: Unstable conditions - lowering sensitivity");
-                        }
-                        break;
-
-                    case Ignore:
-                        //log_debug("Tracking Action: Ignore");
-                        break;
-                }
-
-                if (sensitivity_ != proposed_sensitivity_)
-                {
-                    change_parameter_async("bgs_sensitivity", proposed_sensitivity_);
-                }
+                apply_sensitivity_change();
             }
         }
     }
 
-    void change_parameter_async(const std::string & param_name, const std::string & param_value) 
+    void apply_sensitivity_change()
+    {
+        static const std::map<std::string, std::pair<std::string, std::string>> sensitivity_change_map =
+        {
+            {"low", {"low", "medium"}},
+            {"medium", {"low", "high"}},
+            {"high", {"medium", "high"}},
+            {"low_c", {"low_c", "medium_c"}},
+            {"medium_c", {"low_c", "high_c"}},
+            {"high_c", {"medium_c", "high_c"}},
+        };
+
+        const auto &[lower_sensitivity, higher_sensitivity] = sensitivity_change_map.at(sensitivity_);
+
+        switch (sensitivity_change_action_)
+        {
+            case IncreaseSensitivity:
+                sensitivity_increase_check_counter_ = 0;
+                if ((sensitivity_ == "medium") || (sensitivity_ == "medium_c")) 
+                {
+                    if (status_msg_->day_night_enum == 1 || (star_mask_enabled_ && status_msg_->day_night_enum == 2))
+                    {
+                        proposed_sensitivity_ = higher_sensitivity;
+                    }
+                }
+                else
+                {
+                    proposed_sensitivity_ = higher_sensitivity;
+                }
+
+                if (sensitivity_ != proposed_sensitivity_)
+                {
+                    log_send_info("Tracking Auto Tune: Stable conditions - increasing sensitivity");
+                }
+                break;
+
+            case LowerSensitivity:
+                sensitivity_increase_check_counter_ = 0;
+                proposed_sensitivity_ = lower_sensitivity;
+                if (sensitivity_ != proposed_sensitivity_)
+                {
+                    log_send_info("Tracking Auto Tune: Unstable conditions - lowering sensitivity");
+                }
+                break;
+
+            case Ignore:
+                break;
+        }
+
+        if (sensitivity_ != proposed_sensitivity_)
+        {
+            change_parameter_async("bgs_sensitivity", proposed_sensitivity_);
+        }
+    }
+
+    void change_parameter_async(const std::string & param_name, const std::string & param_value)
     {
         // TODO: Move this into the base class so all param change requests can use the same code
         if (!sensitivity_param_client_->wait_for_service(std::chrono::seconds(1)))
@@ -262,14 +243,14 @@ private:
         }
 
         auto parameters = std::vector<rclcpp::Parameter>{rclcpp::Parameter(param_name, param_value)};
-        auto result_future = sensitivity_param_client_->set_parameters(parameters, 
+        auto result_future = sensitivity_param_client_->set_parameters(parameters,
             std::bind(&TrackSensitivityMonitor::async_sensitivity_change_request_callback, this, std::placeholders::_1));
     }
 
-    void async_sensitivity_change_request_callback(std::shared_future<std::vector<rcl_interfaces::msg::SetParametersResult>> future) 
+    void async_sensitivity_change_request_callback(std::shared_future<std::vector<rcl_interfaces::msg::SetParametersResult>> future)
     {
         bool param_result = true;
-        for (const auto& result : future.get()) 
+        for (const auto& result : future.get())
         {
             if (!result.successful)
             {
@@ -278,10 +259,10 @@ private:
             }
         }
         if (param_result)
-        {            
-            log_info("Sensitivity change from: %s to %s completed - reason: %s", 
+        {
+            log_info("Sensitivity change from: %s to %s completed - reason: %s",
                 sensitivity_.c_str(), proposed_sensitivity_.c_str(), change_reason_.c_str());
-            
+
             // reset sensitivity tracking state
             sensitivity_increase_check_counter_ = 0;
             sensitivity_change_action_ = Ignore;

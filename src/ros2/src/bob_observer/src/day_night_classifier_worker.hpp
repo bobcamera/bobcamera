@@ -1,6 +1,4 @@
 #pragma once
-#ifndef __DAY_NIGHT_CLASSIFIER_WORKER_H__
-#define __DAY_NIGHT_CLASSIFIER_WORKER_H__
 
 #include <opencv2/opencv.hpp>
 #include <day_night.hpp>
@@ -47,7 +45,7 @@ public:
 
         if (num_pixels == 0) 
         {
-            node_.log_warn("No valid pixels found for brightness estimation.");
+            node_.log_send_warn("No valid pixels found for brightness estimation.");
             return {result, 0};
         }
 
@@ -73,5 +71,3 @@ private:
     bool mask_enabled_;
     cv::Mat detection_mask_;
 };
-
-#endif

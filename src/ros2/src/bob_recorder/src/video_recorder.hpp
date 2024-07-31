@@ -25,10 +25,10 @@ public:
 
     bool open_new_video(const std::string& full_path, const std::string& codec_str, double video_fps, const cv::Size& frame_size)
     {
-        const std::vector<int> params = {cv::CAP_PROP_HW_ACCELERATION, cv::VIDEO_ACCELERATION_ANY};
+        //const std::vector<int> params = {cv::CAP_PROP_HW_ACCELERATION, cv::VIDEO_ACCELERATION_ANY};
         const int codec = cv::VideoWriter::fourcc(codec_str[0], codec_str[1], codec_str[2], codec_str[3]);
 
-        if (!video_writer_ptr_->open(full_path, cv::CAP_ANY, codec, video_fps, frame_size, params)) 
+        if (!video_writer_ptr_->open(full_path, cv::CAP_ANY, codec, video_fps, frame_size, true)) //params)) 
         {
             return false;
         }

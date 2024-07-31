@@ -1,6 +1,4 @@
 #pragma once
-#ifndef __PARAMETER_NODE_H__
-#define __PARAMETER_NODE_H__
 
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
@@ -104,5 +102,3 @@ private:
         return options;
     }
 };
-
-#endif // __PARAMETER_NODE_H__

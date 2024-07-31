@@ -66,7 +66,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
         -D WITH_OPENGL=ON \
         -D WITH_OPENCL=ON \
         -D WITH_JAVA=OFF \
-        -D WITH_CUDA=OFF \
+        -D WITH_CUDA=ON \
         -D BUILD_opencv_java=OFF \
         -D BUILD_opencv_python=OFF \
         -D BUILD_opencv_python2=OFF \

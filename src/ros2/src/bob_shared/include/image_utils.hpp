@@ -50,7 +50,7 @@ public:
     static void debayer_image(const cv::Mat & _image_in, cv::Mat & _image_out, const std::string & _bayerFormatStr, bool debayer)
     {
         if (debayer 
-            &&_bayerFormatStr != sensor_msgs::image_encodings::BGR8 
+            && _bayerFormatStr != sensor_msgs::image_encodings::BGR8 
             && _bayerFormatStr != sensor_msgs::image_encodings::MONO8)
         {
             cv::cvtColor(_image_in, _image_out, convert_bayer_pattern(_bayerFormatStr));

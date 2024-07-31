@@ -1,6 +1,6 @@
 #include <chrono>
-#include <future>
-#include <memory>
+// #include <future>
+// #include <memory>
 #include <string>
 #include <thread>
 
@@ -22,14 +22,18 @@ public:
     COMPOSITION_PUBLIC
     explicit LifecycleManager(const rclcpp::NodeOptions & options)
         : ParameterNode("lifecycle_service_client_node", options)
+        , timer_seconds_(5)
     {
-        init();
+        timer_nodes_ = create_wall_timer(std::chrono::seconds(timer_seconds_), [this](){init();});
     }
 
     void init()
     {
+        timer_nodes_->cancel();
+
         declare_node_parameters();
-        timer_nodes_ = create_wall_timer(std::chrono::seconds(5), [this](){timer_callback();});
+        timer_callback();
+        timer_nodes_ = create_wall_timer(std::chrono::seconds(timer_seconds_), [this](){timer_callback();});
     }
 
 private:
@@ -144,19 +148,40 @@ private:
     void timer_callback()
     {
         timer_nodes_->cancel();
-
-        add_remove_nodes();
-        do_state_machine();
-
+        try
+        {
+            add_remove_nodes();
+            do_state_machine();
+        }
+        catch (const std::exception& e)
+        {
+            RCLCPP_ERROR(get_logger(), "timer_callback: exception: %s", e.what());
+        }
+        catch (...)
+        {
+            RCLCPP_ERROR(get_logger(), "timer_callback: unknown exception");
+        }
+        
         timer_nodes_->reset();
     }
 
     void do_state_machine()
     {
-        for (auto & node : lifecycle_nodes_)
+        for (auto & [name, status_manager] : lifecycle_nodes_)
         {
-            node.second.prune_requests();
-            node.second.update_state();
+            try
+            {
+                status_manager.prune_requests();
+                status_manager.update_state();
+            }
+            catch(const std::exception& e)
+            {
+                RCLCPP_ERROR(get_logger(), "do_state_machine: node: %s, exception: %s", name.c_str(), e.what());
+            }
+            catch (...)
+            {
+                RCLCPP_ERROR(get_logger(), "do_state_machine: node: %s, unknown exception", name.c_str());
+            }
         }
     }
 
@@ -168,14 +193,11 @@ private:
 
         std::set<std::string> new_values;
         std::set<std::string> deleted_values;
-        // Creating the sets with new and deleted values
         std::ranges::sort(current_running_nodes);
         std::ranges::set_difference(current_running_nodes, running_nodes_, std::inserter(new_values, new_values.end()));
         std::ranges::set_difference(running_nodes_, current_running_nodes, std::inserter(deleted_values, deleted_values.end()));
 
-        // Removing from our node map and set
         std::erase_if(lifecycle_nodes_, [&deleted_values](const auto& pair) {return deleted_values.contains(pair.first);});
-        // std::erase_if(non_lifecycle_running_nodes_, [&deleted_values](const auto& node_name) {return deleted_values.contains(node_name);});
 
         RCLCPP_DEBUG(get_logger(), "Running Nodes: %ld, New Nodes: %ld", current_running_nodes.size(), new_values.size());
         for (const auto & node_name : new_values)
@@ -190,7 +212,6 @@ private:
             else
             {
                 RCLCPP_INFO(get_logger(), "Node %s is NOT lifecycle", node_name.c_str());
-                // non_lifecycle_running_nodes_.emplace(node_name);
             }
         }
         running_nodes_ = current_running_nodes;
@@ -210,10 +231,10 @@ private:
         add_action_parameters(params);
     }
 
+    int timer_seconds_;
     int prune_time_seconds_;
     rclcpp::TimerBase::SharedPtr timer_nodes_;
     std::map<std::string, NodeStatusManager> lifecycle_nodes_;
-    // std::set<std::string> non_lifecycle_running_nodes_;
     std::vector<std::string> running_nodes_;
 };
 

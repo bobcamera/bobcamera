@@ -86,22 +86,11 @@ public:
             
                 cv::Scalar color = _color(tracking_state);
 
-                // double orientation = detection.covariance_ellipse_orientation;
-                // double semi_major_axis = detection.covariance_ellipse_semi_major_axis;
-                // double semi_minor_axis = detection.covariance_ellipse_semi_minor_axis;
-
-                // cv::RotatedRect ellipse;
-                // ellipse.center = cv::Point2f(bbox.x + bbox.width / 2 + x_offset, bbox.y + bbox.height / 2 + y_offset);
-                // ellipse.size = cv::Size2f(semi_major_axis * 2, semi_minor_axis * 2);
-                // ellipse.angle = orientation * 180 / M_PI;
-
                 if (enable_cropped_tracks)
                 {
                     int margin = (cropped_track_counter == 0) ? 0 : 10;
                     double zoom_w = bbox.width * zoom_factor;
-                    // double zoom_h = bbox.height * zoom_factor;
                     int cropped_image_x = 10 + (cropped_track_counter * zoom_w) + margin;
-                    // int cropped_image_y = total_height - (zoom_h + 10);
                     if (cropped_image_x + zoom_w < total_width)
                     {
                         try

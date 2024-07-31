@@ -170,7 +170,7 @@ advanced_config:
     onvif_wsdl_path: 'assets/wsdl'
 
   info_webapi_node:
-    application_version: '1.5.5'
+    application_version: '1.5.7'
     frame_width: 0
     frame_height: 0
     video_fps: 15.0

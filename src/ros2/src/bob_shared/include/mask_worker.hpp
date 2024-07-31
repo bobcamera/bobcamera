@@ -1,6 +1,4 @@
 #pragma once
-#ifndef __MASK_WORKER_H__
-#define __MASK_WORKER_H__
 
 #include <filesystem>
 
@@ -88,12 +86,17 @@ private:
         }
         catch (std::exception &cve)
         {
-            RCLCPP_ERROR(node_.get_logger(), "Exception on mask_set: %s", cve.what());
+            node_.log_send_error("Exception on mask_set: %s", cve.what());
+            mask_last_modified_time_.reset();
+            image_mask_.release();
+            return MaskCheckType::Disable;
+        }
+        catch (...)
+        {
+            node_.log_send_error("Unknown exception on mask_set");
             mask_last_modified_time_.reset();
             image_mask_.release();
             return MaskCheckType::Disable;
         }
     }
 };
-
-#endif
