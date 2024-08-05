@@ -13,3 +13,17 @@ export interface CameraDto {
     recording: boolean;
     randomNumber: number;
 }
+
+export interface AppStateDto {
+    trackable: number;
+    alive: number;
+    started: number;
+    ended: number;
+    sensitivity: string;
+    max_blobs_reached: boolean;
+    recording: boolean;
+    percentage_cloud_cover: number;
+    unimodal_cloud_cover: boolean;
+    day_night_enum: number;
+    avg_brightness: number;
+}

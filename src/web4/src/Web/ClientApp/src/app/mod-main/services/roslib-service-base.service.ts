@@ -3,21 +3,21 @@ import { catchError, Observable, Subject } from "rxjs";
 
 import * as ROSLIB from 'roslib';
 
-export const BOB_ROS_URL = new InjectionToken<string>('BOB_ROS_URL');
-
 @Injectable({
   providedIn: 'root',
 })
 export class RosLibServiceBase {
 
+    protected _port: number = 9090;
     protected _url: string;
     protected _ros: ROSLIB.Ros;
     protected _hasListeners: boolean;
     protected _topics: ROSLIB.Topic[];
     private _connected = new Subject<boolean>();
 
-    constructor(@Optional() @Inject(BOB_ROS_URL) urlBob?: string) {
-      this._url = urlBob ?? "";
+    constructor(@Inject('BASE_URL') baseUrl: string) {
+      //this._url = baseUrl ?? "http://localhost";
+      this._url = "http://localhost";
       this._ros = null;
       this._hasListeners = false;
       this._topics = [];
@@ -66,7 +66,9 @@ export class RosLibServiceBase {
             this._hasListeners = true;
         }
 
-        this._ros.connect(this._url);
+        console.log(`Ros Bridge URL: ${this._url}:${this._port}`);
+
+        this._ros.connect(`${this._url}:${this._port}`);
     }
 
     disconnect() {

@@ -9,7 +9,8 @@
     <mat-card-content>
 
         <mat-sidenav-container class="example-container" autosize>
-            <mat-sidenav #sidenav mode="side" position="end" [(opened)]="opened" (openedChange)="onOpenedChange($event)">
+            <mat-sidenav #sidenav mode="side" position="end" [(opened)]="opened">
+                <!-- (openedChange)="onOpenedChange($event)">
                 <mat-card>
                     <mat-card-header>
                         <mat-card-title>Camera Details</mat-card-title>
@@ -21,11 +22,29 @@
                         <div>Recording: {{(_cameraDetails$ | async)?.recording}}</div>
                         <div>Random Number: {{(_cameraDetails$ | async)?.randomNumber}}</div>
                     </mat-card-content>
-                </mat-card>
-            </mat-sidenav>
+                </mat-card>-->
+                <mat-card>
+                    <mat-card-header>
+                        <mat-card-title>Application State</mat-card-title>
+                    </mat-card-header>
+                    <mat-card-content>
+                        <div>trackable: {{(_stateData$ | async)?.trackable}}</div>
+                        <div>alive: {{(_stateData$ | async)?.alive}}</div>
+                        <div>started: {{(_stateData$ | async)?.started}}</div>
+                        <div>ended: {{(_stateData$ | async)?.ended}}</div>
+                        <div>sensitivity: {{(_stateData$ | async)?.sensitivity}}</div>
+                        <div>max_blobs_reached: {{(_stateData$ | async)?.max_blobs_reached}}</div>
+                        <div>recording: {{(_stateData$ | async)?.recording}}</div>
+                        <div>percentage_cloud_cover: {{(_stateData$ | async)?.percentage_cloud_cover}}</div>
+                        <div>unimodal_cloud_cover: {{(_stateData$ | async)?.unimodal_cloud_cover}}</div>
+                        <div>day_night_enum: {{(_stateData$ | async)?.day_night_enum}}</div>
+                        <div>avg_brightness: {{(_stateData$ | async)?.avg_brightness}}</div>
+                    </mat-card-content>
+                </mat-card>                
+            </mat-sidenav>            
         
             <mat-sidenav-content>
-                <mat-card>
+                <!--<mat-card>
                     <mat-card-header>
                         <mat-card-title>Shiba Inu</mat-card-title>
                         <mat-card-subtitle>Dog Breed</mat-card-subtitle>
@@ -36,8 +55,17 @@
                     </mat-card-content>
                     <mat-card-actions>
                     </mat-card-actions>
-                </mat-card>      
+                </mat-card>-->
         
+                <mat-card>
+                    <mat-card-header>
+                        <mat-card-title>Annotated Stream</mat-card-title>
+                    </mat-card-header>
+                    <mat-card-content>
+                        <p><img style="width:100%" src="{{(this._visionData$ | async)}}" /></p>
+                    </mat-card-content>
+                </mat-card>                  
+
             </mat-sidenav-content>
           </mat-sidenav-container>               
 
