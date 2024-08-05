@@ -168,3 +168,6 @@ site/*
 
 recordings/*
 assets/*
+
+# Ignore the my_bob_config.yaml file so debs have a place to add their config.
+my_bob_config.yaml
