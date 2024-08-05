@@ -80,17 +80,21 @@ export class AppRootComponent implements OnInit, OnDestroy {
 
   handleNotification(notificationModel: NotificationModel) {
 
-    console.log(`Dealing with notification: ${notificationModel}`);
-
     switch(notificationModel.type) {
-      case NotificationType.Information:
-        this.notificationHandler.DisplayInfo(notificationModel.message);
+      case NotificationType.Default:
+        this.notificationHandler.default(notificationModel.message);
+        break;
+        case NotificationType.Information:
+          this.notificationHandler.info(notificationModel.message);
+          break;              
+      case NotificationType.Success:
+        this.notificationHandler.success(notificationModel.message);
         break;
       case NotificationType.Warning:
-        this.notificationHandler.DisplayWarn(notificationModel.message);
+        this.notificationHandler.warn(notificationModel.message);
         break;
       case NotificationType.Error:
-        this.notificationHandler.DisplayError(notificationModel.message);
+        this.notificationHandler.error(notificationModel.message);
         break;                  
     }
     this.store.dispatch(ClearNotification());

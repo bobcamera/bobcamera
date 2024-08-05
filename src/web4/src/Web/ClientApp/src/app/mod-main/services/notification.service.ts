@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, NgZone } from '@angular/core';
 import { MatSnackBar, MatSnackBarConfig } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { filter } from 'rxjs/operators';
@@ -6,7 +6,6 @@ import { filter } from 'rxjs/operators';
 import { MainState } from '../state/main.reducer';
 import { Notification } from '../state/main.actions';
 import { NotificationType, NotificationModel } from '../models';
-import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
@@ -16,19 +15,27 @@ export class NotificationPublisher {
   constructor(private store: Store<MainState>) {
   }
 
-  PublishInfo(message: string) {
-    this.Publish({ type: NotificationType.Information, message: message });
+  default(message: string) {
+    this.publish({ type: NotificationType.Default, message: message });
+  }  
+
+  info(message: string) {
+    this.publish({ type: NotificationType.Information, message: message });
   }
 
-  PublishWarn(message: string) {
-    this.Publish({ type: NotificationType.Warning, message: message });
+  success(message: string) {
+    this.publish({ type: NotificationType.Success, message: message });
   }
 
-  PublishError(message: string) {
-    this.Publish({ type: NotificationType.Error, message: message });
+  warn(message: string) {
+    this.publish({ type: NotificationType.Warning, message: message });
   }
 
-  Publish(notification: NotificationModel) {
+  error(message: string) {
+    this.publish({ type: NotificationType.Error, message: message });
+  }
+
+  private publish(notification: NotificationModel) {
     this.store.dispatch(Notification({ notification: notification }));
   }
 }
@@ -37,34 +44,49 @@ export class NotificationPublisher {
   providedIn: 'root'
 })
 export class NotificationHandler {
+  constructor(
+    private readonly snackBar: MatSnackBar,
+    private readonly zone: NgZone
+  ) {}
 
-  constructor(private store: Store<MainState>, private snackBar: MatSnackBar) {
-    /*this.store.select(getNotification)
-    .pipe(filter(notification => !!notification))
-    .subscribe((notification: NotificationModel) => this.handleNotification(notification));*/
+  default(message: string) {
+    this.show(message, {
+      duration: 2000,
+      panelClass: 'default-notification-overlay'
+    });
   }
 
-  DisplayInfo(content: string) {
-    const config = new MatSnackBarConfig();
-    config.panelClass = ['info-snackbar'];
-    config.duration = environment.settings.serices.notification.displayDuration.info;
-
-    this.snackBar.open(content, 'Close', config);
+  info(message: string) {
+    this.show(message, {
+      duration: 2000,
+      panelClass: 'info-notification-overlay'
+    });
   }
 
-  DisplayWarn(content: string) {
-    const config = new MatSnackBarConfig();
-    config.panelClass = ['warn-snackbar'];
-    config.duration = environment.settings.serices.notification.displayDuration.warn;
-
-    this.snackBar.open(content, 'Warn - Close', config);
+  success(message: string) {
+    this.show(message, {
+      duration: 2000,
+      panelClass: 'success-notification-overlay'
+    });
   }
 
-  DisplayError(content: string) {
-    const config = new MatSnackBarConfig();
-    config.panelClass = ['error-snackbar'];
-    config.duration = environment.settings.serices.notification.displayDuration.error
+  warn(message: string) {
+    this.show(message, {
+      duration: 2500,
+      panelClass: 'warning-notification-overlay'
+    });
+  }
 
-    this.snackBar.open(content, 'Error - Close', config);
+  error(message: string) {
+    this.show(message, {
+      duration: 3000,
+      panelClass: 'error-notification-overlay'
+    });
+  }
+
+  private show(message: string, configuration: MatSnackBarConfig) {
+    // Need to open snackBar from Angular zone to prevent issues with its position per
+    // https://stackoverflow.com/questions/50101912/snackbar-position-wrong-when-use-errorhandler-in-angular-5-and-material
+    this.zone.run(() => this.snackBar.open(message, undefined, configuration));
   }
 }

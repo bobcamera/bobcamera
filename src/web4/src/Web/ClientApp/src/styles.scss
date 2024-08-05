@@ -3,41 +3,6 @@
 
 @import './scss/material/theme.scss';
 
-//$color-config:    mat.get-color-config($pad-theme);
-//$pad-primary: map.get($color-config, 'primary');
-//$pad-accent: map.get($color-config, 'accent');
-//$pad-warn: map.get($color-config, 'warn');
-
-body, html{
-  height: 100%;
-  padding: 0;
-  margin: 0;
-  overflow-y: hidden;
-}
-
-// Remove this after demo
-.mat-mdc-drawer-content {
-  overflow: hidden !important;
-}
-
-.mat-mdc-snack-bar-container {
-  &.info-snackbar {
-    --mdc-snackbar-container-color: rgb(0, 121, 107); //mat-color($pad-primary);
-  }
-}
-
-.mat-mdc-snack-bar-container {
-  &.warn-snackbar {
-    --mdc-snackbar-container-color: rgb(235, 155, 52);
-  }
-}
-
-.mat-mdc-snack-bar-container {
-  &.error-snackbar {
-    --mdc-snackbar-container-color: rgb(153, 50, 50);
-  }
-}
-
 .background-primary {
   background-color: mat-color($bob-primary);
 }

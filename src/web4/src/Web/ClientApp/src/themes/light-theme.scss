@@ -1,0 +1,11 @@
+@use '@angular/material' as mat;
+
+$bob-light-primary: mat.define-palette(mat.$grey-palette, 200, 500, 300);
+$bob-light-accent: mat.define-palette(mat.$brown-palette, 200);
+$bob-light-warn: mat.define-palette(mat.$deep-orange-palette, 200);
+
+$bob-light-theme: mat.define-light-theme(
+  $bob-light-primary,
+  $bob-light-accent,
+  $bob-light-warn
+);

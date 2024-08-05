@@ -1,10 +1,4 @@
-:host {
-    box-sizing: border-box;
-    display: block;
-    height: 100%;
-  }
-
-.app-container {
+mat-drawer-container {
     position: fixed;
     display: flex;
     flex-direction: column;
@@ -15,59 +9,54 @@
     margin: 0;
     padding:0;
     overflow: hidden; /* Disable scroll */
+
+    mat-drawer {
+        position: fixed;
+        z-index: 1000; /* Ensure that your app's content doesn't overlap the toolbar */
+        top: 0; /* Stay at the top */
+        left: 0;
+        overflow-x: hidden; /* Disable horizontal scroll */    
+        width: 350px;
+        height: 100%;
+        //border: 3px solid #e20e0e;
+
+        .nav-item-heading {    
+            background-color: #E0E0E0;
+        }
+    }
 }
 
-.app-toolbar {
-    position: fixed;
-    top: 0; /* Sets the sticky toolbar to be on top */
-    z-index: 1000; /* Ensure that your app's content doesn't overlap the toolbar */
-    overflow: hidden; /* Disable scroll */
+mat-drawer-content {
+    overflow: hidden !important;
+
+    .logo-nav {
+        padding-right: 20px;
+    }
+    
+    .logo-nav img {
+        width: 185px;
+    }
+
+    .app-content {
+        width: 100%;
+        flex: 1;
+        overflow: auto;
+    }
+
+    .app-footer {
+        display: flex;
+        height: 5%;
+        min-height: 50px;
+        justify-content: center;
+        align-items: center;
+        //border: 1px solid #555;
+        overflow: hidden; /* Disable scroll */
+    }
+    
+    .app-footer div {
+        display: flex;
+    }    
 }
 
-.logo-nav {
-    padding-right: 20px;
-}
-
-.logo-nav img {
-    width: 185px;
-}
-
-.app-sidebar {
-    position: fixed;
-    z-index: 1000; /* Ensure that your app's content doesn't overlap the toolbar */
-    top: 0; /* Stay at the top */
-    left: 0;
-    overflow-x: hidden; /* Disable horizontal scroll */
-
-    width: 350px;
-    height: 100%;
-    //border: 3px solid #e20e0e;
-}
-
-.nav-item-heading {    
-    background-color: #E0E0E0;
-}
-
-.app-content {
-    width: 100%;
-    height: 90%;
-    //border: 3px solid #e20e0e;
-    flex: 1;
-    overflow: auto;
-}
-
-.app-footer {
-    display: flex;
-    height: 5%;
-    min-height: 50px;
-    justify-content: center;
-    align-items: center;
-    //border: 1px solid #555;
-    overflow: hidden; /* Disable scroll */
-}
-
-.app-footer div {
-    display: flex;
-}
 
 // https://www.youtube.com/watch?v=MBJyMW0Onac

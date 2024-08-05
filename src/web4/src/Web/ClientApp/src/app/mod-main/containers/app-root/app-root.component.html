@@ -1,6 +1,6 @@
-<mat-drawer-container [hasBackdrop]="true" class="app-container">
+<mat-drawer-container [hasBackdrop]="true">
 
-    <mat-drawer #drawer mode="over" color="accent" class="app-sidebar">
+    <mat-drawer #drawer mode="over" color="accent">
       <mat-toolbar class="nav-item-heading">
         Main Menu
       </mat-toolbar>
@@ -14,7 +14,7 @@
       </mat-nav-list>
     </mat-drawer>
   
-    <mat-drawer-content navigationRoute="/" class="app-content">
+    <mat-drawer-content navigationRoute="/">
       <mat-toolbar color="primary">
         <button mat-icon-button (click)="drawer.toggle()" matTooltip="Main Menu">
           <mat-icon>menu</mat-icon>

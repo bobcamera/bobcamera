@@ -15,6 +15,6 @@ export class ErrorService {
   HandleError(message: string, error: HttpErrorResponse) {   
     console.error(`BOB error handler - Message: ${message}`);
     console.error('BOB error handler - Error:', error);
-    this.notificationPublisher.Publish({ type: NotificationType.Error, message: error.message });
+    this.notificationPublisher.error(error.message);
   }
 }

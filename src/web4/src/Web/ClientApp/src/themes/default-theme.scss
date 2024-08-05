@@ -1,0 +1,7 @@
+@use '@angular/material' as mat;
+
+$bob-primary: mat.define-palette(mat.$indigo-palette, 800, 300, 900);
+$bob-accent: mat.define-palette(mat.$light-blue-palette);
+$bob-warn: mat.define-palette(mat.$pink-palette, 600);
+
+$bob-theme: mat.define-light-theme($bob-primary, $bob-accent, $bob-warn);

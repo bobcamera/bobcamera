@@ -1,7 +1,9 @@
-import { Injectable } from "@angular/core";
+import { Injectable, Inject, Optional, InjectionToken } from '@angular/core';
 import { catchError, Observable, Subject } from "rxjs";
 
 import * as ROSLIB from 'roslib';
+
+export const BOB_ROS_URL = new InjectionToken<string>('BOB_ROS_URL');
 
 @Injectable({
   providedIn: 'root',
@@ -14,7 +16,7 @@ export class RosLibServiceBase {
     protected _topics: ROSLIB.Topic[];
     private _connected = new Subject<boolean>();
 
-    constructor(public urlBob: string) {
+    constructor(@Optional() @Inject(BOB_ROS_URL) urlBob?: string) {
       this._url = urlBob ?? "";
       this._ros = null;
       this._hasListeners = false;
