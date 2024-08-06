@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
 
 # Package definition
-project(bob_camera)
+project(bob_camera LANGUAGES C CXX CUDA)
 
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 20)
@@ -31,6 +31,7 @@ find_package(jsoncpp REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(lifecycle_msgs REQUIRED)
 
+find_package(CUDAToolkit REQUIRED)
 
 include_directories(${OpenCV_INCLUDE_DIRS})
 include_directories("../bob_shared/include")
@@ -61,7 +62,8 @@ rosidl_get_typesupport_target(cpp_typesupport_target ${PROJECT_NAME} "rosidl_typ
 # Camera BGS Node
 add_library(camera_bgs_node SHARED src/camera_bgs.cpp)
 target_compile_definitions(camera_bgs_node PRIVATE "COMPOSITION_BUILDING_DLL")
-target_link_libraries(camera_bgs_node PUBLIC jsoncpp boblib "${cpp_typesupport_target}")
+# target_link_libraries(camera_bgs_node PUBLIC jsoncpp boblib "${cpp_typesupport_target}" ${CUDA_LIBRARIES} cudart)
+target_link_libraries(camera_bgs_node PUBLIC jsoncpp boblib "${cpp_typesupport_target}" CUDA::cudart)
 ament_target_dependencies(camera_bgs_node PUBLIC
     rclcpp 
     sensor_msgs 

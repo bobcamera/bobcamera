@@ -2,21 +2,29 @@
 
 #include <string>
 #include <filesystem>
+#include <optional>
+#include <thread>
+#include <functional>
+
 #include <opencv2/opencv.hpp>
+#include <opencv2/core/ocl.hpp>
+#include <opencv2/core/cuda.hpp>
+#include <opencv2/cudacodec.hpp>
+
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
+
 #include <bob_interfaces/srv/camera_settings.hpp>
 #include <bob_interfaces/srv/config_entry_update.hpp>
 #include <bob_camera/msg/image_info.hpp>
 #include <bob_camera/msg/camera_info.hpp>
+
 #include <image_utils.hpp>
-#include <parameter_lifecycle_node.hpp>
-#include "object_simulator.hpp"
 #include <mask_worker.hpp>
 #include <circuit_breaker.hpp>
-#include <optional>
-#include <thread>
-#include <functional>
+
+#include <parameter_lifecycle_node.hpp>
+#include "object_simulator.hpp"
 
 class CameraWorkerParams
 {
@@ -149,11 +157,13 @@ public:
             mask_enabled_ = false;
             is_open_ = false;
             is_camera_info_auto_ = false;
+            has_cuda_ = false;
 
             camera_info_msg_.frame_height = 0;
             camera_info_msg_.frame_width = 0;
             camera_info_msg_.fps = 0;
 
+            set_gpu_flags();
             circuit_breaker_ptr_ = std::make_unique<CircuitBreaker>(CIRCUIT_BREAKER_MAX_RETRIES, CIRCUIT_BREAKER_INITIAL_TIMEOUT, CIRCUIT_BREAKER_MAX_TIMEOUT);
 
             if (params_.get_simulator_enable())
@@ -204,13 +214,13 @@ public:
         {
             return false;
         }
-        const std::vector<int> params = {cv::CAP_PROP_HW_ACCELERATION, cv::VIDEO_ACCELERATION_ANY};
         switch (params_.get_source_type())
         {
             case CameraWorkerParams::SourceType::USB_CAMERA:
             {
+                const std::vector<int> params = {cv::CAP_PROP_HW_ACCELERATION, cv::VIDEO_ACCELERATION_ANY};
                 node_.log_send_info("Trying to open camera %d", params_.get_camera_id());
-                video_capture_.open(params_.get_camera_id(), cv::CAP_ANY, params);
+                video_capture_ptr_ = std::make_unique<cv::VideoCapture>(params_.get_camera_id(), cv::CAP_ANY, params);
                 set_camera_resolution();
             }
             break;
@@ -219,14 +229,14 @@ public:
             {
                 const auto & video_path = params_.get_videos()[current_video_idx_];
                 node_.log_send_info("Trying to open video '%s'", video_path.c_str());
-                video_capture_.open(video_path, cv::CAP_ANY, params);
+                create_video_capture(video_path);
             }
             break;
 
             case CameraWorkerParams::SourceType::RTSP_STREAM:
             {
                 node_.log_send_info("Trying to open RTSP Stream '%s'", params_.get_rtsp_uri().c_str());
-                video_capture_.open(params_.get_rtsp_uri(), cv::CAP_ANY, params);
+                create_video_capture(params_.get_rtsp_uri());
             }
             break;
 
@@ -235,7 +245,7 @@ public:
                 return false;
         }
 
-        is_open_ = video_capture_.isOpened();
+        is_open_ = has_cuda_ ? true : video_capture_ptr_->isOpened();
         if (is_open_)
         {
             node_.log_send_info("Stream is open.");
@@ -252,15 +262,54 @@ public:
     }    
 
 private:
+    void set_gpu_flags()
+    {
+        cv::ocl::setUseOpenCL(true);
+        if (cv::ocl::useOpenCL()) 
+        {
+            node_.log_send_info("OpenCL is enabled.");
+        } 
+        else
+        {
+            node_.log_send_info("OpenCL is NOT enabled.");
+        }
+
+        has_cuda_ = cv::cuda::getCudaEnabledDeviceCount();
+        if (has_cuda_ > 0)
+        {
+            node_.log_send_info("CUDA is Available");
+        }
+        else
+        {
+            node_.log_send_info("CUDA is NOT Available");
+        }
+    }
+
     void update_capture_info()
     {
         if (is_open_)
         {
-            fps_ = video_capture_.get(cv::CAP_PROP_FPS);
-            cv_camera_width_ = static_cast<int>(video_capture_.get(cv::CAP_PROP_FRAME_WIDTH));
-            cv_camera_height_ = static_cast<int>(video_capture_.get(cv::CAP_PROP_FRAME_HEIGHT));
-            node_.log_send_info("Stream capture Info: %dx%d at %.2g FPS", cv_camera_width_, cv_camera_height_, fps_);
-            loop_rate_ptr_ = std::make_unique<rclcpp::WallRate>(fps_);
+            if (!has_cuda_)
+            {
+                fps_ = video_capture_ptr_->get(cv::CAP_PROP_FPS);
+                cv_camera_width_ = static_cast<int>(video_capture_ptr_->get(cv::CAP_PROP_FRAME_WIDTH));
+                cv_camera_height_ = static_cast<int>(video_capture_ptr_->get(cv::CAP_PROP_FRAME_HEIGHT));
+                cv_camera_format_ = static_cast<int>(video_capture_ptr_->get(cv::CAP_PROP_FORMAT));
+                node_.log_send_info("Stream capture Info: %dx%d at %.2g FPS", cv_camera_width_, cv_camera_height_, fps_);
+                loop_rate_ptr_ = std::make_unique<rclcpp::WallRate>(fps_);
+            }
+            else
+            {
+                double fps;
+                double frame_width;
+                double frame_height;
+                fps_ = cuda_video_reader_ptr_->get(cv::CAP_PROP_FPS, fps) ? static_cast<float>(fps) : UNKNOWN_DEVICE_FPS;
+                cv_camera_width_ = cuda_video_reader_ptr_->get(cv::CAP_PROP_FRAME_WIDTH, frame_width) ? static_cast<int>(frame_width) : 0;
+                cv_camera_height_ = cuda_video_reader_ptr_->get(cv::CAP_PROP_FRAME_HEIGHT, frame_height) ? static_cast<int>(frame_height) : 0;
+                cv_camera_format_ = CV_8UC3;
+                node_.log_send_info("Stream capture Info: %dx%d at %.2g FPS", cv_camera_width_, cv_camera_height_, fps_);
+                loop_rate_ptr_ = std::make_unique<rclcpp::WallRate>(fps_);
+            }
 
             create_camera_info_msg();
         }
@@ -270,46 +319,124 @@ private:
         }        
     }
 
-    bool circuit_break_test(std::unique_ptr<RosCvImageMsg> & roscv_image_msg_ptr)
+    inline void create_video_capture(const std::string & uri)
     {
-        if (!circuit_breaker_ptr_->allow_request()) 
+        try
         {
-            node_.log_send_error("Could not acquire image, Waiting to connect to camera");
-            std::this_thread::sleep_for(std::chrono::milliseconds(CIRCUIT_BREAKER_SLEEP_MS));
-            return false;
-        }
-
-        if (!video_capture_.read(roscv_image_msg_ptr->get_image()))
-        {
-            if (params_.get_source_type() == CameraWorkerParams::SourceType::VIDEO_FILE)
+            if (has_cuda_)
             {
-                current_video_idx_ = current_video_idx_ >= (params_.get_videos().size() - 1) ? 0 : current_video_idx_ + 1;
-                if (open_camera())
+                static const std::vector<int> params = {cv::CAP_PROP_OPEN_TIMEOUT_MSEC, 10000, cv::CAP_PROP_CONVERT_RGB, 1};
+                cuda_video_reader_ptr_ = cv::cudacodec::createVideoReader(uri, params);
+                cuda_video_reader_ptr_->set(cv::cudacodec::ColorFormat::BGR);
+                video_capture_ptr_.reset();
+            }
+            else
+            {
+                static const std::vector<int> params = {cv::CAP_PROP_HW_ACCELERATION, cv::VIDEO_ACCELERATION_ANY};
+                cuda_video_reader_ptr_.reset();
+                video_capture_ptr_ = std::make_unique<cv::VideoCapture>(uri, cv::CAP_ANY, params);
+            }
+        }
+        catch (const std::exception & ex)
+        {
+            node_.log_error("create_video_capture: exception %s", ex.what());
+        }
+        catch (...)
+        {
+            node_.log_error("create_video_capture: unknown exception");
+        }
+    }
+
+    inline bool capture_image(cv::Mat & image)
+    {
+        if (has_cuda_ && (params_.get_source_type() != CameraWorkerParams::SourceType::USB_CAMERA))
+        {
+            cv::cuda::GpuMat gpu_frame;
+            if (!cuda_video_reader_ptr_->nextFrame(gpu_frame)) 
+            {
+                return false;
+            }
+            // cv::Mat image_download;
+            // gpu_frame.download(image_download);
+            gpu_frame.download(image);
+            // const size_t size_dl = image_download.elemSize() * image_download.total();
+            // const size_t size_img = image.elemSize() * image.total();
+            // node_.log_info("DL Image total: %ld, image: %ld", size_dl, size_img);
+            // node_.log_info("    Image type: %d, channels: %d, elemSize1: %d", image.type(), image.channels(), image.elemSize1());
+
+
+            // image_download.copyTo(image);
+            // node_.log_info("GPU Image type: %d, channels: %d, elemSize1: %d", gpu_frame.type(), gpu_frame.channels(), gpu_frame.elemSize1());
+            // node_.log_info("DL  Image type: %d, channels: %d, elemSize1: %d", image_download.type(), image_download.channels(), image_download.elemSize1());
+            // node_.log_info("    Image type: %d, channels: %d, elemSize1: %d", image.type(), image.channels(), image.elemSize1());
+            return true;
+        }
+        
+        return video_capture_ptr_->read(image);
+    }
+
+    bool acquire_image(std::unique_ptr<RosCvImageMsg> & roscv_image_msg_ptr)
+    {
+        try
+        {
+            if (!circuit_breaker_ptr_->allow_request()) 
+            {
+                node_.log_send_error("Could not acquire image, Waiting to connect to camera");
+                std::this_thread::sleep_for(std::chrono::milliseconds(CIRCUIT_BREAKER_SLEEP_MS));
+                return false;
+            }
+
+            if (!capture_image(roscv_image_msg_ptr->get_image()))
+            {
+                if (params_.get_source_type() == CameraWorkerParams::SourceType::VIDEO_FILE)
                 {
-                    roscv_image_msg_ptr = RosCvImageMsg::create(video_capture_);
+                    current_video_idx_ = current_video_idx_ >= (params_.get_videos().size() - 1) ? 0 : current_video_idx_ + 1;
+                    if (open_camera())
+                    {
+                        if (has_cuda_)
+                        {
+                            roscv_image_msg_ptr = RosCvImageMsg::create(cv_camera_width_, cv_camera_height_, cv_camera_format_);
+                        }
+                        else
+                        {
+                            roscv_image_msg_ptr = RosCvImageMsg::create(*video_capture_ptr_);
+                        }
+                    }
+                    else
+                    {
+                        circuit_breaker_ptr_->record_failure();
+                    }
+                }
+                else if (open_camera())
+                {
+                    if (has_cuda_)
+                    {
+                        roscv_image_msg_ptr = RosCvImageMsg::create(cv_camera_width_, cv_camera_height_, cv_camera_format_);
+                    }
+                    else
+                    {
+                        roscv_image_msg_ptr = RosCvImageMsg::create(*video_capture_ptr_);
+                    }
                 }
                 else
                 {
                     circuit_breaker_ptr_->record_failure();
                 }
+                return false;
             }
-            else if (open_camera())
-            {
-                roscv_image_msg_ptr = RosCvImageMsg::create(video_capture_);
-            }
-            else
-            {
-                circuit_breaker_ptr_->record_failure();
-            }
+            circuit_breaker_ptr_->record_success();
+            return true;
+        }
+        catch(const std::exception & ex)
+        {
+            node_.log_error("create_video_capture: exception %s", ex.what());
             return false;
         }
-        circuit_breaker_ptr_->record_success();
-        return true;
     }
 
     void capture_loop()
     {
-        std::unique_ptr<RosCvImageMsg> roscv_image_msg_ptr = RosCvImageMsg::create(video_capture_);
+        std::unique_ptr<RosCvImageMsg> roscv_image_msg_ptr = has_cuda_ ? RosCvImageMsg::create(cv_camera_width_, cv_camera_height_, cv_camera_format_) : RosCvImageMsg::create(*video_capture_ptr_);
 
         while (run_ && rclcpp::ok())
         {
@@ -321,14 +448,14 @@ private:
 
             try
             {
-                if (!circuit_break_test(roscv_image_msg_ptr))
+                if (!acquire_image(roscv_image_msg_ptr))
                 {
                     continue;
                 }
 
                 if (roscv_image_msg_ptr->recreate_if_invalid())
                 {
-                    node_.log_debug("ImageMsg recreated");
+                    node_.log_info("ImageMsg recreated");
                     update_capture_info();
                 }
 
@@ -453,11 +580,11 @@ private:
 
         auto set_check_resolution = [this](long width, long height)
         {
-            video_capture_.set(cv::CAP_PROP_FRAME_WIDTH, width);
-            video_capture_.set(cv::CAP_PROP_FRAME_HEIGHT, height);
+            video_capture_ptr_->set(cv::CAP_PROP_FRAME_WIDTH, width);
+            video_capture_ptr_->set(cv::CAP_PROP_FRAME_HEIGHT, height);
 
-            return ((video_capture_.get(cv::CAP_PROP_FRAME_WIDTH) == width) &&
-                    (video_capture_.get(cv::CAP_PROP_FRAME_HEIGHT) == height));
+            return ((video_capture_ptr_->get(cv::CAP_PROP_FRAME_WIDTH) == width) &&
+                    (video_capture_ptr_->get(cv::CAP_PROP_FRAME_HEIGHT) == height));
         };
 
         // If we have the values defined, try setting
@@ -641,7 +768,8 @@ private:
 
     std::function<void(const std_msgs::msg::Header &, const cv::Mat &)> user_callback_;
     
-    cv::VideoCapture video_capture_;
+    std::unique_ptr<cv::VideoCapture> video_capture_ptr_;
+    cv::Ptr<cv::cudacodec::VideoReader> cuda_video_reader_ptr_;
     bob_camera::msg::CameraInfo camera_info_msg_;
 
     bool run_{false};
@@ -653,6 +781,7 @@ private:
     float fps_{UNKNOWN_DEVICE_FPS};
     int cv_camera_width_{};
     int cv_camera_height_{};
+    int cv_camera_format_{};
     bool is_open_{false};
     bool is_camera_info_auto_{false};
     bool is_initialized_{false};
@@ -665,4 +794,14 @@ private:
 
     rclcpp::Time initial_camera_connect_;
     rclcpp::Time last_camera_connect_;
+
+    bool has_cuda_;
 };
+
+// sudo apt update && apt install -y software-properties-common wget
+// wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-ubuntu2404.pin
+// sudo mv cuda-ubuntu2404.pin /etc/apt/preferences.d/cuda-repository-pin-600
+// sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/3bf863cc.pub
+// sudo add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/ /"
+// sudo apt update && sudo apt install -y cuda
+

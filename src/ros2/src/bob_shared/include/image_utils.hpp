@@ -1,6 +1,4 @@
 #pragma once
-#ifndef __IMAGE_UTILS_H__
-#define __IMAGE_UTILS_H__
 
 #include <opencv2/opencv.hpp>
 #include <cv_bridge/cv_bridge.hpp>
@@ -65,9 +63,14 @@ public:
 class RosCvImageMsg
 {
 public:
-    RosCvImageMsg(const cv::Mat & image, const std::string & encoding, bool copy_img)
+    RosCvImageMsg(const cv::Mat & image, bool copy_img)
     {
-        CreateImageMsg(image, encoding, copy_img);
+        create_image_msg(image, copy_img);
+    }
+
+    RosCvImageMsg(int width, int height, int type)
+    {
+        create_image_msg(width, height, type);
     }
 
     std_msgs::msg::Header & get_header() const
@@ -93,15 +96,17 @@ public:
 
     sensor_msgs::msg::Image & get_msg() const
     {
+        const size_t totalBytes = image_ptr_->total() * image_ptr_->elemSize();
+        msg_ptr_->data.assign(image_ptr_->data, image_ptr_->data + totalBytes);;
         return *msg_ptr_;
     }
 
     bool recreate_if_invalid()
     {
-        if (image_msg_size_ != image_ptr_->size())
+        if ((image_msg_size_ != image_ptr_->size()) || (image_type_ != image_ptr_->type()))
         {
             auto matCopy = image_ptr_->clone();
-            CreateImageMsg(matCopy, msg_ptr_->encoding, true);
+            create_image_msg(matCopy, true);
             return true;
         }
 
@@ -112,37 +117,108 @@ public:
     {
         auto image_temp_ptr = std::make_unique<cv::Mat>();
         video_capture.read(*image_temp_ptr);
-        auto roscv_image_msg_ptr = std::make_unique<RosCvImageMsg>(*image_temp_ptr, image_temp_ptr->channels() == 1 ? sensor_msgs::image_encodings::MONO8 : sensor_msgs::image_encodings::BGR8, true);
+        auto roscv_image_msg_ptr = std::make_unique<RosCvImageMsg>(*image_temp_ptr, true);
         image_temp_ptr = nullptr;
 
         return roscv_image_msg_ptr;
+    }
+
+    static std::unique_ptr<RosCvImageMsg> create(int width, int height, int type)
+    {
+        return std::make_unique<RosCvImageMsg>(width, height, type);
     }
 
 private:
     sensor_msgs::msg::Image::SharedPtr msg_ptr_;
     std::unique_ptr<cv::Mat> image_ptr_;
     cv::Size image_msg_size_;
+    int image_type_;
 
-    inline void CreateImageMsg(const cv::Mat & image, const std::string & encoding, bool copy_img)
+    inline void create_image_msg(const cv::Mat & image, bool copy_img)
     {
         image_msg_size_ = image.size();
+        image_type_ = image.type();
         msg_ptr_ = std::make_shared<sensor_msgs::msg::Image>();
 
         msg_ptr_->height = image.size().height;
         msg_ptr_->width = image.size().width;
-        msg_ptr_->encoding = encoding;
+        msg_ptr_->encoding = type_to_encoding(image_type_);
         msg_ptr_->is_bigendian = (rcpputils::endian::native == rcpputils::endian::big);
         msg_ptr_->step = image.size().width * image.elemSize();
-        const size_t size = msg_ptr_->step * image.size().height;
-        msg_ptr_->data.resize(size);
-        // TODO: image.type() convert it to take into account the encoding we desire
-        image_ptr_ = std::make_unique<cv::Mat>(image.size(), image.type(), reinterpret_cast<void *>(&msg_ptr_->data[0]));
+        image_ptr_ = std::make_unique<cv::Mat>(image_msg_size_, image_type_);
         if (copy_img)
         {
             image.copyTo(*image_ptr_);
         }
     }
 
-};
+    inline void create_image_msg(int width, int height, int type)
+    {
+        image_msg_size_ = cv::Size(width, height);
+        image_type_ = type;
+        msg_ptr_ = std::make_shared<sensor_msgs::msg::Image>();
 
-#endif
+        msg_ptr_->height = height;
+        msg_ptr_->width = width;
+        msg_ptr_->encoding = type_to_encoding(type);
+        msg_ptr_->is_bigendian = (rcpputils::endian::native == rcpputils::endian::big);
+        msg_ptr_->step = width * calculate_elem_size1(type) * get_number_channels(type);
+        image_ptr_ = std::make_unique<cv::Mat>(image_msg_size_, type);
+    }
+    
+    static size_t calculate_elem_size1(int type) 
+    {
+        const int depth = type & CV_MAT_DEPTH_MASK; // Extract depth (first 3 bits)
+        switch (depth) 
+        {
+            case CV_8U:
+            case CV_8S:
+                return 1;  // 8 bits / 8 = 1 byte
+            case CV_16U:
+            case CV_16S:
+                return 2;  // 16 bits / 8 = 2 bytes
+            case CV_32S:
+            case CV_32F:
+                return 4;  // 32 bits / 8 = 4 bytes
+            case CV_64F:
+                return 8;  // 64 bits / 8 = 8 bytes
+            default:
+                throw std::invalid_argument("Unknown depth value");
+        }
+    }
+
+    static bool get_number_channels(int type) 
+    {
+        return 1 + (type >> CV_CN_SHIFT);
+    }
+
+    static const std::string type_to_encoding(int type)
+    {
+        switch (type) 
+        {
+            case CV_8UC1:
+                return sensor_msgs::image_encodings::MONO8;
+            case CV_8UC3:
+                return sensor_msgs::image_encodings::BGR8;
+            case CV_8UC4:
+                return sensor_msgs::image_encodings::BGRA8;
+            case CV_16UC1:
+                return sensor_msgs::image_encodings::MONO16;
+            case CV_16UC3:
+                return sensor_msgs::image_encodings::BGR16;
+            case CV_16UC4:
+                return sensor_msgs::image_encodings::BGRA16;
+            // Bayer patterns
+            case CV_BayerGR2BGR:
+                return sensor_msgs::image_encodings::BAYER_GBRG8;
+            case CV_BayerGB2BGR:
+                return sensor_msgs::image_encodings::BAYER_GRBG8;
+            case CV_BayerRG2BGR:
+                return sensor_msgs::image_encodings::BAYER_BGGR8;
+            case CV_BayerBG2BGR:
+                return sensor_msgs::image_encodings::BAYER_RGGB8;
+            default:
+                throw std::runtime_error("Unsupported image format");
+        }
+    }
+};

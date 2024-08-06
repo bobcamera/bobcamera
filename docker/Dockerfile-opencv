@@ -1,0 +1,91 @@
+# Run this ONE TIME
+# docker buildx create --name builder_mp --use --bootstrap
+
+# docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY bobcamera/bob-opencv:latest bash
+
+# docker buildx build --progress=plain --push --platform linux/amd64 -f ./docker/Dockerfile-opencv . -t bobcamera/bob-opencv:1.5.8 -t bobcamera/bob-opencv:latest --target opencv
+#############################################################################
+# MWG: This docker stage is used to setup and build the OpenCV builder image
+#############################################################################
+#FROM ubuntu:noble as opencv
+FROM bobcamera/bob-base-cuda:latest AS opencv
+ENV OPENCV_VERSION=4.10.0
+ENV TZ=Europe/London
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
+    && echo $TZ > /etc/timezone \
+    && apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
+        build-essential \
+        cmake \
+        pkg-config \
+        wget \
+        git \
+        unzip \
+        usbutils \
+        libusb-1.0-0-dev \
+        python3-dev python3-numpy python3-pip \
+        qtbase5-dev \
+        libdc1394-dev \
+        libgstreamer-opencv1.0-0 libgstreamer-plugins-base1.0-dev \
+        libtbb-dev \
+        libva-dev libva-drm2 libva-x11-2 libva-glx2 \
+        software-properties-common gpg-agent dirmngr \
+        libgtk2.0-dev \
+        libjpeg-dev libpng-dev libtiff-dev \
+        libv4l-dev libxvidcore-dev libx264-dev \
+        libeigen3-dev \
+        ffmpeg libavutil-dev libavfilter-dev libavdevice-dev \
+        libavcodec-dev libavformat-dev libswscale-dev \
+        # libatlas-base-dev gfortran libhdf5-dev libopenblas-dev \
+        # liblapack-dev \
+    && apt-get autoclean && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    COPY ./external/nvidia/video_codec_sdk/Lib/linux/stubs/x86_64/* /usr/local/cuda/lib64/stubs/
+    COPY ./external/nvidia/video_codec_sdk/Interface/* /usr/local/cuda/include/ 
+    COPY ./wsl/lib /usr/lib/wsl/lib
+    RUN cd /tmp \
+    && wget --no-check-certificate -O opencv-$OPENCV_VERSION.zip https://github.com/opencv/opencv/archive/$OPENCV_VERSION.zip \
+    && wget --no-check-certificate -O opencv_contrib-$OPENCV_VERSION.zip https://github.com/opencv/opencv_contrib/archive/$OPENCV_VERSION.zip \
+    && unzip opencv-$OPENCV_VERSION.zip \
+    && unzip opencv_contrib-$OPENCV_VERSION.zip \
+    && rm -f opencv-$OPENCV_VERSION.zip \
+    && rm -f opencv_contrib-$OPENCV_VERSION.zip \
+    && cd /tmp/opencv-$OPENCV_VERSION && mkdir build \
+    && cd build \
+    && cmake -DCMAKE_CXX_FLAGS="-Wc++17-extensions" \
+        -D CMAKE_BUILD_TYPE=RELEASE \
+        -D CMAKE_INSTALL_PREFIX=/usr/local \
+        -D OPENCV_GENERATE_PKGCONFIG=YES \
+        -D ENABLE_PRECOMPILED_HEADERS=OFF \
+        -D WITH_LIBV4L=ON \
+        -D WITH_QT=ON \
+        -D WITH_OPENGL=ON \
+        -D WITH_JAVA=OFF \
+        -D WITH_OPENCL=ON \
+        -D WITH_CUDA=ON \
+        -D WITH_CUDNN=OFF \
+        -D BUILD_opencv_cudacodec=ON \
+        -D CUDA_CUDA_LIBRARY=/usr/local/cuda/lib64/stubs/libcuda.so \
+        -D CUDA_nvcuvid_LIBRARY=/usr/local/cuda/lib64/stubs/libnvcuvid.so \
+        -D CUDA_nvidia-encode_LIBRARY=/usr/local/cuda/lib64/stubs/libnvidia-encode.so \
+        -D BUILD_opencv_python3=ON \
+        -D INSTALL_PYTHON_EXAMPLES=OFF \
+        -D BUILD_NEW_PYTHON_SUPPORT=ON \
+        -D WITH_TBB=ON \
+        -D BUILD_TESTS=OFF \
+        -D INSTALL_TESTS=OFF \
+        -D BUILD_PERF_TESTS=OFF \
+        -D BUILD_EXAMPLES=OFF \
+        -D INSTALL_C_EXAMPLES=OFF \
+        -D OPENCV_ENABLE_NONFREE=ON \
+        -D OPENCV_EXTRA_MODULES_PATH=../../opencv_contrib-$OPENCV_VERSION/modules \
+        -D OpenGL_GL_PREFERENCE=LEGACY \
+        -D CMAKE_CXX_STANDARD=17 \
+        -D WITH_FFMPEG=ON \
+        .. \
+    && make -j $(nproc) \
+    && make install \
+    && sh -c 'echo "/usr/local/lib" >> /etc/ld.so.conf.d/opencv.conf' && ldconfig \
+    && sh -c 'echo "/usr/lib/wsl/lib" >> /etc/ld.so.conf.d/wsl.conf' && ldconfig \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+# ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.12/
+# ENV LD_LIBRARY_PATH=/usr/lib/wsl/lib:$LD_LIBRARY_PATH

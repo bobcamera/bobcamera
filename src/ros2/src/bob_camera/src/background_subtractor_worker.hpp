@@ -224,7 +224,7 @@ public:
 
             if (!ros_cv_foreground_mask_ || (gray_img.size() != ros_cv_foreground_mask_->get_image().size()))
             {
-                ros_cv_foreground_mask_ = std::make_unique<RosCvImageMsg>(gray_img, sensor_msgs::image_encodings::MONO8, true);
+                ros_cv_foreground_mask_ = std::make_unique<RosCvImageMsg>(gray_img, true);
             }
             ros_cv_foreground_mask_->set_header(header);
 
