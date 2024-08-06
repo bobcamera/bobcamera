@@ -19,7 +19,7 @@ export class VisionEffects extends MainEffects {
 
   constructor(errorService: ErrorService, private store: Store<VisionState>, private actions$: Actions, 
     private visionService: VisionService) { 
-    super(errorService);
+    super(actions$, errorService);
   }
 
   CAMERA_POLL_INTERVAL = 1 * 1000; // every second

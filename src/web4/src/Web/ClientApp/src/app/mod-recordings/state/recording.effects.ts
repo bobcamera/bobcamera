@@ -16,7 +16,7 @@ import { RecordingQuery, RecordingDto } from '../models';
 export class RecordingEffects extends MainEffects {
 
   constructor(errorService: ErrorService, private actions$: Actions, private recordingService: RecordingService) { 
-    super(errorService);
+    super(actions$, errorService);
   }
 
   recordings$ = createEffect(() =>

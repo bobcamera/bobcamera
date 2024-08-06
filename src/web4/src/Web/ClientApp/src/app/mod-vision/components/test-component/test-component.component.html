@@ -9,7 +9,7 @@
     <mat-card-content>
 
         <mat-sidenav-container class="example-container" autosize>
-            <mat-sidenav #sidenav mode="side" position="end" [(opened)]="opened">
+            <mat-sidenav #sidenav mode="side" position="end" [(opened)]="opened" (openedChange)="onOpenedChange($event)">
                 <!-- (openedChange)="onOpenedChange($event)">
                 <mat-card>
                     <mat-card-header>
@@ -23,7 +23,7 @@
                         <div>Random Number: {{(_cameraDetails$ | async)?.randomNumber}}</div>
                     </mat-card-content>
                 </mat-card>-->
-                <mat-card>
+                <mat-card *ngIf="this._stateData$">
                     <mat-card-header>
                         <mat-card-title>Application State</mat-card-title>
                     </mat-card-header>
@@ -57,9 +57,9 @@
                     </mat-card-actions>
                 </mat-card>-->
         
-                <mat-card>
+                <mat-card *ngIf="this._visionData$">
                     <mat-card-header>
-                        <mat-card-title>Annotated Stream</mat-card-title>
+                        <mat-card-title>{{this._displayType}}</mat-card-title>
                     </mat-card-header>
                     <mat-card-content>
                         <p><img style="width:100%" src="{{(this._visionData$ | async)}}" /></p>

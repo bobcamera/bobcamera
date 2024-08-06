@@ -8,8 +8,8 @@ import { TestComponentComponent } from './components';
 const routes: Routes = [
   { path:'', component:VisionIndexComponent, data: { title: 'BOB Universal Object Tracker' } ,
     children: [
-      { path: '', redirectTo: 'test',  pathMatch:'full' },
-      { path: 'test', component: TestComponentComponent, data: { title: 'Test Component' } },
+      { path: '', redirectTo: 'test/annotated',  pathMatch:'full' },
+      { path: 'test/:type', component: TestComponentComponent, data: { title: 'Test Component' } },
     ]   
   }
 ];

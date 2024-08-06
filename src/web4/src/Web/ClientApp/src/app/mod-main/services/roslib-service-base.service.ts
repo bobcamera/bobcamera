@@ -25,6 +25,13 @@ export class RosLibServiceBase {
       this._connected.next(false);
     }
 
+    get isConnected(): boolean{
+        if (this._ros) {
+            return this._ros.isConnected;
+        }
+        return false;
+    }
+
     get connected(): Observable<boolean>{
         return this._connected.asObservable();
     }
@@ -82,7 +89,7 @@ export class RosLibServiceBase {
         }
     }
 
-    protected subscribeTopic<T>(topic: string, messageType: string, callback: (n: T) => any) {
+    protected subscribeTopic<T>(topic: string, messageType: string, callback: (n: T) => any): ROSLIB.Topic {
         let listener: ROSLIB.Topic = new ROSLIB.Topic({
             ros: this._ros,
             name: topic,
@@ -92,6 +99,16 @@ export class RosLibServiceBase {
         listener.subscribe(callback);
         this._topics.push(listener);
         console.log('Subscribing to ' + topic);
+        return listener;
+    }
+
+    protected unsubscribeTopic(listener: ROSLIB.Topic) {
+        const index = this._topics.indexOf(listener, 0);
+        if (index > -1) {
+            this._topics.splice(index, 1);
+        }
+        listener.unsubscribe();
+        console.log('Unsubscribing from ' + listener.name);        
     }
 
     protected unsubscribeTopics() {

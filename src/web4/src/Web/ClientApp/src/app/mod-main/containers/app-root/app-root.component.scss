@@ -8,7 +8,6 @@ mat-drawer-container {
     border: 1px solid #555;
     margin: 0;
     padding:0;
-    overflow: hidden; /* Disable scroll */
 
     mat-drawer {
         position: fixed;
@@ -27,7 +26,8 @@ mat-drawer-container {
 }
 
 mat-drawer-content {
-    overflow: hidden !important;
+    /*overflow: auto !important;*/
+    overflow-x: hidden; /* Disable horizontal scroll */    
 
     .logo-nav {
         padding-right: 20px;
