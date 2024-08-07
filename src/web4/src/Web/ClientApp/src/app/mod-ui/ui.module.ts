@@ -43,6 +43,8 @@ import { environment } from 'src/environments/environment';
 
 import { DATE_PIPE_DEFAULT_OPTIONS } from '@angular/common';
 
+import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
+
 /*import { MTX_DATETIME_FORMATS } from '@ng-matero/extensions/core';
 import { MtxDatetimepickerModule, } from '@ng-matero/extensions/datetimepicker';
 import { MtxLuxonDatetimeModule } from '@ng-matero/extensions-luxon-adapter';
@@ -60,13 +62,13 @@ const MATERIAL_MODULES: any[] = [MatAutocompleteModule, MatBadgeModule, MatButto
   MatStepperModule, MatTableModule, MatTabsModule, MatToolbarModule, MatTooltipModule, MatTreeModule, MatPaginatorModule, MatSortModule,
   MatFormFieldModule];
 
-//const OTHER_UI_MODULES: any[] = [MtxLuxonDatetimeModule , MtxDatetimepickerModule, MtxLoaderModule, MtxSplitModule];
+const OTHER_UI_MODULES: any[] = [FontAwesomeModule];//MtxLuxonDatetimeModule , MtxDatetimepickerModule, MtxLoaderModule, MtxSplitModule];
 
 @NgModule({
   imports: [
     ANGULAR_MODULES,
     MATERIAL_MODULES,
-    //OTHER_UI_MODULES,
+    OTHER_UI_MODULES,
   ],
   declarations: [
 
@@ -74,7 +76,7 @@ const MATERIAL_MODULES: any[] = [MatAutocompleteModule, MatBadgeModule, MatButto
   exports: [
     ANGULAR_MODULES,
     MATERIAL_MODULES,
-    //OTHER_UI_MODULES,
+    OTHER_UI_MODULES,
   ],
   providers: [
 

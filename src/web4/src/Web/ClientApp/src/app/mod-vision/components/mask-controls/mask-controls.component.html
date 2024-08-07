@@ -1,0 +1,36 @@
+<mat-card>
+    <mat-card-header>
+        <mat-card-title>
+            <div *ngIf="!this.editMode">{{Heading}}</div>
+            <div *ngIf="this.editMode">{{HeadingEdit}}</div>
+        </mat-card-title>
+        <mat-card-subtitle>
+            <div *ngIf="!this.editMode">{{SubHeading}}</div>
+            <div *ngIf="this.editMode">{{SubHeadingEdit}}</div>
+        </mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+    </mat-card-content>
+    <mat-card-actions>
+        <button *ngIf="!this.editMode" mat-fab extended (click)="edit()">
+            <fa-icon [icon]="faPenToSquare"></fa-icon>
+            Edit
+        </button>
+        <button *ngIf="!this.editMode" mat-fab extended (click)="delete()">
+            <fa-icon [icon]="faTrash"></fa-icon>
+            Delete
+        </button>
+        <button *ngIf="this.editMode" mat-fab extended (click)="cancel()">
+            <fa-icon [icon]="faTimes"></fa-icon>
+            Cancel
+        </button>
+        <button *ngIf="this.editMode" mat-fab extended (click)="save()">
+            <fa-icon [icon]="faFloppyDisk"></fa-icon>
+            Save
+        </button>
+        <button *ngIf="this.editMode" mat-fab extended (click)="clear()">
+            <fa-icon [icon]="faTrash"></fa-icon>
+            Clear
+        </button>
+    </mat-card-actions>                    
+</mat-card>  

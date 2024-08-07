@@ -3,9 +3,7 @@ import { catchError, Observable, Subject } from "rxjs";
 
 import * as ROSLIB from 'roslib';
 
-@Injectable({
-  providedIn: 'root',
-})
+@Injectable()
 export class RosLibServiceBase {
 
     protected _port: number = 9090;

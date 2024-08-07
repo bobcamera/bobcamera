@@ -1,0 +1,31 @@
+mat-card {
+
+    mat-card-content {
+
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;                
+
+        button {
+            margin: 8px 8px 8px 0;
+            display: flex;
+            justify-content: center;
+            width: 100px;
+        }
+    }
+
+    mat-card-actions {
+
+        display: flex;
+        justify-content:center;
+        flex-wrap: wrap;     
+        
+
+        button {
+            margin: 8px 8px 8px 0;
+            display: flex;
+            justify-content: center;
+            width: 100px;
+        }
+    }
+}

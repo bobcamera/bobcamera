@@ -8,9 +8,9 @@ import { MainModule } from '../mod-main';
 
 import { VisionRoutingModule } from './vision-routing.module';
 
-import { VisionService, BobRosService } from './services';
+import { VisionService } from './services';
 
-import { TestComponentComponent } from './components';
+import { TestComponentComponent, MaskControlsComponent, StreamDisplayComponent, BobStateComponent } from './components';
 
 import { VisionIndexComponent} from './containers';
 
@@ -18,11 +18,11 @@ import * as fromVision from './state';
 
 export const CONTAINERS = [VisionIndexComponent];
 
-export const COMPONENTS = [TestComponentComponent];
+export const COMPONENTS = [TestComponentComponent, MaskControlsComponent, StreamDisplayComponent, BobStateComponent];
 
 export const ENTRY_COMPONENTS = [];
 
-export const PROVIDERS = [VisionService, BobRosService];
+export const PROVIDERS = [VisionService];
 
 export const EFFECTS = [fromVision.VisionEffects];
 

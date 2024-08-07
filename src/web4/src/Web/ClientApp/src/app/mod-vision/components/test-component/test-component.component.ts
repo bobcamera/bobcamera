@@ -2,7 +2,7 @@ import { Component, OnDestroy, OnInit, ChangeDetectionStrategy } from '@angular/
 import { ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { Subject, Observable } from 'rxjs';
-import { map, switchMap, distinctUntilChanged } from 'rxjs/operators';
+import { takeUntil, map, switchMap, distinctUntilChanged } from 'rxjs/operators';
 
 import * as MainActions from '../../../mod-main/state/main.actions';
 import { NotificationType } from '../../../mod-main/models';
@@ -18,29 +18,36 @@ import { BobRosService, SubscriptionType } from '../../services';
   selector: 'bob-test-component',
   templateUrl: './test-component.component.html',
   styleUrls: ['./test-component.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [BobRosService]
 })
 export class TestComponentComponent implements OnInit, OnDestroy {
 
-  opened: boolean;
-
   private _ngUnsubscribe$: Subject<void> = new Subject<void>();
-  _cameraDetails$: Observable<CameraDto>;
-  _visionData$: Observable<string>;
-  _stateData$: Observable<AppStateDto>;
-  _displayType: string;
+  
+  //_cameraDetails$: Observable<CameraDto>;
+  _imageStream$: Observable<string>;
+  _appState$: Observable<AppStateDto>;
 
-  constructor(private store: Store<VisionState>, public rosSvc: BobRosService, 
+  _imageStreamType: string;
+  _displayMaskControls: boolean;
+  _displayAppState: boolean;
+
+  constructor(private store: Store<VisionState>, private rosSvc: BobRosService, 
     private route: ActivatedRoute) {
   }
 
   ngOnInit(): void {
-    this.rosSvc.connected.pipe(distinctUntilChanged()).subscribe((connected: boolean) => {
+    this.rosSvc.connected
+    .pipe(distinctUntilChanged())
+    .subscribe((connected: boolean) => {
       console.log(`Connection status to ROS Bridge: ${connected}`);
       if (connected) {
-        this.onDisplayTypeChanged(this._displayType);
+       
         this.store.dispatch(MainActions.Notification({
           notification: { type: NotificationType.Information, message: "Connected to ROS Bridge." }}));
+
+          this.onDisplayTypeChanged(this._imageStreamType);
       } else {
         this.store.dispatch(MainActions.Notification({
           notification: { type: NotificationType.Error, message: "Connection lost to ROS Bridge." }}));
@@ -49,53 +56,54 @@ export class TestComponentComponent implements OnInit, OnDestroy {
 
     this.rosSvc.connect(true);
 
-    this.store.dispatch(VisionActions.setHeading({ heading: 'Vision Test Component' }));
-    this._cameraDetails$ = this.store.select(getVisionCamera);
-
-    /*this._visionData$.subscribe((data: string) => {
-      console.log(`_visionData$: ${data}`);
-    });*/
+    this.store.dispatch(VisionActions.setHeading({ heading: 'Image Stream Component' }));
+    //this._cameraDetails$ = this.store.select(getVisionCamera);
 
     this.route.params.pipe(
       map(params => params.type),
       distinctUntilChanged(),
     ).subscribe(changedParam => {
-      console.log(`DisplayType: ${this._displayType}`);
+      console.log(`ImageStreamType: ${this._imageStreamType}`);
       this.onDisplayTypeChanged(changedParam)
     });
   }
 
   onDisplayTypeChanged(type: string) {
-    this._displayType = type;
+    this._imageStreamType = type;
     switch(type)
     {     
       case 'annotated':
-        this._visionData$ = this.rosSvc.videoStream(SubscriptionType.Annotated);
-        //this._displayType = 'Annotated Frame';
+        this._imageStream$ = this.rosSvc.videoStream(SubscriptionType.Annotated);
+        this.store.dispatch(VisionActions.setHeading({ heading: 'Annotated Image Stream' }));
+        this._displayMaskControls = false;
+        this._displayAppState = true;
         break;
       case 'foregroundmask':
-        this._visionData$ = this.rosSvc.videoStream(SubscriptionType.ForegroundMask);
-        //this._displayType = 'ForegroundMask Frame';
+        this._imageStream$ = this.rosSvc.videoStream(SubscriptionType.ForegroundMask);
+        this.store.dispatch(VisionActions.setHeading({ heading: 'Foreground Mask Image Stream' }));
+        this._displayMaskControls = false;
+        this._displayAppState = true;
         break;
       case 'privacymask':
-        this._visionData$ = this.rosSvc.videoStream(SubscriptionType.PrivacyMask);
-        //this._displayType = 'PrivacyMask Frame';
+        this._imageStream$ = this.rosSvc.videoStream(SubscriptionType.PrivacyMask);
+        this.store.dispatch(VisionActions.setHeading({ heading: 'Privacy Mask Image Stream' }));
+        this._displayMaskControls = true;
+        this._displayAppState = false;
         break;
       case 'detectionmask':
-        this._visionData$ = this.rosSvc.videoStream(SubscriptionType.DetectionMask);
-        //this._displayType = 'DetectionMask Frame';
+        this._imageStream$ = this.rosSvc.videoStream(SubscriptionType.DetectionMask);
+        this.store.dispatch(VisionActions.setHeading({ heading: 'Detection Mask Image Stream' }));
+        this._displayMaskControls = true;
+        this._displayAppState = false;
         break;
     }
   }
 
   onOpenedChange(opened: boolean) {
-    if (this.rosSvc.isConnected) {
-      if (opened) {
-        this._stateData$ = this.rosSvc.appState(true);
-      } else {
-        this._stateData$ = this.rosSvc.appState(false);
-      }
-    }
+    console.log(`Side panel openend state: ${opened}`);
+
+    this._appState$ = this.rosSvc.appState(opened);
+
     //this.store.dispatch(VisionActions.setCameraPolling({ enabled: opened }));
   }
 
