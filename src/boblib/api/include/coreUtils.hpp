@@ -13,12 +13,12 @@ namespace boblib
     struct ImgSize
     {
         ImgSize(const ImgSize &_img_size)
-            : ImgSize(_img_size.width, _img_size.height, _img_size.num_channels, _img_size.bytes_per_pixel, _img_size.original_pixel_pos)
+            : ImgSize(_img_size.width, _img_size.height, _img_size.num_channels, _img_size.bytes_per_channel, _img_size.original_pixel_pos)
         {
         }
 
         ImgSize(int _width, int _height, int _num_channels, int _bytes_per_pixel, size_t _original_pixel_pos)
-            : width(_width), height(_height), num_channels(_num_channels), bytes_per_pixel(_bytes_per_pixel), num_pixels(_width * _height), size_in_bytes(_width * _height * _num_channels * _bytes_per_pixel), original_pixel_pos{_original_pixel_pos}
+            : width(_width), height(_height), num_channels(_num_channels), bytes_per_channel(_bytes_per_pixel), num_pixels(_width * _height), size_in_bytes(_width * _height * _num_channels * _bytes_per_pixel), original_pixel_pos{_original_pixel_pos}
         {
         }
 
@@ -34,7 +34,7 @@ namespace boblib
 
         bool operator==(const ImgSize &rhs) const
         {
-            return width == rhs.width && height == rhs.height && num_channels == rhs.num_channels && bytes_per_pixel == rhs.bytes_per_pixel && original_pixel_pos == rhs.original_pixel_pos;
+            return width == rhs.width && height == rhs.height && num_channels == rhs.num_channels && bytes_per_channel == rhs.bytes_per_channel && original_pixel_pos == rhs.original_pixel_pos;
         }
 
         bool operator!=(const ImgSize &rhs) const
@@ -50,7 +50,7 @@ namespace boblib
         const int width;
         const int height;
         const int num_channels;
-        const int bytes_per_pixel;
+        const int bytes_per_channel;
         const size_t num_pixels;
         const size_t size_in_bytes;
 

@@ -20,7 +20,7 @@ namespace boblib::bgs
 
         m_random_generators.resize(m_num_processes_parallel);
         m_bg_img_samples.resize(m_num_processes_parallel);
-        if (m_orig_img_size->bytes_per_pixel == 1)
+        if (m_orig_img_size->bytes_per_channel == 1)
         {
             for (size_t i{0}; i < m_num_processes_parallel; ++i)
             {
@@ -69,7 +69,7 @@ namespace boblib::bgs
         Img detect_mask_partial(_detectMask.data, ImgSize(_detectMask.size().width, _detectMask.size().height, _detectMask.channels(), _detectMask.elemSize1(), 0));
         if (img_split.size.num_channels > 1)
         {
-            if (img_split.size.bytes_per_pixel == 1)
+            if (img_split.size.bytes_per_channel == 1)
             {
                 apply3<uint8_t>(img_split, mask_partial, detect_mask_partial, _num_process);
             }
@@ -80,7 +80,7 @@ namespace boblib::bgs
         }
         else
         {
-            if (img_split.size.bytes_per_pixel == 1)
+            if (img_split.size.bytes_per_channel == 1)
             {
                 apply1<uint8_t>(img_split, mask_partial, detect_mask_partial, _num_process);
             }

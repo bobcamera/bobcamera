@@ -90,7 +90,7 @@ namespace boblib::bgs
             [&](int np)
             {
                 const cv::Mat imgSplit(m_img_sizes_parallel[np]->height, m_img_sizes_parallel[np]->width, _image.type(),
-                                    _image.data + (m_img_sizes_parallel[np]->original_pixel_pos * m_img_sizes_parallel[np]->num_channels * m_img_sizes_parallel[np]->bytes_per_pixel));
+                                    _image.data + (m_img_sizes_parallel[np]->original_pixel_pos * m_img_sizes_parallel[np]->num_channels * m_img_sizes_parallel[np]->bytes_per_channel));
                 cv::Mat maskPartial(m_img_sizes_parallel[np]->height, m_img_sizes_parallel[np]->width, _fgmask.type(),
                                     _fgmask.data + m_img_sizes_parallel[np]->original_pixel_pos);
                 const cv::Mat & detectMaskPartial = _detectMask.empty() ? _detectMask : 
