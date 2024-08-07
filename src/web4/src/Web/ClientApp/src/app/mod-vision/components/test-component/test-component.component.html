@@ -9,8 +9,26 @@
     <mat-card-content>
         <mat-sidenav-container class="example-container" autosize>
             <mat-sidenav #sidenav mode="side" position="end" (openedChange)="onOpenedChange($event)">
+                <bob-bob-info [AppInfo$]="this._appInfo$"></bob-bob-info>
                 <bob-bob-state *ngIf="this._displayAppState" [AppState$]="this._appState$"></bob-bob-state>
-                <bob-mask-controls *ngIf="this._displayMaskControls"></bob-mask-controls>              
+                <bob-mask-controls *ngIf="this._displayPrivacyMaskControls" 
+                    Heading="Privacy Mask Controls" HeadingEdit="Editing Privacy Mask" 
+                    SubHeading="" SubHeadingEdit="Draw the areas you want to exclude"></bob-mask-controls>
+                <bob-mask-controls *ngIf="this._displayDetectionMaskControls" 
+                    Heading="Detection Mask Controls" HeadingEdit="Editing Detection Mask" 
+                    SubHeading="" SubHeadingEdit="Draw the areas you want to include">
+                    <div class="mask-tips">
+                        Mask drawing tips
+                        <ul>
+                            <li>Click Edit then use the polygon drawing tool to outline sky tracking area.</li>
+                            <li>Single-click to add points, double-click to finish drawing.</li>
+                            <li>Avoid inlcuding moving objects like branches in detection area.</li>
+                            <li>Allow margin for movement by trees, bushes etc due to wind or other factors.</li>
+                            <li>Save your selection once satisfied.</li>
+                            <li>Use Delete button to reset if needed.</li>
+                        </ul>
+                    </div>                    
+                </bob-mask-controls>
             </mat-sidenav>
             <mat-sidenav-content>
                 <bob-stream-display [ImageStream$]="this._imageStream$"></bob-stream-display>      

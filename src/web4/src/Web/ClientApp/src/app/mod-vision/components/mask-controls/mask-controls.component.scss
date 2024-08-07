@@ -4,7 +4,8 @@ mat-card {
 
         display: flex;
         justify-content: center;
-        flex-wrap: wrap;                
+        flex-wrap: wrap;
+        max-width: 250px;
 
         button {
             margin: 8px 8px 8px 0;

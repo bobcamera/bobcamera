@@ -2,9 +2,9 @@ import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, Input } from '@a
 import { Subject, Observable } from 'rxjs';
 
 import { IconDefinition } from '@fortawesome/free-solid-svg-icons';
-import { fas, faCircle, faImage, faMoon, faSun, faCloud, faThumbsUp, faThumbsDown } from '@fortawesome/free-solid-svg-icons';
+import { faCircle, faImage, faMoon, faSun, faCloud, faThumbsUp, faThumbsDown } from '@fortawesome/free-solid-svg-icons';
 
-import { AppStateDto } from '../../models';
+import { AppInfoDto, AppStateDto } from '../../models';
 
 @Component({
   selector: 'bob-bob-state',
@@ -36,7 +36,7 @@ export class BobStateComponent implements OnInit, OnDestroy {
       case 2:
         return faMoon;
     }
-    return null;
+    return faImage;
   }
 
   formatDayNightClass(day_night_enum: number): string {

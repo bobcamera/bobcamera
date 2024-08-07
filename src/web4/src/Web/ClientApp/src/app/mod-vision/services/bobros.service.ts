@@ -1,12 +1,19 @@
 import { Injectable, Inject } from "@angular/core";
+import { Store } from '@ngrx/store';
 import { catchError, Observable, Subject } from "rxjs";
 import { map, switchMap } from 'rxjs/operators';
 
 import * as ROSLIB from 'roslib';
 
-import { AppStateDto } from '../models';
+import * as MainActions from '../../mod-main/state/main.actions';
+import { NotificationType } from '../../mod-main/models';
 
-export enum SubscriptionType {
+import { VisionActions } from '../state';
+import { VisionState } from '../state';
+
+import { AppInfoDto, AppStateDto } from '../models';
+
+export enum ImageStreamType {
     Annotated,
     ForegroundMask,
     DetectionMask,
@@ -22,14 +29,17 @@ export class BobRosService {
     protected _ros: ROSLIB.Ros;
     protected _hasListeners: boolean;
     protected _topics: ROSLIB.Topic[];
-    private _connected = new Subject<boolean>();
+    protected _store: Store<VisionState>;
 
-    constructor(@Inject('BASE_URL') baseUrl: string) {
+    private _connected = new Subject<boolean>();    
+
+    constructor(@Inject('BASE_URL') baseUrl: string, store: Store<VisionState>) {
       //this._url = baseUrl ?? "http://localhost";
       this._url = "http://localhost";
       this._ros = null;
       this._hasListeners = false;
       this._topics = [];
+      this._store = store;
 
       this._connected.next(false);
     }
@@ -99,10 +109,10 @@ export class BobRosService {
     }
 
     private _types = {
-        [SubscriptionType.Annotated]: "/bob/frames/annotated/resized/compressed",
-        [SubscriptionType.ForegroundMask]: "/bob/frames/foreground_mask/resized/compressed",
-        [SubscriptionType.DetectionMask]: "/bob/frames/allsky/original/resized/compressed",
-        [SubscriptionType.PrivacyMask]: "/bob/frames/allsky/original/resized/compressed"
+        [ImageStreamType.Annotated]: "/bob/frames/annotated/resized/compressed",
+        [ImageStreamType.ForegroundMask]: "/bob/frames/foreground_mask/resized/compressed",
+        [ImageStreamType.DetectionMask]: "/bob/frames/allsky/original/resized/compressed",
+        [ImageStreamType.PrivacyMask]: "/bob/frames/allsky/original/resized/compressed"
     };
 
     private _videoStream = new Subject<any>();
@@ -111,7 +121,9 @@ export class BobRosService {
     private _videoStreamListener: ROSLIB.Topic;
     private _appStateListener: ROSLIB.Topic;
 
-    public videoStream(type: SubscriptionType): Observable<string>{
+
+
+    public subVideoStream(type: ImageStreamType): Observable<string>{
 
         this.internal_videoStream(type);
 
@@ -120,7 +132,7 @@ export class BobRosService {
           );        
     }
 
-    public appState(subscribe: boolean): Observable<AppStateDto> {
+    public subAppState(subscribe: boolean): Observable<AppStateDto> {
 
         if (subscribe) {
             if (!this._appStateListener) {
@@ -136,7 +148,82 @@ export class BobRosService {
           );
     }
 
-    private internal_videoStream(type: SubscriptionType) {
+    public svcAppInfo(): void {
+
+        let service = new ROSLIB.Service({
+            ros : this._ros,
+            name : '/bob/webapi/application/info',
+            serviceType : 'bob_interfaces/srv/ApplicationInfo'
+        });
+        
+        let request = new ROSLIB.ServiceRequest({empty: ''});
+        service.callService(request, function(result) {
+
+            console.log(`Bob-ROS2 Version: ${result.version}, Frame Size: w=${result.frame_width} x h=${result.frame_height}, FPS: ${result.video_fps}`);            
+
+            let appInfo = <AppInfoDto>{ version: result.version,
+                frame_width: result.frame_width,
+                frame_height: result.frame_height,
+                video_fps: result.video_fps };
+
+            this._store.dispatch(VisionActions.setBobInfo({ info: appInfo }));
+        }.bind(this));
+    }
+
+    public svcPrivacyMaskOverride(enable) {
+
+        let service = new ROSLIB.Service({
+            ros : this._ros,
+            name : '/bob/mask/privacy/override',
+            serviceType : 'bob_interfaces/srv/MaskOverrideRequest'
+        });
+
+        let request = new ROSLIB.ServiceRequest({
+            mask_enabled: enable
+        });
+
+        service.callService(request, function(result) {
+            if (result.success) {
+                console.log("Mask override sent successfully!");
+                this.store.dispatch(MainActions.Notification({
+                    notification: { type: NotificationType.Information, message: "Mask override sent successfully" }}));
+            } else {
+                console.error("Failed to send mask override:", result.message);
+                this.store.dispatch(MainActions.Notification({
+                    notification: { type: NotificationType.Error, message: "Failed to send mask override:" + result.message }}));                
+            }
+        }.bind(this));
+    }
+
+    public svcDeletePrivacyMask() {
+
+        let deleteMaskService = new ROSLIB.Service({
+            ros : this._ros,
+            name : '/bob/webapi/mask/delete/svg',
+            serviceType : 'bob_interfaces/srv/MaskSvgDelete'
+        });
+
+        let request = new ROSLIB.ServiceRequest({
+            file_name: 'privacy-mask.svg',
+        });
+
+        deleteMaskService.callService(request, function(result) {
+            if (result.success) {
+                console.log("Mask deleted successfully!");
+                this.store.dispatch(MainActions.Notification({
+                    notification: { type: NotificationType.Information, message: "Mask deleted successfully. It can take up to 5 seconds for your changes to take affect." }}));
+            } else {
+                console.error("Failed to delete mask:", result.message);
+                this.store.dispatch(MainActions.Notification({
+                    notification: { type: NotificationType.Error, message: "Failed to delete mask:" + result.message }}));
+            }
+        }.bind(this));
+    }
+
+
+
+
+    private internal_videoStream(type: ImageStreamType) {
 
         if (this._videoStreamListener) {
             this.unsubscribeTopic(this._videoStreamListener);
@@ -198,7 +285,7 @@ export class BobRosService {
             this._topics.splice(index, 1);
         }
         listener.unsubscribe();
-        console.log('Unsubscribing from ' + listener.name);        
+        console.log('Unsubscribing from ' + listener.name);
     }
 
     private unsubscribeTopics() {

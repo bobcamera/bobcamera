@@ -4,7 +4,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import * as fromRoot from '../../state'
 import * as VisionActions from './vision.actions'
 
-import { LoadingModel, CameraDto } from '../models';
+import { LoadingModel, CameraDto, AppInfoDto } from '../models';
 
 export const featureKey = 'vision';
 
@@ -18,7 +18,9 @@ export interface VisionState {
   loadingMessage: string;
 
   enableCameraPolling: boolean;
-  camera: CameraDto
+  camera: CameraDto;
+
+  bobInfo: AppInfoDto;
 }
 
 export interface State extends fromRoot.State {
@@ -36,6 +38,8 @@ const initialState: VisionState = {
   
   enableCameraPolling: false,
   camera: null,
+
+  bobInfo: null,
 };
 
 
@@ -53,6 +57,8 @@ export const visionReducer = createReducer<VisionState>(
 
   on(VisionActions.getCameraDetails, (state, action): VisionState => { return { ...state, loading: true, loadingMessage: 'Loading Camera Details' }; }),
   on(VisionActions.getCameraDetailsSuccess, (state, action): VisionState => { return { ...state, loading: false, error: null, loadingMessage: null, camera: action.data }; }),
+
+  on(VisionActions.setBobInfo, (state, action): VisionState => { return { ...state, bobInfo: action.info }; }),  
 )
 
 // Selectors
@@ -91,4 +97,9 @@ export const getVisionCameraPollingEnabled = createSelector(
 export const getVisionCamera = createSelector(
   getVisionState,
   state => state.camera
+);
+
+export const getBobInfo = createSelector(
+  getVisionState,
+  state => state.bobInfo
 );

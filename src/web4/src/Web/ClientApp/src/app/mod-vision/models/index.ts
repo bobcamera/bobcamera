@@ -14,6 +14,13 @@ export interface CameraDto {
     randomNumber: number;
 }
 
+export interface AppInfoDto {
+    version: string;
+    frame_width: number;
+    frame_height: number;
+    video_fps: number;
+}
+
 export interface AppStateDto {
     trackable: number;
     alive: number;

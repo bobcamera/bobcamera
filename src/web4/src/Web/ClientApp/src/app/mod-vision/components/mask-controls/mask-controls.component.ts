@@ -19,6 +19,7 @@ export class MaskControlsComponent implements OnInit, OnDestroy {
   @Input() SubHeadingEdit: string = "Draw the areas you want to exclude";
 
   @Output() EditMode = new EventEmitter<boolean>();
+  
   @Output() Edit = new EventEmitter();
   @Output() Cancel = new EventEmitter();
   @Output() Delete = new EventEmitter();

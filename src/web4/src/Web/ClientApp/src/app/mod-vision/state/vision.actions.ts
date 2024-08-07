@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { createAction, props } from '@ngrx/store';
 
-import { CameraQuery, CameraDto } from '../models';
+import { CameraQuery, CameraDto, AppInfoDto } from '../models';
 
 
 export const setHeading = createAction('[Vision] Set Heading', props<{ heading: string }>());
@@ -15,6 +15,8 @@ export const setCameraPolling = createAction('[Vision] Set Camera Polling', prop
 
 export const getCameraDetails = createAction('[Vision] Get Camera Details', props<{ query: CameraQuery }>());
 export const getCameraDetailsSuccess = createAction('[Vision] Get Camera Details Success', props<{ data: CameraDto }>());
+
+export const setBobInfo = createAction('[Vision] Set Bob Info', props<{ info: AppInfoDto }>());
 
 export const Error = createAction('[Vision] Error', props<{ error: HttpErrorResponse }>());
 export const ClearError = createAction('[Vision] Clear Error');

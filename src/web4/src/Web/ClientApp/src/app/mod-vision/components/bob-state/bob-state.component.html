@@ -2,15 +2,12 @@
     <mat-card-header>
         <mat-card-title>Application State</mat-card-title>
     </mat-card-header>
-    <mat-card-content>
-        <div *ngIf="this.AppState$">
+    <mat-card-content *ngIf="this.AppState$">        
+        <mat-expansion-panel>
+            <mat-expansion-panel-header>
+              <mat-panel-title> <div class="metric-header">Tracker Status</div> </mat-panel-title>
+            </mat-expansion-panel-header>
             <div class="metric-panel">
-                <div class="metric-header">Incoming ROS2 Messages</div><br>
-                <div hidden class="metric-readings">
-                    <label>BOB Version:</label>
-                    <span id="applicationVersion">0</span>
-                </div>
-                <div class="metric-header">Tracker Status</div><br>
                 <div class="metric-readings">
                     <label for="sensitivity">Sensitivity:</label>
                     <span id="sensitivity">{{(AppState$ | async)?.sensitivity}}</span>
@@ -23,7 +20,6 @@
                     <label for="tracking">Recording:</label>
                     <i><fa-icon [icon]='this.formatRecordingIcon((AppState$ | async)?.alive)' [ngClass]="((AppState$ | async)?.recording) ? 'green' : 'red'"></fa-icon></i>
                 </div>
-
                 <div class="metric-readings">
                     <label for="trackable">Trackable:</label>
                     <span id="trackable">{{(AppState$ | async)?.trackable}}</span>
@@ -39,10 +35,14 @@
                 <div class="metric-readings">
                     <label for="ended">Ended:</label>
                     <span id="ended">{{(AppState$ | async)?.ended}}</span>
-                </div>                                                               
-
-                <br>
-                <div class="metric-header">Observer Status</div><br>
+                </div>
+            </div>
+        </mat-expansion-panel>
+        <mat-expansion-panel>
+            <mat-expansion-panel-header>
+                <mat-panel-title> <div class="metric-header">Observer Status</div> </mat-panel-title>
+            </mat-expansion-panel-header>
+            <div class="metric-panel">
                 <div class="metric-readings">
                     <label for="day_night_classification">Day/Night:</label>
                     <i><fa-icon [icon]="this.formatDayNightIcon((AppState$ | async)?.day_night_enum)" [ngClass]="this.formatDayNightClass((AppState$ | async)?.day_night_enum)"></fa-icon></i>
@@ -55,9 +55,9 @@
                 <div>unimodal_cloud_cover: {{(AppState$ | async)?.unimodal_cloud_cover}}</div>            
                 <div>avg_brightness: {{(AppState$ | async)?.avg_brightness}}</div>-->
             </div>
-        </div>
-        <div *ngIf="!this.AppState$">
-            No Data
-        </div>
+        </mat-expansion-panel>
+    </mat-card-content>
+    <mat-card-content *ngIf="!this.AppState$">
+        No Data
     </mat-card-content>
 </mat-card>

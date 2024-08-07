@@ -10,6 +10,7 @@
         </mat-card-subtitle>
     </mat-card-header>
     <mat-card-content>
+        <ng-content></ng-content>
     </mat-card-content>
     <mat-card-actions>
         <button *ngIf="!this.editMode" mat-fab extended (click)="edit()">

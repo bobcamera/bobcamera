@@ -8,11 +8,11 @@ import * as MainActions from '../../../mod-main/state/main.actions';
 import { NotificationType } from '../../../mod-main/models';
 
 import * as VisionActions from '../../state/vision.actions';
-import { VisionState, getVisionCamera } from '../../state/vision.reducer';
+import { VisionState, getVisionCamera, getBobInfo } from '../../state/vision.reducer';
 
-import { CameraDto, AppStateDto } from '../../models';
+import { CameraDto, AppInfoDto, AppStateDto } from '../../models';
 
-import { BobRosService, SubscriptionType } from '../../services';
+import { BobRosService, ImageStreamType } from '../../services';
 
 @Component({
   selector: 'bob-test-component',
@@ -28,9 +28,11 @@ export class TestComponentComponent implements OnInit, OnDestroy {
   //_cameraDetails$: Observable<CameraDto>;
   _imageStream$: Observable<string>;
   _appState$: Observable<AppStateDto>;
+  _appInfo$: Observable<AppInfoDto>;
 
   _imageStreamType: string;
-  _displayMaskControls: boolean;
+  _displayPrivacyMaskControls: boolean;
+  _displayDetectionMaskControls: boolean;
   _displayAppState: boolean;
 
   constructor(private store: Store<VisionState>, private rosSvc: BobRosService, 
@@ -48,6 +50,8 @@ export class TestComponentComponent implements OnInit, OnDestroy {
           notification: { type: NotificationType.Information, message: "Connected to ROS Bridge." }}));
 
           this.onDisplayTypeChanged(this._imageStreamType);
+
+          this.rosSvc.svcAppInfo();
       } else {
         this.store.dispatch(MainActions.Notification({
           notification: { type: NotificationType.Error, message: "Connection lost to ROS Bridge." }}));
@@ -58,6 +62,7 @@ export class TestComponentComponent implements OnInit, OnDestroy {
 
     this.store.dispatch(VisionActions.setHeading({ heading: 'Image Stream Component' }));
     //this._cameraDetails$ = this.store.select(getVisionCamera);
+    this._appInfo$ = this.store.select(getBobInfo);
 
     this.route.params.pipe(
       map(params => params.type),
@@ -73,27 +78,31 @@ export class TestComponentComponent implements OnInit, OnDestroy {
     switch(type)
     {     
       case 'annotated':
-        this._imageStream$ = this.rosSvc.videoStream(SubscriptionType.Annotated);
+        this._imageStream$ = this.rosSvc.subVideoStream(ImageStreamType.Annotated);
         this.store.dispatch(VisionActions.setHeading({ heading: 'Annotated Image Stream' }));
-        this._displayMaskControls = false;
+        this._displayPrivacyMaskControls = false;
+        this._displayDetectionMaskControls = false;
         this._displayAppState = true;
         break;
       case 'foregroundmask':
-        this._imageStream$ = this.rosSvc.videoStream(SubscriptionType.ForegroundMask);
+        this._imageStream$ = this.rosSvc.subVideoStream(ImageStreamType.ForegroundMask);
         this.store.dispatch(VisionActions.setHeading({ heading: 'Foreground Mask Image Stream' }));
-        this._displayMaskControls = false;
+        this._displayPrivacyMaskControls = false;
+        this._displayDetectionMaskControls = false;
         this._displayAppState = true;
         break;
       case 'privacymask':
-        this._imageStream$ = this.rosSvc.videoStream(SubscriptionType.PrivacyMask);
+        this._imageStream$ = this.rosSvc.subVideoStream(ImageStreamType.PrivacyMask);
         this.store.dispatch(VisionActions.setHeading({ heading: 'Privacy Mask Image Stream' }));
-        this._displayMaskControls = true;
+        this._displayPrivacyMaskControls = true;
+        this._displayDetectionMaskControls = false;
         this._displayAppState = false;
         break;
       case 'detectionmask':
-        this._imageStream$ = this.rosSvc.videoStream(SubscriptionType.DetectionMask);
+        this._imageStream$ = this.rosSvc.subVideoStream(ImageStreamType.DetectionMask);
         this.store.dispatch(VisionActions.setHeading({ heading: 'Detection Mask Image Stream' }));
-        this._displayMaskControls = true;
+        this._displayPrivacyMaskControls = false;
+        this._displayDetectionMaskControls = true;
         this._displayAppState = false;
         break;
     }
@@ -102,7 +111,7 @@ export class TestComponentComponent implements OnInit, OnDestroy {
   onOpenedChange(opened: boolean) {
     console.log(`Side panel openend state: ${opened}`);
 
-    this._appState$ = this.rosSvc.appState(opened);
+    this._appState$ = this.rosSvc.subAppState(opened);
 
     //this.store.dispatch(VisionActions.setCameraPolling({ enabled: opened }));
   }
