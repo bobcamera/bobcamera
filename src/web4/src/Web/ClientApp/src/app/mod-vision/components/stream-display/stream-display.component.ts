@@ -19,7 +19,7 @@ export class StreamDisplayComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
   }
 
-  public ngOnDestroy(): void {
+  ngOnDestroy(): void {
     this._ngUnsubscribe$.next();
     this._ngUnsubscribe$.complete();
   }

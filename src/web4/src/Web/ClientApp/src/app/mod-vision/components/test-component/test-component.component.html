@@ -31,7 +31,8 @@
                 </bob-mask-controls>
             </mat-sidenav>
             <mat-sidenav-content>
-                <bob-stream-display [ImageStream$]="this._imageStream$"></bob-stream-display>      
+                <bob-stream-display *ngIf="!this._displayPrivacyMaskControls && !this._displayDetectionMaskControls" [ImageStream$]="this._imageStream$"></bob-stream-display>
+                <bob-mask-creation *ngIf="this._displayPrivacyMaskControls || this._displayDetectionMaskControls" [ImageStream$]="this._imageStream$"></bob-mask-creation>
             </mat-sidenav-content>
           </mat-sidenav-container>
     </mat-card-content>

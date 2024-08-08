@@ -116,7 +116,7 @@ export class TestComponentComponent implements OnInit, OnDestroy {
     //this.store.dispatch(VisionActions.setCameraPolling({ enabled: opened }));
   }
 
-  public ngOnDestroy(): void {
+  ngOnDestroy(): void {
     this._ngUnsubscribe$.next();
     this._ngUnsubscribe$.complete();
 

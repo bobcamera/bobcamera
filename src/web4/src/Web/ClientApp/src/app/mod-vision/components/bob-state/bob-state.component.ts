@@ -66,7 +66,7 @@ export class BobStateComponent implements OnInit, OnDestroy {
     return faCircle;
   }
 
-  public ngOnDestroy(): void {
+  ngOnDestroy(): void {
     this._ngUnsubscribe$.next();
     this._ngUnsubscribe$.complete();
   }

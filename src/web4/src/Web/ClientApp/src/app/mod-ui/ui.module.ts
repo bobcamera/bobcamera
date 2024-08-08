@@ -45,6 +45,8 @@ import { DATE_PIPE_DEFAULT_OPTIONS } from '@angular/common';
 
 import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
 
+import { NgxResizeObserverModule } from 'ngx-resize-observer';
+
 /*import { MTX_DATETIME_FORMATS } from '@ng-matero/extensions/core';
 import { MtxDatetimepickerModule, } from '@ng-matero/extensions/datetimepicker';
 import { MtxLuxonDatetimeModule } from '@ng-matero/extensions-luxon-adapter';
@@ -62,7 +64,7 @@ const MATERIAL_MODULES: any[] = [MatAutocompleteModule, MatBadgeModule, MatButto
   MatStepperModule, MatTableModule, MatTabsModule, MatToolbarModule, MatTooltipModule, MatTreeModule, MatPaginatorModule, MatSortModule,
   MatFormFieldModule];
 
-const OTHER_UI_MODULES: any[] = [FontAwesomeModule];//MtxLuxonDatetimeModule , MtxDatetimepickerModule, MtxLoaderModule, MtxSplitModule];
+const OTHER_UI_MODULES: any[] = [FontAwesomeModule, NgxResizeObserverModule];//MtxLuxonDatetimeModule , MtxDatetimepickerModule, MtxLoaderModule, MtxSplitModule];
 
 @NgModule({
   imports: [

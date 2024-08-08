@@ -64,7 +64,7 @@ export class MaskControlsComponent implements OnInit, OnDestroy {
     this.Clear.emit()
   }
 
-  public ngOnDestroy(): void {
+  ngOnDestroy(): void {
     this._ngUnsubscribe$.next();
     this._ngUnsubscribe$.complete();
   }
