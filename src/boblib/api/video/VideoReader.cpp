@@ -3,34 +3,33 @@
 
 using namespace boblib::video;
 
-VideoReader::VideoReader(int usb_camera_id, bool use_cuda, const std::vector<int> & params)
-: is_usb_(true)
+VideoReader::VideoReader(int usb_camera_id, const std::vector<int> & params)
+: using_cuda_(false)
+, is_usb_(true)
 , usb_camera_id_(usb_camera_id)
 , params_(params)
 {
-    using_cuda_ = use_cuda ? cv::cuda::getCudaEnabledDeviceCount() : false;
     create_video_capture();
 }
 
 VideoReader::VideoReader(const std::string & camera_uri, bool use_cuda, const std::vector<int> & params)
-: is_usb_(false)
+: using_cuda_(use_cuda ? cv::cuda::getCudaEnabledDeviceCount() : false)
+, is_usb_(false)
 , camera_uri_(camera_uri)
 , params_(params)
 {
-    using_cuda_ = use_cuda ? cv::cuda::getCudaEnabledDeviceCount() : false;
     create_video_capture();
 }
 
-bool VideoReader::read(cv::Mat & image) const
+bool VideoReader::read(cv::Mat & image)
 {
     if (using_cuda_)
     {
-        cv::cuda::GpuMat gpu_frame;
-        if (!cuda_video_reader_ptr_->nextFrame(gpu_frame)) 
+        if (!cuda_video_reader_ptr_->nextFrame(gpu_frame_)) 
         {
             return false;
         }
-        gpu_frame.download(image);
+        gpu_frame_.download(image);
         return true;
     }
 

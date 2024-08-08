@@ -151,6 +151,14 @@ private:
                 }
             ),
             ParameterLifeCycleNode::ActionParam(
+                rclcpp::Parameter("use_cuda", true), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    camera_params_ptr_->set_use_cuda(param.as_bool());
+                    bgs_params_ptr_->set_use_cuda(param.as_bool());
+                }
+            ),
+            ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("mask_timer_seconds", 5), 
                 [this](const rclcpp::Parameter& param) 
                 {

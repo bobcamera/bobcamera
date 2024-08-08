@@ -46,6 +46,7 @@ public:
     [[nodiscard]] const auto& get_camera_settings_client() const { return camera_settings_client_; }
     [[nodiscard]] const auto& get_fps_update_client() const { return fps_update_client_; }
 
+    [[nodiscard]] bool get_use_cuda() const { return use_cuda_; }
     [[nodiscard]] int get_camera_id() const { return camera_id_; }
     [[nodiscard]] const auto& get_usb_resolution() const { return usb_resolution_; }
     [[nodiscard]] int get_resize_height() const { return resize_height_; }
@@ -74,6 +75,7 @@ public:
     void set_camera_settings_client(const rclcpp::Client<bob_interfaces::srv::CameraSettings>::SharedPtr& client) { camera_settings_client_ = client; }
     void set_fps_update_client(const rclcpp::Client<bob_interfaces::srv::ConfigEntryUpdate>::SharedPtr& client) { fps_update_client_ = client; }
 
+    void set_use_cuda(bool enable) { use_cuda_ = enable; }
     void set_camera_id(int id) { camera_id_ = id; }
     void set_usb_resolution(const std::vector<long>& resolution) { usb_resolution_ = resolution; }
     void set_resize_height(int height) { resize_height_ = height; }
@@ -102,6 +104,7 @@ private:
     rclcpp::Client<bob_interfaces::srv::CameraSettings>::SharedPtr camera_settings_client_;
     rclcpp::Client<bob_interfaces::srv::ConfigEntryUpdate>::SharedPtr fps_update_client_;
 
+    bool use_cuda_{true};
     int camera_id_{};
     std::vector<long> usb_resolution_;
     int resize_height_{};
@@ -226,14 +229,14 @@ public:
                 {
                     const auto & video_path = params_.get_videos()[current_video_idx_];
                     node_.log_send_info("Trying to open video '%s'", video_path.c_str());
-                    video_reader_ptr_ = std::make_unique<boblib::video::VideoReader>(video_path);
+                    video_reader_ptr_ = std::make_unique<boblib::video::VideoReader>(video_path, params_.get_use_cuda());
                 }
                 break;
 
                 case CameraWorkerParams::SourceType::RTSP_STREAM:
                 {
                     node_.log_send_info("Trying to open RTSP Stream '%s'", params_.get_rtsp_uri().c_str());
-                    video_reader_ptr_ = std::make_unique<boblib::video::VideoReader>(params_.get_rtsp_uri());
+                    video_reader_ptr_ = std::make_unique<boblib::video::VideoReader>(params_.get_rtsp_uri(), params_.get_use_cuda());
                 }
                 break;
 
@@ -359,12 +362,6 @@ private:
                 if (!acquire_image(roscv_image_msg_ptr))
                 {
                     continue;
-                }
-
-                if (roscv_image_msg_ptr->recreate_if_invalid())
-                {
-                    node_.log_info("ImageMsg recreated");
-                    update_capture_info();
                 }
 
                 // If we did not get the data from ONVIF

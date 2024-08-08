@@ -8,11 +8,7 @@ basic_config:
     # Pattern: rtsp_uri: 'rtsp://{name of the user}:{password of user}@{IP-Address}:{Port Number}/{Path}'
     #   Example Hikvision: rtsp_uri: 'rtsp://peter:pAsSwOrD123427@12.8.9.3:554/Streaming/Channels/101'
     #   Example Amcrest and Dahua: rtsp_uri: 'rtsp://user:password@0.0.0.0:554/cam/realmonitor?channel=1&subtype=0'
-    rtsp_uri: 'rtsp://bob:Bobuser$01@192.168.68.54:554/Streaming/Channels/101'
-    onvif_host: ''
-    onvif_port: 0
-    onvif_user: ''
-    onvif_password: ''
+    rtsp_uri: 'rtsp://bob:Bobuser$01@192.168.68.65:554/Streaming/Channels/101'
     camera_id: 0
     usb_camera_resolution: [640, 480] # Resolution for USB Camera [WIDTH, HEIGHT]
     videos:                     # List of videos to display in sequence if source_type is VIDEO_FILE
@@ -44,6 +40,11 @@ basic_config:
 #########################################################################
 advanced_config:
   camera_node:
+    onvif_host: ''
+    onvif_port: 0
+    onvif_user: ''
+    onvif_password: ''
+    use_cuda: true
     mask_timer_seconds: 5
     privacy_mask_file: 'assets/masks/privacy-mask.jpg'
     privacy_mask_override_service_topic: 'bob/mask/privacy/override'
@@ -250,10 +251,10 @@ launch:
           plugin: TrackProvider
           name: track_provider_node
           remappings: []
-        - package: bob_recorder
-          plugin: RecordManager
-          name: allsky_recorder_node
-          remappings: []
+        # - package: bob_recorder
+        #   plugin: RecordManager
+        #   name: allsky_recorder_node
+        #   remappings: []
         - package: bob_image_processing
           plugin: AnnotatedFrameProvider
           name: annotated_frame_provider_node
@@ -270,14 +271,14 @@ launch:
           plugin: FrameCompressor
           name: foreground_mask_compressor_node
           remappings: []
-    - name: Display
-      executable: component_container # Has to be single-threaded because of OpenCV display
-      output: both
-      nodes:
-        - package: bob_visualizers
-          plugin: FrameViewer
-          name: multi_frame_viewer_node
-          remappings: []
+    # - name: Display
+    #   executable: component_container # Has to be single-threaded because of OpenCV display
+    #   output: both
+    #   nodes:
+    #     - package: bob_visualizers
+    #       plugin: FrameViewer
+    #       name: multi_frame_viewer_node
+    #       remappings: []
     - name: Monitor
       executable: component_container_mt
       output: both

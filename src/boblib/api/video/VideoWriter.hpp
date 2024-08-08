@@ -3,7 +3,6 @@
 #include <string>
 
 #include <opencv2/opencv.hpp>
-#include <opencv2/core/ocl.hpp>
 #include <opencv2/core/cuda.hpp>
  #include <opencv2/cudacodec.hpp>
 

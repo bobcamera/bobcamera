@@ -94,33 +94,21 @@ public:
         return *image_ptr_;
     }
 
-    sensor_msgs::msg::Image & get_msg() const
-    {
-        const size_t totalBytes = image_ptr_->total() * image_ptr_->elemSize();
-        msg_ptr_->data.assign(image_ptr_->data, image_ptr_->data + totalBytes);;
-        return *msg_ptr_;
-    }
-
-    bool recreate_if_invalid()
+    const sensor_msgs::msg::Image & get_msg()
     {
         if ((image_msg_size_ != image_ptr_->size()) || (image_type_ != image_ptr_->type()))
         {
-            auto matCopy = image_ptr_->clone();
-            create_image_msg(matCopy, true);
-            return true;
+            image_msg_size_ = image_ptr_->size();
+            image_type_ = image_ptr_->type();
+            msg_ptr_->height = image_ptr_->size().height;
+            msg_ptr_->width = image_ptr_->size().width;
+            msg_ptr_->encoding = type_to_encoding(image_type_);
+            msg_ptr_->is_bigendian = (rcpputils::endian::native == rcpputils::endian::big);
+            msg_ptr_->step = image_ptr_->size().width * image_ptr_->elemSize();
         }
-
-        return false;
-    }
-
-    static std::unique_ptr<RosCvImageMsg> create(cv::VideoCapture & video_capture)
-    {
-        auto image_temp_ptr = std::make_unique<cv::Mat>();
-        video_capture.read(*image_temp_ptr);
-        auto roscv_image_msg_ptr = std::make_unique<RosCvImageMsg>(*image_temp_ptr, true);
-        image_temp_ptr = nullptr;
-
-        return roscv_image_msg_ptr;
+        const size_t totalBytes = image_ptr_->total() * image_ptr_->elemSize();
+        msg_ptr_->data.assign(image_ptr_->data, image_ptr_->data + totalBytes);;
+        return *msg_ptr_;
     }
 
     static std::unique_ptr<RosCvImageMsg> create(int width, int height, int type)
