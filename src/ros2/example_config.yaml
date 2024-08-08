@@ -250,10 +250,10 @@ launch:
           plugin: TrackProvider
           name: track_provider_node
           remappings: []
-        # - package: bob_recorder
-        #   plugin: RecordManager
-        #   name: allsky_recorder_node
-        #   remappings: []
+        - package: bob_recorder
+          plugin: RecordManager
+          name: allsky_recorder_node
+          remappings: []
         - package: bob_image_processing
           plugin: AnnotatedFrameProvider
           name: annotated_frame_provider_node

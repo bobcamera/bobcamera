@@ -140,12 +140,12 @@ private:
         image_type_ = image.type();
         msg_ptr_ = std::make_shared<sensor_msgs::msg::Image>();
 
+        image_ptr_ = std::make_unique<cv::Mat>(image_msg_size_, image_type_);
         msg_ptr_->height = image.size().height;
         msg_ptr_->width = image.size().width;
         msg_ptr_->encoding = type_to_encoding(image_type_);
         msg_ptr_->is_bigendian = (rcpputils::endian::native == rcpputils::endian::big);
         msg_ptr_->step = image.size().width * image.elemSize();
-        image_ptr_ = std::make_unique<cv::Mat>(image_msg_size_, image_type_);
         if (copy_img)
         {
             image.copyTo(*image_ptr_);
@@ -158,12 +158,12 @@ private:
         image_type_ = type;
         msg_ptr_ = std::make_shared<sensor_msgs::msg::Image>();
 
+        image_ptr_ = std::make_unique<cv::Mat>(image_msg_size_, type);
         msg_ptr_->height = height;
         msg_ptr_->width = width;
         msg_ptr_->encoding = type_to_encoding(type);
         msg_ptr_->is_bigendian = (rcpputils::endian::native == rcpputils::endian::big);
-        msg_ptr_->step = width * calculate_elem_size1(type) * get_number_channels(type);
-        image_ptr_ = std::make_unique<cv::Mat>(image_msg_size_, type);
+        msg_ptr_->step = width * image_ptr_->elemSize();
     }
     
     static size_t calculate_elem_size1(int type) 
