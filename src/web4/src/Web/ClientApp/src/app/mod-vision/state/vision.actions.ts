@@ -20,3 +20,6 @@ export const setBobInfo = createAction('[Vision] Set Bob Info', props<{ info: Ap
 
 export const Error = createAction('[Vision] Error', props<{ error: HttpErrorResponse }>());
 export const ClearError = createAction('[Vision] Clear Error');
+
+// Masking
+export const setMaskEditMode = createAction('[Vision] Set MaskEdit Mode', props<{ enabled: boolean }>());

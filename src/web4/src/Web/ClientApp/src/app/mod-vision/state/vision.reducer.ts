@@ -21,6 +21,8 @@ export interface VisionState {
   camera: CameraDto;
 
   bobInfo: AppInfoDto;
+
+  maskEditMode: boolean;
 }
 
 export interface State extends fromRoot.State {
@@ -40,6 +42,8 @@ const initialState: VisionState = {
   camera: null,
 
   bobInfo: null,
+
+  maskEditMode: false,
 };
 
 
@@ -58,7 +62,9 @@ export const visionReducer = createReducer<VisionState>(
   on(VisionActions.getCameraDetails, (state, action): VisionState => { return { ...state, loading: true, loadingMessage: 'Loading Camera Details' }; }),
   on(VisionActions.getCameraDetailsSuccess, (state, action): VisionState => { return { ...state, loading: false, error: null, loadingMessage: null, camera: action.data }; }),
 
-  on(VisionActions.setBobInfo, (state, action): VisionState => { return { ...state, bobInfo: action.info }; }),  
+  on(VisionActions.setBobInfo, (state, action): VisionState => { return { ...state, bobInfo: action.info }; }),
+
+  on(VisionActions.setMaskEditMode, (state, action): VisionState => { return { ...state, maskEditMode: action.enabled }; }),
 )
 
 // Selectors
@@ -102,4 +108,9 @@ export const getVisionCamera = createSelector(
 export const getBobInfo = createSelector(
   getVisionState,
   state => state.bobInfo
+);
+
+export const getMaskEditMode = createSelector(
+  getVisionState,
+  state => state.maskEditMode
 );

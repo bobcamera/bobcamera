@@ -41,27 +41,29 @@ export class MaskControlsComponent implements OnInit, OnDestroy {
   }
 
   edit(): void {
-    this.Edit.emit()
-    this.editMode = !this.editMode;
-    this.EditMode.emit(this.editMode)    
+    this.editMode = true
+    this.EditMode.emit(this.editMode);
+    this.Edit.emit();    
   }
 
   cancel(): void {
-    this.Cancel.emit()
     this.editMode = !this.editMode;
     this.EditMode.emit(this.editMode)
+    this.Cancel.emit();    
   }
 
   delete(): void {
-    this.Delete.emit()
+    this.Delete.emit();
   }
   
   save(): void {
-    this.Save.emit()
+    this.editMode = false;
+    this.EditMode.emit(this.editMode)    
+    this.Save.emit();
   }
   
   clear(): void {
-    this.Clear.emit()
+    this.Clear.emit();
   }
 
   ngOnDestroy(): void {

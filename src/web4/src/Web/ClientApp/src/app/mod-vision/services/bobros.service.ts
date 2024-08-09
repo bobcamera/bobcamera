@@ -20,6 +20,84 @@ export enum ImageStreamType {
     PrivacyMask,
 }
 
+export class BobRosConnection {
+
+    // https://stackoverflow.com/questions/64647388/roslib-with-angular-10
+    protected _port: number;
+    protected _url: string;
+    protected _ros: ROSLIB.Ros;
+    private _connected = new Subject<boolean>();    
+
+    constructor(url: string = "http://localhost", port: number = 9090) {
+        this._url = url;
+        this._ros = port;
+        this._connected.next(false);
+    }
+
+    get Ros(): ROSLIB.Ros{
+        return this._ros;
+    }
+
+    get isConnected(): boolean{
+        if (this._ros) {
+            return this._ros.isConnected;
+        }
+        return false;
+    }
+
+    get connected(): Observable<boolean>{
+        return this._connected.asObservable();
+    }
+
+    open(retry: boolean = false) {
+        if (!this._ros) {
+            this._ros = new ROSLIB.Ros();
+        }
+        if (this._ros.isConnected) {
+            return;
+        }
+
+        this._ros.on('connection', (event: any) => {
+            console.log('Connected to websocket server.');
+            this._connected.next(true);
+        });
+
+        this._ros.on('error', (error) => {
+            console.log('Error connecting to websocket server:', error);
+            if (this._ros) {
+                this._ros.isConnected = false;
+            }
+            this._connected.next(false);
+        });
+
+        this._ros.on('close', (event: any) => {
+            console.log('Connection to websocket server closed.');
+            if (this._ros) {
+                this._ros.isConnected = false;
+                if (retry) {
+                    console.log('Connection lost, attempting to reconnect...');
+                    setTimeout(() => this.open(retry), 1000);
+                }
+            }
+            this._connected.next(false);
+        });    
+
+        console.log(`Ros Bridge URL: ${this._url}:${this._port}`);
+
+        this._ros.connect(`${this._url}:${this._port}`);
+    }
+
+    close() {
+        if (this._ros && this._ros.isConnected) {
+            this._ros.close();
+            this._ros = null;
+            console.log('Disconnected.');
+        } else {
+            console.log('No active ROS connection to disconnect.');
+        }
+    }
+}
+
 @Injectable()
 export class BobRosService {    
 
@@ -108,7 +186,7 @@ export class BobRosService {
         }
     }
 
-    private _types = {
+    private _imageStreamTypes = {
         [ImageStreamType.Annotated]: "/bob/frames/annotated/resized/compressed",
         [ImageStreamType.ForegroundMask]: "/bob/frames/foreground_mask/resized/compressed",
         [ImageStreamType.DetectionMask]: "/bob/frames/allsky/original/resized/compressed",
@@ -120,8 +198,6 @@ export class BobRosService {
 
     private _videoStreamListener: ROSLIB.Topic;
     private _appStateListener: ROSLIB.Topic;
-
-
 
     public subVideoStream(type: ImageStreamType): Observable<string>{
 
@@ -148,10 +224,14 @@ export class BobRosService {
           );
     }
 
-    public svcAppInfo(): void {
+    public svcAppInfo(connection: BobRosConnection): void {
+
+        if (!connection.isConnected) {
+            throw new Error("svcAppInfo is expecting an open connection, IsConnected has returned false..");
+        }
 
         let service = new ROSLIB.Service({
-            ros : this._ros,
+            ros : connection.Ros,
             name : '/bob/webapi/application/info',
             serviceType : 'bob_interfaces/srv/ApplicationInfo'
         });
@@ -170,10 +250,14 @@ export class BobRosService {
         }.bind(this));
     }
 
-    public svcPrivacyMaskOverride(enable) {
+    public svcPrivacyMaskOverride(connection: BobRosConnection, enable) {
+
+        if (!connection.isConnected) {
+            throw new Error("svcAppInfo is expecting an open connection, IsConnected has returned false..");
+        }        
 
         let service = new ROSLIB.Service({
-            ros : this._ros,
+            ros : connection.Ros,
             name : '/bob/mask/privacy/override',
             serviceType : 'bob_interfaces/srv/MaskOverrideRequest'
         });
@@ -195,10 +279,14 @@ export class BobRosService {
         }.bind(this));
     }
 
-    public svcDeletePrivacyMask() {
+    public svcDeletePrivacyMask(connection: BobRosConnection) {
+
+        if (!connection.isConnected) {
+            throw new Error("svcAppInfo is expecting an open connection, IsConnected has returned false..");
+        }        
 
         let deleteMaskService = new ROSLIB.Service({
-            ros : this._ros,
+            ros : connection.Ros,
             name : '/bob/webapi/mask/delete/svg',
             serviceType : 'bob_interfaces/srv/MaskSvgDelete'
         });
@@ -220,8 +308,36 @@ export class BobRosService {
         }.bind(this));
     }
 
+    public svcSendMaskSVG(connection: BobRosConnection, svgContent: string, maskFilename: string) {
 
+        if (!connection.isConnected) {
+            throw new Error("svcAppInfo is expecting an open connection, IsConnected has returned false..");
+        }        
 
+        let updateSvgMaskService = new ROSLIB.Service({
+            ros : connection.Ros,
+            name : '/bob/webapi/mask/update/svg',
+            serviceType : 'bob_interfaces/srv/MaskSvgUpdate'
+        });
+
+        let request = new ROSLIB.ServiceRequest({
+            file_name: maskFilename,
+            mask: svgContent
+        });
+
+        updateSvgMaskService.callService(request, function(result) {
+            if (result.success) {
+                console.log("Mask sent successfully!");
+                alert('It can take up to 5 seconds for your new mask to be applied.')
+                this.store.dispatch(MainActions.Notification({
+                    notification: { type: NotificationType.Information, message: "Mask sent successfully. It can take up to 5 seconds for your new mask to be applied." }}));
+            } else {
+                console.error("Failed to send mask:", result.message);
+                this.store.dispatch(MainActions.Notification({
+                    notification: { type: NotificationType.Error, message: "Failed to send mask:" + result.message }}));                
+            }
+        });
+    }
 
     private internal_videoStream(type: ImageStreamType) {
 
@@ -229,10 +345,10 @@ export class BobRosService {
             this.unsubscribeTopic(this._videoStreamListener);
         }
 
-        const url = this._types[type];
+        const topic = this._imageStreamTypes[type];
 
         this._videoStreamListener = this.subscribeTopic<string>(
-            url, 
+            topic, 
             'sensor_msgs/msg/CompressedImage', 
             (msg: any) => { this._videoStream.next(msg);}
         );

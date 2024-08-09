@@ -13,8 +13,10 @@
                 <bob-bob-state *ngIf="this._displayAppState" [AppState$]="this._appState$"></bob-bob-state>
                 <bob-mask-controls *ngIf="this._displayPrivacyMaskControls" 
                     Heading="Privacy Mask Controls" HeadingEdit="Editing Privacy Mask" 
-                    SubHeading="" SubHeadingEdit="Draw the areas you want to exclude"></bob-mask-controls>
-                <bob-mask-controls *ngIf="this._displayDetectionMaskControls" 
+                    SubHeading="" SubHeadingEdit="Draw the areas you want to exclude" 
+                    (Edit)="OnPMEdit()" (Cancel)="OnPMCancel()" (Delete)="OnPMDelete()" (Save)="OnPMSave()" (Clear)="OnPMClear()" 
+                        (EditMode)="OnEditModeChanged($event)"></bob-mask-controls>              
+                    <bob-mask-controls *ngIf="this._displayDetectionMaskControls" 
                     Heading="Detection Mask Controls" HeadingEdit="Editing Detection Mask" 
                     SubHeading="" SubHeadingEdit="Draw the areas you want to include">
                     <div class="mask-tips">
@@ -32,7 +34,8 @@
             </mat-sidenav>
             <mat-sidenav-content>
                 <bob-stream-display *ngIf="!this._displayPrivacyMaskControls && !this._displayDetectionMaskControls" [ImageStream$]="this._imageStream$"></bob-stream-display>
-                <bob-mask-creation *ngIf="this._displayPrivacyMaskControls || this._displayDetectionMaskControls" [ImageStream$]="this._imageStream$"></bob-mask-creation>
+                <bob-mask-creation #privacymaskcreator *ngIf="this._displayPrivacyMaskControls || this._displayDetectionMaskControls" 
+                    [ImageStream$]="this._imageStream$" [EditMode]="this._maskEditMode$ | async"></bob-mask-creation>
             </mat-sidenav-content>
           </mat-sidenav-container>
     </mat-card-content>

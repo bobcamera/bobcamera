@@ -9,12 +9,12 @@ import { UiModule } from '../mod-ui';
 
 import { NotificationPublisher, NotificationHandler, ErrorService, ApiServiceBase, RosLibServiceBase, SvgService } from './services';
 import { AppRootComponent, NotFoundPageComponent, AccessDeniedPageComponent } from './containers';
-import { NavItemComponent } from './components';
+import { NavItemComponent, ConfirmationDialogComponent } from './components';
 
 import * as fromMain from './state';
 
-export const COMPONENTS = [NavItemComponent];
-export const ENTRY_COMPONENTS = []
+export const COMPONENTS = [NavItemComponent, ConfirmationDialogComponent];
+//export const ENTRY_COMPONENTS = [ConfirmationDialogComponent]
 export const CONTAINERS = [AppRootComponent, NotFoundPageComponent, AccessDeniedPageComponent];
 export const PIPE_PROVIDERS = []
 export const PROVIDERS = [NotificationPublisher, NotificationHandler, ErrorService, ApiServiceBase, RosLibServiceBase, SvgService ];
