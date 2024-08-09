@@ -8,7 +8,7 @@ basic_config:
     # Pattern: rtsp_uri: 'rtsp://{name of the user}:{password of user}@{IP-Address}:{Port Number}/{Path}'
     #   Example Hikvision: rtsp_uri: 'rtsp://peter:pAsSwOrD123427@12.8.9.3:554/Streaming/Channels/101'
     #   Example Amcrest and Dahua: rtsp_uri: 'rtsp://user:password@0.0.0.0:554/cam/realmonitor?channel=1&subtype=0'
-    rtsp_uri: 'rtsp://bob:Bobuser$01@192.168.68.65:554/Streaming/Channels/101'
+    rtsp_uri: 'rtsp://bob:Bobuser$01@192.168.68.63:554/Streaming/Channels/101'
     camera_id: 0
     usb_camera_resolution: [640, 480] # Resolution for USB Camera [WIDTH, HEIGHT]
     videos:                     # List of videos to display in sequence if source_type is VIDEO_FILE

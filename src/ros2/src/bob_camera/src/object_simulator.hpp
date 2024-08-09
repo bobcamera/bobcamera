@@ -63,7 +63,7 @@ public:
         }
     }
 
-    void initialize(const cv::Mat& img)
+    void initialize(const boblib::base::Image & img)
     {
         x_ = 0.0;
         y_ = 0.0;
@@ -116,7 +116,7 @@ public:
         , default_step_range_{5, 30}
     {}
 
-    void initialize(const cv::Mat& img)
+    void initialize(const boblib::base::Image & img)
     {
         img_size_ = img.size();
         for (int i = 0; i < num_simulated_objects_; ++i)
@@ -127,17 +127,19 @@ public:
         }
     }
 
-    void move(cv::Mat& img)
+    void move(boblib::base::Image & img)
     {
         if (moving_circles_.empty() || img.size() != img_size_)
         {
             initialize(img);
         }
+        auto & img_mat = img.download();
         for (auto& circle : moving_circles_) 
         {
             circle.move();
-            circle.draw(img, cv::Scalar(10, 10, 20));
-        }        
+            circle.draw(img_mat, cv::Scalar(10, 10, 20));
+        }
+        img.upload();
     }
 
 private:

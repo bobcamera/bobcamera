@@ -9,6 +9,8 @@
 #include <rcpputils/endian.hpp>
 #include <rclcpp/rclcpp.hpp>
 
+#include "../base/Image.hpp"
+
 class ImageUtils 
 {
 public:
@@ -58,127 +60,6 @@ public:
             _image_out = _image_in;
         }
     }
-};
-
-class RosCvImageMsg
-{
-public:
-    RosCvImageMsg(const cv::Mat & image, bool copy_img)
-    {
-        create_image_msg(image, copy_img);
-    }
-
-    RosCvImageMsg(int width, int height, int type)
-    {
-        create_image_msg(width, height, type);
-    }
-
-    std_msgs::msg::Header & get_header() const
-    {
-        return msg_ptr_->header;
-    }
-
-    void set_header(const std_msgs::msg::Header & header)
-    {
-        msg_ptr_->header = header;
-    }
-
-    void set_header(const rclcpp::Time & time, const std::string & id)
-    {
-        msg_ptr_->header.stamp = time;
-        msg_ptr_->header.frame_id = id;
-    }
-    
-    cv::Mat & get_image() const
-    {
-        return *image_ptr_;
-    }
-
-    const sensor_msgs::msg::Image & get_msg()
-    {
-        if ((image_msg_size_ != image_ptr_->size()) || (image_type_ != image_ptr_->type()))
-        {
-            image_msg_size_ = image_ptr_->size();
-            image_type_ = image_ptr_->type();
-            msg_ptr_->height = image_ptr_->size().height;
-            msg_ptr_->width = image_ptr_->size().width;
-            msg_ptr_->encoding = type_to_encoding(image_type_);
-            msg_ptr_->is_bigendian = (rcpputils::endian::native == rcpputils::endian::big);
-            msg_ptr_->step = image_ptr_->size().width * image_ptr_->elemSize();
-        }
-        const size_t totalBytes = image_ptr_->total() * image_ptr_->elemSize();
-        msg_ptr_->data.assign(image_ptr_->data, image_ptr_->data + totalBytes);;
-        return *msg_ptr_;
-    }
-
-    static std::unique_ptr<RosCvImageMsg> create(int width, int height, int type)
-    {
-        return std::make_unique<RosCvImageMsg>(width, height, type);
-    }
-
-private:
-    sensor_msgs::msg::Image::SharedPtr msg_ptr_;
-    std::unique_ptr<cv::Mat> image_ptr_;
-    cv::Size image_msg_size_;
-    int image_type_;
-
-    inline void create_image_msg(const cv::Mat & image, bool copy_img)
-    {
-        image_msg_size_ = image.size();
-        image_type_ = image.type();
-        msg_ptr_ = std::make_shared<sensor_msgs::msg::Image>();
-
-        image_ptr_ = std::make_unique<cv::Mat>(image_msg_size_, image_type_);
-        msg_ptr_->height = image.size().height;
-        msg_ptr_->width = image.size().width;
-        msg_ptr_->encoding = type_to_encoding(image_type_);
-        msg_ptr_->is_bigendian = (rcpputils::endian::native == rcpputils::endian::big);
-        msg_ptr_->step = image.size().width * image.elemSize();
-        if (copy_img)
-        {
-            image.copyTo(*image_ptr_);
-        }
-    }
-
-    inline void create_image_msg(int width, int height, int type)
-    {
-        image_msg_size_ = cv::Size(width, height);
-        image_type_ = type;
-        msg_ptr_ = std::make_shared<sensor_msgs::msg::Image>();
-
-        image_ptr_ = std::make_unique<cv::Mat>(image_msg_size_, type);
-        msg_ptr_->height = height;
-        msg_ptr_->width = width;
-        msg_ptr_->encoding = type_to_encoding(type);
-        msg_ptr_->is_bigendian = (rcpputils::endian::native == rcpputils::endian::big);
-        msg_ptr_->step = width * image_ptr_->elemSize();
-    }
-    
-    static size_t calculate_elem_size1(int type) 
-    {
-        const int depth = type & CV_MAT_DEPTH_MASK; // Extract depth (first 3 bits)
-        switch (depth) 
-        {
-            case CV_8U:
-            case CV_8S:
-                return 1;  // 8 bits / 8 = 1 byte
-            case CV_16U:
-            case CV_16S:
-                return 2;  // 16 bits / 8 = 2 bytes
-            case CV_32S:
-            case CV_32F:
-                return 4;  // 32 bits / 8 = 4 bytes
-            case CV_64F:
-                return 8;  // 64 bits / 8 = 8 bytes
-            default:
-                throw std::invalid_argument("Unknown depth value");
-        }
-    }
-
-    static bool get_number_channels(int type) 
-    {
-        return 1 + (type >> CV_CN_SHIFT);
-    }
 
     static const std::string type_to_encoding(int type)
     {
@@ -208,5 +89,112 @@ private:
             default:
                 throw std::runtime_error("Unsupported image format");
         }
+    }
+};
+
+class RosCvImageMsg
+{
+public:
+    RosCvImageMsg(const boblib::base::Image & image, bool copy_img)
+    {
+        create_image_msg(image, copy_img);
+    }
+
+    RosCvImageMsg(int width, int height, int type, bool use_cuda)
+    {
+        create_image_msg(width, height, type, use_cuda);
+    }
+
+    std_msgs::msg::Header & get_header() const
+    {
+        return msg_ptr_->header;
+    }
+
+    void set_header(const std_msgs::msg::Header & header)
+    {
+        msg_ptr_->header = header;
+    }
+
+    void set_header(const rclcpp::Time & time, const std::string & id)
+    {
+        msg_ptr_->header.stamp = time;
+        msg_ptr_->header.frame_id = id;
+    }
+    
+    boblib::base::Image & get_image() const
+    {
+        return *image_ptr_;
+    }
+
+    const sensor_msgs::msg::Image & get_msg()
+    {
+        if ((image_msg_size_ != image_ptr_->size()) || (image_type_ != image_ptr_->type()))
+        {
+            image_msg_size_ = image_ptr_->size();
+            image_type_ = image_ptr_->type();
+            msg_ptr_->height = image_ptr_->size().height;
+            msg_ptr_->width = image_ptr_->size().width;
+            msg_ptr_->encoding = ImageUtils::type_to_encoding(image_type_);
+            msg_ptr_->is_bigendian = (rcpputils::endian::native == rcpputils::endian::big);
+            msg_ptr_->step = image_ptr_->size().width * image_ptr_->elemSize();
+        }
+        const size_t totalBytes = image_ptr_->total() * image_ptr_->elemSize();
+        msg_ptr_->data.assign(image_ptr_->data(), image_ptr_->data() + totalBytes);
+        return *msg_ptr_;
+    }
+
+    static std::unique_ptr<RosCvImageMsg> create(int width, int height, int type, bool use_cuda)
+    {
+        return std::make_unique<RosCvImageMsg>(width, height, type, use_cuda);
+    }
+
+    static std::unique_ptr<RosCvImageMsg> create(const cv::Mat & img, bool copy_img, bool use_cuda)
+    {
+        auto img_msg = std::make_unique<RosCvImageMsg>(img.size().width, img.size().height, img.type(), use_cuda);
+        if (copy_img)
+        {
+            img_msg->get_image().create(img);
+        }
+        return img_msg;
+    }
+
+private:
+    sensor_msgs::msg::Image::SharedPtr msg_ptr_;
+    std::unique_ptr<boblib::base::Image> image_ptr_;
+    cv::Size image_msg_size_;
+    int image_type_;
+
+    inline void create_image_msg(const boblib::base::Image & image, bool copy_img)
+    {
+        image_msg_size_ = image.size();
+        image_type_ = image.type();
+        msg_ptr_ = std::make_shared<sensor_msgs::msg::Image>();
+
+        image_ptr_ = std::make_unique<boblib::base::Image>(image.get_using_cuda());
+        image_ptr_->create(image_msg_size_, image_type_);
+        msg_ptr_->height = image.size().height;
+        msg_ptr_->width = image.size().width;
+        msg_ptr_->encoding = ImageUtils::type_to_encoding(image_type_);
+        msg_ptr_->is_bigendian = (rcpputils::endian::native == rcpputils::endian::big);
+        msg_ptr_->step = image.size().width * image.elemSize();
+        if (copy_img)
+        {
+            image.copyTo(*image_ptr_);
+        }
+    }
+
+    inline void create_image_msg(int width, int height, int type, bool use_cuda)
+    {
+        image_msg_size_ = cv::Size(width, height);
+        image_type_ = type;
+        msg_ptr_ = std::make_shared<sensor_msgs::msg::Image>();
+
+        image_ptr_ = std::make_unique<boblib::base::Image>(use_cuda);
+        image_ptr_->create(image_msg_size_, image_type_);
+        msg_ptr_->height = height;
+        msg_ptr_->width = width;
+        msg_ptr_->encoding = ImageUtils::type_to_encoding(type);
+        msg_ptr_->is_bigendian = (rcpputils::endian::native == rcpputils::endian::big);
+        msg_ptr_->step = width * image_ptr_->elemSize();
     }
 };

@@ -7,6 +7,8 @@
 #include <opencv2/core/cuda.hpp>
 #include <opencv2/cudacodec.hpp>
 
+#include "../base/Image.hpp"
+
 namespace boblib::video
 {
     class VideoReader
@@ -15,6 +17,8 @@ namespace boblib::video
         VideoReader(int usb_camera_id, const std::vector<int> & params = {});
 
         VideoReader(const std::string & camera_uri, bool use_cuda = true, const std::vector<int> & params = {});
+
+        bool read(boblib::base::Image & image);
 
         bool read(cv::Mat & image);
 

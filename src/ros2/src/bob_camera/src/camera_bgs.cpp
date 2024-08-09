@@ -28,7 +28,7 @@ public:
 
         bgs_worker_ptr_ = std::make_unique<BackgroundSubtractorWorker>(*this, *bgs_params_ptr_);
         camera_worker_ptr_ = std::make_unique<CameraWorker>(*this, *camera_params_ptr_, 
-            [this](const std_msgs::msg::Header & header, const cv::Mat & img)
+            [this](const std_msgs::msg::Header & header, const boblib::base::Image & img)
             {
                 bgs_worker_ptr_->image_callback(header, img);
             });

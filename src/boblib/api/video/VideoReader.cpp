@@ -21,6 +21,30 @@ VideoReader::VideoReader(const std::string & camera_uri, bool use_cuda, const st
     create_video_capture();
 }
 
+bool VideoReader::read(boblib::base::Image & image)
+{
+    if (using_cuda_)
+    {
+        if (!cuda_video_reader_ptr_->nextFrame(image.get_using_cuda() ? image.get_cuda_mat() : gpu_frame_)) 
+        {
+            return false;
+        }
+        if (!image.get_using_cuda())
+        {
+            gpu_frame_.download(image.get_mat());
+        }
+        return true;
+    }
+
+    auto success = video_capture_ptr_->read(image.get_mat());
+    if (success && image.get_using_cuda())
+    {
+        image.get_cuda_mat().upload(image.get_mat());
+    }
+
+    return success;
+}
+
 bool VideoReader::read(cv::Mat & image)
 {
     if (using_cuda_)

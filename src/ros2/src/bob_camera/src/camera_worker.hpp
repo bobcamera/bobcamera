@@ -131,7 +131,7 @@ class CameraWorker
 public:
     explicit CameraWorker(ParameterLifeCycleNode & node,
                           CameraWorkerParams & params,
-                          const std::function<void(const std_msgs::msg::Header &, const cv::Mat &)> & user_callback = nullptr)
+                          const std::function<void(const std_msgs::msg::Header &, const boblib::base::Image &)> & user_callback = nullptr)
         : node_(node),
           params_(params),
           user_callback_(user_callback)
@@ -162,6 +162,9 @@ public:
             camera_info_msg_.frame_height = 0;
             camera_info_msg_.frame_width = 0;
             camera_info_msg_.fps = 0;
+
+            using_cuda_ = params_.get_use_cuda() ? cv::cuda::getCudaEnabledDeviceCount() : false;
+            privacy_mask_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_);
 
             circuit_breaker_ptr_ = std::make_unique<CircuitBreaker>(CIRCUIT_BREAKER_MAX_RETRIES, CIRCUIT_BREAKER_INITIAL_TIMEOUT, CIRCUIT_BREAKER_MAX_TIMEOUT);
 
@@ -229,14 +232,14 @@ public:
                 {
                     const auto & video_path = params_.get_videos()[current_video_idx_];
                     node_.log_send_info("Trying to open video '%s'", video_path.c_str());
-                    video_reader_ptr_ = std::make_unique<boblib::video::VideoReader>(video_path, params_.get_use_cuda());
+                    video_reader_ptr_ = std::make_unique<boblib::video::VideoReader>(video_path, using_cuda_);
                 }
                 break;
 
                 case CameraWorkerParams::SourceType::RTSP_STREAM:
                 {
                     node_.log_send_info("Trying to open RTSP Stream '%s'", params_.get_rtsp_uri().c_str());
-                    video_reader_ptr_ = std::make_unique<boblib::video::VideoReader>(params_.get_rtsp_uri(), params_.get_use_cuda());
+                    video_reader_ptr_ = std::make_unique<boblib::video::VideoReader>(params_.get_rtsp_uri(), using_cuda_);
                 }
                 break;
 
@@ -300,7 +303,7 @@ private:
         }        
     }
 
-    bool acquire_image(std::unique_ptr<RosCvImageMsg> & roscv_image_msg_ptr)
+    bool acquire_image(boblib::base::Image & camera_img)
     {
         try
         {
@@ -311,25 +314,17 @@ private:
                 return false;
             }
 
-            if (!video_reader_ptr_->read(roscv_image_msg_ptr->get_image()))
+            if (!video_reader_ptr_->read(camera_img))
             {
                 if (params_.get_source_type() == CameraWorkerParams::SourceType::VIDEO_FILE)
                 {
                     current_video_idx_ = current_video_idx_ >= (params_.get_videos().size() - 1) ? 0 : current_video_idx_ + 1;
-                    if (open_camera())
-                    {
-                        roscv_image_msg_ptr = RosCvImageMsg::create(cv_camera_width_, cv_camera_height_, cv_camera_format_);
-                    }
-                    else
+                    if (!open_camera())
                     {
                         circuit_breaker_ptr_->record_failure();
                     }
                 }
-                else if (open_camera())
-                {
-                    roscv_image_msg_ptr = RosCvImageMsg::create(cv_camera_width_, cv_camera_height_, cv_camera_format_);
-                }
-                else
+                else if (!open_camera())
                 {
                     circuit_breaker_ptr_->record_failure();
                 }
@@ -347,7 +342,8 @@ private:
 
     void capture_loop()
     {
-        std::unique_ptr<RosCvImageMsg> roscv_image_msg_ptr = RosCvImageMsg::create(cv_camera_width_, cv_camera_height_, cv_camera_format_);
+        boblib::base::Image camera_img(using_cuda_);
+        sensor_msgs::msg::Image camera_msg;
 
         while (run_ && rclcpp::ok())
         {
@@ -359,40 +355,31 @@ private:
 
             try
             {
-                if (!acquire_image(roscv_image_msg_ptr))
+                if (!acquire_image(camera_img))
                 {
                     continue;
                 }
 
-                // If we did not get the data from ONVIF
-                if (!is_camera_info_auto_)
-                {
-                    camera_info_msg_.fps = static_cast<float>(fps_);
-                    camera_info_msg_.frame_width = roscv_image_msg_ptr->get_image().size().width;
-                    camera_info_msg_.frame_height = roscv_image_msg_ptr->get_image().size().height;
-                    camera_info_msg_.is_color = roscv_image_msg_ptr->get_image().channels() >= 3;
-                }
-
                 if (params_.get_simulator_enable())
                 {
-                    object_simulator_ptr_->move(roscv_image_msg_ptr->get_image());
+                    object_simulator_ptr_->move(camera_img);
                 }
 
-                apply_mask(roscv_image_msg_ptr->get_image());
+                fill_header(camera_msg, camera_img);
 
-                roscv_image_msg_ptr->set_header(node_.now(), ParameterLifeCycleNode::generate_uuid());
+                apply_mask(camera_img);
 
-                node_.publish_if_subscriber(params_.get_image_publisher(), roscv_image_msg_ptr->get_msg());
+                publish_frame(camera_msg, camera_img);
 
-                publish_resized_frame(roscv_image_msg_ptr);
+                publish_resized_frame(camera_msg, camera_img);
 
-                publish_image_info(roscv_image_msg_ptr);
+                publish_image_info(camera_msg, camera_img);
 
-                publish_camera_info(roscv_image_msg_ptr->get_header());
+                publish_camera_info(camera_msg.header, camera_img);
 
                 if (user_callback_)
                 {
-                    user_callback_(roscv_image_msg_ptr->get_header(), roscv_image_msg_ptr->get_image());
+                    user_callback_(camera_msg.header, camera_img);
                 }
 
                 loop_rate_ptr_->sleep();
@@ -411,43 +398,55 @@ private:
         node_.log_send_info("CameraWorker: Leaving capture_loop");
     }
 
-    void apply_mask(cv::Mat & img)
+    inline void fill_header(sensor_msgs::msg::Image & camera_msg, boblib::base::Image & camera_img)
+    {
+        camera_msg.header.stamp = node_.now();
+        camera_msg.header.frame_id = ParameterLifeCycleNode::generate_uuid();
+
+        camera_msg.height = camera_img.size().height;
+        camera_msg.width = camera_img.size().width;
+        camera_msg.encoding = ImageUtils::type_to_encoding(camera_img.type());
+        camera_msg.is_bigendian = (rcpputils::endian::native == rcpputils::endian::big);
+        camera_msg.step = camera_img.size().width * camera_img.elemSize();
+    }
+
+    inline void apply_mask(boblib::base::Image & img)
     {
         if (!mask_enabled_ || !params_.get_mask_enable_override())
         {
             return;
         }
-        if (img.size() != privacy_mask_.size())
-        {
-            cv::resize(privacy_mask_, privacy_mask_, img.size());
-        }
-        if (img.channels() != privacy_mask_.channels())
-        {
-            cv::cvtColor(privacy_mask_, privacy_mask_, img.channels() == 3 ? cv::COLOR_GRAY2BGR : cv::COLOR_BGR2GRAY);
-        }
-        cv::bitwise_and(img, privacy_mask_, img);
+        img.apply_mask(*privacy_mask_ptr_);
     }
 
-    void publish_resized_frame(const std::unique_ptr<RosCvImageMsg> & image_msg_ptr) const
+    inline void publish_frame(sensor_msgs::msg::Image & camera_msg, boblib::base::Image & camera_img)
     {
-        if (!params_.get_image_resized_publisher()
-            || (params_.get_resize_height() <= 0)
-            || (node_.count_subscribers(params_.get_image_resized_publish_topic()) <= 0))
+        if (node_.count_subscribers(params_.get_image_publisher()->get_topic_name()) <= 0)
         {
             return;
         }
-        cv::Mat resized_img;
+        const size_t totalBytes = camera_img.total() * camera_img.elemSize();
+        camera_msg.data.assign(camera_img.data(), camera_img.data() + totalBytes);;        
+
+        params_.get_image_publisher()->publish(camera_msg);
+    }
+
+    void publish_resized_frame(sensor_msgs::msg::Image & camera_msg, const boblib::base::Image & camera_img) const
+    {
+        if (!params_.get_image_resized_publisher()
+            || (params_.get_resize_height() <= 0)
+            || (node_.count_subscribers(params_.get_image_resized_publisher()->get_topic_name()) <= 0))
+        {
+            return;
+        }
+        boblib::base::Image resized_img(using_cuda_);
         if (params_.get_resize_height() > 0)
         {
-            const auto frame_width = static_cast<int>(image_msg_ptr->get_image().size().aspectRatio() * static_cast<double>(params_.get_resize_height()));
-            cv::resize(image_msg_ptr->get_image(), resized_img, cv::Size(frame_width, params_.get_resize_height()));
-        }
-        else
-        {
-            resized_img = image_msg_ptr->get_image();
+            const auto frame_width = static_cast<int>(camera_img.size().aspectRatio() * static_cast<double>(params_.get_resize_height()));
+            camera_img.resizeTo(resized_img, cv::Size(frame_width, params_.get_resize_height()));
         }
 
-        auto resized_frame_msg = cv_bridge::CvImage(image_msg_ptr->get_header(), image_msg_ptr->get_msg().encoding, resized_img).toImageMsg();
+        auto resized_frame_msg = cv_bridge::CvImage(camera_msg.header, camera_msg.encoding, resized_img.toMat()).toImageMsg();
         params_.get_image_resized_publisher()->publish(*resized_frame_msg);            
     }
 
@@ -513,7 +512,7 @@ private:
         return false;
     }
 
-    void publish_image_info(const std::unique_ptr<RosCvImageMsg> & image_msg_ptr) const
+    void publish_image_info(sensor_msgs::msg::Image & camera_msg, const boblib::base::Image & camera_img) const
     {
         if (!params_.get_image_info_publisher() || (node_.count_subscribers(params_.get_image_info_publisher()->get_topic_name()) <= 0))
         {
@@ -521,13 +520,13 @@ private:
         }
 
         bob_camera::msg::ImageInfo image_info_msg;
-        image_info_msg.header = image_msg_ptr->get_header();
+        image_info_msg.header = camera_msg.header;
 
         image_info_msg.roi.start_x = 0;
         image_info_msg.roi.start_y = 0;
-        image_info_msg.roi.width = image_msg_ptr->get_image().size().width;
-        image_info_msg.roi.height = image_msg_ptr->get_image().size().height;
-        image_info_msg.bpp = image_msg_ptr->get_image().elemSize1() == 1 ? 8 : 16;
+        image_info_msg.roi.width = camera_img.size().width;
+        image_info_msg.roi.height = camera_img.size().height;
+        image_info_msg.bpp = camera_img.elemSize1() == 1 ? 8 : 16;
         image_info_msg.exposure = 0;
         image_info_msg.gain = 0;
         image_info_msg.offset = 0;
@@ -537,7 +536,7 @@ private:
         image_info_msg.contrast = 0;
         image_info_msg.brightness = 0;
         image_info_msg.gamma = 1.0;
-        image_info_msg.channels = image_msg_ptr->get_image().channels();
+        image_info_msg.channels = camera_img.channels();
         image_info_msg.bin_mode = 1;
         image_info_msg.current_temp = 0;
         image_info_msg.cool_enabled = false;
@@ -547,7 +546,7 @@ private:
         params_.get_image_info_publisher()->publish(image_info_msg);
     }
 
-    void publish_camera_info(const std_msgs::msg::Header & header)
+    void publish_camera_info(const std_msgs::msg::Header & header, const boblib::base::Image & camera_img)
     {
         if (!params_.get_camera_info_publisher() || (node_.count_subscribers(params_.get_camera_info_publisher()->get_topic_name()) <= 0))
         {
@@ -555,6 +554,10 @@ private:
         }
 
         camera_info_msg_.header = header;
+        camera_info_msg_.fps = static_cast<float>(fps_);
+        camera_info_msg_.frame_width = camera_img.size().width;
+        camera_info_msg_.frame_height = camera_img.size().height;
+        camera_info_msg_.is_color = camera_img.channels() >= 3;
         camera_info_msg_.initial_connection = initial_camera_connect_;
         camera_info_msg_.last_connection = last_camera_connect_;
         params_.get_camera_info_publisher()->publish(camera_info_msg_);
@@ -630,13 +633,13 @@ private:
             {
                 node_.log_send_info("CameraWorker: Privacy Mask Changed.");
             }
-            privacy_mask_ = mask.clone();
+            privacy_mask_ptr_->create(mask);
         }
         else if ((detection_mask_result == MaskWorker::MaskCheckType::Disable) && mask_enabled_)
         {
             node_.log_send_info("CameraWorker: Privacy Mask Disabled.");
             mask_enabled_ = false;
-            privacy_mask_.release();
+            privacy_mask_ptr_.release();
         }
     }
 
@@ -672,7 +675,7 @@ private:
 
     std::unique_ptr<MaskWorker> mask_worker_ptr_;
 
-    std::function<void(const std_msgs::msg::Header &, const cv::Mat &)> user_callback_;
+    std::function<void(const std_msgs::msg::Header &, const boblib::base::Image &)> user_callback_;
     
     std::unique_ptr<boblib::video::VideoReader> video_reader_ptr_;
     bob_camera::msg::CameraInfo camera_info_msg_;
@@ -693,12 +696,14 @@ private:
     std::unique_ptr<ObjectSimulator> object_simulator_ptr_;
 
     bool mask_enabled_{false};
-    cv::Mat privacy_mask_;
+    std::unique_ptr<boblib::base::Image> privacy_mask_ptr_;
 
     std::unique_ptr<CircuitBreaker> circuit_breaker_ptr_;
 
     rclcpp::Time initial_camera_connect_;
     rclcpp::Time last_camera_connect_;
+
+    bool using_cuda_{false};
 };
 
 
