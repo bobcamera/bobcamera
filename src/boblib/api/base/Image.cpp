@@ -301,6 +301,16 @@ cv::Mat & Image::get_mat()
     return mat_;
 }
 
+const cv::cuda::GpuMat & Image::get_cuda_mat() const
+{
+    return gpu_mat_;
+}
+
+const cv::Mat & Image::get_mat() const
+{
+    return mat_;
+}
+
 const cv::Mat Image::toMat() const
 {
     if (using_cuda_)

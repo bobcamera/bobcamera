@@ -255,7 +255,7 @@ public:
             bbox2D_array.image_height = bgs_img.size().height;
 
             std::vector<cv::Rect> bboxes;
-            auto det_result = blob_detector_ptr_->detect(bgs_img.download(), bboxes);
+            auto det_result = blob_detector_ptr_->detect(bgs_img, bboxes);
             if (det_result == boblib::blobs::DetectionResult::Success)
             {
                 state.max_blobs_reached = false;

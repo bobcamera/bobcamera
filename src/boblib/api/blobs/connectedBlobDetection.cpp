@@ -1,6 +1,8 @@
 #include "connectedBlobDetection.hpp"
 
 #include <opencv2/imgproc.hpp>
+#include <opencv2/cudaimgproc.hpp>
+#include <opencv2/cudaarithm.hpp>
 
 #include <iostream>
 #include <execution>
@@ -17,27 +19,7 @@ namespace boblib::blobs
         }
     }
 
-    static inline cv::KeyPoint convertFromRect(const cv::Rect &rect)
-    {
-        static const float scale = 6.0f;
-        const float size = (float)std::max(rect.width, rect.height) / scale;
-        return cv::KeyPoint(rect.x + scale * size / 2.0f, rect.y + scale * size / 2.0f, size);
-    }
-
-    std::vector<cv::KeyPoint> ConnectedBlobDetection::detect_kp(const cv::Mat &_image)
-    {
-        std::vector<cv::Rect> bboxes;
-        detect(_image, bboxes);
-        std::vector<cv::KeyPoint> kps;
-        std::transform(bboxes.begin(),
-                       bboxes.end(),
-                       std::back_inserter(kps),
-                       [](const cv::Rect &r) -> cv::KeyPoint
-                       { return convertFromRect(r); });
-        return kps;
-    }
-
-    std::vector<cv::Rect> ConnectedBlobDetection::detect_ret(const cv::Mat &_image)
+    std::vector<cv::Rect> ConnectedBlobDetection::detect_ret(boblib::base::Image &_image)
     {
         std::vector<cv::Rect> bboxes;
         detect(_image, bboxes);
@@ -150,19 +132,31 @@ namespace boblib::blobs
     }
 
     // Finds the connected components in the image and returns a list of bounding boxes
-    DetectionResult ConnectedBlobDetection::detect(const cv::Mat &_image, std::vector<cv::Rect> &_bboxes)
+    DetectionResult ConnectedBlobDetection::detect(boblib::base::Image &_image, std::vector<cv::Rect> &_bboxes)
     {
-        if (!m_initialized || *m_original_img_size != ImgSize(_image))
+        if (!m_initialized || *m_original_img_size != ImgSize(_image.size().width, _image.size().height, _image.channels(), _image.elemSize1(), 0))
         {
             prepare_parallel(_image);
             m_initialized = true;
         }
 
-        // Use connected component analysis to find the blobs in the image, subtract 1 because the background is considered as label 0
-        // CCL_SAUF      = 0, //!< SAUF @cite Wu2009 algorithm for 8-way connectivity, SAUF algorithm for 4-way connectivity. The parallel implementation described in @cite Bolelli2017 is available for SAUF.
-        // CCL_BBDT      = 1, //!< BBDT @cite Grana2010 algorithm for 8-way connectivity, SAUF algorithm for 4-way connectivity. The parallel implementation described in @cite Bolelli2017 is available for both BBDT and SAUF.
-        // CCL_SPAGHETTI = 2, //!< Spaghetti @cite Bolelli2019 algorithm for 8-way connectivity, Spaghetti4C @cite Bolelli2021 algorithm for 4-way connectivity. The parallel implementation described in @cite Bolelli2017 is available for both Spaghetti and Spaghetti4C.
-        const int numLabels = cv::connectedComponents(_image, m_labels, 8, CV_32S, cv::CCL_SPAGHETTI) - 1;
+        int numLabels{0};
+        // Use connected component analysis to find the blobs in the image
+        if (false && _image.get_using_cuda())
+        {
+            double maxVal;
+            cv::cuda::connectedComponents(_image.get_cuda_mat(), m_gpu_labels, 8, CV_32S);
+            cv::cuda::minMax(m_gpu_labels, NULL, &maxVal);
+            m_gpu_labels.download(m_labels);
+            numLabels = static_cast<int>(maxVal);
+        }
+        else
+        {
+            // CCL_SAUF      = 0, //!< SAUF @cite Wu2009 algorithm for 8-way connectivity, SAUF algorithm for 4-way connectivity. The parallel implementation described in @cite Bolelli2017 is available for SAUF.
+            // CCL_BBDT      = 1, //!< BBDT @cite Grana2010 algorithm for 8-way connectivity, SAUF algorithm for 4-way connectivity. The parallel implementation described in @cite Bolelli2017 is available for both BBDT and SAUF.
+            // CCL_SPAGHETTI = 2, //!< Spaghetti @cite Bolelli2019 algorithm for 8-way connectivity, Spaghetti4C @cite Bolelli2021 algorithm for 4-way connectivity. The parallel implementation described in @cite Bolelli2017 is available for both Spaghetti and Spaghetti4C.
+            numLabels = cv::connectedComponents(_image.download(), m_labels, 8, CV_32S, cv::CCL_SPAGHETTI) - 1; // subtract 1 because the background is considered as label 0
+        }
 
         if (numLabels > 0 && numLabels <= m_params.max_blobs)
         {
@@ -220,7 +214,7 @@ namespace boblib::blobs
         }
     }
 
-    void ConnectedBlobDetection::prepare_parallel(const cv::Mat &_image)
+    void ConnectedBlobDetection::prepare_parallel(const boblib::base::Image &_image)
     {
         m_original_img_size = ImgSize::create(_image.size().width, _image.size().height,
                                               _image.channels(),

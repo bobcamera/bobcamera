@@ -67,6 +67,10 @@ namespace boblib::base
 
         cv::Mat & get_mat();
 
+        const cv::cuda::GpuMat & get_cuda_mat() const;
+
+        const cv::Mat & get_mat() const;
+
         cv::Mat & download();
 
         cv::cuda::GpuMat & upload();
