@@ -103,6 +103,7 @@ public:
     {
         using_cuda_ = params_.get_use_cuda() ? cv::cuda::getCudaEnabledDeviceCount() : false;
         detection_mask_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_);
+        bgs_img_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_);
 
         mask_worker_ptr_->init(params_.get_mask_timer_seconds(), params_.get_mask_filename());
     }
@@ -219,7 +220,6 @@ public:
         static cv::Mat blank_mask;
 
         boblib::base::Image gray_img(using_cuda_);
-        boblib::base::Image bgs_img(using_cuda_);
         sensor_msgs::msg::Image bgs_msg;
 
         try
@@ -232,30 +232,33 @@ public:
             {
                 detection_mask_ptr_->resize(gray_img.size());
             }
-            bgs_img.create(gray_img.size(), gray_img.type());
-            bgs_ptr_->apply(gray_img.download(), bgs_img.download(), mask_enabled_ ? detection_mask_ptr_->download() : blank_mask);
-            bgs_img.upload();
+            if (bgs_img_ptr_->size() != gray_img.size())
+            {
+                bgs_img_ptr_->create(gray_img.size(), gray_img.type());
+            }
+            bgs_ptr_->apply(gray_img.download(), bgs_img_ptr_->download(), mask_enabled_ ? detection_mask_ptr_->download() : blank_mask);
+            bgs_img_ptr_->upload();
 
-            fill_header(bgs_msg, bgs_img);
+            fill_header(bgs_msg, *bgs_img_ptr_);
 
-            publish_frame(bgs_msg, bgs_img);
+            publish_frame(bgs_msg, *bgs_img_ptr_);
 
-            publish_resized_frame(bgs_msg, bgs_img);
+            publish_resized_frame(bgs_msg, *bgs_img_ptr_);
 
             if (median_filter_)
             {
-                bgs_img.medianBlur(3);
+                bgs_img_ptr_->medianBlur(3);
             }
 
             bob_interfaces::msg::DetectorState state;
             state.sensitivity = params_.get_sensitivity();
             bob_interfaces::msg::DetectorBBoxArray bbox2D_array;
             bbox2D_array.header = header;
-            bbox2D_array.image_width = bgs_img.size().width;
-            bbox2D_array.image_height = bgs_img.size().height;
+            bbox2D_array.image_width = bgs_img_ptr_->size().width;
+            bbox2D_array.image_height = bgs_img_ptr_->size().height;
 
             std::vector<cv::Rect> bboxes;
-            auto det_result = blob_detector_ptr_->detect(bgs_img, bboxes);
+            auto det_result = blob_detector_ptr_->detect(*bgs_img_ptr_, bboxes);
             if (det_result == boblib::blobs::DetectionResult::Success)
             {
                 state.max_blobs_reached = false;
@@ -269,7 +272,7 @@ public:
             node_.publish_if_subscriber(params_.get_state_publisher(), state);
             node_.publish_if_subscriber(params_.get_detection_publisher(), bbox2D_array);
         }
-        catch (const std::exception& e)
+        catch (const std::exception & e)
         {
             node_.log_send_error("bgs_worker: image_callback: exception: %s", e.what());
         }
@@ -319,7 +322,7 @@ private:
             bgs_img.resizeTo(resized_img, cv::Size(frame_width, params_.get_resize_height()));
         }
 
-        auto resized_frame_msg = cv_bridge::CvImage(bgs_msg.header, bgs_msg.encoding, resized_img.toMat()).toImageMsg();
+        auto resized_frame_msg = cv_bridge::CvImage(bgs_msg.header, bgs_msg.encoding, resized_img.download()).toImageMsg();
         params_.get_image_resized_publisher()->publish(*resized_frame_msg);            
     }
 
@@ -385,10 +388,8 @@ private:
     std::unique_ptr<boblib::bgs::WMVParams> wmv_params_;
     std::unique_ptr<boblib::blobs::ConnectedBlobDetectionParams> blob_params_;
 
-    // std::unique_ptr<RosCvImageMsg> ros_cv_foreground_mask_;
-
+    std::unique_ptr<boblib::base::Image> bgs_img_ptr_;
     std::unique_ptr<boblib::base::Image> detection_mask_ptr_;
-    // cv::Mat detection_mask_;
 
     std::condition_variable cv_;
     std::mutex mutex_;
