@@ -22,38 +22,29 @@ namespace boblib::bgs
         m_initialized = false;
     }
 
-    void CoreBgs::apply(const cv::Mat &_image, cv::Mat &_fgmask, const cv::Mat & _detectMask)
+    void CoreBgs::apply(const boblib::base::Image &_image, boblib::base::Image &_fgmask, const boblib::base::Image & _detectMask)
     {
-        if (!m_initialized || *m_original_img_size != ImgSize(_image))
+        auto & image_mat = _image.toMat();
+        if (!m_initialized || *m_original_img_size != ImgSize(_image.size().width, _image.size().height, _image.channels(), _image.elemSize1(), 0))
         {
-            prepare_parallel(_image);
-            initialize(_image);
-            if (_fgmask.empty())
-            {
-                _fgmask.create(_image.size(), CV_8UC1);
-            }
+            prepare_parallel(image_mat);
+            initialize(image_mat);
             m_initialized = true;
         }
         if (_fgmask.empty())
         {
-            _fgmask.create(_image.size(), CV_8UC1);
+            _fgmask.create(image_mat.size(), CV_8UC1);
         }
 
         if (m_num_processes_parallel == 1)
         {
-            process(_image, _fgmask, _detectMask, 0);
+            process(image_mat, _fgmask.download(), _detectMask.toMat(), 0);
         }
         else
         {
-            apply_parallel(_image, _fgmask, _detectMask);
+            apply_parallel(image_mat, _fgmask.download(), _detectMask.toMat());
         }
-    }
-
-    cv::Mat CoreBgs::apply_ret(const cv::Mat &_image)
-    {
-        cv::Mat imgMask;
-        apply(_image, imgMask);
-        return imgMask;
+        _fgmask.upload();
     }
 
     void CoreBgs::prepare_parallel(const cv::Mat &_image)

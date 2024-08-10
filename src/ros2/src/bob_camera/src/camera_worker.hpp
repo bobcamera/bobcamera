@@ -335,7 +335,12 @@ private:
         }
         catch(const std::exception & ex)
         {
-            node_.log_error("create_video_capture: exception %s", ex.what());
+            node_.log_error("create_video_capture: Exception %s", ex.what());
+            return false;
+        }
+        catch (...)
+        {
+            node_.log_error("create_video_capture: Unknown exception");
             return false;
         }
     }

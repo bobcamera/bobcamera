@@ -217,7 +217,7 @@ public:
 
         processing_ = true;
 
-        static cv::Mat blank_mask;
+        static boblib::base::Image blank_mask(using_cuda_);
 
         boblib::base::Image gray_img(using_cuda_);
         sensor_msgs::msg::Image bgs_msg;
@@ -236,8 +236,8 @@ public:
             {
                 bgs_img_ptr_->create(gray_img.size(), gray_img.type());
             }
-            bgs_ptr_->apply(gray_img.download(), bgs_img_ptr_->download(), mask_enabled_ ? detection_mask_ptr_->download() : blank_mask);
-            bgs_img_ptr_->upload();
+            
+            bgs_ptr_->apply(gray_img, *bgs_img_ptr_, mask_enabled_ ? *detection_mask_ptr_ : blank_mask);
 
             fill_header(bgs_msg, *bgs_img_ptr_);
 

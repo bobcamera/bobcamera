@@ -84,8 +84,8 @@ namespace boblib::base
         void mask_cuda(cv::cuda::GpuMat & mask_);
 
         bool using_cuda_;
-        cv::cuda::GpuMat gpu_mat_;
-        cv::Mat mat_;
+        mutable cv::cuda::GpuMat gpu_mat_;
+        mutable cv::Mat mat_;
 
         cv::Ptr<cv::cuda::Filter> box_filter_;
         int box_filter_size_{-1};

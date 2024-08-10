@@ -84,11 +84,7 @@ bool Image::empty() const
 
 void Image::release()
 {
-    if (using_cuda_)
-    {
-        gpu_mat_.release();
-        return;
-    }
+    gpu_mat_.release();
     mat_.release();
 }
 
@@ -249,23 +245,17 @@ void Image::convert(int type)
 
 void Image::mask(cv::Mat & mask)
 {
-    // Resize the mask if sizes do not match
     if (mat_.size() != mask.size())
     {
         cv::resize(mask, mask, mat_.size());
     }
 
-    // Convert channels if they do not match
     if (mat_.channels() != mask.channels())
     {
-        if (mat_.channels() != mask.channels())
-        {
-            cv::cvtColor(mask, mask, mat_.channels() == 3 ? cv::COLOR_GRAY2BGR : cv::COLOR_BGR2GRAY);
-        }
+        cv::cvtColor(mask, mask, mat_.channels() == 3 ? cv::COLOR_GRAY2BGR : cv::COLOR_BGR2GRAY);
     }
 
-    // Perform bitwise AND operation
-    cv::cuda::bitwise_and(mat_, mask, mat_);
+    cv::bitwise_and(mat_, mask, mat_);
 }
 
 void Image::mask_cuda(cv::cuda::GpuMat & mask)
@@ -277,10 +267,7 @@ void Image::mask_cuda(cv::cuda::GpuMat & mask)
 
     if (gpu_mat_.channels() != mask.channels())
     {
-        if (gpu_mat_.channels() != mask.channels())
-        {
-            cv::cuda::cvtColor(mask, mask, gpu_mat_.channels() == 3 ? cv::COLOR_GRAY2BGR : cv::COLOR_BGR2GRAY);
-        }
+        cv::cuda::cvtColor(mask, mask, gpu_mat_.channels() == 3 ? cv::COLOR_GRAY2BGR : cv::COLOR_BGR2GRAY);
     }
 
     cv::cuda::bitwise_and(gpu_mat_, mask, gpu_mat_);
@@ -315,9 +302,7 @@ const cv::Mat Image::toMat() const
 {
     if (using_cuda_)
     {
-        cv::Mat mat;
-        gpu_mat_.download(mat);
-        return mat;
+        gpu_mat_.download(mat_);
     }
 
     return mat_;
@@ -327,9 +312,7 @@ const cv::cuda::GpuMat Image::toCudaMat() const
 {
     if (!using_cuda_)
     {
-        cv::cuda::GpuMat gpu_mat;
-        gpu_mat.upload(mat_);
-        return gpu_mat;
+        gpu_mat_.upload(mat_);
     }
 
     return gpu_mat_;

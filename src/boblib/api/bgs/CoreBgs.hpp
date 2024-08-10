@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../include/coreUtils.hpp"
+#include "../base/Image.hpp"
 
 #include <opencv2/core.hpp>
 
@@ -20,8 +21,7 @@ namespace boblib::bgs
 
         virtual ~CoreBgs() {}
 
-        void apply(const cv::Mat &_image, cv::Mat &_fgmask, const cv::Mat & _detectMask = cv::Mat());
-        cv::Mat apply_ret(const cv::Mat &_image);
+        void apply(const boblib::base::Image &_image, boblib::base::Image &_fgmask, const boblib::base::Image & _detectMask = boblib::base::Image());
 
         void restart();
 
