@@ -8,7 +8,7 @@
 	},
 
     "runArgs": [
-		"--privileged",
+		//"--privileged",
         "--pid=host",
 		"--network=host"		
     ],	

@@ -15,7 +15,7 @@ import { VisionState, getVisionCamera, getBobInfo, getMaskEditMode } from '../..
 
 import { CameraDto, AppInfoDto, AppStateDto } from '../../models';
 
-import { BobRosConnection, BobRosService, ImageStreamType } from '../../services';
+import { BobRosService, ImageStreamType } from '../../services';
 
 import { MaskCreationComponent } from '../';
 
@@ -67,18 +67,7 @@ export class TestComponentComponent implements OnInit, OnDestroy {
         this.store.dispatch(MainActions.Notification({
           notification: { type: NotificationType.Information, message: "Connected to ROS Bridge." }}));
 
-          this.onDisplayTypeChanged(this._imageStreamType);
-
-          let connection = new BobRosConnection();
-          connection.open(false);          
-
-          try {
-            if (connection.isConnected) {
-              this.rosSvc.svcAppInfo(connection);
-            }
-          } finally {
-            connection.close();
-          }          
+          this.onDisplayTypeChanged(this._imageStreamType);        
       } else {
         this.store.dispatch(MainActions.Notification({
           notification: { type: NotificationType.Error, message: "Connection lost to ROS Bridge." }}));
@@ -91,6 +80,7 @@ export class TestComponentComponent implements OnInit, OnDestroy {
     //this._cameraDetails$ = this.store.select(getVisionCamera);
     this._appInfo$ = this.store.select(getBobInfo);
     this._maskEditMode$ = this.store.select(getMaskEditMode);
+    this.rosSvc.svcAppInfo();
   }
 
   onDisplayTypeChanged(type: string) {
@@ -130,9 +120,7 @@ export class TestComponentComponent implements OnInit, OnDestroy {
 
   onOpenedChange(opened: boolean) {
     console.log(`Side panel openend state: ${opened}`);
-
     this._appState$ = this.rosSvc.subAppState(opened);
-
     //this.store.dispatch(VisionActions.setCameraPolling({ enabled: opened }));
   }
 
@@ -146,34 +134,13 @@ export class TestComponentComponent implements OnInit, OnDestroy {
   }
 
   OnPMEdit(): void {
-
-    let connection = new BobRosConnection();
-    connection.open(false);
-
-    try {
-      if (connection.isConnected) {
-        this.rosSvc.svcPrivacyMaskOverride(connection, false);
-      }
-    } finally {
-      connection.close();
-    }
-
+    this.rosSvc.svcPrivacyMaskOverride(false);
     this.privacymaskcreator.clearMask();
   }
 
   OnPMCancel(): void {
     this.privacymaskcreator.redrawCanvas();
-
-    let connection = new BobRosConnection();
-    connection.open(false);
-
-    try {
-      if (connection.isConnected) {
-        this.rosSvc.svcPrivacyMaskOverride(connection, true);
-      }
-    } finally {
-      connection.close();
-    }    
+    this.rosSvc.svcPrivacyMaskOverride(true);
   }
 
   OnPMDelete(): void {
@@ -189,48 +156,16 @@ export class TestComponentComponent implements OnInit, OnDestroy {
       .afterClosed()
       .subscribe((accept: boolean) => {
         if (accept) {
-
-          let connection = new BobRosConnection();
-          connection.open(false);
-      
-          try {
-            if (connection.isConnected) {
-              this.rosSvc.svcDeletePrivacyMask(connection);
-            }
-          } finally {
-            connection.close();
-          }             
+          this.rosSvc.svcDeleteMask('privacy-mask.svg');
         }
       });
   }
 
   OnPMSave(): void {
     const svgContent = this.privacymaskcreator.getMaskAsSVG();
-    console.log(svgContent);
-
-    let connection = new BobRosConnection();
-    connection.open(false);
-
-    try {
-      if (connection.isConnected) {
-        this.rosSvc.svcSendMaskSVG(connection, svgContent, 'privacy-mask.svg');
-      }
-    } finally {
-      connection.close();
-    }
-
+    this.rosSvc.svcSaveMask(svgContent, 'privacy-mask.svg');
     this.privacymaskcreator.clearMask();
-
-    connection = new BobRosConnection();
-    connection.open(false);
-
-    try {
-      if (connection.isConnected) {
-        this.rosSvc.svcPrivacyMaskOverride(connection, true);
-      }
-    } finally {
-      connection.close();
-    }
+    this.rosSvc.svcPrivacyMaskOverride(true);
   }
 
   OnPMClear(): void {

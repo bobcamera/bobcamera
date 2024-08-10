@@ -1,6 +1,6 @@
 import { Injectable, Inject } from "@angular/core";
 import { Store } from '@ngrx/store';
-import { catchError, Observable, Subject } from "rxjs";
+import { catchError, Observable, Subject, distinctUntilChanged } from "rxjs";
 import { map, switchMap } from 'rxjs/operators';
 
 import * as ROSLIB from 'roslib';
@@ -30,11 +30,11 @@ export class BobRosConnection {
 
     constructor(url: string = "http://localhost", port: number = 9090) {
         this._url = url;
-        this._ros = port;
+        this._port = port;
         this._connected.next(false);
     }
 
-    get Ros(): ROSLIB.Ros{
+    get Ros(): ROSLIB.Ros {
         return this._ros;
     }
 
@@ -58,12 +58,12 @@ export class BobRosConnection {
         }
 
         this._ros.on('connection', (event: any) => {
-            console.log('Connected to websocket server.');
+            console.log('BobRosConnection: Connected to websocket server.');
             this._connected.next(true);
         });
 
         this._ros.on('error', (error) => {
-            console.log('Error connecting to websocket server:', error);
+            console.log('BobRosConnection: Error connecting to websocket server:', error);
             if (this._ros) {
                 this._ros.isConnected = false;
             }
@@ -71,18 +71,18 @@ export class BobRosConnection {
         });
 
         this._ros.on('close', (event: any) => {
-            console.log('Connection to websocket server closed.');
+            console.log('BobRosConnection: Connection to websocket server closed.');
             if (this._ros) {
                 this._ros.isConnected = false;
                 if (retry) {
-                    console.log('Connection lost, attempting to reconnect...');
+                    console.log('BobRosConnection: Connection lost, attempting to reconnect...');
                     setTimeout(() => this.open(retry), 1000);
                 }
             }
             this._connected.next(false);
         });    
 
-        console.log(`Ros Bridge URL: ${this._url}:${this._port}`);
+        console.log(`BobRosConnection: URL: ${this._url}:${this._port}`);
 
         this._ros.connect(`${this._url}:${this._port}`);
     }
@@ -91,10 +91,21 @@ export class BobRosConnection {
         if (this._ros && this._ros.isConnected) {
             this._ros.close();
             this._ros = null;
-            console.log('Disconnected.');
+            console.log('BobRosConnection: Disconnected.');
         } else {
-            console.log('No active ROS connection to disconnect.');
+            console.log('BobRosConnection: No active ROS connection to disconnect.');
         }
+    }
+
+    execute(callback: () => void) {
+        this.connected
+        .pipe(distinctUntilChanged())
+        .subscribe((connected: boolean) => {
+            console.log(`BobRosConnection: Connection status to ROS Bridge: ${connected}`);
+            if (connected) {       
+                callback();
+            }
+        })
     }
 }
 
@@ -224,118 +235,139 @@ export class BobRosService {
           );
     }
 
-    public svcAppInfo(connection: BobRosConnection): void {
+    public svcAppInfo(): void {
 
-        if (!connection.isConnected) {
-            throw new Error("svcAppInfo is expecting an open connection, IsConnected has returned false..");
-        }
+        let connection = new BobRosConnection();
+        connection.open(false); 
+        connection.execute(() => {
+            
+            let service = new ROSLIB.Service({
+                ros : connection.Ros,
+                name : '/bob/webapi/application/info',
+                serviceType : 'bob_interfaces/srv/ApplicationInfo'
+            });              
 
-        let service = new ROSLIB.Service({
-            ros : connection.Ros,
-            name : '/bob/webapi/application/info',
-            serviceType : 'bob_interfaces/srv/ApplicationInfo'
-        });
-        
-        let request = new ROSLIB.ServiceRequest({empty: ''});
-        service.callService(request, function(result) {
+            let request = new ROSLIB.ServiceRequest({empty: ''});
 
-            console.log(`Bob-ROS2 Version: ${result.version}, Frame Size: w=${result.frame_width} x h=${result.frame_height}, FPS: ${result.video_fps}`);            
-
-            let appInfo = <AppInfoDto>{ version: result.version,
-                frame_width: result.frame_width,
-                frame_height: result.frame_height,
-                video_fps: result.video_fps };
-
-            this._store.dispatch(VisionActions.setBobInfo({ info: appInfo }));
-        }.bind(this));
+            console.log(`BobRosService.svcAppInfo: Calling service.callService`);
+    
+            service.callService(request, function(result) {
+    
+                console.log(`Bob-ROS2 Version: ${result.version}, Frame Size: w=${result.frame_width} x h=${result.frame_height}, FPS: ${result.video_fps}`);
+    
+                let appInfo = <AppInfoDto>{ version: result.version,
+                    frame_width: result.frame_width,
+                    frame_height: result.frame_height,
+                    video_fps: result.video_fps };
+    
+                this._store.dispatch(VisionActions.setBobInfo({ info: appInfo }));
+    
+                connection.close();
+    
+            }.bind(this));
+        });     
     }
 
-    public svcPrivacyMaskOverride(connection: BobRosConnection, enable) {
+    public svcPrivacyMaskOverride(mask_enabled: boolean = true) {
 
-        if (!connection.isConnected) {
-            throw new Error("svcAppInfo is expecting an open connection, IsConnected has returned false..");
-        }        
+        let connection = new BobRosConnection();
+        connection.open(false); 
+        connection.execute(() => {     
 
-        let service = new ROSLIB.Service({
-            ros : connection.Ros,
-            name : '/bob/mask/privacy/override',
-            serviceType : 'bob_interfaces/srv/MaskOverrideRequest'
-        });
+            let service = new ROSLIB.Service({
+                ros : connection.Ros,
+                name : '/bob/mask/privacy/override',
+                serviceType : 'bob_interfaces/srv/MaskOverrideRequest'
+            });
 
-        let request = new ROSLIB.ServiceRequest({
-            mask_enabled: enable
-        });
+            let request = new ROSLIB.ServiceRequest({
+                mask_enabled: mask_enabled
+            });
 
-        service.callService(request, function(result) {
-            if (result.success) {
-                console.log("Mask override sent successfully!");
-                this.store.dispatch(MainActions.Notification({
-                    notification: { type: NotificationType.Information, message: "Mask override sent successfully" }}));
-            } else {
-                console.error("Failed to send mask override:", result.message);
-                this.store.dispatch(MainActions.Notification({
-                    notification: { type: NotificationType.Error, message: "Failed to send mask override:" + result.message }}));                
-            }
-        }.bind(this));
+            service.callService(request, function(result) {
+
+                connection.close();
+                if (result.success) {
+                    if (mask_enabled) {
+                        console.log("Privacy Mask enabled successfully");
+                        this._store.dispatch(MainActions.Notification({
+                            notification: { type: NotificationType.Information, message: "Privacy Mask enabled successfully" }}));
+                    } else {
+                        console.log("Privacy Mask disabled successfully");
+                        this._store.dispatch(MainActions.Notification({
+                            notification: { type: NotificationType.Information, message: "Privacy Mask disabled successfully" }}));
+                    }
+                } else {
+                    console.error("Failed to send mask override:", result.message);
+                    this._store.dispatch(MainActions.Notification({
+                        notification: { type: NotificationType.Error, message: "Failed to enabled/disabled Privacy Mask:" + result.message }}));                
+                }
+            }.bind(this));
+        });          
     }
 
-    public svcDeletePrivacyMask(connection: BobRosConnection) {
+    public svcDeleteMask(maskFilename: string) {
 
-        if (!connection.isConnected) {
-            throw new Error("svcAppInfo is expecting an open connection, IsConnected has returned false..");
-        }        
+        let connection = new BobRosConnection();
+        connection.open(false); 
+        connection.execute(() => {          
 
-        let deleteMaskService = new ROSLIB.Service({
-            ros : connection.Ros,
-            name : '/bob/webapi/mask/delete/svg',
-            serviceType : 'bob_interfaces/srv/MaskSvgDelete'
-        });
+            let deleteMaskService = new ROSLIB.Service({
+                ros : connection.Ros,
+                name : '/bob/webapi/mask/delete/svg',
+                serviceType : 'bob_interfaces/srv/MaskSvgDelete'
+            });
 
-        let request = new ROSLIB.ServiceRequest({
-            file_name: 'privacy-mask.svg',
-        });
+            let request = new ROSLIB.ServiceRequest({
+                file_name: maskFilename,
+            });
 
-        deleteMaskService.callService(request, function(result) {
-            if (result.success) {
-                console.log("Mask deleted successfully!");
-                this.store.dispatch(MainActions.Notification({
-                    notification: { type: NotificationType.Information, message: "Mask deleted successfully. It can take up to 5 seconds for your changes to take affect." }}));
-            } else {
-                console.error("Failed to delete mask:", result.message);
-                this.store.dispatch(MainActions.Notification({
-                    notification: { type: NotificationType.Error, message: "Failed to delete mask:" + result.message }}));
-            }
-        }.bind(this));
+            deleteMaskService.callService(request, function(result) {
+
+                connection.close();
+                if (result.success) {
+                    console.log(`Mask ${maskFilename} deleted successfully!`);
+                    this._store.dispatch(MainActions.Notification({
+                        notification: { type: NotificationType.Information, message: `Mask ${maskFilename} deleted successfully. It can take up to 5 seconds for your changes to take affect.` }}));
+                } else {
+                    console.error(`Failed to delete mask ${maskFilename}:`, result.message);
+                    this._store.dispatch(MainActions.Notification({                        
+                        notification: { type: NotificationType.Error, message: `Failed to delete mask ${maskFilename}:` + result.message }}));
+                }                
+            }.bind(this));
+        });           
     }
 
-    public svcSendMaskSVG(connection: BobRosConnection, svgContent: string, maskFilename: string) {
+    public svcSaveMask(svgContent: string, maskFilename: string) {
 
-        if (!connection.isConnected) {
-            throw new Error("svcAppInfo is expecting an open connection, IsConnected has returned false..");
-        }        
+        let connection = new BobRosConnection();
+        connection.open(false); 
+        connection.execute(() => {     
 
-        let updateSvgMaskService = new ROSLIB.Service({
-            ros : connection.Ros,
-            name : '/bob/webapi/mask/update/svg',
-            serviceType : 'bob_interfaces/srv/MaskSvgUpdate'
-        });
+            let updateSvgMaskService = new ROSLIB.Service({
+                ros : connection.Ros,
+                name : '/bob/webapi/mask/update/svg',
+                serviceType : 'bob_interfaces/srv/MaskSvgUpdate'
+            });
 
-        let request = new ROSLIB.ServiceRequest({
-            file_name: maskFilename,
-            mask: svgContent
-        });
+            let request = new ROSLIB.ServiceRequest({
+                file_name: maskFilename,
+                mask: svgContent
+            });
 
-        updateSvgMaskService.callService(request, function(result) {
-            if (result.success) {
-                console.log("Mask sent successfully!");
-                alert('It can take up to 5 seconds for your new mask to be applied.')
-                this.store.dispatch(MainActions.Notification({
-                    notification: { type: NotificationType.Information, message: "Mask sent successfully. It can take up to 5 seconds for your new mask to be applied." }}));
-            } else {
-                console.error("Failed to send mask:", result.message);
-                this.store.dispatch(MainActions.Notification({
-                    notification: { type: NotificationType.Error, message: "Failed to send mask:" + result.message }}));                
-            }
+            updateSvgMaskService.callService(request, function(result) {
+
+                connection.close();
+                if (result.success) {
+                    console.log(`Mask ${maskFilename} saved successfully`);
+                    this._store.dispatch(MainActions.Notification({
+                        notification: { type: NotificationType.Information, message: `Mask ${maskFilename} successfully saved to server. It can take up to 5 seconds for your new mask to be applied.` }}));
+                } else {
+                    console.error(`Failed to save mask ${maskFilename}:`, result.message);
+                    this._store.dispatch(MainActions.Notification({
+                        notification: { type: NotificationType.Error, message: `Failed to save mask ${maskFilename}:` + result.message }}));                
+                }                
+            }.bind(this));
         });
     }
 
