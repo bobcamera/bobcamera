@@ -104,7 +104,9 @@
             "styles": [
               "src/styles.scss"
             ],
-            "scripts": []
+            "scripts": [
+              "src/assets/lib/bobSvg.js"
+            ]
           }
         },
         "server": {

@@ -34,3 +34,8 @@ export interface AppStateDto {
     day_night_enum: number;
     avg_brightness: number;
 }
+
+export interface Point {
+    x: number; 
+    y: number
+};

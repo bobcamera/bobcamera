@@ -23,3 +23,6 @@ export const ClearError = createAction('[Vision] Clear Error');
 
 // Masking
 export const setMaskEditMode = createAction('[Vision] Set MaskEdit Mode', props<{ enabled: boolean }>());
+
+export const setMaskSvg = createAction('[Vision] Set Mask Svg', props<{ mask: string }>());
+export const clearMaskSvg = createAction('[Vision] Clear Mask Svg');

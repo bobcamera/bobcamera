@@ -11,7 +11,7 @@ import { NotificationType } from '../../../mod-main/models';
 import { ConfirmationDialogComponent } from '../../../mod-main/components';
 
 import * as VisionActions from '../../state/vision.actions';
-import { VisionState, getVisionCamera, getBobInfo, getMaskEditMode } from '../../state/vision.reducer';
+import { VisionState, getVisionCamera, getBobInfo, getMaskEditMode, getMaskSvg } from '../../state/vision.reducer';
 
 import { CameraDto, AppInfoDto, AppStateDto } from '../../models';
 
@@ -36,6 +36,7 @@ export class TestComponentComponent implements OnInit, OnDestroy {
   _appInfo$: Observable<AppInfoDto>;
 
   _maskEditMode$: Observable<boolean>;
+  _maskSvg$: Observable<string>;
 
   _imageStreamType: string;
   _displayPrivacyMaskControls: boolean;
@@ -43,7 +44,7 @@ export class TestComponentComponent implements OnInit, OnDestroy {
   _displayAppState: boolean;
 
   @ViewChild('privacymaskcreator', {static: false}) privacymaskcreator: MaskCreationComponent;
-  @ViewChild('detectionmaskcreator', {static: false}) detectionmaskcreator: MaskCreationComponent;
+  @ViewChild('detectionmaskcreator', {static: false}) detectionmaskcreator: MaskCreationSvgComponent;
 
   constructor(private store: Store<VisionState>, private rosSvc: BobRosService, private _matDialog: MatDialog,
     private route: ActivatedRoute) {
@@ -78,9 +79,12 @@ export class TestComponentComponent implements OnInit, OnDestroy {
     this.rosSvc.connect(true);
 
     this.store.dispatch(VisionActions.setHeading({ heading: 'Image Stream Component' }));
+
     //this._cameraDetails$ = this.store.select(getVisionCamera);
     this._appInfo$ = this.store.select(getBobInfo);
     this._maskEditMode$ = this.store.select(getMaskEditMode);
+    this._maskSvg$ = this.store.select(getMaskSvg);
+
     this.rosSvc.svcAppInfo();
   }
 
@@ -110,9 +114,8 @@ export class TestComponentComponent implements OnInit, OnDestroy {
         this._displayAppState = false;
         break;
       case 'detectionmask':
-        //this._imageStream$ = this.rosSvc.subVideoStream(ImageStreamType.DetectionMask);
-        this._imageStream$ = this.rosSvc.subVideoStream(ImageStreamType.PrivacyMask);
-        this.store.dispatch(VisionActions.setHeading({ heading: 'Detection (Privacy) Mask Image Stream' }));
+        this._imageStream$ = this.rosSvc.subVideoStream(ImageStreamType.DetectionMask);
+        this.store.dispatch(VisionActions.setHeading({ heading: 'Detection Mask Image Stream' }));
         this._displayPrivacyMaskControls = false;
         this._displayDetectionMaskControls = true;
         this._displayAppState = false;
@@ -164,7 +167,7 @@ export class TestComponentComponent implements OnInit, OnDestroy {
   }
 
   OnPMSave(): void {
-    const svgContent = this.privacymaskcreator.getMaskAsSVG();
+    const svgContent = this.privacymaskcreator.getMaskAsSVG(false);
     this.rosSvc.svcSaveMask(svgContent, 'privacy-mask.svg');
     this.privacymaskcreator.clearMask();
     this.rosSvc.svcPrivacyMaskOverride(true);
@@ -175,11 +178,14 @@ export class TestComponentComponent implements OnInit, OnDestroy {
   }
 
   OnDMEdit(): void {
-    this.rosSvc.svcPrivacyMaskOverride(false);
+    this.rosSvc.svcDetectionMaskOverride(false);
+    this.detectionmaskcreator.backupPolygons();
     this.detectionmaskcreator.clearMask();
   }
 
   OnDMCancel(): void {
+    this.detectionmaskcreator.restorePolygons();
+    this.detectionmaskcreator.parseSVG();
     this.detectionmaskcreator.redrawCanvas();
     this.rosSvc.svcPrivacyMaskOverride(true);
   }
@@ -189,8 +195,8 @@ export class TestComponentComponent implements OnInit, OnDestroy {
       ConfirmationDialogComponent, {
         width: '350px',
         data: { 
-          title: 'Confirm privacy mask delete',
-          message: `Are you sure you want to delete your privacy mask?`,
+          title: 'Confirm detection mask delete',
+          message: `Are you sure you want to delete your detection mask?`,
           cancelButton: 'No',
           acceptButton: 'Yes'
         }
@@ -198,14 +204,14 @@ export class TestComponentComponent implements OnInit, OnDestroy {
       .afterClosed()
       .subscribe((accept: boolean) => {
         if (accept) {
-          this.rosSvc.svcDeleteMask('privacy-mask.svg');
+          this.rosSvc.svcDeleteMask('detection-mask.svg');
         }
       });
   }
 
   OnDMSave(): void {
-    const svgContent = this.detectionmaskcreator.getMaskAsSVG();
-    this.rosSvc.svcSaveMask(svgContent, 'privacy-mask.svg');
+    const svgContent = this.detectionmaskcreator.getMaskAsSVG(true);
+    this.rosSvc.svcSaveMask(svgContent, 'detection-mask.svg');
     this.detectionmaskcreator.clearMask();
     this.rosSvc.svcPrivacyMaskOverride(true);
   }
@@ -216,5 +222,9 @@ export class TestComponentComponent implements OnInit, OnDestroy {
 
   OnEditModeChanged(editMode: boolean): void {
     this.store.dispatch(VisionActions.setMaskEditMode({ enabled: editMode }));
+  }
+
+  OnDMConvasDimentionsChanged() : void {
+    this.rosSvc.svcGetMask('detection-mask.svg');
   }
 }

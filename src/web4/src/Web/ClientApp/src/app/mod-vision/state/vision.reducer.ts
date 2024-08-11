@@ -23,6 +23,7 @@ export interface VisionState {
   bobInfo: AppInfoDto;
 
   maskEditMode: boolean;
+  maskSvg: string;
 }
 
 export interface State extends fromRoot.State {
@@ -44,6 +45,7 @@ const initialState: VisionState = {
   bobInfo: null,
 
   maskEditMode: false,
+  maskSvg: null
 };
 
 
@@ -65,6 +67,8 @@ export const visionReducer = createReducer<VisionState>(
   on(VisionActions.setBobInfo, (state, action): VisionState => { return { ...state, bobInfo: action.info }; }),
 
   on(VisionActions.setMaskEditMode, (state, action): VisionState => { return { ...state, maskEditMode: action.enabled }; }),
+  on(VisionActions.setMaskSvg, (state, action): VisionState => { return { ...state, maskSvg: action.mask }; }),
+  on(VisionActions.clearMaskSvg, (state, action): VisionState => { return { ...state, maskSvg: null }; }),
 )
 
 // Selectors
@@ -113,4 +117,9 @@ export const getBobInfo = createSelector(
 export const getMaskEditMode = createSelector(
   getVisionState,
   state => state.maskEditMode
+);
+
+export const getMaskSvg = createSelector(
+  getVisionState,
+  state => state.maskSvg
 );

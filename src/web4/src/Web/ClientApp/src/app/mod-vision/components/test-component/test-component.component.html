@@ -39,7 +39,8 @@
                 <bob-mask-creation #privacymaskcreator *ngIf="this._displayPrivacyMaskControls" 
                     [ImageStream$]="this._imageStream$" [EditMode]="this._maskEditMode$ | async"></bob-mask-creation>
                 <bob-mask-creation-svg #detectionmaskcreator *ngIf="this._displayDetectionMaskControls" 
-                    [ImageStream$]="this._imageStream$" [EditMode]="this._maskEditMode$ | async"></bob-mask-creation-svg>
+                    [ImageStream$]="this._imageStream$" [EditMode]="this._maskEditMode$ | async" [MaskSvg]="this._maskSvg$ | async" 
+                    (ConvasDimentionsChanged)="OnDMConvasDimentionsChanged()"></bob-mask-creation-svg>
             </mat-sidenav-content>
           </mat-sidenav-container>
     </mat-card-content>

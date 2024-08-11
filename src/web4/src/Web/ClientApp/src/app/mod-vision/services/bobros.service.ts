@@ -306,6 +306,44 @@ export class BobRosService {
         });          
     }
 
+    public svcDetectionMaskOverride(mask_enabled: boolean = true) {
+
+        let connection = new BobRosConnection();
+        connection.open(false); 
+        connection.execute(() => {     
+
+            let service = new ROSLIB.Service({
+                ros : connection.Ros,
+                name : '/bob/mask/detection/override',
+                serviceType : 'bob_interfaces/srv/MaskOverrideRequest'
+            });
+
+            let request = new ROSLIB.ServiceRequest({
+                mask_enabled: mask_enabled
+            });
+
+            service.callService(request, function(result) {
+
+                connection.close();
+                if (result.success) {
+                    if (mask_enabled) {
+                        console.log("Detection Mask enabled successfully");
+                        this._store.dispatch(MainActions.Notification({
+                            notification: { type: NotificationType.Information, message: "Detection Mask enabled successfully" }}));
+                    } else {
+                        console.log("Privacy Mask disabled successfully");
+                        this._store.dispatch(MainActions.Notification({
+                            notification: { type: NotificationType.Information, message: "Detection Mask disabled successfully" }}));
+                    }
+                } else {
+                    console.error("Failed to send mask override:", result.message);
+                    this._store.dispatch(MainActions.Notification({
+                        notification: { type: NotificationType.Error, message: "Failed to enabled/disabled Detection Mask:" + result.message }}));                
+                }
+            }.bind(this));
+        });          
+    }
+
     public svcDeleteMask(maskFilename: string) {
 
         let connection = new BobRosConnection();
@@ -366,6 +404,38 @@ export class BobRosService {
                     console.error(`Failed to save mask ${maskFilename}:`, result.message);
                     this._store.dispatch(MainActions.Notification({
                         notification: { type: NotificationType.Error, message: `Failed to save mask ${maskFilename}:` + result.message }}));                
+                }                
+            }.bind(this));
+        });
+    }
+
+    public svcGetMask(maskFilename: string) {
+
+        let connection = new BobRosConnection();
+        connection.open(false); 
+        connection.execute(() => {     
+
+            let updateSvgMaskService = new ROSLIB.Service({
+                ros : connection.Ros,
+                name : '/bob/webapi/mask/svg',
+                serviceType : 'bob_interfaces/srv/MaskGetSvg'
+            });
+
+            let request = new ROSLIB.ServiceRequest({
+                file_name: maskFilename
+            });
+
+            updateSvgMaskService.callService(request, function(result) {
+
+                connection.close();
+                if (result.success) {
+                    console.log(`Mask ${maskFilename} retrieved successfully`);
+                    this._store.dispatch(VisionActions.setMaskSvg({
+                        mask: result.mask }));
+                } else {
+                    console.error(`Failed to retrieve mask ${maskFilename}:`, result.message);
+                    this._store.dispatch(MainActions.Notification({
+                        notification: { type: NotificationType.Error, message: `Failed to retrieve mask ${maskFilename}:` + result.message }}));                
                 }                
             }.bind(this));
         });
