@@ -98,3 +98,9 @@ project ./src/Web
 ```bash
 /root/.dotnet/tools/dotnet-ef migrations remove --project ./src/Infrastructure --startup-project ./src/Web
 ```
+
+### Interesting Libraries
+
+[NgxResizeObserver](https://github.com/fidian/ngx-resize-observer)
+[ngular-split](https://github.com/angular-split/angular-split)
+[Ng-Matero Extensions](https://github.com/ng-matero/extensions)
