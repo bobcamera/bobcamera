@@ -75,9 +75,9 @@ namespace boblib::base
 
         cv::cuda::GpuMat & upload();
 
-        const cv::Mat toMat() const;
+        const cv::Mat & toMat() const;
 
-        const cv::cuda::GpuMat toCudaMat() const;
+        const cv::cuda::GpuMat & toCudaMat() const;
 
     private:
         void mask(cv::Mat & mask);

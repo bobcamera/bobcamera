@@ -217,8 +217,7 @@ public:
 
         processing_ = true;
 
-        static boblib::base::Image blank_mask(using_cuda_);
-
+        boblib::base::Image blank_mask(using_cuda_);
         boblib::base::Image gray_img(using_cuda_);
         sensor_msgs::msg::Image bgs_msg;
 
@@ -232,10 +231,6 @@ public:
             {
                 detection_mask_ptr_->resize(gray_img.size());
             }
-            if (bgs_img_ptr_->size() != gray_img.size())
-            {
-                bgs_img_ptr_->create(gray_img.size(), gray_img.type());
-            }
             
             bgs_ptr_->apply(gray_img, *bgs_img_ptr_, mask_enabled_ ? *detection_mask_ptr_ : blank_mask);
 
@@ -245,32 +240,7 @@ public:
 
             publish_resized_frame(bgs_msg, *bgs_img_ptr_);
 
-            if (median_filter_)
-            {
-                bgs_img_ptr_->medianBlur(3);
-            }
-
-            bob_interfaces::msg::DetectorState state;
-            state.sensitivity = params_.get_sensitivity();
-            bob_interfaces::msg::DetectorBBoxArray bbox2D_array;
-            bbox2D_array.header = header;
-            bbox2D_array.image_width = bgs_img_ptr_->size().width;
-            bbox2D_array.image_height = bgs_img_ptr_->size().height;
-
-            std::vector<cv::Rect> bboxes;
-            auto det_result = blob_detector_ptr_->detect(*bgs_img_ptr_, bboxes);
-            if (det_result == boblib::blobs::DetectionResult::Success)
-            {
-                state.max_blobs_reached = false;
-                add_bboxes(bbox2D_array, bboxes);
-            }
-            else if (det_result == boblib::blobs::DetectionResult::MaxBlobsReached)
-            {
-                state.max_blobs_reached = true;
-            }
-
-            node_.publish_if_subscriber(params_.get_state_publisher(), state);
-            node_.publish_if_subscriber(params_.get_detection_publisher(), bbox2D_array);
+            do_detection(bgs_msg, *bgs_img_ptr_);
         }
         catch (const std::exception & e)
         {
@@ -307,7 +277,7 @@ private:
         params_.get_image_publisher()->publish(bgs_msg);
     }
 
-    void publish_resized_frame(sensor_msgs::msg::Image & bgs_msg, const boblib::base::Image & bgs_img) const
+    inline void publish_resized_frame(sensor_msgs::msg::Image & bgs_msg, const boblib::base::Image & bgs_img) const
     {
         if (!params_.get_image_resized_publisher()
             || (params_.get_resize_height() <= 0)
@@ -324,6 +294,36 @@ private:
 
         auto resized_frame_msg = cv_bridge::CvImage(bgs_msg.header, bgs_msg.encoding, resized_img.download()).toImageMsg();
         params_.get_image_resized_publisher()->publish(*resized_frame_msg);            
+    }
+
+    inline void do_detection(sensor_msgs::msg::Image & bgs_msg, boblib::base::Image & bgs_img)
+    {
+        bob_interfaces::msg::DetectorState state;
+        state.sensitivity = params_.get_sensitivity();
+        bob_interfaces::msg::DetectorBBoxArray bbox2D_array;
+        bbox2D_array.header = bgs_msg.header;
+        bbox2D_array.image_width = bgs_img_ptr_->size().width;
+        bbox2D_array.image_height = bgs_img_ptr_->size().height;
+
+        if (median_filter_)
+        {
+            bgs_img.medianBlur(3);
+        }
+
+        std::vector<cv::Rect> bboxes;
+        auto det_result = blob_detector_ptr_->detect(bgs_img, bboxes);
+        if (det_result == boblib::blobs::DetectionResult::Success)
+        {
+            state.max_blobs_reached = false;
+            add_bboxes(bbox2D_array, bboxes);
+        }
+        else if (det_result == boblib::blobs::DetectionResult::MaxBlobsReached)
+        {
+            state.max_blobs_reached = true;
+        }
+
+        node_.publish_if_subscriber(params_.get_state_publisher(), state);
+        node_.publish_if_subscriber(params_.get_detection_publisher(), bbox2D_array);
     }
 
     inline void add_bboxes(bob_interfaces::msg::DetectorBBoxArray& bbox2D_array, const std::vector<cv::Rect>& bboxes)

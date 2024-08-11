@@ -298,7 +298,7 @@ const cv::Mat & Image::get_mat() const
     return mat_;
 }
 
-const cv::Mat Image::toMat() const
+const cv::Mat & Image::toMat() const
 {
     if (using_cuda_)
     {
@@ -308,9 +308,9 @@ const cv::Mat Image::toMat() const
     return mat_;
 }
 
-const cv::cuda::GpuMat Image::toCudaMat() const
+const cv::cuda::GpuMat & Image::toCudaMat() const
 {
-    if (!using_cuda_)
+    if (using_cuda_)
     {
         gpu_mat_.upload(mat_);
     }
@@ -330,7 +330,7 @@ cv::Mat & Image::download()
 
 cv::cuda::GpuMat & Image::upload()
 {
-    if (!using_cuda_)
+    if (using_cuda_)
     {
         gpu_mat_.upload(mat_);
     }
