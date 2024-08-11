@@ -11,23 +11,22 @@ interface Point {x: number; y: number};
 })
 export class MaskCreationComponent implements OnInit, OnDestroy, AfterViewInit {
 
-  private _ngUnsubscribe$: Subject<void> = new Subject<void>();
+  protected _ngUnsubscribe$: Subject<void> = new Subject<void>();
   
   @Input() ImageStream$: Observable<string>;
   @Input() EditMode: boolean = false;
 
-  @ViewChild('streamContainer', {static: false}) streamContainer: ElementRef;
-  @ViewChild('imageSubscription', {static: false}) imageSubscription: ElementRef;
-  @ViewChild('maskCanvas', {static: false}) maskCanvas: ElementRef;
+  @ViewChild('streamContainer', {static: false}) protected streamContainer: ElementRef;
+  @ViewChild('imageSubscription', {static: false}) protected imageSubscription: ElementRef;
+  @ViewChild('maskCanvas', {static: false}) protected maskCanvas: ElementRef;
 
-  maskCanvasCtx: CanvasRenderingContext2D;
-  
-  maskFilename = 'privacy-mask.svg';
-  drawing: boolean = false;
-  polygons: Point[][] = [];
-  offset: number = 0;
+  protected _maskCanvasCtx: CanvasRenderingContext2D;  
+  protected _maskFilename = 'privacy-mask.svg';
+  protected _drawing: boolean = false;
+  protected _polygons: Point[][] = [];
+  protected _offset: number = 0;
 
-  constructor(private renderer: Renderer2) {
+  constructor(protected renderer: Renderer2) {
 
   }
 
@@ -35,7 +34,7 @@ export class MaskCreationComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   ngAfterViewInit(): void {
-    this.maskCanvasCtx = this.maskCanvas.nativeElement.getContext('2d');
+    this._maskCanvasCtx = this.maskCanvas.nativeElement.getContext('2d');
     this.initCanvas();
   }
 
@@ -49,7 +48,7 @@ export class MaskCreationComponent implements OnInit, OnDestroy, AfterViewInit {
     if (invertMask) {
         // Add a black background rectangle
         svgContent += `<rect width="100%" height="100%" fill="black" />`;
-        this.polygons.forEach(polygon => {
+        this._polygons.forEach(polygon => {
             if (polygon.length > 2) {
                 const pathData = polygon.map((point, index) => {
                     const command = index === 0 ? 'M' : 'L';
@@ -61,7 +60,7 @@ export class MaskCreationComponent implements OnInit, OnDestroy, AfterViewInit {
     } else {
         // Add a white background rectangle
         svgContent += `<rect width="100%" height="100%" fill="white" />`;
-        this.polygons.forEach(polygon => {
+        this._polygons.forEach(polygon => {
             if (polygon.length > 2) {
                 const pathData = polygon.map((point, index) => {
                     const command = index === 0 ? 'M' : 'L';
@@ -78,9 +77,9 @@ export class MaskCreationComponent implements OnInit, OnDestroy, AfterViewInit {
 
   redrawCanvas() {
     //console.log('redrawCanvas');
-    this.maskCanvasCtx.clearRect(0, 0, this.maskCanvas.nativeElement.width, this.maskCanvas.nativeElement.height);
-    this.polygons.forEach((polygon, index) => {
-        const isCurrentPolygon = index === this.polygons.length - 1;
+    this._maskCanvasCtx.clearRect(0, 0, this.maskCanvas.nativeElement.width, this.maskCanvas.nativeElement.height);
+    this._polygons.forEach((polygon, index) => {
+        const isCurrentPolygon = index === this._polygons.length - 1;
         this.drawPolygon(polygon, this.EditMode && isCurrentPolygon ? 'rgba(0, 0, 0, 0.1)' : 'rgba(0, 0, 0, 1)', this.EditMode && isCurrentPolygon);
     });
     //console.log(this.polygons);
@@ -88,13 +87,13 @@ export class MaskCreationComponent implements OnInit, OnDestroy, AfterViewInit {
 
   clearMask() {
     //console.log("clearMask");
-    this.maskCanvasCtx.clearRect(0, 0, this.maskCanvas.nativeElement.width, this.maskCanvas.nativeElement.height);
-    this.polygons = [];
-    this.polygons.push([]);
+    this._maskCanvasCtx.clearRect(0, 0, this.maskCanvas.nativeElement.width, this.maskCanvas.nativeElement.height);
+    this._polygons = [];
+    this._polygons.push([]);
   }
 
   handleResize(resize: ResizeObserverEntry) {
-    console.log('onResize', resize);
+    //console.log('onResize', resize);
     this.updateSize('onResize');
   }  
 
@@ -103,26 +102,26 @@ export class MaskCreationComponent implements OnInit, OnDestroy, AfterViewInit {
       //console.log('maskCanvas.mousedown');
       if (!this.EditMode || e.button === 2) return;
       if (e.detail > 1) {
-        const currentPolygon = this.polygons[this.polygons.length - 1];
+        const currentPolygon = this._polygons[this._polygons.length - 1];
         if (currentPolygon.length > 2) {
-            this.drawing = false;
-            this.polygons.push([]);
+            this._drawing = false;
+            this._polygons.push([]);
         }
         return;
       }
-      this.drawing = true;
+      this._drawing = true;
       const rect = this.maskCanvas.nativeElement.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       //console.log(this.polygons.length);
-      const currentPolygon = this.polygons[this.polygons.length - 1];
+      const currentPolygon = this._polygons[this._polygons.length - 1];
       //console.log(currentPolygon);
       if (currentPolygon.length > 0) {
           const firstNode = currentPolygon[0];
           const distance = Math.sqrt(Math.pow(x - firstNode.x, 2) + Math.pow(y - firstNode.y, 2));
           if (distance < 10) {
-              this.drawing = false;
-              this.polygons.push([]);
+              this._drawing = false;
+              this._polygons.push([]);
           } else {
             currentPolygon.push({ x, y });
           }
@@ -134,11 +133,11 @@ export class MaskCreationComponent implements OnInit, OnDestroy, AfterViewInit {
 
     this.maskCanvas.nativeElement.addEventListener('mousemove', (e) => {
       //console.log('maskCanvas.mousemove');
-      if (!this.drawing || !this.EditMode) return;
+      if (!this._drawing || !this.EditMode) return;
       const rect = this.maskCanvas.nativeElement.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
-      const currentPolygon = this.polygons[this.polygons.length - 1];
+      const currentPolygon = this._polygons[this._polygons.length - 1];
       currentPolygon.push({ x, y });
       this.redrawCanvas();
       if (this.EditMode) {
@@ -160,7 +159,7 @@ export class MaskCreationComponent implements OnInit, OnDestroy, AfterViewInit {
     //private updateDimensions(height: number, width: number) {
     let height = this.imageSubscription.nativeElement.offsetHeight;
     let width = this.imageSubscription.nativeElement.offsetWidth;
-    console.log(`updateDimensions --> h:${height} x w:${width}`);
+    //console.log(`updateDimensions --> h:${height} x w:${width}`);
     this.renderer.setStyle(this.streamContainer.nativeElement, 'height', `${height}px`);
     this.renderer.setStyle(this.streamContainer.nativeElement, 'width', `${width}px`);
     //this.streamContainer.style.height = `${height}px`;
@@ -173,7 +172,7 @@ export class MaskCreationComponent implements OnInit, OnDestroy, AfterViewInit {
     //this.maskCanvas.style.width = `${width}px`;
     this.maskCanvas.nativeElement.width = this.maskCanvas.nativeElement.clientWidth * devicePixelRatio;
     this.maskCanvas.nativeElement.height = this.maskCanvas.nativeElement.clientHeight * devicePixelRatio;
-    this.maskCanvasCtx.scale(devicePixelRatio, devicePixelRatio);
+    this._maskCanvasCtx.scale(devicePixelRatio, devicePixelRatio);
     this.updateCanvasDimensions();
   }
 
@@ -186,20 +185,20 @@ export class MaskCreationComponent implements OnInit, OnDestroy, AfterViewInit {
   private drawPolygon(polygon, fillStyle, drawBorder) {
     //console.log("drawPolygon");
     if (polygon.length === 0 || !polygon[0]) return;
-    this.maskCanvasCtx.beginPath();
-    this.maskCanvasCtx.moveTo(polygon[0].x, polygon[0].y);
-    for (let i = 1; i < polygon.length; i++) {this.maskCanvasCtx.lineTo(polygon[i].x, polygon[i].y);}
-    this.maskCanvasCtx.closePath();
-    this.maskCanvasCtx.fillStyle = fillStyle;
-    this.maskCanvasCtx.fill();
+    this._maskCanvasCtx.beginPath();
+    this._maskCanvasCtx.moveTo(polygon[0].x, polygon[0].y);
+    for (let i = 1; i < polygon.length; i++) {this._maskCanvasCtx.lineTo(polygon[i].x, polygon[i].y);}
+    this._maskCanvasCtx.closePath();
+    this._maskCanvasCtx.fillStyle = fillStyle;
+    this._maskCanvasCtx.fill();
     if (drawBorder) {
-      this.maskCanvasCtx.setLineDash([5, 5]);
-      this.maskCanvasCtx.lineDashOffset = -this.offset;
-      this.maskCanvasCtx.strokeStyle = 'white';
-      this.maskCanvasCtx.lineWidth = 1;
-      this.maskCanvasCtx.stroke();
-      this.maskCanvasCtx.setLineDash([]);
-      this.maskCanvasCtx.lineDashOffset = 0;
+      this._maskCanvasCtx.setLineDash([5, 5]);
+      this._maskCanvasCtx.lineDashOffset = -this._offset;
+      this._maskCanvasCtx.strokeStyle = 'white';
+      this._maskCanvasCtx.lineWidth = 1;
+      this._maskCanvasCtx.stroke();
+      this._maskCanvasCtx.setLineDash([]);
+      this._maskCanvasCtx.lineDashOffset = 0;
     }
     //console.log(this.polygon);
   }

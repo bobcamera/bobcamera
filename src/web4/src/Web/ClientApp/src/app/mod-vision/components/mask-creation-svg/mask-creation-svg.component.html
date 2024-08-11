@@ -1,0 +1,8 @@
+<mat-card *ngIf="this.ImageStream$">
+    <mat-card-content>
+        <div #streamContainer width="" height="">
+            <img #imageSubscription width="" height="" src="{{(this.ImageStream$ | async)}}" (onResize)="handleResize($event)" />
+            <canvas #maskCanvas width="" height="" class="canvas"></canvas>
+        </div>
+    </mat-card-content>
+</mat-card>

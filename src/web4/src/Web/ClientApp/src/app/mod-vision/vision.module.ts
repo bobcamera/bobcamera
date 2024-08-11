@@ -10,7 +10,8 @@ import { VisionRoutingModule } from './vision-routing.module';
 
 import { VisionService } from './services';
 
-import { TestComponentComponent, MaskControlsComponent, StreamDisplayComponent, BobStateComponent, BobInfoComponent, MaskCreationComponent } from './components';
+import { TestComponentComponent, MaskControlsComponent, StreamDisplayComponent, BobStateComponent, BobInfoComponent, 
+  MaskCreationComponent, MaskCreationSvgComponent } from './components';
 
 import { VisionIndexComponent} from './containers';
 
@@ -18,7 +19,9 @@ import * as fromVision from './state';
 
 export const CONTAINERS = [VisionIndexComponent];
 
-export const COMPONENTS = [TestComponentComponent, MaskControlsComponent, StreamDisplayComponent, BobStateComponent, BobInfoComponent, MaskCreationComponent];
+export const COMPONENTS = [TestComponentComponent, MaskControlsComponent, StreamDisplayComponent, BobStateComponent, BobInfoComponent, 
+  MaskCreationComponent, MaskCreationSvgComponent
+];
 
 export const ENTRY_COMPONENTS = [];
 

@@ -15,10 +15,12 @@
                     Heading="Privacy Mask Controls" HeadingEdit="Editing Privacy Mask" 
                     SubHeading="" SubHeadingEdit="Draw the areas you want to exclude" 
                     (Edit)="OnPMEdit()" (Cancel)="OnPMCancel()" (Delete)="OnPMDelete()" (Save)="OnPMSave()" (Clear)="OnPMClear()" 
-                        (EditMode)="OnEditModeChanged($event)"></bob-mask-controls>              
-                    <bob-mask-controls *ngIf="this._displayDetectionMaskControls" 
+                    (EditMode)="OnEditModeChanged($event)"></bob-mask-controls>                        
+                <bob-mask-controls *ngIf="this._displayDetectionMaskControls" 
                     Heading="Detection Mask Controls" HeadingEdit="Editing Detection Mask" 
-                    SubHeading="" SubHeadingEdit="Draw the areas you want to include">
+                    SubHeading="" SubHeadingEdit="Draw the areas you want to include"                     
+                    (Edit)="OnDMEdit()" (Cancel)="OnDMCancel()" (Delete)="OnDMDelete()" (Save)="OnDMSave()" (Clear)="OnDMClear()" 
+                        (EditMode)="OnEditModeChanged($event)">
                     <div class="mask-tips">
                         Mask drawing tips
                         <ul>
@@ -34,8 +36,10 @@
             </mat-sidenav>
             <mat-sidenav-content>
                 <bob-stream-display *ngIf="!this._displayPrivacyMaskControls && !this._displayDetectionMaskControls" [ImageStream$]="this._imageStream$"></bob-stream-display>
-                <bob-mask-creation #privacymaskcreator *ngIf="this._displayPrivacyMaskControls || this._displayDetectionMaskControls" 
+                <bob-mask-creation #privacymaskcreator *ngIf="this._displayPrivacyMaskControls" 
                     [ImageStream$]="this._imageStream$" [EditMode]="this._maskEditMode$ | async"></bob-mask-creation>
+                <bob-mask-creation-svg #detectionmaskcreator *ngIf="this._displayDetectionMaskControls" 
+                    [ImageStream$]="this._imageStream$" [EditMode]="this._maskEditMode$ | async"></bob-mask-creation-svg>
             </mat-sidenav-content>
           </mat-sidenav-container>
     </mat-card-content>

@@ -17,7 +17,7 @@ import { CameraDto, AppInfoDto, AppStateDto } from '../../models';
 
 import { BobRosService, ImageStreamType } from '../../services';
 
-import { MaskCreationComponent } from '../';
+import { MaskCreationComponent, MaskCreationSvgComponent } from '../';
 
 @Component({
   selector: 'bob-test-component',
@@ -43,6 +43,7 @@ export class TestComponentComponent implements OnInit, OnDestroy {
   _displayAppState: boolean;
 
   @ViewChild('privacymaskcreator', {static: false}) privacymaskcreator: MaskCreationComponent;
+  @ViewChild('detectionmaskcreator', {static: false}) detectionmaskcreator: MaskCreationComponent;
 
   constructor(private store: Store<VisionState>, private rosSvc: BobRosService, private _matDialog: MatDialog,
     private route: ActivatedRoute) {
@@ -109,8 +110,9 @@ export class TestComponentComponent implements OnInit, OnDestroy {
         this._displayAppState = false;
         break;
       case 'detectionmask':
-        this._imageStream$ = this.rosSvc.subVideoStream(ImageStreamType.DetectionMask);
-        this.store.dispatch(VisionActions.setHeading({ heading: 'Detection Mask Image Stream' }));
+        //this._imageStream$ = this.rosSvc.subVideoStream(ImageStreamType.DetectionMask);
+        this._imageStream$ = this.rosSvc.subVideoStream(ImageStreamType.PrivacyMask);
+        this.store.dispatch(VisionActions.setHeading({ heading: 'Detection (Privacy) Mask Image Stream' }));
         this._displayPrivacyMaskControls = false;
         this._displayDetectionMaskControls = true;
         this._displayAppState = false;
@@ -172,7 +174,47 @@ export class TestComponentComponent implements OnInit, OnDestroy {
     this.privacymaskcreator.clearMask();
   }
 
-  OnEditModeChanged(editMode:boolean): void {
+  OnDMEdit(): void {
+    this.rosSvc.svcPrivacyMaskOverride(false);
+    this.detectionmaskcreator.clearMask();
+  }
+
+  OnDMCancel(): void {
+    this.detectionmaskcreator.redrawCanvas();
+    this.rosSvc.svcPrivacyMaskOverride(true);
+  }
+
+  OnDMDelete(): void {
+    this._matDialog.open(
+      ConfirmationDialogComponent, {
+        width: '350px',
+        data: { 
+          title: 'Confirm privacy mask delete',
+          message: `Are you sure you want to delete your privacy mask?`,
+          cancelButton: 'No',
+          acceptButton: 'Yes'
+        }
+      })
+      .afterClosed()
+      .subscribe((accept: boolean) => {
+        if (accept) {
+          this.rosSvc.svcDeleteMask('privacy-mask.svg');
+        }
+      });
+  }
+
+  OnDMSave(): void {
+    const svgContent = this.detectionmaskcreator.getMaskAsSVG();
+    this.rosSvc.svcSaveMask(svgContent, 'privacy-mask.svg');
+    this.detectionmaskcreator.clearMask();
+    this.rosSvc.svcPrivacyMaskOverride(true);
+  }
+
+  OnDMClear(): void {
+    this.detectionmaskcreator.clearMask();
+  }
+
+  OnEditModeChanged(editMode: boolean): void {
     this.store.dispatch(VisionActions.setMaskEditMode({ enabled: editMode }));
   }
 }
