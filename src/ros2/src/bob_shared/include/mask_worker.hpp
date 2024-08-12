@@ -29,9 +29,16 @@ public:
     {
         mask_timer_seconds_ = mask_timer_seconds;
         mask_filename_ = mask_filename;
+
+        mask_last_modified_time_.reset();
         
         mask_timer_ = node_.create_wall_timer(std::chrono::seconds(mask_timer_seconds_), [this](){mask_timer_callback();});
         mask_timer_callback(); // Calling it the first time
+    }
+
+    bool is_running() const
+    {
+        return mask_timer_ ? true : false;
     }
 
 private:
