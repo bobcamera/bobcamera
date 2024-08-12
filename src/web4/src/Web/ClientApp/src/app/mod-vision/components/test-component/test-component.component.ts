@@ -11,11 +11,13 @@ import { NotificationType } from '../../../mod-main/models';
 import { ConfirmationDialogComponent } from '../../../mod-main/components';
 
 import * as VisionActions from '../../state/vision.actions';
-import { VisionState, getVisionContextPanelExpanded, getVisionCamera, getBobInfo, getMaskEditMode, getMaskSvg } from '../../state/vision.reducer';
+import { VisionState, getVisionContextPanelExpanded, getVisionCamera, getBobInfo, getMaskEditMode, getMaskSvg, 
+  getVisionImageStreamType, getVisionDisplayAppState, getVisionDisplayDetectionMaskControls, getVisionDisplayPrivacyMaskControls
+ } from '../../state/vision.reducer';
 
-import { CameraDto, AppInfoDto, AppStateDto } from '../../models';
+import { CameraDto, AppInfoDto, AppStateDto, ImageStreamTypeEnum } from '../../models';
 
-import { BobRosService, ImageStreamType } from '../../services';
+import { BobRosService } from '../../services';
 
 import { MaskCreationComponent, MaskCreationSvgComponent } from '../';
 
@@ -36,14 +38,12 @@ export class TestComponentComponent implements OnInit, OnDestroy {
   _imageStream$: Observable<string>;
   _appState$: Observable<AppStateDto>;
   _appInfo$: Observable<AppInfoDto>;
-
   _maskEditMode$: Observable<boolean>;
-  _maskSvg$: Observable<string>;  
-
-  _imageStreamType: string;
-  _displayPrivacyMaskControls: boolean;
-  _displayDetectionMaskControls: boolean;
-  _displayAppState: boolean;
+  _maskSvg$: Observable<string>;
+  _imageStreamType$: Observable<ImageStreamTypeEnum>;
+  _displayPrivacyMaskControls$: Observable<boolean>;
+  _displayDetectionMaskControls$: Observable<boolean>;
+  _displayAppState$: Observable<boolean>;
 
   @ViewChild('privacymaskcreator', {static: false}) privacymaskcreator: MaskCreationComponent;
   @ViewChild('detectionmaskcreator', {static: false}) detectionmaskcreator: MaskCreationSvgComponent;
@@ -54,19 +54,24 @@ export class TestComponentComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
 
+    this.rosSvc.connect(true);
+
     //this._cameraDetails$ = this.store.select(getVisionCamera);
     this._appInfo$ = this.store.select(getBobInfo);
     this._maskEditMode$ = this.store.select(getMaskEditMode);
     this._maskSvg$ = this.store.select(getMaskSvg);
-    this._contextPanelExpanded$ = this.store.select(getVisionContextPanelExpanded);    
+    this._contextPanelExpanded$ = this.store.select(getVisionContextPanelExpanded);
+    this._imageStreamType$ = this.store.select(getVisionImageStreamType);
+    this._displayPrivacyMaskControls$ = this.store.select(getVisionDisplayPrivacyMaskControls);
+    this._displayDetectionMaskControls$ = this.store.select(getVisionDisplayDetectionMaskControls);
+    this._displayAppState$ = this.store.select(getVisionDisplayAppState);
 
     this.route.params.pipe(
       takeUntil(this._ngUnsubscribe$),
       map(params => params.type),
       distinctUntilChanged(),
     ).subscribe(changedParam => {
-      console.log(`ImageStreamType: ${this._imageStreamType}`);
-      this.onDisplayTypeChanged(changedParam)
+      this.onDisplayTypeChanged(changedParam);
     });    
 
     this.rosSvc.connected
@@ -80,55 +85,27 @@ export class TestComponentComponent implements OnInit, OnDestroy {
        
         this.store.dispatch(MainActions.Notification({
           notification: { type: NotificationType.Information, message: "Connected to ROS Bridge." }}));
-
-          this.onDisplayTypeChanged(this._imageStreamType);        
       } else {
         this.store.dispatch(MainActions.Notification({
           notification: { type: NotificationType.Error, message: "Connection lost to ROS Bridge." }}));
       }
     });
 
-    this.rosSvc.connect(true);
-
-    this.store.dispatch(VisionActions.setHeading({ heading: 'Image Stream Component' }));
+    this._imageStreamType$ .pipe(
+      takeUntil(this._ngUnsubscribe$)
+    )
+    .subscribe((imageStreamType: ImageStreamTypeEnum) => {
+      this._imageStream$ = this.rosSvc.subVideoStream(imageStreamType);
+      if (imageStreamType === ImageStreamTypeEnum.DetectionMask) {
+        this.rosSvc.svcGetMask('detection-mask.svg');
+      }
+    });
 
     this.rosSvc.svcAppInfo();
   }
 
   onDisplayTypeChanged(type: string) {
-    this._imageStreamType = type;
-    switch(type)
-    {     
-      case 'annotated':
-        this._imageStream$ = this.rosSvc.subVideoStream(ImageStreamType.Annotated);
-        this.store.dispatch(VisionActions.setHeading({ heading: 'Annotated Image Stream' }));
-        this._displayPrivacyMaskControls = false;
-        this._displayDetectionMaskControls = false;
-        this._displayAppState = true;
-        break;
-      case 'foregroundmask':
-        this._imageStream$ = this.rosSvc.subVideoStream(ImageStreamType.ForegroundMask);
-        this.store.dispatch(VisionActions.setHeading({ heading: 'Foreground Mask Image Stream' }));
-        this._displayPrivacyMaskControls = false;
-        this._displayDetectionMaskControls = false;
-        this._displayAppState = true;
-        break;
-      case 'privacymask':
-        this._imageStream$ = this.rosSvc.subVideoStream(ImageStreamType.PrivacyMask);
-        this.store.dispatch(VisionActions.setHeading({ heading: 'Privacy Mask Image Stream' }));
-        this._displayPrivacyMaskControls = true;
-        this._displayDetectionMaskControls = false;
-        this._displayAppState = false;
-        break;
-      case 'detectionmask':
-        this.rosSvc.svcGetMask('detection-mask.svg');
-        this._imageStream$ = this.rosSvc.subVideoStream(ImageStreamType.DetectionMask);
-        this.store.dispatch(VisionActions.setHeading({ heading: 'Detection Mask Image Stream' }));
-        this._displayPrivacyMaskControls = false;
-        this._displayDetectionMaskControls = true;
-        this._displayAppState = false;
-        break;
-    }
+    this.store.dispatch(VisionActions.setImageStreamType({ imageStreamType: type }));
   }
 
   onOpenedChange(opened: boolean) {

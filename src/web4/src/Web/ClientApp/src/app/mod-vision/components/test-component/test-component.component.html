@@ -10,13 +10,13 @@
         <mat-sidenav-container class="example-container" autosize>
             <mat-sidenav #sideNav mode="side" position="end" (openedChange)="onOpenedChange($event)" [opened]="this._contextPanelExpanded$ | async">
                 <bob-bob-info [AppInfo$]="this._appInfo$"></bob-bob-info>
-                <bob-bob-state *ngIf="this._displayAppState" [AppState$]="this._appState$"></bob-bob-state>
-                <bob-mask-controls *ngIf="this._displayPrivacyMaskControls" 
+                <bob-bob-state *ngIf="this._displayAppState$ | async" [AppState$]="this._appState$"></bob-bob-state>
+                <bob-mask-controls *ngIf="this._displayPrivacyMaskControls$ | async" 
                     Heading="Privacy Mask Controls" HeadingEdit="Editing Privacy Mask" 
                     SubHeading="" SubHeadingEdit="Draw the areas you want to exclude" 
                     (Edit)="OnPMEdit()" (Cancel)="OnPMCancel()" (Delete)="OnPMDelete()" (Save)="OnPMSave()" (Clear)="OnPMClear()" 
                     (EditMode)="OnEditModeChanged($event)"></bob-mask-controls>                        
-                <bob-mask-controls *ngIf="this._displayDetectionMaskControls" 
+                <bob-mask-controls *ngIf="this._displayDetectionMaskControls$ | async" 
                     Heading="Detection Mask Controls" HeadingEdit="Editing Detection Mask" 
                     SubHeading="" SubHeadingEdit="Draw the areas you want to include"                     
                     (Edit)="OnDMEdit()" (Cancel)="OnDMCancel()" (Delete)="OnDMDelete()" (Save)="OnDMSave()" (Clear)="OnDMClear()" 
@@ -35,10 +35,10 @@
                 </bob-mask-controls>
             </mat-sidenav>
             <mat-sidenav-content>
-                <bob-stream-display *ngIf="!this._displayPrivacyMaskControls && !this._displayDetectionMaskControls" [ImageStream$]="this._imageStream$"></bob-stream-display>
-                <bob-mask-creation #privacymaskcreator *ngIf="this._displayPrivacyMaskControls" 
+                <bob-stream-display *ngIf="!(this._displayPrivacyMaskControls$ | async) && !(this._displayDetectionMaskControls$ | async)" [ImageStream$]="this._imageStream$"></bob-stream-display>
+                <bob-mask-creation #privacymaskcreator *ngIf="this._displayPrivacyMaskControls$ | async" 
                     [ImageStream$]="this._imageStream$" [EditMode$]="this._maskEditMode$"></bob-mask-creation>
-                <bob-mask-creation-svg #detectionmaskcreator *ngIf="this._displayDetectionMaskControls" 
+                <bob-mask-creation-svg #detectionmaskcreator *ngIf="this._displayDetectionMaskControls$ | async" 
                     [ImageStream$]="this._imageStream$" [EditMode$]="this._maskEditMode$" [MaskSvg$]="this._maskSvg$"></bob-mask-creation-svg>
             </mat-sidenav-content>
           </mat-sidenav-container>

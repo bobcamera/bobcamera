@@ -39,3 +39,10 @@ export interface Point {
     x: number; 
     y: number
 };
+
+export enum ImageStreamTypeEnum {
+    Annotated,
+    ForegroundMask,
+    DetectionMask,
+    PrivacyMask,
+}

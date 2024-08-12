@@ -1,12 +1,14 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { createAction, props } from '@ngrx/store';
 
-import { CameraQuery, CameraDto, AppInfoDto } from '../models';
+import { CameraQuery, CameraDto, AppInfoDto, ImageStreamTypeEnum } from '../models';
 
 export const setHeading = createAction('[Vision] Set Heading', props<{ heading: string }>());
 
 export const menuPanelToggle = createAction('[Vision] menuPanelToggle');
 export const contextPanelToggle = createAction('[Vision] contextPanelToggle');
+
+export const setImageStreamType = createAction('[Vision] Set Message', props<{ imageStreamType: string }>());
 
 export const setMessage = createAction('[Vision] Set Message', props<{ message: string }>());
 export const clearMessage = createAction('[Vision] Clear Message');

@@ -11,14 +11,7 @@ import { NotificationType } from '../../mod-main/models';
 import { VisionActions } from '../state';
 import { VisionState } from '../state';
 
-import { AppInfoDto, AppStateDto } from '../models';
-
-export enum ImageStreamType {
-    Annotated,
-    ForegroundMask,
-    DetectionMask,
-    PrivacyMask,
-}
+import { ImageStreamTypeEnum, AppInfoDto, AppStateDto } from '../models';
 
 export class BobRosConnection {
 
@@ -148,10 +141,10 @@ export class BobRosService {
     }
 
     private _imageStreamTypes = {
-        [ImageStreamType.Annotated]: "/bob/frames/annotated/resized/compressed",
-        [ImageStreamType.ForegroundMask]: "/bob/frames/foreground_mask/resized/compressed",
-        [ImageStreamType.DetectionMask]: "/bob/frames/allsky/original/resized/compressed",
-        [ImageStreamType.PrivacyMask]: "/bob/frames/allsky/original/resized/compressed"
+        [ImageStreamTypeEnum.Annotated]: "/bob/frames/annotated/resized/compressed",
+        [ImageStreamTypeEnum.ForegroundMask]: "/bob/frames/foreground_mask/resized/compressed",
+        [ImageStreamTypeEnum.DetectionMask]: "/bob/frames/allsky/original/resized/compressed",
+        [ImageStreamTypeEnum.PrivacyMask]: "/bob/frames/allsky/original/resized/compressed"
     };
 
     private _videoStream = new Subject<any>();
@@ -160,7 +153,7 @@ export class BobRosService {
     private _videoStreamListener: ROSLIB.Topic;
     private _appStateListener: ROSLIB.Topic;
 
-    public subVideoStream(type: ImageStreamType): Observable<string>{
+    public subVideoStream(type: ImageStreamTypeEnum): Observable<string>{
 
         this.internal_videoStream(type);
 
@@ -392,7 +385,7 @@ export class BobRosService {
         });
     }
 
-    private internal_videoStream(type: ImageStreamType) {
+    private internal_videoStream(type: ImageStreamTypeEnum) {
 
         if (this._videoStreamListener) {
             this.unsubscribeTopic(this._videoStreamListener);
