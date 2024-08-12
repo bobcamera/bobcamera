@@ -143,13 +143,17 @@ export class TestComponentComponent implements OnInit, OnDestroy {
     this.rosSvc.disconnect();
   }
 
+  OnEditModeChanged(editMode: boolean): void {
+    this.store.dispatch(VisionActions.setMaskEditMode({ enabled: editMode }));
+  }  
+
   OnPMEdit(): void {
     this.rosSvc.svcPrivacyMaskOverride(false);
     this.privacymaskcreator.clearMask();
   }
 
   OnPMCancel(): void {
-    this.privacymaskcreator.redrawCanvas();
+    this.privacymaskcreator.cancel();
     this.rosSvc.svcPrivacyMaskOverride(true);
   }
 
@@ -220,9 +224,5 @@ export class TestComponentComponent implements OnInit, OnDestroy {
 
   OnDMClear(): void {
     this.detectionmaskcreator.clearMask();
-  }
-
-  OnEditModeChanged(editMode: boolean): void {
-    this.store.dispatch(VisionActions.setMaskEditMode({ enabled: editMode }));
   }
 }

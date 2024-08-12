@@ -77,7 +77,7 @@ export class MaskCreationSvgComponent extends MaskCreationComponent implements O
     }
   }
 
-  cancel(): void {
+  override cancel(): void {
     if (this._maskSvg) {
       this._maskShapes = this.parse(this._maskSvg);
       this.redrawCanvas();

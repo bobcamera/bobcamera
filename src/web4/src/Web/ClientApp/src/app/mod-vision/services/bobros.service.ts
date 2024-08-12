@@ -317,7 +317,6 @@ export class BobRosService {
                     console.log(`Mask ${maskFilename} deleted successfully!`);
                     this._store.dispatch(MainActions.Notification({
                         notification: { type: NotificationType.Information, message: `Mask ${maskFilename} deleted successfully. It can take up to 5 seconds for your changes to take affect.` }}));
-
                         this._store.dispatch(VisionActions.clearMaskSvg());
                 } else {
                     console.error(`Failed to delete mask ${maskFilename}:`, result.message);
@@ -352,7 +351,6 @@ export class BobRosService {
                     console.log(`Mask ${maskFilename} saved successfully`);
                     this._store.dispatch(MainActions.Notification({
                         notification: { type: NotificationType.Information, message: `Mask ${maskFilename} successfully saved to server. It can take up to 5 seconds for your new mask to be applied.` }}));
-
                     this._store.dispatch(VisionActions.setMaskSvg({ mask: svgContent }));
                 } else {
                     console.error(`Failed to save mask ${maskFilename}:`, result.message);
@@ -384,8 +382,7 @@ export class BobRosService {
                 connection.close();
                 if (result.success) {
                     console.log(`Mask ${maskFilename} retrieved successfully`);
-                    this._store.dispatch(VisionActions.setMaskSvg({
-                        mask: result.mask }));
+                    this._store.dispatch(VisionActions.setMaskSvg({ mask: result.mask }));
                 } else {
                     console.error(`Failed to retrieve mask ${maskFilename}:`, result.message);
                     this._store.dispatch(MainActions.Notification({

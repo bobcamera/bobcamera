@@ -101,6 +101,10 @@ export class MaskCreationComponent implements OnInit, OnDestroy, AfterViewInit {
     this._polygons.push([]);
   }
 
+  cancel(): void {
+    this.redrawCanvas();
+  }
+
   handleResize(resize: ResizeObserverEntry) {
     if (this.haveDimensionsChanged()) {
       this.ConvasDimentionsChanged.emit();
