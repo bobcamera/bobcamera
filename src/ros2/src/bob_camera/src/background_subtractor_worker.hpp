@@ -98,7 +98,7 @@ public:
 
     void init()
     {
-        bgs_masked_publisher_ = node_.create_publisher<sensor_msgs::msg::Image>("bob/frames/foreground_mask/masked", params_.get_image_publisher()->get_actual_qos());
+        //bgs_masked_publisher_ = node_.create_publisher<sensor_msgs::msg::Image>("bob/frames/foreground_mask/masked", params_.get_image_publisher()->get_actual_qos());
         mask_worker_ptr_->init(params_.get_mask_timer_seconds(), params_.get_mask_filename());
     }
 
@@ -236,12 +236,12 @@ public:
 
             bgs_ptr_->apply(gray_img, ros_cv_foreground_mask_->get_image(), mask_enabled_ ? detection_mask_ : cv::Mat());
 
-            if (mask_enabled_)
+            /*if (mask_enabled_)
             {
                 apply_mask(gray_img);
                 auto bgs_masked_msg = cv_bridge::CvImage(header, "MONO8", gray_img).toImageMsg();
                 node_.publish_if_subscriber(bgs_masked_publisher_, *bgs_masked_msg);
-            }
+            }*/
 
             node_.publish_if_subscriber(params_.get_image_publisher(), ros_cv_foreground_mask_->get_msg());
 
@@ -402,5 +402,5 @@ private:
     bool processing_{false};
 
     // NEED TO REMOVE THIS LATER
-    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr bgs_masked_publisher_;
+    //rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr bgs_masked_publisher_;
 };
