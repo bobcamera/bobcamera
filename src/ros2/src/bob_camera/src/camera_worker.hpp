@@ -197,7 +197,7 @@ public:
 
     void restart_mask()
     {
-        if (mask_worker_ptr_)
+        if (mask_worker_ptr_ && mask_worker_ptr_->is_running())
         {
             mask_worker_ptr_->init(params_.get_mask_timer_seconds(), params_.get_mask_filename());
         }
