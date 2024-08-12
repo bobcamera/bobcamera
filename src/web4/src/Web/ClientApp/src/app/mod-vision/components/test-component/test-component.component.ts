@@ -11,7 +11,7 @@ import { NotificationType } from '../../../mod-main/models';
 import { ConfirmationDialogComponent } from '../../../mod-main/components';
 
 import * as VisionActions from '../../state/vision.actions';
-import { VisionState, getVisionCamera, getBobInfo, getMaskEditMode, getMaskSvg } from '../../state/vision.reducer';
+import { VisionState, getVisionContextPanelExpanded, getVisionCamera, getBobInfo, getMaskEditMode, getMaskSvg } from '../../state/vision.reducer';
 
 import { CameraDto, AppInfoDto, AppStateDto } from '../../models';
 
@@ -30,13 +30,15 @@ export class TestComponentComponent implements OnInit, OnDestroy {
 
   _ngUnsubscribe$: Subject<void> = new Subject<void>();
   
+  _contextPanelExpanded$: Observable<boolean>;
+
   //_cameraDetails$: Observable<CameraDto>;
   _imageStream$: Observable<string>;
   _appState$: Observable<AppStateDto>;
   _appInfo$: Observable<AppInfoDto>;
 
   _maskEditMode$: Observable<boolean>;
-  _maskSvg$: Observable<string>;
+  _maskSvg$: Observable<string>;  
 
   _imageStreamType: string;
   _displayPrivacyMaskControls: boolean;
@@ -51,6 +53,12 @@ export class TestComponentComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+
+    //this._cameraDetails$ = this.store.select(getVisionCamera);
+    this._appInfo$ = this.store.select(getBobInfo);
+    this._maskEditMode$ = this.store.select(getMaskEditMode);
+    this._maskSvg$ = this.store.select(getMaskSvg);
+    this._contextPanelExpanded$ = this.store.select(getVisionContextPanelExpanded);    
 
     this.route.params.pipe(
       takeUntil(this._ngUnsubscribe$),
@@ -83,11 +91,6 @@ export class TestComponentComponent implements OnInit, OnDestroy {
     this.rosSvc.connect(true);
 
     this.store.dispatch(VisionActions.setHeading({ heading: 'Image Stream Component' }));
-
-    //this._cameraDetails$ = this.store.select(getVisionCamera);
-    this._appInfo$ = this.store.select(getBobInfo);
-    this._maskEditMode$ = this.store.select(getMaskEditMode);
-    this._maskSvg$ = this.store.select(getMaskSvg);
 
     this.rosSvc.svcAppInfo();
   }
@@ -141,6 +144,10 @@ export class TestComponentComponent implements OnInit, OnDestroy {
     //this.store.dispatch(VisionActions.setCameraPolling({ enabled: false }));
 
     this.rosSvc.disconnect();
+  }
+
+  onToggleContextPanel() {
+    this.store.dispatch(VisionActions.contextPanelToggle());
   }
 
   OnEditModeChanged(editMode: boolean): void {

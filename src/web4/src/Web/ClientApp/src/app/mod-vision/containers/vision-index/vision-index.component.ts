@@ -7,7 +7,7 @@ import * as MainActions from '../../../mod-main/state/main.actions';
 import * as VisionActions from '../../state/vision.actions';
 
 import { MainState } from '../../../mod-main/state/main.reducer';
-import { VisionState, getVisionHeading, getVisionMessage } from '../../state/vision.reducer';
+import { VisionState, getVisionHeading, getVisionMessage, getVisionMenuPanelExpanded } from '../../state/vision.reducer';
 
 import { NotificationType, NotificationModel } from '../../../mod-main/models';
 
@@ -22,6 +22,7 @@ export class VisionIndexComponent implements OnInit, OnDestroy {
 
   private _ngUnsubscribe$: Subject<void> = new Subject<void>();
   _heading$: Observable<string>;
+  _menuPanelExpanded$: Observable<boolean>;
 
   constructor(private mainStore: Store<MainState>, private store: Store<VisionState>) {
   }
@@ -29,6 +30,7 @@ export class VisionIndexComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
 
     this._heading$ = this.store.select(getVisionHeading);
+    this._menuPanelExpanded$ = this.store.select(getVisionMenuPanelExpanded);
 
     this.store.select(getVisionMessage)
     .pipe(takeUntil(this._ngUnsubscribe$), filter(message => !!message))
@@ -41,6 +43,10 @@ export class VisionIndexComponent implements OnInit, OnDestroy {
   public ngOnDestroy(): void {
     this._ngUnsubscribe$.next();
     this._ngUnsubscribe$.complete();
+  }
+
+  onToggleMenuPanel() {
+    this.store.dispatch(VisionActions.menuPanelToggle());
   }
 
   setMessage(message: string) {

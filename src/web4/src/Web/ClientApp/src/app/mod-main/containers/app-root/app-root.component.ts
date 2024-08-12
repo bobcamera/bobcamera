@@ -2,12 +2,12 @@ import { Component, OnInit, ChangeDetectionStrategy, OnDestroy } from '@angular/
 import { Router, NavigationEnd, ActivatedRoute } from '@angular/router';
 import { Title } from '@angular/platform-browser';
 import { Store } from '@ngrx/store';
-import { Subject } from 'rxjs';
+import { Subject, Observable } from 'rxjs';
 import { takeUntil, filter, map } from 'rxjs/operators';
 
 import { MainState } from '../../state/main.reducer';
-import { ClearNotification } from '../../state/main.actions';
-import { getNotification } from '../../state/main.reducer';
+import { ClearNotification, MenuDrawerToggle } from '../../state/main.actions';
+import { getNotification, getMenuDrawerExpanded } from '../../state/main.reducer';
 
 import { NotificationHandler } from '../../services'
 import { NotificationModel, NotificationType } from '../../models'
@@ -24,15 +24,17 @@ export class AppRootComponent implements OnInit, OnDestroy {
 
   //https://www.techiediaries.com/angular-material-navigation-toolbar-sidenav/
 
-  private _ngUnsubscribe$: Subject<void> = new Subject<void>();
-  currentYear: number = 0;
+  private _ngUnsubscribe$: Subject<void> = new Subject<void>();  
+  _menuDrawExpanded$: Observable<boolean>;
+
+  _currentYear: number = 0;
 
   constructor(private store: Store<MainState>, private router: Router, private titleService: Title, 
     private notificationHandler: NotificationHandler) { }
 
   ngOnInit(): void {
 
-    this.currentYear = new Date().getFullYear();
+    this._currentYear = new Date().getFullYear();
 
     this.router.events
     .pipe(
@@ -59,11 +61,17 @@ export class AppRootComponent implements OnInit, OnDestroy {
     this.store.select(getNotification)
     .pipe(takeUntil(this._ngUnsubscribe$), filter(notification => !!notification))
     .subscribe((notification: NotificationModel) => this.handleNotification(notification));
+
+    this._menuDrawExpanded$ = this.store.select(getMenuDrawerExpanded);
   }
 
   ngOnDestroy() {
     this._ngUnsubscribe$.next();
     this._ngUnsubscribe$.complete();
+  }
+
+  onToggleSideNav() {
+    this.store.dispatch(MenuDrawerToggle());
   }
   
   name() {
@@ -75,7 +83,7 @@ export class AppRootComponent implements OnInit, OnDestroy {
   }
 
   year() {
-    return this.currentYear;
+    return this._currentYear;
   }
 
   handleNotification(notificationModel: NotificationModel) {

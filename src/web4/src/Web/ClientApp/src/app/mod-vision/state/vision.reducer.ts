@@ -10,7 +10,8 @@ export const featureKey = 'vision';
 
 export interface VisionState {
   heading: string;
-  navPanelExpanded: boolean;
+  menuPanelExpanded: boolean;
+  contextPanelExpanded: boolean;
   message: string;
 
   error: HttpErrorResponse;
@@ -32,7 +33,8 @@ export interface State extends fromRoot.State {
 
 const initialState: VisionState = {
   heading: 'Vision Component',
-  navPanelExpanded: true,
+  menuPanelExpanded: false,
+  contextPanelExpanded: false,
   message: '',
 
   error: null,
@@ -54,7 +56,8 @@ export const visionReducer = createReducer<VisionState>(
 
   on(VisionActions.setHeading, (state, action): VisionState => { return { ...state, heading: action.heading }; }),
 
-  on(VisionActions.navPanelExpanded, (state, action): VisionState => { return { ...state, navPanelExpanded: action.expanded }; }),
+  on(VisionActions.menuPanelToggle, (state) => ({ ...state, menuPanelExpanded: !state.menuPanelExpanded })),
+  on(VisionActions.contextPanelToggle, (state) => ({ ...state, contextPanelExpanded: !state.contextPanelExpanded })),
 
   on(VisionActions.setMessage, (state, action): VisionState => { return { ...state, message: action.message }; }),
   on(VisionActions.clearMessage, (state, action): VisionState => { return { ...state, message: '' }; }),
@@ -79,9 +82,14 @@ export const getVisionHeading = createSelector(
   state => state.heading
 );
 
-export const getVisionNavPanelExpanded = createSelector(
+export const getVisionMenuPanelExpanded = createSelector(
   getVisionState,
-  state => state.navPanelExpanded
+  state => state.menuPanelExpanded
+);
+
+export const getVisionContextPanelExpanded = createSelector(
+  getVisionState,
+  state => state.contextPanelExpanded
 );
 
 export const getVisionMessage = createSelector(

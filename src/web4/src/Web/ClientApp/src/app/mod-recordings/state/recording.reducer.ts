@@ -10,7 +10,8 @@ export const featureKey = 'recording';
 
 export interface RecordingState {
   heading: string;
-  navPanelExpanded: boolean;
+  menuPanelExpanded: boolean;
+  contextPanelExpanded: boolean;
   message: string;
 
   error: HttpErrorResponse;
@@ -25,7 +26,8 @@ export interface State extends fromRoot.State {
 
 const initialState: RecordingState = {
   heading: 'Recording Component',
-  navPanelExpanded: true,
+  menuPanelExpanded: false,
+  contextPanelExpanded: false,
   message: '',
 
   error: null,
@@ -40,7 +42,8 @@ export const recordingReducer = createReducer<RecordingState>(
 
   on(RecordingActions.setHeading, (state, action): RecordingState => { return { ...state, heading: action.heading }; }),
 
-  on(RecordingActions.navPanelExpanded, (state, action): RecordingState => { return { ...state, navPanelExpanded: action.expanded }; }),
+  on(RecordingActions.menuPanelToggle, (state, action): RecordingState => { return { ...state, menuPanelExpanded: !state.menuPanelExpanded }; }),
+  on(RecordingActions.contextPanelToggle, (state, action): RecordingState => { return { ...state, contextPanelExpanded: !state.contextPanelExpanded }; }),
 
   on(RecordingActions.setMessage, (state, action): RecordingState => { return { ...state, message: action.message }; }),
   on(RecordingActions.clearMessage, (state, action): RecordingState => { return { ...state, message: '' }; }),
@@ -71,9 +74,14 @@ export const getRecordingHeading = createSelector(
   state => state.heading
 );
 
-export const getRecordingNavPanelExpanded = createSelector(
+export const getRecordingMenuPanelExpanded = createSelector(
   getRecordingState,
-  state => state.navPanelExpanded
+  state => state.menuPanelExpanded
+);
+
+export const getRecordingContextPanelExpanded = createSelector(
+  getRecordingState,
+  state => state.contextPanelExpanded
 );
 
 export const getRecordingMessage = createSelector(

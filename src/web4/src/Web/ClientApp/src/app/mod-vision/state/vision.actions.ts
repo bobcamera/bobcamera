@@ -3,9 +3,10 @@ import { createAction, props } from '@ngrx/store';
 
 import { CameraQuery, CameraDto, AppInfoDto } from '../models';
 
-
 export const setHeading = createAction('[Vision] Set Heading', props<{ heading: string }>());
-export const navPanelExpanded = createAction('[Vision] Navigation Panel Expanded', props<{ expanded: boolean }>());
+
+export const menuPanelToggle = createAction('[Vision] menuPanelToggle');
+export const contextPanelToggle = createAction('[Vision] contextPanelToggle');
 
 export const setMessage = createAction('[Vision] Set Message', props<{ message: string }>());
 export const clearMessage = createAction('[Vision] Clear Message');

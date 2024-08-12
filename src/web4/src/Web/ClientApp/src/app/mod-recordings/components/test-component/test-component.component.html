@@ -1,15 +1,15 @@
 <mat-card>
     <mat-card-header>
         <span class="flex-spacer">&nbsp;</span>
-        <button mat-icon-button (click)="sidenav.toggle()">
-            <mat-icon *ngIf="!opened">chevron_left</mat-icon>
-            <mat-icon *ngIf="opened">chevron_right</mat-icon>
+        <button mat-icon-button (click)="this.onToggleContextPanel()">
+            <mat-icon *ngIf="!sidenav.opened">chevron_left</mat-icon>
+            <mat-icon *ngIf="sidenav.opened">chevron_right</mat-icon>
         </button>
     </mat-card-header>
     <mat-card-content>
 
         <mat-sidenav-container class="example-container" autosize>
-            <mat-sidenav #sidenav mode="side" position="end" [(opened)]="opened">
+            <mat-sidenav #sidenav mode="side" position="end" [opened]="this._contextPanelExpanded$ | async">
                 <mat-card>
                     <mat-card-header>
                         <mat-card-title>Shiba Inu</mat-card-title>
@@ -28,8 +28,6 @@
                         <mat-card-subtitle>Dog Breed</mat-card-subtitle>
                     </mat-card-header>
                     <mat-card-content>
-                        <p><mat-checkbox [(ngModel)]="opened">sidenav.opened</mat-checkbox></p>
-                        <p><button mat-button (click)="sidenav.toggle()">sidenav.toggle()</button></p>
                     </mat-card-content>
                     <mat-card-actions>
                     </mat-card-actions>

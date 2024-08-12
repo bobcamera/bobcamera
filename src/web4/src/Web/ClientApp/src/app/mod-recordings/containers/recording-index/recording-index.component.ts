@@ -7,7 +7,7 @@ import * as MainActions from '../../../mod-main/state/main.actions';
 import * as RecordingActions from '../../state/recording.actions';
 
 import { MainState } from '../../../mod-main/state/main.reducer';
-import { RecordingState, getRecordingHeading, getRecordingMessage, getRecordingItems } from '../../state/recording.reducer';
+import { RecordingState, getRecordingHeading, getRecordingMessage, getRecordingItems, getRecordingMenuPanelExpanded } from '../../state/recording.reducer';
 
 import { NotificationType, NotificationModel } from '../../../mod-main/models';
 import { RecordingQuery, RecordingDto } from '../../models';
@@ -23,6 +23,7 @@ export class RecordingIndexComponent implements OnInit, OnDestroy {
 
   private _ngUnsubscribe$: Subject<void> = new Subject<void>();
   _heading$: Observable<string>;
+  _menuPanelExpanded$: Observable<boolean>;
 
   constructor(private mainStore: Store<MainState>, private store: Store<RecordingState>) {
   }
@@ -30,6 +31,7 @@ export class RecordingIndexComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
 
     this._heading$ = this.store.select(getRecordingHeading);
+    this._menuPanelExpanded$ = this.store.select(getRecordingMenuPanelExpanded);
 
     this.store.select(getRecordingMessage)
     .pipe(takeUntil(this._ngUnsubscribe$), filter(message => !!message))
@@ -52,6 +54,10 @@ export class RecordingIndexComponent implements OnInit, OnDestroy {
   public ngOnDestroy(): void {
     this._ngUnsubscribe$.next();
     this._ngUnsubscribe$.complete();
+  }
+
+  onToggleMenuPanel() {
+    this.store.dispatch(RecordingActions.menuPanelToggle());
   }
 
   setMessage(message: string) {

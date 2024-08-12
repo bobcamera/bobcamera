@@ -1,14 +1,14 @@
 <mat-drawer-container [hasBackdrop]="true">
 
-    <mat-drawer #drawer mode="over" color="accent">
+    <mat-drawer #drawer mode="over" color="accent" [opened]="this._menuDrawExpanded$ | async">
       <mat-toolbar class="nav-item-heading">
         Main Menu
       </mat-toolbar>
       <mat-nav-list>
-        <bob-nav-item icon="dns" [routerLink]="['vision']" (click)="drawer.toggle()">
+        <bob-nav-item icon="dns" [routerLink]="['vision']" (click)="this.onToggleSideNav()">
           Vision
         </bob-nav-item>
-        <bob-nav-item icon="dns" [routerLink]="['recordings']" (click)="drawer.toggle()">
+        <bob-nav-item icon="dns" [routerLink]="['recordings']" (click)="this.onToggleSideNav()">
           Recordings
         </bob-nav-item>        
       </mat-nav-list>
@@ -16,7 +16,7 @@
   
     <mat-drawer-content navigationRoute="/">
       <mat-toolbar color="primary">
-        <button mat-icon-button (click)="drawer.toggle()" matTooltip="Main Menu">
+        <button mat-icon-button (click)="this.onToggleSideNav()" matTooltip="Main Menu">
           <mat-icon>menu</mat-icon>
         </button>
         <div class="logo-nav">

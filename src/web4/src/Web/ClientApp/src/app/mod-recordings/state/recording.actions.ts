@@ -4,7 +4,9 @@ import { createAction, props } from '@ngrx/store';
 import { RecordingQuery, RecordingDto } from '../models';
 
 export const setHeading = createAction('[Recordings] Set Heading', props<{ heading: string }>());
-export const navPanelExpanded = createAction('[Recordings] Navigation Panel Expanded', props<{ expanded: boolean }>());
+
+export const menuPanelToggle = createAction('[Recordings] menuPanelToggle');
+export const contextPanelToggle = createAction('[Recordings] contextPanelToggle');
 
 export const setMessage = createAction('[Recordings] Set Message', props<{ message: string }>());
 export const clearMessage = createAction('[Recordings] Clear Message');

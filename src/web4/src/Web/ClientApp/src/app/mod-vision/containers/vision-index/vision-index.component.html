@@ -1,5 +1,5 @@
 <mat-sidenav-container class="example-container">
-    <mat-sidenav #contextnav mode="side" [(opened)]="opened" [fixedInViewport]="true" class="navbar">
+    <mat-sidenav #menuNav mode="side" [opened]="this._menuPanelExpanded$ | async" [fixedInViewport]="true" class="navbar">
         <mat-toolbar class="nav-item-heading">
             Vision
         </mat-toolbar>
@@ -23,9 +23,9 @@
     <mat-sidenav-content>
         <mat-toolbar>
             <mat-toolbar-row>
-                <button mat-icon-button (click)="contextnav.toggle()">
-                    <mat-icon *ngIf="!opened">chevron_right</mat-icon>
-                    <mat-icon *ngIf="opened">chevron_left</mat-icon>
+                <button mat-icon-button (click)="this.onToggleMenuPanel()">
+                    <mat-icon *ngIf="!menuNav.opened">chevron_right</mat-icon>
+                    <mat-icon *ngIf="menuNav.opened">chevron_left</mat-icon>
                 </button>
                 <span>{{(this._heading$ | async)}}</span>
                 <span></span>
