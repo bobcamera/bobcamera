@@ -43,7 +43,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends wget tar \
 ###################################################################
 # MWG: This docker stage is used to build the ros2 dev environment
 ###################################################################
-FROM bobcamera/bob-opencv:latest AS bob-ros2-dev
+FROM bobcamera/bob-opencv:1.5.8 AS bob-ros2-dev
 ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.12/:/usr/local/lib/python3.12/dist-packages/
 ENV PATH=$PATH:/root/.local/bin
 ENV DEBIAN_FRONTEND=noninteractive

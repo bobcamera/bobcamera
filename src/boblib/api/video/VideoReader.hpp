@@ -18,9 +18,9 @@ namespace boblib::video
 
         VideoReader(const std::string & camera_uri, bool use_cuda = true, const std::vector<int> & params = {});
 
-        bool read(boblib::base::Image & image);
+        ~VideoReader();
 
-        bool read(cv::Mat & image);
+        bool read(boblib::base::Image & image);
 
         bool set(int parameter_id, double value);
 
@@ -29,6 +29,8 @@ namespace boblib::video
         bool is_open() const;
 
         bool using_cuda() const;
+
+        void release();
 
     private:
 
@@ -41,6 +43,5 @@ namespace boblib::video
         const std::vector<int> & params_;
         std::unique_ptr<cv::VideoCapture> video_capture_ptr_;
         cv::Ptr<cv::cudacodec::VideoReader> cuda_video_reader_ptr_;
-        cv::cuda::GpuMat gpu_frame_;
     };
 }

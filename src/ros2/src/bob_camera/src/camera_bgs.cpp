@@ -362,6 +362,13 @@ private:
                     }
                 }
             ),
+            ParameterLifeCycleNode::ActionParam(
+                rclcpp::Parameter("limit_fps", true), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    camera_params_ptr_->set_limit_fps(param.as_bool());
+                }
+            ),
         };
         add_action_parameters(params);
     }

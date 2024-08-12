@@ -40,9 +40,11 @@ void Image::create(int rows, int cols, int type)
 {
     if (using_cuda_)
     {
+        gpu_mat_.release();
         gpu_mat_.create(rows, cols, type);
         return;
     }
+    mat_.release();
     mat_.create(rows, cols, type);
 }
 
@@ -50,9 +52,11 @@ void Image::create(cv::Size size, int type)
 {
     if (using_cuda_)
     {
+        gpu_mat_.release();
         gpu_mat_.create(size, type);
         return;
     }
+    mat_.release();
     mat_.create(size, type);
 }
 

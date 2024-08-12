@@ -29,11 +29,8 @@ namespace boblib::bgs
         {
             prepare_parallel(image_mat);
             initialize(image_mat);
-            m_initialized = true;
-        }
-        if (_fgmask.empty())
-        {
             _fgmask.create(image_mat.size(), CV_8UC1);
+            m_initialized = true;
         }
 
         if (m_num_processes_parallel == 1)

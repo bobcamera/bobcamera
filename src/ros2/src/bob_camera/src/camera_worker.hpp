@@ -66,6 +66,7 @@ public:
     [[nodiscard]] int get_simulator_num_objects() const { return simulator_num_objects_; }
     [[nodiscard]] bool get_simulator_enable() const { return simulator_enable_; }
     [[nodiscard]] int get_mask_timer_seconds() const { return mask_timer_seconds_; }
+    [[nodiscard]] bool get_limit_fps() const { return limit_fps_; }
 
     // Setters
     void set_image_publisher(const rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr& publisher) { image_publisher_ = publisher; }
@@ -95,6 +96,7 @@ public:
     void set_simulator_num_objects(int num_objects) { simulator_num_objects_ = num_objects; }
     void set_simulator_enable(bool enable) { simulator_enable_ = enable; }
     void set_mask_timer_seconds(int seconds) { mask_timer_seconds_ = seconds; }
+    void set_limit_fps(bool enable) { limit_fps_ = enable; }
 
 private:
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
@@ -124,6 +126,7 @@ private:
     int simulator_num_objects_{};
     bool simulator_enable_{false};
     int mask_timer_seconds_{};
+    bool limit_fps_{true};
 };
 
 class CameraWorker
@@ -387,7 +390,11 @@ private:
                     user_callback_(camera_msg.header, camera_img);
                 }
 
-                loop_rate_ptr_->sleep();
+                if (params_.get_limit_fps() 
+                    && (params_.get_source_type() == CameraWorkerParams::SourceType::VIDEO_FILE))
+                {
+                    loop_rate_ptr_->sleep();
+                }
             }
             catch (const std::exception & e)
             {
