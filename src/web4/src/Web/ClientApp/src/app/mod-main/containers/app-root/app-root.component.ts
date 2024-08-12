@@ -97,6 +97,6 @@ export class AppRootComponent implements OnInit, OnDestroy {
         this.notificationHandler.error(notificationModel.message);
         break;                  
     }
-    this.store.dispatch(ClearNotification());
+    //this.store.dispatch(ClearNotification());
   }
 }

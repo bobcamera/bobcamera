@@ -71,7 +71,7 @@ export class BobRosConnection {
         });
 
         this._ros.on('close', (event: any) => {
-            console.log('BobRosConnection: Connection to websocket server closed.');
+            //console.log('BobRosConnection: Connection to websocket server closed.');
             if (this._ros) {
                 this._ros.isConnected = false;
                 if (retry) {
@@ -82,7 +82,7 @@ export class BobRosConnection {
             this._connected.next(false);
         });    
 
-        console.log(`BobRosConnection: URL: ${this._url}:${this._port}`);
+        //console.log(`BobRosConnection: URL: ${this._url}:${this._port}`);
 
         this._ros.connect(`${this._url}:${this._port}`);
     }
@@ -113,87 +113,37 @@ export class BobRosConnection {
 export class BobRosService {    
 
     // https://stackoverflow.com/questions/64647388/roslib-with-angular-10
-    protected _port: number = 9090;
-    protected _url: string;
-    protected _ros: ROSLIB.Ros;
+    protected _connection: BobRosConnection;
     protected _hasListeners: boolean;
     protected _topics: ROSLIB.Topic[];
     protected _store: Store<VisionState>;
 
-    private _connected = new Subject<boolean>();    
-
     constructor(@Inject('BASE_URL') baseUrl: string, store: Store<VisionState>) {
-      //this._url = baseUrl ?? "http://localhost";
-      this._url = "http://localhost";
-      this._ros = null;
+      this._connection = new BobRosConnection();
       this._hasListeners = false;
       this._topics = [];
       this._store = store;
-
-      this._connected.next(false);
     }
 
     get isConnected(): boolean{
-        if (this._ros) {
-            return this._ros.isConnected;
-        }
-        return false;
+      if (this._connection) {
+        return this._connection.isConnected;
+      }
+      return false;
     }
 
     get connected(): Observable<boolean>{
-        return this._connected.asObservable();
+      return this._connection.connected;
     }
 
     connect(retry: boolean = false) {
-        if (!this._ros) {
-            this._ros = new ROSLIB.Ros();
-        }
-        if (this._ros.isConnected) {
-            return;
-        }
-
-        if (!this._hasListeners) { // Ensure listeners are only set once
-            this._ros.on('connection', (event: any) => {
-                console.log('Connected to websocket server.');
-                this._connected.next(true);
-            });
-
-            this._ros.on('error', (error) => {
-                console.log('Error connecting to websocket server:', error);
-                if (this._ros) {
-                    this._ros.isConnected = false;
-                }
-                this._connected.next(false);
-            });
-
-            this._ros.on('close', (event: any) => {
-                console.log('Connection to websocket server closed.');
-                if (this._ros) {
-                    this._ros.isConnected = false;
-                    if (retry) {
-                        console.log('Connection lost, attempting to reconnect...');
-                        setTimeout(() => this.connect(retry), 1000);
-                    }
-                }
-                this._connected.next(false);
-            });
-
-            this._hasListeners = true;
-        }
-
-        console.log(`Ros Bridge URL: ${this._url}:${this._port}`);
-
-        this._ros.connect(`${this._url}:${this._port}`);
+        this._connection.open(retry);
     }
 
-    disconnect() {
-        if (this._ros && this._ros.isConnected) {
+    disconnect() {        
+        if (this._connection && this._connection.isConnected) {
             this.unsubscribeTopics();
-            this._ros.close();
-            this._ros = null;
-            console.log('Disconnected.');
-        } else {
-            console.log('No active ROS connection to disconnect.');
+            this._connection.close();
         }
     }
 
@@ -331,12 +281,12 @@ export class BobRosService {
                         this._store.dispatch(MainActions.Notification({
                             notification: { type: NotificationType.Information, message: "Detection Mask enabled successfully" }}));
                     } else {
-                        console.log("Privacy Mask disabled successfully");
+                        console.log("Detection Mask disabled successfully");
                         this._store.dispatch(MainActions.Notification({
                             notification: { type: NotificationType.Information, message: "Detection Mask disabled successfully" }}));
                     }
                 } else {
-                    console.error("Failed to send mask override:", result.message);
+                    console.error("Failed to send detection mask override:", result.message);
                     this._store.dispatch(MainActions.Notification({
                         notification: { type: NotificationType.Error, message: "Failed to enabled/disabled Detection Mask:" + result.message }}));                
                 }
@@ -367,6 +317,8 @@ export class BobRosService {
                     console.log(`Mask ${maskFilename} deleted successfully!`);
                     this._store.dispatch(MainActions.Notification({
                         notification: { type: NotificationType.Information, message: `Mask ${maskFilename} deleted successfully. It can take up to 5 seconds for your changes to take affect.` }}));
+
+                        this._store.dispatch(VisionActions.clearMaskSvg());
                 } else {
                     console.error(`Failed to delete mask ${maskFilename}:`, result.message);
                     this._store.dispatch(MainActions.Notification({                        
@@ -400,6 +352,8 @@ export class BobRosService {
                     console.log(`Mask ${maskFilename} saved successfully`);
                     this._store.dispatch(MainActions.Notification({
                         notification: { type: NotificationType.Information, message: `Mask ${maskFilename} successfully saved to server. It can take up to 5 seconds for your new mask to be applied.` }}));
+
+                    this._store.dispatch(VisionActions.setMaskSvg({ mask: svgContent }));
                 } else {
                     console.error(`Failed to save mask ${maskFilename}:`, result.message);
                     this._store.dispatch(MainActions.Notification({
@@ -486,7 +440,7 @@ export class BobRosService {
 
     private subscribeTopic<T>(topic: string, messageType: string, callback: (n: T) => any): ROSLIB.Topic {
         let listener: ROSLIB.Topic = new ROSLIB.Topic({
-            ros: this._ros,
+            ros: this._connection.Ros,
             name: topic,
             messageType: messageType,
         });

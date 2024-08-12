@@ -1,6 +1,8 @@
 import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, Input, Output, EventEmitter, ViewChild, ElementRef, AfterViewInit, Renderer2 } from '@angular/core';
 import { Subject, Observable } from 'rxjs';
 
+import { takeUntil } from 'rxjs/operators';
+
 import { Point } from '../../models';
 
 @Component({
@@ -14,7 +16,7 @@ export class MaskCreationComponent implements OnInit, OnDestroy, AfterViewInit {
   protected _ngUnsubscribe$: Subject<void> = new Subject<void>();
   
   @Input() ImageStream$: Observable<string>;
-  @Input() EditMode: boolean = false;
+  @Input() EditMode$: Observable<boolean>;
 
   @Output() ConvasDimentionsChanged = new EventEmitter();
 
@@ -27,12 +29,20 @@ export class MaskCreationComponent implements OnInit, OnDestroy, AfterViewInit {
   protected _drawing: boolean = false;
   protected _polygons: Point[][] = [];
   protected _offset: number = 0;
+  protected _editMode: boolean = false;
 
   constructor(protected renderer: Renderer2) {
 
   }
 
   ngOnInit(): void {
+    this.EditMode$
+    .pipe(
+      takeUntil(this._ngUnsubscribe$)
+    )
+    .subscribe((editMode: boolean) => {
+      this._editMode = editMode;
+    });        
   }
 
   ngAfterViewInit(): void {
@@ -78,24 +88,20 @@ export class MaskCreationComponent implements OnInit, OnDestroy, AfterViewInit {
   } 
 
   redrawCanvas() {
-    //console.log('redrawCanvas');
     this._maskCanvasCtx.clearRect(0, 0, this.maskCanvas.nativeElement.width, this.maskCanvas.nativeElement.height);
     this._polygons.forEach((polygon, index) => {
         const isCurrentPolygon = index === this._polygons.length - 1;
-        this.drawPolygon(polygon, this.EditMode && isCurrentPolygon ? 'rgba(0, 0, 0, 0.1)' : 'rgba(0, 0, 0, 1)', this.EditMode && isCurrentPolygon);
+        this.drawPolygon(polygon, this._editMode && isCurrentPolygon ? 'rgba(0, 0, 0, 0.1)' : 'rgba(0, 0, 0, 1)', this._editMode && isCurrentPolygon);
     });
-    //console.log(this.polygons);
   }
 
   clearMask() {
-    //console.log("clearMask");
     this._maskCanvasCtx.clearRect(0, 0, this.maskCanvas.nativeElement.width, this.maskCanvas.nativeElement.height);
     this._polygons = [];
     this._polygons.push([]);
   }
 
   handleResize(resize: ResizeObserverEntry) {
-    //console.log('onResize', resize);
     if (this.haveDimensionsChanged()) {
       this.ConvasDimentionsChanged.emit();
       this.updateSize('onResize');
@@ -103,7 +109,6 @@ export class MaskCreationComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   protected drawPolygon(polygon, fillStyle, drawBorder) {
-    //console.log("drawPolygon");
     if (polygon.length === 0 || !polygon[0]) return;
     this._maskCanvasCtx.beginPath();
     this._maskCanvasCtx.moveTo(polygon[0].x, polygon[0].y);
@@ -120,11 +125,9 @@ export class MaskCreationComponent implements OnInit, OnDestroy, AfterViewInit {
       this._maskCanvasCtx.setLineDash([]);
       this._maskCanvasCtx.lineDashOffset = 0;
     }
-    //console.log(this.polygon);
   }
 
   protected updateCanvasDimensions() {
-    //console.log('updateCanvasDimensions');
     this.maskCanvas.nativeElement.width = this.streamContainer.nativeElement.clientWidth;
     this.maskCanvas.nativeElement.height = this.streamContainer.nativeElement.clientHeight;
   }
@@ -138,8 +141,7 @@ export class MaskCreationComponent implements OnInit, OnDestroy, AfterViewInit {
 
   private initCanvas(): void {
     this.maskCanvas.nativeElement.addEventListener('mousedown', (e) => {
-      //console.log('maskCanvas.mousedown');
-      if (!this.EditMode || e.button === 2) return;
+      if (!this._editMode || e.button === 2) return;
       if (e.detail > 1) {
         const currentPolygon = this._polygons[this._polygons.length - 1];
         if (currentPolygon.length > 2) {
@@ -152,9 +154,7 @@ export class MaskCreationComponent implements OnInit, OnDestroy, AfterViewInit {
       const rect = this.maskCanvas.nativeElement.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
-      //console.log(this.polygons.length);
       const currentPolygon = this._polygons[this._polygons.length - 1];
-      //console.log(currentPolygon);
       if (currentPolygon.length > 0) {
           const firstNode = currentPolygon[0];
           const distance = Math.sqrt(Math.pow(x - firstNode.x, 2) + Math.pow(y - firstNode.y, 2));
@@ -171,15 +171,14 @@ export class MaskCreationComponent implements OnInit, OnDestroy, AfterViewInit {
     });
 
     this.maskCanvas.nativeElement.addEventListener('mousemove', (e) => {
-      //console.log('maskCanvas.mousemove');
-      if (!this._drawing || !this.EditMode) return;
+      if (!this._drawing || !this._editMode) return;
       const rect = this.maskCanvas.nativeElement.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       const currentPolygon = this._polygons[this._polygons.length - 1];
       currentPolygon.push({ x, y });
       this.redrawCanvas();
-      if (this.EditMode) {
+      if (this._editMode) {
           this.drawPolygon(currentPolygon, 'rgba(0, 0, 0, 0.1)', true);
       }
       currentPolygon.pop();
@@ -188,28 +187,19 @@ export class MaskCreationComponent implements OnInit, OnDestroy, AfterViewInit {
 
   private updateSize(triggeredBy: string) {    
     if (!this.imageSubscription) return;
-    //const height = this.imageSubscription.nativeElement.clientHeight;
-    //const width = this.imageSubscription.nativeElement.clientWidth;
-    //console.log(`updateSize --> h:${height} x w:${width} triggeredBy: ${triggeredBy}`);
     this.updateDimensions()
   }
   
   private updateDimensions() {
-    //private updateDimensions(height: number, width: number) {
     if (this.haveDimensionsChanged()) {
       let height = this.imageSubscription.nativeElement.offsetHeight;    
       let width = this.imageSubscription.nativeElement.offsetWidth;
-      //console.log(`updateDimensions --> h:${height} x w:${width}`);
       this.renderer.setStyle(this.streamContainer.nativeElement, 'height', `${height}px`);
       this.renderer.setStyle(this.streamContainer.nativeElement, 'width', `${width}px`);
-      //this.streamContainer.style.height = `${height}px`;
-      //this.streamContainer.style.width = `${width}px`;
       this.streamContainer.nativeElement.height = height * devicePixelRatio;
       this.streamContainer.nativeElement.width = width * devicePixelRatio;
       this.renderer.setStyle(this.maskCanvas.nativeElement, 'height', `${height}px`);
       this.renderer.setStyle(this.maskCanvas.nativeElement, 'width', `${width}px`);
-      //this.maskCanvas.style.height = `${height}px`;
-      //this.maskCanvas.style.width = `${width}px`;
       this.maskCanvas.nativeElement.width = this.maskCanvas.nativeElement.clientWidth * devicePixelRatio;
       this.maskCanvas.nativeElement.height = this.maskCanvas.nativeElement.clientHeight * devicePixelRatio;
       this._maskCanvasCtx.scale(devicePixelRatio, devicePixelRatio);

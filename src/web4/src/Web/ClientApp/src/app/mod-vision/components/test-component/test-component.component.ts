@@ -53,6 +53,7 @@ export class TestComponentComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
 
     this.route.params.pipe(
+      takeUntil(this._ngUnsubscribe$),
       map(params => params.type),
       distinctUntilChanged(),
     ).subscribe(changedParam => {
@@ -61,7 +62,10 @@ export class TestComponentComponent implements OnInit, OnDestroy {
     });    
 
     this.rosSvc.connected
-    .pipe(distinctUntilChanged())
+    .pipe(
+      takeUntil(this._ngUnsubscribe$),
+      distinctUntilChanged()
+    )
     .subscribe((connected: boolean) => {
       console.log(`Connection status to ROS Bridge: ${connected}`);
       if (connected) {
@@ -114,6 +118,7 @@ export class TestComponentComponent implements OnInit, OnDestroy {
         this._displayAppState = false;
         break;
       case 'detectionmask':
+        this.rosSvc.svcGetMask('detection-mask.svg');
         this._imageStream$ = this.rosSvc.subVideoStream(ImageStreamType.DetectionMask);
         this.store.dispatch(VisionActions.setHeading({ heading: 'Detection Mask Image Stream' }));
         this._displayPrivacyMaskControls = false;
@@ -179,15 +184,12 @@ export class TestComponentComponent implements OnInit, OnDestroy {
 
   OnDMEdit(): void {
     this.rosSvc.svcDetectionMaskOverride(false);
-    this.detectionmaskcreator.backupPolygons();
     this.detectionmaskcreator.clearMask();
   }
 
   OnDMCancel(): void {
-    this.detectionmaskcreator.restorePolygons();
-    this.detectionmaskcreator.parseSVG();
-    this.detectionmaskcreator.redrawCanvas();
-    this.rosSvc.svcPrivacyMaskOverride(true);
+    this.detectionmaskcreator.cancel();
+    this.rosSvc.svcDetectionMaskOverride(true);
   }
 
   OnDMDelete(): void {
@@ -213,7 +215,7 @@ export class TestComponentComponent implements OnInit, OnDestroy {
     const svgContent = this.detectionmaskcreator.getMaskAsSVG(true);
     this.rosSvc.svcSaveMask(svgContent, 'detection-mask.svg');
     this.detectionmaskcreator.clearMask();
-    this.rosSvc.svcPrivacyMaskOverride(true);
+    this.rosSvc.svcDetectionMaskOverride(true);
   }
 
   OnDMClear(): void {
@@ -222,9 +224,5 @@ export class TestComponentComponent implements OnInit, OnDestroy {
 
   OnEditModeChanged(editMode: boolean): void {
     this.store.dispatch(VisionActions.setMaskEditMode({ enabled: editMode }));
-  }
-
-  OnDMConvasDimentionsChanged() : void {
-    this.rosSvc.svcGetMask('detection-mask.svg');
   }
 }
