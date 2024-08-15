@@ -140,14 +140,16 @@ namespace boblib::blobs
             m_initialized = true;
         }
 
+        cv::Mat labels;
         int numLabels{0};
         // Use connected component analysis to find the blobs in the image
-        if (false && _image.get_using_cuda())
+        if (_image.get_using_cuda())
         {
             double maxVal;
-            cv::cuda::connectedComponents(_image.toCudaMat(), m_gpu_labels, 8, CV_32S);
-            cv::cuda::minMax(m_gpu_labels, NULL, &maxVal);
-            m_gpu_labels.download(m_labels);
+            cv::cuda::GpuMat gpu_labels;
+            cv::cuda::connectedComponents(_image.toCudaMat(), gpu_labels, 8, CV_32S);
+            cv::cuda::minMax(gpu_labels, NULL, &maxVal);
+            gpu_labels.download(labels);
             numLabels = static_cast<int>(maxVal);
         }
         else
@@ -155,7 +157,7 @@ namespace boblib::blobs
             // CCL_SAUF      = 0, //!< SAUF @cite Wu2009 algorithm for 8-way connectivity, SAUF algorithm for 4-way connectivity. The parallel implementation described in @cite Bolelli2017 is available for SAUF.
             // CCL_BBDT      = 1, //!< BBDT @cite Grana2010 algorithm for 8-way connectivity, SAUF algorithm for 4-way connectivity. The parallel implementation described in @cite Bolelli2017 is available for both BBDT and SAUF.
             // CCL_SPAGHETTI = 2, //!< Spaghetti @cite Bolelli2019 algorithm for 8-way connectivity, Spaghetti4C @cite Bolelli2021 algorithm for 4-way connectivity. The parallel implementation described in @cite Bolelli2017 is available for both Spaghetti and Spaghetti4C.
-            numLabels = cv::connectedComponents(_image.download(), m_labels, 8, CV_32S, cv::CCL_SPAGHETTI) - 1; // subtract 1 because the background is considered as label 0
+            numLabels = cv::connectedComponents(_image.toMat(), labels, 8, CV_32S, cv::CCL_SPAGHETTI) - 1; // subtract 1 because the background is considered as label 0
         }
 
         if (numLabels > 0 && numLabels <= m_params.max_blobs)
@@ -175,8 +177,8 @@ namespace boblib::blobs
                         m_bboxes_parallel[np][j].width = m_bboxes_parallel[np][j].height = INT_MIN;
                     }
                     // Spliting the image into chuncks and processing
-                    const cv::Mat imgSplit(m_img_sizes_parallel[np]->height, m_img_sizes_parallel[np]->width, m_labels.type(),
-                                           m_labels.data + (m_img_sizes_parallel[np]->original_pixel_pos * m_img_sizes_parallel[np]->num_channels));
+                    const cv::Mat imgSplit(m_img_sizes_parallel[np]->height, m_img_sizes_parallel[np]->width, labels.type(),
+                                           labels.data + (m_img_sizes_parallel[np]->original_pixel_pos * m_img_sizes_parallel[np]->num_channels));
                     apply_detect_bboxes(imgSplit, m_bboxes_parallel[np]);
                 });
 

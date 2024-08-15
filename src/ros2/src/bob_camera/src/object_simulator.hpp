@@ -133,7 +133,7 @@ public:
         {
             initialize(img);
         }
-        auto & img_mat = img.download();
+        auto & img_mat = img.toMat();
         for (auto& circle : moving_circles_) 
         {
             circle.move();

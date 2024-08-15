@@ -292,7 +292,7 @@ private:
             bgs_img.resizeTo(resized_img, cv::Size(frame_width, params_.get_resize_height()));
         }
 
-        auto resized_frame_msg = cv_bridge::CvImage(bgs_msg.header, bgs_msg.encoding, resized_img.download()).toImageMsg();
+        auto resized_frame_msg = cv_bridge::CvImage(bgs_msg.header, bgs_msg.encoding, resized_img.toMat()).toImageMsg();
         params_.get_image_resized_publisher()->publish(*resized_frame_msg);            
     }
 

@@ -68,8 +68,6 @@ namespace boblib::blobs
         ConnectedBlobDetectionParams m_params;
         size_t m_num_processes_parallel;
         bool m_initialized;
-        cv::cuda::GpuMat m_gpu_labels;
-        cv::Mat m_labels;
         std::vector<size_t> m_process_seq;
         std::vector<std::unique_ptr<ImgSize>> m_img_sizes_parallel;
         std::vector<std::vector<cv::Rect>> m_bboxes_parallel;

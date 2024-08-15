@@ -10,7 +10,6 @@
 	"remoteUser": "ros",
 	// The first 4 args are to enable cuda for this container, if you don't have cuda, comment them out
 	"runArgs": [
-		// "--runtime=nvidia",
 		"--gpus",
 		"all",
 		"-e NVIDIA_DRIVER_CAPABILITIES=all",

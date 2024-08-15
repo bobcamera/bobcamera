@@ -1,4 +1,3 @@
-
 #include "VideoReader.hpp"
 
 using namespace boblib::video;
@@ -42,7 +41,7 @@ bool VideoReader::read(boblib::base::Image & image)
 {
     if (using_cuda_)
     {
-        if (!cuda_video_reader_ptr_->nextFrame(image.upload())) 
+        if (!cuda_video_reader_ptr_->nextFrame(image.toCudaMat())) 
         {
             return false;
         }

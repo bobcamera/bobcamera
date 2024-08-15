@@ -65,9 +65,9 @@ namespace boblib::base
 
         bool get_using_cuda() const;
 
-        cv::Mat & download();
+        void download();
 
-        cv::cuda::GpuMat & upload();
+        void upload();
 
         const cv::Mat & toMat() const;
 

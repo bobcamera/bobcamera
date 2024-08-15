@@ -35,11 +35,11 @@ namespace boblib::bgs
 
         if (m_num_processes_parallel == 1)
         {
-            process(image_mat, _fgmask.download(), _detectMask.toMat(), 0);
+            process(image_mat, _fgmask.toMat(), _detectMask.toMat(), 0);
         }
         else
         {
-            apply_parallel(image_mat, _fgmask.download(), _detectMask.toMat());
+            apply_parallel(image_mat, _fgmask.toMat(), _detectMask.toMat());
         }
         _fgmask.upload();
     }

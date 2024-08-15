@@ -9,7 +9,7 @@ using namespace boblib::base;
 Image::Image(bool use_cuda)
 : using_cuda_(use_cuda ? cv::cuda::getCudaEnabledDeviceCount() : false)
 {
-    if (use_cuda)
+    if (using_cuda_)
     {
         gpu_mat_ptr_ = std::make_unique<cv::cuda::GpuMat>();
     }
@@ -378,22 +378,18 @@ cv::cuda::GpuMat & Image::toCudaMat()
     return *gpu_mat_ptr_;
 }
 
-cv::Mat & Image::download()
+void Image::download()
 {
     if (using_cuda_)
     {
         gpu_mat_ptr_->download(*mat_ptr_);
     }
-
-    return *mat_ptr_;
 }
 
-cv::cuda::GpuMat & Image::upload()
+void Image::upload()
 {
     if (using_cuda_)
     {
         gpu_mat_ptr_->upload(*mat_ptr_);
     }
-
-    return *gpu_mat_ptr_;
 }
