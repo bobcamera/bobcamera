@@ -145,7 +145,7 @@ namespace boblib::blobs
         if (false && _image.get_using_cuda())
         {
             double maxVal;
-            cv::cuda::connectedComponents(_image.get_cuda_mat(), m_gpu_labels, 8, CV_32S);
+            cv::cuda::connectedComponents(_image.toCudaMat(), m_gpu_labels, 8, CV_32S);
             cv::cuda::minMax(m_gpu_labels, NULL, &maxVal);
             m_gpu_labels.download(m_labels);
             numLabels = static_cast<int>(maxVal);

@@ -42,7 +42,7 @@ bool VideoReader::read(boblib::base::Image & image)
 {
     if (using_cuda_)
     {
-        if (!cuda_video_reader_ptr_->nextFrame(image.get_cuda_mat())) 
+        if (!cuda_video_reader_ptr_->nextFrame(image.upload())) 
         {
             return false;
         }
@@ -53,7 +53,7 @@ bool VideoReader::read(boblib::base::Image & image)
         return true;
     }
 
-    auto success = video_capture_ptr_->read(image.get_mat());
+    auto success = video_capture_ptr_->read(image.toMat());
     if (success)
     {
         image.upload();

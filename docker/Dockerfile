@@ -100,7 +100,7 @@ RUN mkdir -p /opt/ros2_ws/src && cd /opt/ros2_ws/src \
    && cd /opt/ros2_ws \
    && colcon build"
 
-# docker build --progress=plain --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-build:1.2.7 -t bobcamera/bob-ros2-build:latest --target bob-ros2-build
+# docker build --progress=plain --platform linux/amd64 -f ./docker/Dockerfile . -t bobcamera/bob-ros2-build:1.5.8 -t bobcamera/bob-ros2-build:latest --target bob-ros2-build
 # docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY bobcamera/bob-ros2-build:1.2.7 bash
 ###############################################################
 # MWG: This docker stage is used to build the ros2 application
@@ -110,7 +110,7 @@ COPY src/ros2 /workspaces/bobcamera/src/ros2
 COPY src/boblib /workspaces/bobcamera/src/boblib
 WORKDIR /workspaces/bobcamera/src/ros2
 RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash \
-    # && source /opt/ros2_ws/install/setup.bash \
+    && source /opt/ros2_ws/install/setup.bash \
     && mkdir -p cd ../boblib/build \
     && cd ../boblib/build \
     && cmake -DCMAKE_INSTALL_PREFIX=/usr/local .. \
@@ -123,7 +123,8 @@ RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash \
 # docker build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-prod:1.2.7 -t bobcamera/bob-ros2-prod:latest --target bob-ros2-prod
 # docker buildx build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-prod:1.2.7 -t bobcamera/bob-ros2-prod:latest --target bob-ros2-prod
 # docker buildx build --progress=plain --push --platform linux/amd64,linux/arm64 -f Dockerfile . -t bobcamera/bob-ros2-prod:1.2.7 -t bobcamera/bob-ros2-prod:latest --target bob-ros2-prod
-# docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY -v ~/Source/bobcamera/bobcamera/assets:/workspaces/bobcamera/src/ros2/assets/ bobcamera/bob-ros2-prod:1.2.3 bash
+# docker buildx build --progress=plain --platform linux/amd64 -f ./docker/Dockerfile . -t bobcamera/bob-ros2-prod:1.5.8 -t bobcamera/bob-ros2-prod:latest --target bob-ros2-prod
+# docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY -v .:/workspaces/bobcamera/src/ros2/assets/ bobcamera/bob-ros2-prod:1.5.8 bash
 
 ###################################################################################
 # MWG: This docker stage is used to construct the image with the build artifacts 
@@ -138,18 +139,37 @@ ARG USERNAME=ros
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 # Copy the compiled libs
-COPY --from=opencv /usr/local/lib/libopencv_*.so /usr/local/lib
-COPY --from=bob-ros2-build /usr/local/lib/libboblib.a /usr/local/lib
-COPY --from=bob-ros2-build /usr/local/lib/python3.12/dist-packages/ /usr/local/lib/python3.12/dist-packages/
-COPY --from=opencv /usr/lib/python3 /usr/lib/python3
-COPY --from=opencv /usr/local/lib/libopencv_*.so /usr/local/lib
-COPY --from=opencv /usr/lib/x86_64-linux-gnu/libOpenCL* /usr/lib/x86_64-linux-gnu
+COPY --from=bob-ros2-build /usr/local/lib /usr/local/lib
+COPY --from=bob-ros2-build /usr/lib/python3 /usr/lib/python3
+COPY --from=bob-ros2-build /usr/lib/x86_64-linux-gnu/libOpenCL* /usr/lib/x86_64-linux-gnu
 COPY --from=qhy /opt/sdk_qhy /opt/sdk_qhy/
-COPY media/fisheye_videos /workspaces/bobcamera/media/fisheye_videos
+#COPY media/fisheye_videos /workspaces/bobcamera/media/fisheye_videos
 COPY --from=bob-ros2-build /workspaces/bobcamera/src/ros2/install /workspaces/bobcamera/src/ros2/install
 COPY --from=bob-ros2-build /workspaces/bobcamera/src/ros2/config /workspaces/bobcamera/src/ros2/config
 COPY --from=bob-ros2-build /workspaces/bobcamera/src/ros2/launch* /workspaces/bobcamera/src/ros2/
 COPY --from=bob-ros2-build /opt/ros2_ws/install/ /opt/ros2_ws/install/
+COPY --from=bob-ros2-build /usr/local/cuda/targets/x86_64-linux/lib/stubs/* /usr/local/cuda/targets/x86_64-linux/lib/
+COPY --from=bob-ros2-build /usr/lib/wsl/lib/libcuda.so /usr/local/cuda/targets/x86_64-linux/lib/
+COPY --from=bob-ros2-build /usr/lib/wsl/lib/libnvcuvid.so /usr/local/cuda/targets/x86_64-linux/lib/
+COPY --from=bob-ros2-build /usr/lib/wsl/lib/libnvidia-encode.so /usr/local/cuda/targets/x86_64-linux/lib/
+COPY --from=bob-ros2-build /usr/lib/wsl/lib/libdxcore.so /usr/local/cuda/targets/x86_64-linux/lib/
+
+RUN export LD_LIBRARY_PATH=/usr/local/cuda/targets/x86_64-linux/lib/:$LD_LIBRARY_PATH \
+    && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppc.so /usr/local/cuda/targets/x86_64-linux/lib/libnppc.so.12 \
+    && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppicc.so /usr/local/cuda/targets/x86_64-linux/lib/libnppicc.so.12 \
+    && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libcuda.so /usr/local/cuda/targets/x86_64-linux/lib/libcuda.so.1 \
+    && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnvcuvid.so /usr/local/cuda/targets/x86_64-linux/lib/libnvcuvid.so.1 \
+    && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnvidia-encode.so /usr/local/cuda/targets/x86_64-linux/lib/libnvidia-encode.so.1 \
+    && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppig.so /usr/local/cuda/targets/x86_64-linux/lib/libnppig.so.12 \
+    && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppial.so /usr/local/cuda/targets/x86_64-linux/lib/libnppial.so.12 \
+    && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppidei.so /usr/local/cuda/targets/x86_64-linux/lib/libnppidei.so.12 \
+    && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppist.so /usr/local/cuda/targets/x86_64-linux/lib/libnppist.so.12 \
+    && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppitc.so /usr/local/cuda/targets/x86_64-linux/lib/libnppitc.so.12 \
+    && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppif.so /usr/local/cuda/targets/x86_64-linux/lib/libnppif.so.12 \
+    && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libcublas.so /usr/local/cuda/targets/x86_64-linux/lib/libcublas.so.12 \
+    && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libcufft.so /usr/local/cuda/targets/x86_64-linux/lib/libcufft.so.11 \
+    && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppim.so /usr/local/cuda/targets/x86_64-linux/lib/libnppim.so.12
+
 # install dependencies
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     libtbb12 libqt5opengl5 libqt5test5 libdc1394-25 libjsoncpp-dev pip \
@@ -184,6 +204,8 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     && useradd -s /bin/bash --uid ${USER_UID} --gid ${USER_GID} -m ${USERNAME} \
     && echo ${USERNAME} ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/${USERNAME} \
     && chmod 0440 /etc/sudoers.d/${USERNAME} \
+    && echo 'export PKG_CONFIG_PATH=\$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig' >> /home/${USERNAME}/.bashrc \
+    && echo "export LD_LIBRARY_PATH=/usr/local/cuda/targets/x86_64-linux/lib/:\$LD_LIBRARY_PATH" >> /home/${USERNAME}/.bashrc \
     && echo "export DISPLAY=:0" >> /home/${USERNAME}/.bashrc \
     && echo "source /opt/ros/${ROS_DISTRO}/setup.sh" >> /home/${USERNAME}/.bashrc
 WORKDIR /workspaces/bobcamera/src/ros2

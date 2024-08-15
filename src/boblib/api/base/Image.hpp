@@ -15,6 +15,8 @@ namespace boblib::base
     public:
         Image(bool use_cuda = true);
 
+        Image(const Image & img);
+
         ~Image();
 
         int channels() const;
@@ -63,14 +65,6 @@ namespace boblib::base
 
         bool get_using_cuda() const;
 
-        cv::cuda::GpuMat & get_cuda_mat();
-
-        cv::Mat & get_mat();
-
-        const cv::cuda::GpuMat & get_cuda_mat() const;
-
-        const cv::Mat & get_mat() const;
-
         cv::Mat & download();
 
         cv::cuda::GpuMat & upload();
@@ -79,13 +73,17 @@ namespace boblib::base
 
         const cv::cuda::GpuMat & toCudaMat() const;
 
+        cv::Mat & toMat();
+
+        cv::cuda::GpuMat & toCudaMat();
+
     private:
         void mask(cv::Mat & mask);
         void mask_cuda(cv::cuda::GpuMat & mask_);
 
         bool using_cuda_;
-        mutable cv::cuda::GpuMat gpu_mat_;
-        mutable cv::Mat mat_;
+        mutable std::unique_ptr<cv::cuda::GpuMat> gpu_mat_ptr_;
+        mutable std::unique_ptr<cv::Mat> mat_ptr_;
 
         cv::Ptr<cv::cuda::Filter> box_filter_;
         int box_filter_size_{-1};

@@ -9,17 +9,31 @@ using namespace boblib::base;
 Image::Image(bool use_cuda)
 : using_cuda_(use_cuda ? cv::cuda::getCudaEnabledDeviceCount() : false)
 {
+    if (use_cuda)
+    {
+        gpu_mat_ptr_ = std::make_unique<cv::cuda::GpuMat>();
+    }
+    mat_ptr_ = std::make_unique<cv::Mat>();
+}
+
+Image::Image(const Image & img)
+: Image(img.using_cuda_)
+{
+    img.copyTo(*this);
 }
 
 Image::~Image()
 {
-    gpu_mat_.release();
-    mat_.release();
+    if (using_cuda_)
+    {
+        gpu_mat_ptr_->release();
+    }
+    mat_ptr_->release();
 }
 
 int Image::channels() const
 {
-    return using_cuda_ ? gpu_mat_.channels() : mat_.channels();
+    return using_cuda_ ? gpu_mat_ptr_->channels() : mat_ptr_->channels();
 }
 
 Image Image::clone() const
@@ -27,11 +41,11 @@ Image Image::clone() const
     Image copy(using_cuda_);
     if (using_cuda_)
     {
-        gpu_mat_.copyTo(copy.gpu_mat_);
+        gpu_mat_ptr_->copyTo(*copy.gpu_mat_ptr_);
     }
     else
     {
-        mat_.copyTo(copy.mat_);
+        mat_ptr_->copyTo(*copy.mat_ptr_);
     }
     return copy;
 }
@@ -40,149 +54,187 @@ void Image::create(int rows, int cols, int type)
 {
     if (using_cuda_)
     {
-        gpu_mat_.release();
-        gpu_mat_.create(rows, cols, type);
+        gpu_mat_ptr_->release();
+        gpu_mat_ptr_->create(rows, cols, type);
         return;
     }
-    mat_.release();
-    mat_.create(rows, cols, type);
+    mat_ptr_->release();
+    mat_ptr_->create(rows, cols, type);
 }
 
 void Image::create(cv::Size size, int type)
 {
     if (using_cuda_)
     {
-        gpu_mat_.release();
-        gpu_mat_.create(size, type);
+        gpu_mat_ptr_->release();
+        gpu_mat_ptr_->create(size, type);
         return;
     }
-    mat_.release();
-    mat_.create(size, type);
+    mat_ptr_->release();
+    mat_ptr_->create(size, type);
 }
 
 void Image::create(const cv::Mat & image)
 {
     if (using_cuda_)
     {
-        gpu_mat_.upload(image);
+        gpu_mat_ptr_->upload(image);
         return;
     }
 
-    mat_ = image.clone();
+    *mat_ptr_ = image.clone();
 }
 
 size_t Image::elemSize() const
 {
-    return using_cuda_ ? gpu_mat_.elemSize() : mat_.elemSize();
+    return using_cuda_ ? gpu_mat_ptr_->elemSize() : mat_ptr_->elemSize();
 }
 
 size_t Image::elemSize1() const
 {
-    return using_cuda_ ? gpu_mat_.elemSize1() : mat_.elemSize1();
+    return using_cuda_ ? gpu_mat_ptr_->elemSize1() : mat_ptr_->elemSize1();
 }
 
 bool Image::empty() const
 {
-    return using_cuda_ ? gpu_mat_.empty() : mat_.empty();
+    return using_cuda_ ? gpu_mat_ptr_->empty() : mat_ptr_->empty();
 }
 
 void Image::release()
 {
-    gpu_mat_.release();
-    mat_.release();
+    if (using_cuda_)
+    {
+        gpu_mat_ptr_->release();
+    }
+    mat_ptr_->release();
 }
 
 cv::Size Image::size() const
 {
-    return using_cuda_ ? gpu_mat_.size() : mat_.size();
+    return using_cuda_ ? gpu_mat_ptr_->size() : mat_ptr_->size();
 }
 
 size_t Image::step1() const
 {
-    return using_cuda_ ? gpu_mat_.step1() : mat_.step1();
+    return using_cuda_ ? gpu_mat_ptr_->step1() : mat_ptr_->step1();
 }
 
 size_t Image::total() const
 {
-    return using_cuda_ ? gpu_mat_.size().area() : mat_.total();
+    return using_cuda_ ? gpu_mat_ptr_->size().area() : mat_ptr_->total();
 }
 
 int Image::type() const
 {
-    return using_cuda_ ? gpu_mat_.type() : mat_.type();
+    return using_cuda_ ? gpu_mat_ptr_->type() : mat_ptr_->type();
 }
 
 void Image::apply_mask(Image & _mask)
 {
     if (using_cuda_)
     {
-        mask_cuda(_mask.gpu_mat_);
+        mask_cuda(*_mask.gpu_mat_ptr_);
         return;
     }
 
-    mask(_mask.mat_);
+    mask(*_mask.mat_ptr_);
 }
 
 uint8_t* Image::data() const
 {
     if (using_cuda_)
     {
-        gpu_mat_.download(mat_);
+        gpu_mat_ptr_->download(*mat_ptr_);
     }
 
-    return mat_.data;
+    return mat_ptr_->data;
 }
 
 void Image::copyTo(Image & copy) const
 {
-    copy.using_cuda_ = using_cuda_;
     if (using_cuda_)
     {
-        gpu_mat_.copyTo(copy.gpu_mat_);
+        if (copy.using_cuda_)
+        {
+            gpu_mat_ptr_->copyTo(*copy.gpu_mat_ptr_);
+            return;
+        }
+
+        gpu_mat_ptr_->download(*mat_ptr_);
+        mat_ptr_->copyTo(*copy.mat_ptr_);
+        return;
     }
-    else
+    
+    if (copy.using_cuda_)
     {
-        mat_.copyTo(copy.mat_);
+        copy.gpu_mat_ptr_->upload(*mat_ptr_);
+        return;
     }
+
+    mat_ptr_->copyTo(*copy.mat_ptr_);
 }
 
 void Image::resizeTo(Image & resized, const cv::Size & size) const
 {
-    resized.using_cuda_ = using_cuda_;
     if (using_cuda_)
     {
-        cv::cuda::resize(gpu_mat_, resized.gpu_mat_, size);
+        if (resized.using_cuda_)
+        {
+            cv::cuda::resize(*gpu_mat_ptr_, *resized.gpu_mat_ptr_, size);
+            return;
+        }
+
+        gpu_mat_ptr_->download(*mat_ptr_);
+        cv::resize(*mat_ptr_, *resized.mat_ptr_, size);
+        return;
     }
-    else
+    
+    if (resized.using_cuda_)
     {
-        cv::resize(mat_, resized.mat_, size);
+        cv::resize(*mat_ptr_, *resized.mat_ptr_, size);
+        resized.upload();
+        return;
     }
+
+    cv::resize(*mat_ptr_, *resized.mat_ptr_, size);
 }
 
 void Image::resize(const cv::Size & size)
 {
     if (using_cuda_)
     {
-        cv::cuda::resize(gpu_mat_, gpu_mat_, size);
+        cv::cuda::resize(*gpu_mat_ptr_, *gpu_mat_ptr_, size);
     }
     else
     {
-        cv::resize(mat_, mat_, size);
+        cv::resize(*mat_ptr_, *mat_ptr_, size);
     }
 }
 
 void Image::medianBlurTo(Image & blured, int size) const
 {
-    blured.using_cuda_ = using_cuda_;
     if (using_cuda_)
     {
-        cv::Ptr<cv::cuda::Filter> boxFilter = cv::cuda::createBoxFilter(gpu_mat_.type(), gpu_mat_.type(), cv::Size(size, size));
-        boxFilter->apply(gpu_mat_, blured.gpu_mat_);
+        if (blured.using_cuda_)
+        {
+            cv::Ptr<cv::cuda::Filter> boxFilter = cv::cuda::createBoxFilter(gpu_mat_ptr_->type(), gpu_mat_ptr_->type(), cv::Size(size, size));
+            boxFilter->apply(*gpu_mat_ptr_, *blured.gpu_mat_ptr_);
+            return;
+        }
+
+        gpu_mat_ptr_->download(*mat_ptr_);
+        cv::medianBlur(*mat_ptr_, *blured.mat_ptr_, size);
+        return;
     }
-    else
+
+    if (blured.using_cuda_)
     {
-        cv::medianBlur(mat_, blured.mat_, size);
+        cv::medianBlur(*mat_ptr_, *blured.mat_ptr_, size);
+        blured.upload();
+        return;
     }
+
+    cv::medianBlur(*mat_ptr_, *blured.mat_ptr_, size);
 }
 
 void Image::medianBlur(int size)
@@ -191,90 +243,94 @@ void Image::medianBlur(int size)
     {
         if (!box_filter_ || box_filter_size_ != size)
         {
-            box_filter_ = cv::cuda::createBoxFilter(gpu_mat_.type(), gpu_mat_.type(), cv::Size(size, size));
+            box_filter_ = cv::cuda::createBoxFilter(gpu_mat_ptr_->type(), gpu_mat_ptr_->type(), cv::Size(size, size));
             box_filter_size_ = size;
         }
-        box_filter_->apply(gpu_mat_, gpu_mat_);
+        box_filter_->apply(*gpu_mat_ptr_, *gpu_mat_ptr_);
     }
     else
     {
-        cv::medianBlur(mat_, mat_, size);
+        cv::medianBlur(*mat_ptr_, *mat_ptr_, size);
     }
 }
 
 void Image::convertTo(Image & converted, int type) const
 {
-    converted.using_cuda_ = using_cuda_;
+    if (gpu_mat_ptr_->type() == type)
+    {
+        copyTo(converted);
+        return;
+    }
+
     if (using_cuda_)    
     {
-        if (gpu_mat_.type() != type)
+        if (converted.using_cuda_)
         {
-            cv::cuda::cvtColor(gpu_mat_, converted.gpu_mat_, type);
+            cv::cuda::cvtColor(*gpu_mat_ptr_, *converted.gpu_mat_ptr_, type);
+            return;
         }
-        else
-        {
-            gpu_mat_.copyTo(converted.gpu_mat_);
-        }
+
+        gpu_mat_ptr_->download(*mat_ptr_);
+        cv::cvtColor(*mat_ptr_, *converted.mat_ptr_, type);
+        return;
     }
-    else
+
+    if (converted.using_cuda_)
     {
-        if (mat_.type() != type)
-        {
-            cv::cvtColor(mat_, converted.mat_, type);
-        }
-        else
-        {
-            mat_.copyTo(converted.mat_);
-        }
+        cv::cvtColor(*mat_ptr_, *converted.mat_ptr_, type);
+        converted.upload();
+        return;
     }
+
+    cv::cvtColor(*mat_ptr_, *converted.mat_ptr_, type);
 }
 
 void Image::convert(int type)
 {
     if (using_cuda_)    
     {
-        if (gpu_mat_.type() != type)
+        if (gpu_mat_ptr_->type() != type)
         {
-            cv::cuda::cvtColor(gpu_mat_, gpu_mat_, type);
+            cv::cuda::cvtColor(*gpu_mat_ptr_, *gpu_mat_ptr_, type);
         }
     }
     else
     {
-        if (mat_.type() != type)
+        if (mat_ptr_->type() != type)
         {
-            cv::cvtColor(mat_, mat_, type);
+            cv::cvtColor(*mat_ptr_, *mat_ptr_, type);
         }
     }
 }
 
 void Image::mask(cv::Mat & mask)
 {
-    if (mat_.size() != mask.size())
+    if (mat_ptr_->size() != mask.size())
     {
-        cv::resize(mask, mask, mat_.size());
+        cv::resize(mask, mask, mat_ptr_->size());
     }
 
-    if (mat_.channels() != mask.channels())
+    if (mat_ptr_->channels() != mask.channels())
     {
-        cv::cvtColor(mask, mask, mat_.channels() == 3 ? cv::COLOR_GRAY2BGR : cv::COLOR_BGR2GRAY);
+        cv::cvtColor(mask, mask, mat_ptr_->channels() == 3 ? cv::COLOR_GRAY2BGR : cv::COLOR_BGR2GRAY);
     }
 
-    cv::bitwise_and(mat_, mask, mat_);
+    cv::bitwise_and(*mat_ptr_, mask, *mat_ptr_);
 }
 
 void Image::mask_cuda(cv::cuda::GpuMat & mask)
 {
-    if (gpu_mat_.size() != mask.size())
+    if (gpu_mat_ptr_->size() != mask.size())
     {
-        cv::cuda::resize(mask, mask, gpu_mat_.size());
+        cv::cuda::resize(mask, mask, gpu_mat_ptr_->size());
     }
 
-    if (gpu_mat_.channels() != mask.channels())
+    if (gpu_mat_ptr_->channels() != mask.channels())
     {
-        cv::cuda::cvtColor(mask, mask, gpu_mat_.channels() == 3 ? cv::COLOR_GRAY2BGR : cv::COLOR_BGR2GRAY);
+        cv::cuda::cvtColor(mask, mask, gpu_mat_ptr_->channels() == 3 ? cv::COLOR_GRAY2BGR : cv::COLOR_BGR2GRAY);
     }
 
-    cv::cuda::bitwise_and(gpu_mat_, mask, gpu_mat_);
+    cv::cuda::bitwise_and(*gpu_mat_ptr_, mask, *gpu_mat_ptr_);
 }
 
 bool Image::get_using_cuda() const
@@ -282,62 +338,62 @@ bool Image::get_using_cuda() const
     return using_cuda_;
 }
 
-cv::cuda::GpuMat & Image::get_cuda_mat()
-{
-    return gpu_mat_;
-}
-
-cv::Mat & Image::get_mat()
-{
-    return mat_;
-}
-
-const cv::cuda::GpuMat & Image::get_cuda_mat() const
-{
-    return gpu_mat_;
-}
-
-const cv::Mat & Image::get_mat() const
-{
-    return mat_;
-}
-
 const cv::Mat & Image::toMat() const
 {
     if (using_cuda_)
     {
-        gpu_mat_.download(mat_);
+        gpu_mat_ptr_->download(*mat_ptr_);
     }
 
-    return mat_;
+    return *mat_ptr_;
 }
 
 const cv::cuda::GpuMat & Image::toCudaMat() const
 {
-    if (using_cuda_)
+    if (!using_cuda_)
     {
-        gpu_mat_.upload(mat_);
+        gpu_mat_ptr_->upload(*mat_ptr_);
     }
 
-    return gpu_mat_;
+    return *gpu_mat_ptr_;
+}
+
+cv::Mat & Image::toMat()
+{
+    if (using_cuda_)
+    {
+        gpu_mat_ptr_->download(*mat_ptr_);
+    }
+
+    return *mat_ptr_;
+}
+
+cv::cuda::GpuMat & Image::toCudaMat()
+{
+    if (!using_cuda_)
+    {
+        gpu_mat_ptr_->upload(*mat_ptr_);
+    }
+
+    return *gpu_mat_ptr_;
 }
 
 cv::Mat & Image::download()
 {
     if (using_cuda_)
     {
-        gpu_mat_.download(mat_);
+        gpu_mat_ptr_->download(*mat_ptr_);
     }
 
-    return mat_;
+    return *mat_ptr_;
 }
 
 cv::cuda::GpuMat & Image::upload()
 {
     if (using_cuda_)
     {
-        gpu_mat_.upload(mat_);
+        gpu_mat_ptr_->upload(*mat_ptr_);
     }
 
-    return gpu_mat_;
+    return *gpu_mat_ptr_;
 }
