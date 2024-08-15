@@ -10,4 +10,4 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
 RUN apt-get install -y nodejs
 
 # install Angular cli
-RUN npm install -g @angular/cli@15.2.8
+RUN npm install -g @angular/cli@15.2.10

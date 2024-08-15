@@ -1,0 +1,73 @@
+@use '@angular/material' as mat;
+
+@mixin anms-app-component-theme($theme) {
+  $primary: map-get($theme, primary);
+  $accent: map-get($theme, accent);
+  $warn: map-get($theme, warn);
+
+  mat-sidenav-container {
+    mat-toolbar {
+      button {
+        &.active {
+          color: mat.get-color-from-palette($accent, default-contrast);
+          background-color: mat.get-color-from-palette($accent);
+        }
+      }
+
+      .link {
+        color: mat.get-color-from-palette($primary, default-contrast);
+      }
+    }
+
+    mat-sidenav {
+      .mat-list-item {
+        &.active {
+          color: mat.get-color-from-palette($accent, default-contrast);
+          background-color: mat.get-color-from-palette($accent) !important;
+
+          &:hover {
+            background-color: mat.get-color-from-palette(
+              $accent,
+              darker
+            ) !important;
+          }
+        }
+      }
+    }
+
+    .footer {
+      color: mat.get-color-from-palette($primary, lighter);
+      background-color: mat.get-color-from-palette($primary, darker);
+
+      .links,
+      .signature {
+        a {
+          color: mat.get-color-from-palette($primary, lighter);
+          &:hover {
+            color: mat.get-color-from-palette($accent);
+          }
+        }
+      }
+    }
+  }
+
+  .error-notification-overlay {
+    color: mat.get-color-from-palette($warn, default-contrast);
+    background-color: mat.get-color-from-palette($warn);
+  }
+
+  .info-notification-overlay {
+    color: mat.get-color-from-palette($accent, default-contrast);
+    background-color: mat.get-color-from-palette($accent);
+  }
+
+  .success-notification-overlay {
+    color: mat.get-color-from-palette($success-colors, default-contrast);
+    background-color: mat.get-color-from-palette($success-colors);
+  }
+
+  .warning-notification-overlay {
+    color: mat.get-color-from-palette($warning-colors, default-contrast);
+    background-color: mat.get-color-from-palette($warning-colors);
+  }
+}

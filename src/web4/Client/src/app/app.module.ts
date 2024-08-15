@@ -10,11 +10,11 @@ import { StoreDevtoolsModule } from '@ngrx/store-devtools';
 
 import { AuthorizeInterceptor } from 'src/api-authorization/authorize.interceptor';
 
-import { UiModule } from './mod-ui';
-import { MainModule } from './mod-main';
+import { UiModule } from './ui';
+import { CoreModule } from './core';
 import { AppRoutingModule } from './app-routing.module';
 
-import { AppRootComponent } from './mod-main/containers';
+import { AppComponent, AppRootComponent } from './core/containers';
 
 import { rootReducers, metaReducers } from './state';
 
@@ -27,7 +27,7 @@ import { environment } from 'src/environments/environment';
     HttpClientModule,
     FormsModule,
 
-    MainModule.forRoot(),
+    CoreModule.forRoot(),
     UiModule,
     AppRoutingModule,
     
@@ -38,6 +38,9 @@ import { environment } from 'src/environments/environment';
       maxAge: 25,
       logOnly: environment.production,
     }),
+
+
+
     EffectsModule.forRoot([]),
   ],
   declarations: [
@@ -49,5 +52,6 @@ import { environment } from 'src/environments/environment';
     { provide: HTTP_INTERCEPTORS, useClass: AuthorizeInterceptor, multi: true }    
   ],
   bootstrap: [AppRootComponent]
+  //bootstrap: [AppComponent]
 })
 export class AppModule { }

@@ -1,0 +1,110 @@
+<mat-sidenav-container class="example-container">
+    <mat-sidenav #menuNav mode="side" [opened]="this._menuPanelExpanded$ | async" [fixedInViewport]="true" class="navbar">
+        <mat-toolbar class="nav-item-heading">
+            Vision
+        </mat-toolbar>
+        <mat-nav-list>
+            <mat-list-item>
+                <span matListItemTitle class="bold">Streaming</span>
+            </mat-list-item>
+            <mat-divider></mat-divider>
+            <a mat-list-item [routerLink]="['/vision/annotated']">
+                <mat-icon matListItemIcon>holiday_village</mat-icon>
+                <span matListItemTitle>
+                    Annotated
+                </span>
+            </a>
+            <a mat-list-item [routerLink]="['/vision/foregroundmask']">
+                <mat-icon matListItemIcon>assured_workload</mat-icon>
+                <span matListItemTitle>
+                    Foreground Mask
+                </span>
+            </a>
+            <mat-divider></mat-divider>
+            <mat-list-item>
+                <span matListItemTitle class="bold">Mask Control</span>
+            </mat-list-item>            
+            <mat-divider></mat-divider>
+            <a mat-list-item [routerLink]="['/vision/privacymask']">
+                <mat-icon matListItemIcon>holiday_village</mat-icon>
+                <span matListItemTitle>
+                    Privacy Mask
+                </span>
+            </a>            
+            <mat-divider></mat-divider>
+            <a mat-list-item [routerLink]="['/vision/detectionmask']">
+                <mat-icon matListItemIcon>search</mat-icon>
+                <span matListItemTitle>
+                    Detection Mask
+                </span>
+            </a>
+
+        </mat-nav-list>
+    </mat-sidenav>
+
+    <mat-sidenav-content>
+        <mat-toolbar>
+            <mat-toolbar-row>
+                <button mat-icon-button (click)="this.onToggleMenuPanel()">
+                    <mat-icon *ngIf="!menuNav.opened">chevron_right</mat-icon>
+                    <mat-icon *ngIf="menuNav.opened">chevron_left</mat-icon>
+                </button>
+                <span>{{(this._heading$ | async)}}</span>
+                <span></span>
+                <span class="flex-spacer">&nbsp;</span>
+                <button mat-icon-button matTooltip="Send message" (click)="setMessage('Hello World')">
+                    <mat-icon>autorenew</mat-icon>
+                </button>
+                <button mat-icon-button matTooltip="Clear message" (click)="clearMessage()">
+                    <mat-icon>cancel_presentation</mat-icon>
+                </button>                
+            </mat-toolbar-row>
+        </mat-toolbar>
+        <mat-card>
+            <mat-card-header>
+                <span class="flex-spacer">&nbsp;</span>
+                <button mat-icon-button (click)="onToggleContextPanel()">
+                    <mat-icon *ngIf="!sideNav.opened">chevron_left</mat-icon>
+                    <mat-icon *ngIf="sideNav.opened">chevron_right</mat-icon>
+                </button>
+            </mat-card-header>
+            <mat-card-content>
+                <mat-sidenav-container class="example-container" autosize>
+                    <mat-sidenav #sideNav mode="side" position="end" (openedChange)="onOpenedChange($event)" [opened]="this._contextPanelExpanded$ | async">
+                        <bob-bob-info [AppInfo$]="this._appInfo$" (Reload)="OnBobInfoReload()"></bob-bob-info>
+                        <bob-bob-state *ngIf="this._displayAppState$ | async" [AppState$]="this._appState$"></bob-bob-state>
+                        <bob-mask-controls *ngIf="this._displayPrivacyMaskControls$ | async" 
+                            Heading="Privacy Mask Controls" HeadingEdit="Editing Privacy Mask" 
+                            SubHeading="" SubHeadingEdit="Draw the areas you want to exclude" 
+                            (Edit)="OnPMEdit()" (Cancel)="OnPMCancel()" (Delete)="OnPMDelete()" (Save)="OnPMSave()" (Clear)="OnPMClear()" 
+                            (EditMode)="OnEditModeChanged($event)"></bob-mask-controls>                        
+                        <bob-mask-controls *ngIf="this._displayDetectionMaskControls$ | async" 
+                            Heading="Detection Mask Controls" HeadingEdit="Editing Detection Mask" 
+                            SubHeading="" SubHeadingEdit="Draw the areas you want to include"                     
+                            (Edit)="OnDMEdit()" (Cancel)="OnDMCancel()" (Delete)="OnDMDelete()" (Save)="OnDMSave()" (Clear)="OnDMClear()" 
+                                (EditMode)="OnEditModeChanged($event)">
+                            <div class="mask-tips">
+                                Mask drawing tips
+                                <ul>
+                                    <li>Click Edit then use the polygon drawing tool to outline sky tracking area.</li>
+                                    <li>Single-click to add points, double-click to finish drawing.</li>
+                                    <li>Avoid inlcuding moving objects like branches in detection area.</li>
+                                    <li>Allow margin for movement by trees, bushes etc due to wind or other factors.</li>
+                                    <li>Save your selection once satisfied.</li>
+                                    <li>Use Delete button to reset if needed.</li>
+                                </ul>
+                            </div>                    
+                        </bob-mask-controls>
+                    </mat-sidenav>
+                    <mat-sidenav-content>
+                        <bob-stream-display *ngIf="!(this._displayPrivacyMaskControls$ | async) && !(this._displayDetectionMaskControls$ | async)" [ImageStream$]="this._imageStream$"></bob-stream-display>
+                        <bob-mask-creation #privacymaskcreator *ngIf="this._displayPrivacyMaskControls$ | async" 
+                            [ImageStream$]="this._imageStream$" [EditMode$]="this._maskEditMode$"></bob-mask-creation>
+                        <bob-mask-creation-svg #detectionmaskcreator *ngIf="this._displayDetectionMaskControls$ | async" 
+                            [ImageStream$]="this._imageStream$" [EditMode$]="this._maskEditMode$" [MaskSvg$]="this._maskSvg$"></bob-mask-creation-svg>
+                    </mat-sidenav-content>
+                  </mat-sidenav-container>
+            </mat-card-content>
+        </mat-card>        
+    </mat-sidenav-content>
+  </mat-sidenav-container>  

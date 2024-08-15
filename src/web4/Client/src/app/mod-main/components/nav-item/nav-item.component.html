@@ -1,7 +1,0 @@
-<a mat-list-item [class.disabled]="!isEnabled()" *ngIf="isEnabled()" (click)="clicked()" [routerLink]="routerLink" routerLinkActive="active"> <!--[routerLinkActiveOptions]="{exact:true}">-->
-    <mat-icon matListItemIcon>{{ icon }}</mat-icon>
-    <span matListItemTitle>
-        <ng-content></ng-content>
-    </span>
-    <span *ngIf="hint" matListItemLine>{{ hint }}</span>
-</a>
