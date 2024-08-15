@@ -256,12 +256,6 @@ void Image::medianBlur(int size)
 
 void Image::convertTo(Image & converted, int type) const
 {
-    if (gpu_mat_ptr_->type() == type)
-    {
-        copyTo(converted);
-        return;
-    }
-
     if (using_cuda_)    
     {
         if (converted.using_cuda_)
