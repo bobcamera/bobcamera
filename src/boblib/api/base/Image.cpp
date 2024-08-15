@@ -7,7 +7,7 @@
 using namespace boblib::base;
 
 Image::Image(bool use_cuda)
-: using_cuda_(use_cuda ? cv::cuda::getCudaEnabledDeviceCount() : false)
+: using_cuda_(use_cuda ? cv::cuda::getCudaEnabledDeviceCount() > 0 : false)
 {
     if (using_cuda_)
     {

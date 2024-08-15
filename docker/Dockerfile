@@ -117,7 +117,7 @@ RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash \
     && cmake --build . -j$(nproc) \
     && sudo make install \
     && cd - \
-    && rm -rf log install build \
+    && rm -rf log install build ..\boblib\build \
     && colcon build --parallel-workers $(nproc) --cmake-args -DCMAKE_BUILD_TYPE=Release"
 
 
