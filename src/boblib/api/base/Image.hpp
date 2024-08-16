@@ -8,6 +8,8 @@
 #include <opencv2/cudacodec.hpp>
 #include <opencv2/cudafilters.hpp>
 
+#include "Utils.hpp"
+
 namespace boblib::base
 {
     class Image

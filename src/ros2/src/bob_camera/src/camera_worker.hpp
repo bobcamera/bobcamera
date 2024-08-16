@@ -166,7 +166,7 @@ public:
             camera_info_msg_.frame_width = 0;
             camera_info_msg_.fps = 0;
 
-            using_cuda_ = params_.get_use_cuda() ? cv::cuda::getCudaEnabledDeviceCount() > 0 : false;
+            using_cuda_ = params_.get_use_cuda() ? boblib::base::Utils::HasCuda() : false;
             privacy_mask_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_);
 
             circuit_breaker_ptr_ = std::make_unique<CircuitBreaker>(CIRCUIT_BREAKER_MAX_RETRIES, CIRCUIT_BREAKER_INITIAL_TIMEOUT, CIRCUIT_BREAKER_MAX_TIMEOUT);
@@ -409,10 +409,7 @@ private:
         }
         node_.log_send_info("CameraWorker: Leaving capture_loop");
 
-        if (using_cuda_)
-        {
-            cv::cuda::resetDevice();
-        }
+        boblib::base::Utils::ResetCuda();
     }
 
     inline void fill_header(sensor_msgs::msg::Image & camera_msg, boblib::base::Image & camera_img)

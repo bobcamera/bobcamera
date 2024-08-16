@@ -1,9 +1,10 @@
 #include "VideoWriter.hpp"
+#include "../base/Utils.hpp"
 
 using namespace boblib::video;
 
 VideoWriter::VideoWriter(const std::string & fileName, const cv::Size & frame_size, boblib::video::Codec codec, double fps, bool use_cuda)
-    : using_cuda_(use_cuda ? cv::cuda::getCudaEnabledDeviceCount() > 0 : false)
+    : using_cuda_(use_cuda ? boblib::base::Utils::HasCuda() : false)
     , fileName_(fileName)
     , codec_(codec)
     , fps_(fps)

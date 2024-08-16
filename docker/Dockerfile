@@ -98,7 +98,7 @@ RUN mkdir -p /opt/ros2_ws/src && cd /opt/ros2_ws/src \
    && git clone https://github.com/ros-perception/vision_opencv.git \
    && bash -c "source /opt/ros/${ROS_DISTRO}/setup.bash \
    && cd /opt/ros2_ws \
-   && colcon build"
+   && colcon build --parallel-workers $(nproc) --cmake-args -DCMAKE_BUILD_TYPE=Release -Wno-dev"
 
 # docker build --progress=plain --platform linux/amd64 -f ./docker/Dockerfile . -t bobcamera/bob-ros2-build:1.5.8 -t bobcamera/bob-ros2-build:latest --target bob-ros2-build
 # docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY bobcamera/bob-ros2-build:1.2.7 bash
@@ -118,7 +118,7 @@ RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash \
     && sudo make install \
     && cd - \
     && rm -rf log install build ..\boblib\build \
-    && colcon build --parallel-workers $(nproc) --cmake-args -DCMAKE_BUILD_TYPE=Release"
+    && colcon build --parallel-workers $(nproc) --cmake-args -DCMAKE_BUILD_TYPE=Release -Wno-dev"
 
 
 # docker build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-prod:1.2.7 -t bobcamera/bob-ros2-prod:latest --target bob-ros2-prod
@@ -149,27 +149,14 @@ COPY --from=bob-ros2-build /workspaces/bobcamera/src/ros2/install /workspaces/bo
 COPY --from=bob-ros2-build /workspaces/bobcamera/src/ros2/config /workspaces/bobcamera/src/ros2/config
 COPY --from=bob-ros2-build /workspaces/bobcamera/src/ros2/launch* /workspaces/bobcamera/src/ros2/
 COPY --from=bob-ros2-build /opt/ros2_ws/install/ /opt/ros2_ws/install/
+
+# Copying and configuring the CUDA stub to make Bob work
 COPY --from=bob-ros2-build /usr/local/cuda/targets/x86_64-linux/lib/stubs/* /usr/local/cuda/targets/x86_64-linux/lib/
-# COPY --from=bob-ros2-build /usr/local/cuda-12.5/targets/x86_64-linux/lib/libnppc.so /usr/local/cuda/targets/x86_64-linux/lib/
-# COPY --from=bob-ros2-build /usr/local/cuda-12.5/targets/x86_64-linux/lib/libnppicc.so /usr/local/cuda/targets/x86_64-linux/lib/
-# COPY --from=bob-ros2-build /usr/local/cuda-12.5/targets/x86_64-linux/lib/libnppig.so /usr/local/cuda/targets/x86_64-linux/lib/
-# COPY --from=bob-ros2-build /usr/local/cuda-12.5/targets/x86_64-linux/lib/libnppial.so /usr/local/cuda/targets/x86_64-linux/lib/
-# COPY --from=bob-ros2-build /usr/local/cuda-12.5/targets/x86_64-linux/lib/libnppidei.so /usr/local/cuda/targets/x86_64-linux/lib/
-# COPY --from=bob-ros2-build /usr/local/cuda-12.5/targets/x86_64-linux/lib/libnppist.so /usr/local/cuda/targets/x86_64-linux/lib/
-# COPY --from=bob-ros2-build /usr/local/cuda-12.5/targets/x86_64-linux/lib/libnppitc.so /usr/local/cuda/targets/x86_64-linux/lib/
-# COPY --from=bob-ros2-build /usr/local/cuda-12.5/targets/x86_64-linux/lib/libnppif.so /usr/local/cuda/targets/x86_64-linux/lib/
-# COPY --from=bob-ros2-build /usr/local/cuda-12.5/targets/x86_64-linux/lib/libcublas.so /usr/local/cuda/targets/x86_64-linux/lib/
-# COPY --from=bob-ros2-build /usr/local/cuda-12.5/targets/x86_64-linux/lib/libcufft.so /usr/local/cuda/targets/x86_64-linux/lib/
-# COPY --from=bob-ros2-build /usr/local/cuda-12.5/targets/x86_64-linux/lib/libnppim.so /usr/local/cuda/targets/x86_64-linux/lib/
-# COPY --from=bob-ros2-build /usr/local/cuda-12.5/targets/x86_64-linux/lib/libcublasLt.so.12 /usr/local/cuda/targets/x86_64-linux/lib/
-
 COPY --from=bob-ros2-build /usr/lib/wsl/lib/libcuda.so /usr/local/cuda/targets/x86_64-linux/lib/
-COPY --from=bob-ros2-build /usr/lib/wsl/lib/libnvcuvid.so /usr/local/cuda/targets/x86_64-linux/lib/
-COPY --from=bob-ros2-build /usr/lib/wsl/lib/libnvidia-encode.so /usr/local/cuda/targets/x86_64-linux/lib/
-COPY --from=bob-ros2-build /usr/lib/wsl/lib/libdxcore.so /usr/local/cuda/targets/x86_64-linux/lib/
-
-RUN export LD_LIBRARY_PATH=/usr/local/cuda/targets/x86_64-linux/lib/:$LD_LIBRARY_PATH \
-    && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppc.so /usr/local/cuda/targets/x86_64-linux/lib/libnppc.so.12 \
+#COPY --from=bob-ros2-build /usr/lib/wsl/lib/libdxcore.so /usr/local/cuda/targets/x86_64-linux/lib/
+#COPY --from=bob-ros2-build /usr/lib/wsl/lib/libnvcuvid.so /usr/local/cuda/targets/x86_64-linux/lib/
+#COPY --from=bob-ros2-build /usr/lib/wsl/lib/libnvidia-encode.so /usr/local/cuda/targets/x86_64-linux/lib/
+RUN ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppc.so /usr/local/cuda/targets/x86_64-linux/lib/libnppc.so.12 \
     && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppicc.so /usr/local/cuda/targets/x86_64-linux/lib/libnppicc.so.12 \
     && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libcuda.so /usr/local/cuda/targets/x86_64-linux/lib/libcuda.so.1 \
     && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnvcuvid.so /usr/local/cuda/targets/x86_64-linux/lib/libnvcuvid.so.1 \
@@ -182,7 +169,8 @@ RUN export LD_LIBRARY_PATH=/usr/local/cuda/targets/x86_64-linux/lib/:$LD_LIBRARY
     && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppif.so /usr/local/cuda/targets/x86_64-linux/lib/libnppif.so.12 \
     && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libcublas.so /usr/local/cuda/targets/x86_64-linux/lib/libcublas.so.12 \
     && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libcufft.so /usr/local/cuda/targets/x86_64-linux/lib/libcufft.so.11 \
-    && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppim.so /usr/local/cuda/targets/x86_64-linux/lib/libnppim.so.12
+    && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppim.so /usr/local/cuda/targets/x86_64-linux/lib/libnppim.so.12 \
+    && sh -c 'echo "/usr/local/cuda/targets/x86_64-linux/lib" >> /etc/ld.so.conf.d/cuda_stub.conf' && ldconfig
 
 # install dependencies
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
@@ -219,7 +207,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     && echo ${USERNAME} ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/${USERNAME} \
     && chmod 0440 /etc/sudoers.d/${USERNAME} \
     && echo 'export PKG_CONFIG_PATH=\$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig' >> /home/${USERNAME}/.bashrc \
-    && echo 'export LD_LIBRARY_PATH=/usr/local/cuda/targets/x86_64-linux/lib:\$LD_LIBRARY_PATH' >> /home/${USERNAME}/.bashrc \
+    #&& echo 'export LD_LIBRARY_PATH=/usr/local/cuda/targets/x86_64-linux/lib:\$LD_LIBRARY_PATH' >> /home/${USERNAME}/.bashrc \
     && echo "export DISPLAY=:0" >> /home/${USERNAME}/.bashrc \
     && echo "source /opt/ros/${ROS_DISTRO}/setup.sh" >> /home/${USERNAME}/.bashrc
 WORKDIR /workspaces/bobcamera/src/ros2

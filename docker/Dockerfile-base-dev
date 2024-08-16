@@ -9,20 +9,14 @@ ENV LANG C.UTF-8
 ENV LC_ALL C.UTF-8
 ENV ROS_DISTRO jazzy
 
-# setup timezone
-RUN echo 'Etc/UTC' > /etc/timezone && \
-    ln -s /usr/share/zoneinfo/Etc/UTC /etc/localtime && \
-    apt-get update && \
-    apt-get install -q -y --no-install-recommends tzdata && \
+# setup timezone and install packages
+RUN echo 'Etc/UTC' > /etc/timezone \
+    && ln -s /usr/share/zoneinfo/Etc/UTC /etc/localtime \
+    && apt-get update &&  apt-get upgrade \
+    && apt-get install -q -y --no-install-recommends tzdata dirmngr gnupg2 \
     rm -rf /var/lib/apt/lists/*
 
-# install packages
-RUN apt-get update && apt-get install -q -y --no-install-recommends \
-    dirmngr \
-    gnupg2 \
-    && rm -rf /var/lib/apt/lists/*
-
-# setup keys
+# setup keys and setup sources.list
 RUN set -eux; \
        key='C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654'; \
        export GNUPGHOME="$(mktemp -d)"; \
@@ -30,32 +24,24 @@ RUN set -eux; \
        mkdir -p /usr/share/keyrings; \
        gpg --batch --export "$key" > /usr/share/keyrings/ros2-latest-archive-keyring.gpg; \
        gpgconf --kill all; \
-       rm -rf "$GNUPGHOME"
+       rm -rf "$GNUPGHOME" \
+    && echo "deb [ signed-by=/usr/share/keyrings/ros2-latest-archive-keyring.gpg ] http://packages.ros.org/ros2/ubuntu noble main" > /etc/apt/sources.list.d/ros2-latest.list
 
-# setup sources.list
-RUN echo "deb [ signed-by=/usr/share/keyrings/ros2-latest-archive-keyring.gpg ] http://packages.ros.org/ros2/ubuntu noble main" > /etc/apt/sources.list.d/ros2-latest.list
-
-# install ros2 packages
+# install ros2 packages and install bootstrap tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ros-jazzy-ros-core=0.11.0-1* \
+      ros-jazzy-ros-core=0.11.0-1* \
+      build-essential \
+      git \
+      python3-colcon-common-extensions \
+      python3-colcon-mixin \
+      python3-rosdep \
+      python3-vcstool \
     && rm -rf /var/lib/apt/lists/*
 
-# install bootstrap tools
-RUN apt-get update && apt-get install --no-install-recommends -y \
-    build-essential \
-    git \
-    python3-colcon-common-extensions \
-    python3-colcon-mixin \
-    python3-rosdep \
-    python3-vcstool \
-    && rm -rf /var/lib/apt/lists/*
-
-# bootstrap rosdep
+# bootstrap rosdep and setup colcon mixin and metadata
 RUN rosdep init && \
-  rosdep update --rosdistro $ROS_DISTRO
-
-# setup colcon mixin and metadata
-RUN colcon mixin add default \
+  rosdep update --rosdistro $ROS_DISTRO \
+  && colcon mixin add default \
       https://raw.githubusercontent.com/colcon/colcon-mixin-repository/master/index.yaml && \
     colcon mixin update && \
     colcon metadata add default \
