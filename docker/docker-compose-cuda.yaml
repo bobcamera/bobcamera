@@ -4,20 +4,21 @@ services:
     image: bobcamera/bob-web-prod:1.6.0
     ports:
       - "8080:80"
-  # If you want to view demo recordings, comment out the volume section below.      
     volumes: 
       - ${PWD}/assets/recordings:/var/www/html/videos
     depends_on:
       - bob
 
   bob:
-    image: bobcamera/bob-ros2-prod:1.6.0
+    image: bobcamera/bob-ros2-prod-cuda:1.6.0
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - BOB_LOGLEVEL=${BOB_LOGLEVEL:-INFO}
     ports:
       - "9090:9090"
-    environment:  # add in .env
-      - BOB_LOGLEVEL=${BOB_LOGLEVEL:-INFO}
     volumes: 
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro    
@@ -26,18 +27,6 @@ services:
   # If you want to use a usb camera uncomment the devices comment below
   #  devices:
   #    - /dev/video0:/dev/video0 
-
-  rstudio:
-    image: dceoy/rstudio-server:latest
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    ports:
-      - "8787:8787"
-    volumes: 
-      - ${PWD}/assets/recordings:/home/rstudio/recordings
-    working_dir: "/home/rstudio dceoy/rstudio-server"
-    depends_on:
-      - bob
 
 volumes:
   assets:

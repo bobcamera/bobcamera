@@ -59,10 +59,7 @@ namespace boblib::blobs
         inline void set_min_distance(int _distance) { m_params.setMinDistance(_distance); }
 
         // Finds the connected components in the image and returns a list of bounding boxes
-        DetectionResult detect(boblib::base::Image & _image, std::vector<cv::Rect> & _bboxes);
-
-        // Finds the connected components in the image and returns a list of bounding boxes
-        std::vector<cv::Rect> detect_ret(boblib::base::Image & _image);
+        DetectionResult detect(const boblib::base::Image & _image, std::vector<cv::Rect> & _bboxes);
 
     private:
         ConnectedBlobDetectionParams m_params;

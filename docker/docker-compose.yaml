@@ -1,7 +1,7 @@
 version: '3.8'
 services:
   web:
-    image: bobcamera/bob-web-prod:1.5.8
+    image: bobcamera/bob-web-prod:1.6.0
     ports:
       - "8080:80"
   # If you want to view demo recordings, comment out the volume section below.      
@@ -11,7 +11,7 @@ services:
       - bob
 
   bob:
-    image: bobcamera/bob-ros2-prod:1.5.8
+    image: bobcamera/bob-ros2-prod:1.6.0
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:

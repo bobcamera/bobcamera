@@ -19,13 +19,6 @@ namespace boblib::blobs
         }
     }
 
-    std::vector<cv::Rect> ConnectedBlobDetection::detect_ret(boblib::base::Image &_image)
-    {
-        std::vector<cv::Rect> bboxes;
-        detect(_image, bboxes);
-        return bboxes;
-    }
-
     inline bool rects_overlap(const cv::Rect &r1, const cv::Rect &r2)
     {
         if ((r1.width == 0 || r1.height == 0 || r2.width == 0 || r2.height == 0) ||
@@ -132,7 +125,7 @@ namespace boblib::blobs
     }
 
     // Finds the connected components in the image and returns a list of bounding boxes
-    DetectionResult ConnectedBlobDetection::detect(boblib::base::Image &_image, std::vector<cv::Rect> &_bboxes)
+    DetectionResult ConnectedBlobDetection::detect(const boblib::base::Image &_image, std::vector<cv::Rect> &_bboxes)
     {
         if (!m_initialized || *m_original_img_size != ImgSize(_image.size().width, _image.size().height, _image.channels(), _image.elemSize1(), 0))
         {
@@ -143,7 +136,7 @@ namespace boblib::blobs
         cv::Mat labels;
         int numLabels{0};
         // Use connected component analysis to find the blobs in the image
-        if (_image.get_using_cuda())
+        if (false && _image.get_using_cuda()) // Disabling for now as it is returning too many
         {
             double maxVal;
             cv::cuda::GpuMat gpu_labels;
