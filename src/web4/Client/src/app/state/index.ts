@@ -4,15 +4,16 @@ import * as fromRouter from '@ngrx/router-store';
 
 import { environment } from '../../environments/environment';
 
-import * as fromMain from '../core/state'
-import * as fromVision from '../features/vision/state'
-import * as fromPlayback from '../features/playback/state'
+import * as fromCore from '../core/state';
+
+import * as fromVision from '../features/vision/state';
+import * as fromPlayback from '../features/playback/state';
 
 import { RouterStateUrl } from '../core/services';
 
 export interface State {  
   router: fromRouter.RouterReducerState<RouterStateUrl>;
-  main: fromMain.MainState;
+  core: fromCore.CoreState;
   vision: fromVision.VisionState;
   playback: fromPlayback.RecordingState;
 }
@@ -20,7 +21,7 @@ export interface State {
 export const rootReducers = new InjectionToken<ActionReducerMap<State, Action>>('Root reducers token', {
   factory: () => ({
     router: fromRouter.routerReducer,
-    main: fromMain.mainReducer,
+    core: fromCore.coreReducers,
     vision: fromVision.visionReducer,
     playback: fromPlayback.recordingReducer,
   }),
@@ -41,7 +42,7 @@ export function logger(reducer: ActionReducer<State>): ActionReducer<State> {
 
 export function clearState(reducer: ActionReducer<State>): ActionReducer<State> {
   return function (state, action) {
-    if (action.type === '[Main] Clear State') {
+    if (action.type === '[Core] Clear State') {
       state = undefined;
     }
     return reducer(state, action);

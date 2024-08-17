@@ -37,7 +37,9 @@
   "anms.menu.features": "Features",
   "anms.menu.login": "Sign in",
   "anms.menu.logout": "Logout",
+  "anms.menu.playback": "Playback",
   "anms.menu.settings": "Settings",
+  "anms.menu.vision": "Vision",  
   "anms.settings.animations.elements": "Navigation page elements slide up",
   "anms.settings.animations.page": "Navigation whole page transition",
   "anms.settings.animations.title": "Animations",
@@ -61,6 +63,11 @@
   "anms.settings.themes.sticky-header": "Sticky header",
   "anms.settings.themes.title": "Themes",
   "anms.settings.title": "Settings",
-  "anms.title.long": "Angular NgRx Material Starter",
-  "anms.title.short": "Angular Starter"
+  "anms.title.long": "BOB Universal Object Tracker",
+  "anms.title.short": "BOB UOT",  
+  "anms.vision.menu.annotated": "Annotated",
+  "anms.vision.menu.detectionmask": "Detection Mask",
+  "anms.vision.menu.foregroundmask": "Foreground Mask",
+  "anms.vision.menu.privacymask": "Privacy Mask",
+  "anms.vision.title": "Visions" 
 }

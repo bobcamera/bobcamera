@@ -1,10 +1,16 @@
-.navbar {
-    display: flex;
-    height: 100%;
-    align-items: center;
-    justify-content: center;    
-}
+@import '../../../../../styles-variables';
 
-.bold {
-    font-weight: 600;
+nav {
+  margin-bottom: 20px;
+
+  .mat-tab-link {
+    min-width: 120px;
+    padding: 0 15px;
+  }
+
+  @media (max-width: map-get($grid-breakpoints, md)) {
+    .mat-tab-link {
+      min-width: 0;
+    }
+  }
 }

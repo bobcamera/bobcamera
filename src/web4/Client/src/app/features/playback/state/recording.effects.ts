@@ -5,7 +5,7 @@ import { of } from 'rxjs';
 import { mergeMap, map, debounceTime, switchMap, catchError, filter } from 'rxjs/operators';
 
 import { ErrorService } from '../../../core/services';
-import { MainEffects } from '../../../core/state';
+import { SharedEffects } from '../../../core/state/shared.effects';
 
 import { PlaybackService } from '../services';
 import * as RecordingActions from './recording.actions';
@@ -13,7 +13,7 @@ import * as RecordingActions from './recording.actions';
 import { RecordingQuery, RecordingDto } from '../models';
 
 @Injectable()
-export class RecordingEffects extends MainEffects {
+export class RecordingEffects extends SharedEffects {
 
   constructor(errorService: ErrorService, private actions$: Actions, private playbackService: PlaybackService) { 
     super(actions$, errorService);

@@ -5,7 +5,7 @@ import { map, switchMap, distinctUntilChanged } from 'rxjs/operators';
 
 import * as ROSLIB from 'roslib';
 
-import * as MainActions from '../../../core/state/main.actions';
+import * as MainActions from '../../../core/state/shared.actions';
 import { NotificationType } from '../../../core/models';
 
 import { VisionActions } from '../state';

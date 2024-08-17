@@ -22,15 +22,11 @@
         <mat-toolbar color="primary">
           <button mat-icon-button class="d-md-none" (click)="sidenav.open()">
             <fa-icon icon="bars"></fa-icon>
-
           </button>
 
-          <span routerLink="" class="branding spacer center d-inline d-sm-none">
-            <img [src]="logo" [alt]="logo"/></span>
-          <span routerLink="" class="branding spacer center d-none d-sm-inline d-md-none"><img [src]="logo" [alt]="logo"/> {{
-            'anms.title.short' | translate }}</span>
-          <span routerLink="" class="branding spacer d-none d-md-inline"><img [src]="logo"[alt]="logo" /> {{ 'anms.title.long' | translate
-            }}</span>
+          <span routerLink="" class="branding spacer center d-inline d-sm-none"><img [src]="logo" [alt]="logo"/></span>
+          <span routerLink="" class="branding spacer center d-none d-sm-inline d-md-none"><img [src]="logo" [alt]="logo"/> {{ 'anms.title.short' | translate }}</span>
+          <span routerLink="" class="branding spacer d-none d-md-inline"><img [src]="logo"[alt]="logo" /> {{ 'anms.title.long' | translate }}</span>
 
           <span class="d-none d-md-inline">
             <button mat-button class="nav-button" *ngFor="let item of navigation" [routerLink]="[item.link]"
@@ -39,13 +35,11 @@
             </button>
           </span>
 
-          <button mat-button mat-stroked-button color="accent" *ngIf="!(isAuthenticated$ | async)" (click)="onLoginClick()">
+          <!--<button mat-button mat-stroked-button color="accent" *ngIf="!(isAuthenticated$ | async)" (click)="onLoginClick()">
             {{ 'anms.menu.login' | translate }}
-          </button>
+          </button>-->
 
-          <button *ngIf="(isAuthenticated$ | async)"
-                  mat-icon-button
-                  [matMenuTriggerFor]="toolbarUserMenu">
+          <button *ngIf="(isAuthenticated$ | async)" mat-icon-button [matMenuTriggerFor]="toolbarUserMenu">
             <fa-icon icon="user-circle"></fa-icon>
           </button>
           <mat-menu #toolbarUserMenu="matMenu">
@@ -63,29 +57,29 @@
              matTooltipPosition="before"
              mat-icon-button
              class="link d-none d-sm-inline"
-             href="https://github.com/tomastrajan/angular-ngrx-material-starter"
+             href="https://github.com/bobcamera/bobcamera"
              target="_blank" rel="noopener noreferrer">
             <fa-icon [icon]="['fab','github']"></fa-icon>
           </a>
 
-          <span *ngIf="language$ | async as language">
+          <!--<span *ngIf="language$ | async as language">
             <mat-select [ngModel]="language" (selectionChange)="onLanguageSelect($event)">
               <mat-option *ngFor="let l of languages" [value]="l">
                 {{ l.toUpperCase() }}
               </mat-option>
             </mat-select>
-          </span>
+          </span>-->
         </mat-toolbar>
       </div>
 
-      <div class="content" [@routeAnimations]="o.isActivated && o.activatedRoute.routeConfig?.data?.title">
-        <router-outlet #o="outlet"></router-outlet>
+      <div class="content">
+        <router-outlet></router-outlet>
       </div>
 
       <div class="footer">
         <div class="row">
           <div class="col-sm-12 links">
-            <a href="https://www.github.com/tomastrajan" target="_blank" rel="noopener noreferrer">
+            <a href="https://github.com/bobcamera/bobcamera" target="_blank" rel="noopener noreferrer">
               <fa-icon [icon]="['fab','github']"></fa-icon>
               <span>Github</span>
             </a>
@@ -114,14 +108,7 @@
         </div>
         <div class="row">
           <div class="col-12 signature">
-            &#169; <span class="year">{{year}}</span> - Tomas Trajan
-            <br class="d-block d-sm-none">
-            <a [matTooltip]="'anms.footer.changelog' | translate"
-               matTooltipPosition="before"
-               href="https://github.com/tomastrajan/angular-ngrx-material-starter/blob/master/CHANGELOG.md">
-              <fa-icon icon="rocket"></fa-icon>
-              {{version}} <span *ngIf="!isProd">[{{envName}}]</span>
-            </a>
+            &#169; <span class="year">{{year}}</span> - {{version}} <span *ngIf="!isProd">[{{envName}}]</span>
           </div>
         </div>
       </div>

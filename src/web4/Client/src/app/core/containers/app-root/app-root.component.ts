@@ -1,13 +1,14 @@
-import { Component, OnInit, ChangeDetectionStrategy, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Router, NavigationEnd, ActivatedRoute } from '@angular/router';
 import { Title } from '@angular/platform-browser';
 import { Store } from '@ngrx/store';
 import { Subject, Observable } from 'rxjs';
 import { takeUntil, filter, map } from 'rxjs/operators';
 
-import { MainState } from '../../state/main.reducer';
-import { ClearNotification, MenuDrawerToggle } from '../../state/main.actions';
-import { getNotification, getMenuDrawerExpanded } from '../../state/main.reducer';
+import { CoreState } from '../../state';
+import { MenuDrawerToggle } from '../../state/gui.actions';
+import { getNotification } from '../../state/shared.selectors';
+import { getMenuDrawerExpanded } from '../../state/gui.selectors';
 
 import { NotificationHandler } from '../../services'
 import { NotificationModel, NotificationType } from '../../models'
@@ -28,7 +29,7 @@ export class AppRootComponent implements OnInit, OnDestroy {
 
   _currentYear: number = 0;
 
-  constructor(private store: Store<MainState>, private router: Router, private titleService: Title, 
+  constructor(private store: Store<CoreState>, private router: Router, private titleService: Title, 
     private notificationHandler: NotificationHandler) { }
 
   ngOnInit(): void {
@@ -104,6 +105,5 @@ export class AppRootComponent implements OnInit, OnDestroy {
         this.notificationHandler.error(notificationModel.message);
         break;                  
     }
-    //this.store.dispatch(ClearNotification());
   }
 }

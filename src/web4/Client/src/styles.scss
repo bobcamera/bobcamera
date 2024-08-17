@@ -1,137 +1,69 @@
-/* You can add global styles to this file, and also import other style files */
+// Custom Theming for Angular Material
+// For more information: https://material.angular.io/guide/theming
 @use '@angular/material' as mat;
 
-@import './scss/material/theme.scss';
+@import 'styles-variables';
 
-.background-primary {
-  background-color: mat-color($bob-primary);
+@import 'bootstrap/scss/bootstrap-reboot';
+@import 'bootstrap/scss/bootstrap-grid';
+@import 'styles-reset';
+
+// Typography
+/*$bob-typography: mat.define-typography-config(
+    $font-family: 'Helvetica Regular, Helvetica, Arial, san-serif'
+);
+@include mat.typography-hierarchy($bob-typography);*/
+
+@include mat.core();
+
+@import './themes/default-theme';
+@import './themes/light-theme';
+@import './themes/black-theme';
+@import './themes/nature-theme';
+
+@import 'styles-reset.scss-theme';
+@import './app/core/containers/app-themed/app.component.scss-theme.scss';
+@import './app/shared/big-input/big-input/big-input.component.scss-theme';
+@import './app/features/about/about/about.component.scss-theme';
+@import './app/features/vision/containers/vision-index/vision-index.component.scss-theme';
+/*@import './app/features/examples/notifications/components/notifications.component.scss-theme';
+@import './app/features/examples/todos/components/todos-container.component.scss-theme';
+@import './app/features/examples/stock-market/components/stock-market-container.component.scss-theme';
+@import './app/features/examples/theming/parent/parent.component.scss-theme';
+@import './app/features/examples/theming/child/child.component.scss-theme';
+@import './app/features/examples/examples/examples.component.scss-theme';
+*/
+
+@mixin custom-components-theme($theme) {
+  @include anms-styles-reset-theme($theme);
+  @include anms-app-component-theme($theme);
+  @include anms-about-component-theme($theme);
+  @include anms-big-input-component-theme($theme);
+  @include anms-vision-index-component-theme($theme);
+  /*@include anms-notifications-component-theme($theme);
+  @include anms-todos-container-component-theme($theme);
+  @include anms-stock-market-container-component-theme($theme);
+  @include anms-parent-component-theme($theme);
+  @include anms-child-component-theme($theme);
+  @include anms-examples-component-theme($theme);*/
 }
 
-.background-accent {
-  background-color: mat-color($bob-accent);
+.default-theme {
+  @include mat.all-component-themes($anms-theme);
+  @include custom-components-theme($anms-theme);
 }
 
-//.container {
-//    display: flex; /* or inline-flex */
-//    flex-direction: row | row-reverse | column | column-reverse;
-//    flex-wrap: nowrap | wrap | wrap-reverse;
-//    flex-flow: column wrap;
-//    justify-content: flex-start | flex-end | center | space-between | space-around | space-evenly | start | end | left | right ... + safe | unsafe;
-//    align-items: stretch | flex-start | flex-end | center | baseline | first baseline | last baseline | start | end | self-start | self-end + ... safe | unsafe;
-//    align-content: flex-start | flex-end | center | space-between | space-around | space-evenly | stretch | start | end | baseline | first baseline | last baseline + ... safe | unsafe;
-//  }
-
-// https://material.angular.io/guide/mdc-migration
-
-.mat-mdc-card {
-    display: flex;
-    margin: 20px;
-    padding: 0px;
-    @include mat.elevation(18);
+.light-theme {
+  @include mat.all-component-themes($anms-light-theme);
+  @include custom-components-theme($anms-light-theme);
 }
 
-.mat-mdc-card-title {
-  padding: 10px;
-  display: flex;
-  flex-direction: row;      
-  //color: white;
-  font-weight: 600;
+.black-theme {
+  @include mat.all-component-themes($anms-black-theme);
+  @include custom-components-theme($anms-black-theme);
 }
 
-.mat-mdc-card-subtitle {
-    padding: 10px 10px 0px 10px;
-}
-
-.mat-mdc-card-content {
-    padding: 0px 10px 10px 10px;
-}
-
-.mat-mdc-card-actions {
-  display: flex;
-  flex-direction: row;        
-  justify-content: flex-end !important;
-}
-
-.mat-mdc-card-footer {
-  padding: 10px 10px 0px 10px;
-}
-
-.mat-mdc-form-field {
-  width: 100%;
-}
-
-.flex-spacer {
-  flex: 1 1 auto;
-}
-
-.mat-mdc-dialog-title {
-  margin: 0 0 0 0;
-  padding: 10px 10px 10px 10px;
-  color: white !important;
-  background-color: mat-color($bob-primary); //mat.get-color-from-palette($primary-palette);
-}
-
-.mat-mdc-dialog-content {
-  padding-top: 10px !important;
-}
-
-.mat-mdc-dialog-actions {
-  display: flex;
-  flex-direction: row;        
-  justify-content: flex-end !important;
-}
-
-.index-container {
-  display: flex;
-  min-height: 100%; 
-  height: 100%;
-  //flex-direction: row;
-  //justify-content: space-between;
-  //align-items: stretch;
-  //column-gap: 20px;
-  //border: 3px solid #555;
-}
-
-.index-sidebar {
-  flex: auto;
-  width: 250px;
-  height: 100%;
-  background-color: white;
-  //border: 3px solid #e20e0e;
-  border-right: 1px solid #E0E0E0;
-  border-bottom: 1px solid #E0E0E0;
-}
-
-.index-content {
-  flex: auto;
-  width: 100%;
-  min-height: 100%; 
-  height: 100%;
-  min-width: 100%; 
-  //border: 3px solid #e20e0e;
-}
-
-.hover-underline-animation {
-  display: inline-block;
-  position: relative;
-  color: rgb(0, 121, 107);
-  cursor: pointer;
-}
-
-.hover-underline-animation::after {
-content: '';
-position: absolute;
-width: 100%;
-transform: scaleX(0);
-height: 2px;
-bottom: 0;
-left: 0;
-background-color: rgb(0, 121, 107);
-transform-origin: bottom right;
-transition: transform 0.25s ease-out;
-}
-
-.hover-underline-animation:hover::after {
-transform: scaleX(1);
-transform-origin: bottom left;
+.nature-theme {
+  @include mat.all-component-themes($anms-nature-theme);
+  @include custom-components-theme($anms-nature-theme);
 }

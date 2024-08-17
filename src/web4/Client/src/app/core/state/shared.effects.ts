@@ -6,10 +6,10 @@ import { map, switchMap, catchError, filter } from 'rxjs/operators';
 
 import { ErrorService } from '../services';
 
-import * as AppActions from './main.actions'
+import * as AppActions from './shared.actions'
 
 @Injectable()
-export class MainEffects {
+export class SharedEffects {
 
   // https://blog.angular-university.io/debug-rxjs/
 

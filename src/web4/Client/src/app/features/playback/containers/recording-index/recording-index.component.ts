@@ -3,10 +3,10 @@ import { Store} from '@ngrx/store';
 import { Subject, Observable } from 'rxjs';
 import { takeUntil, filter } from 'rxjs/operators';
 
-import * as MainActions from '../../../../core/state/main.actions';
+import * as MainActions from '../../../../core/state/shared.actions';
 import * as RecordingActions from '../../state/recording.actions';
 
-import { MainState } from '../../../../core/state/main.reducer';
+import { CoreState } from '../../../../core/state';
 import { RecordingState, getRecordingHeading, getRecordingMessage, getRecordingItems, getRecordingMenuPanelExpanded } from '../../state/recording.reducer';
 
 import { NotificationType, NotificationModel } from '../../../../core/models';
@@ -25,7 +25,7 @@ export class RecordingIndexComponent implements OnInit, OnDestroy {
   _heading$: Observable<string>;
   _menuPanelExpanded$: Observable<boolean>;
 
-  constructor(private mainStore: Store<MainState>, private store: Store<RecordingState>) {
+  constructor(private mainStore: Store<CoreState>, private store: Store<RecordingState>) {
   }
 
   ngOnInit(): void {

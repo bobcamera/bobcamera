@@ -3,8 +3,8 @@ import { MatSnackBar, MatSnackBarConfig } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { filter } from 'rxjs/operators';
 
-import { MainState } from '../state/main.reducer';
-import { Notification } from '../state/main.actions';
+import { CoreState } from '../state/';
+import { Notification } from '../state/shared.actions';
 import { NotificationType, NotificationModel } from '../models';
 
 @Injectable({
@@ -12,7 +12,7 @@ import { NotificationType, NotificationModel } from '../models';
 })
 export class NotificationPublisher {
 
-  constructor(private store: Store<MainState>) {
+  constructor(private store: Store<CoreState>) {
   }
 
   default(message: string) {

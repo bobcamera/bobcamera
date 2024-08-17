@@ -5,8 +5,8 @@ import { Subject, Observable, filter } from 'rxjs';
 import { takeUntil, map, switchMap, distinctUntilChanged } from 'rxjs/operators';
 import { MatDialog } from '@angular/material/dialog';
 
-import { MainState } from '../../../../core/state';
-import * as MainActions from '../../../../core/state/main.actions';
+import { CoreState } from '../../../../core/state';
+import * as MainActions from '../../../../core/state/shared.actions';
 import { NotificationType, NotificationModel } from '../../../../core/models';
 
 import { ConfirmationDialogComponent } from '../../../../core/components';
@@ -32,6 +32,13 @@ import { MaskCreationComponent, MaskCreationSvgComponent } from '../../component
 })
 export class VisionIndexComponent implements OnInit, OnDestroy {
 
+  visions = [
+    { link: '/vision/annotated', label: 'anms.vision.menu.annotated' },
+    { link: '/vision/foregroundmask', label: 'anms.vision.menu.foregroundmask' },
+    { link: '/vision/privacymask', label: 'anms.vision.menu.privacymask' },
+    { link: '/vision/detectionmask', label: 'anms.vision.menu.detectionmask' }
+  ];
+
   _ngUnsubscribe$: Subject<void> = new Subject<void>();
   
   _heading$: Observable<string>;
@@ -51,7 +58,7 @@ export class VisionIndexComponent implements OnInit, OnDestroy {
   @ViewChild('privacymaskcreator', {static: false}) privacymaskcreator: MaskCreationComponent;
   @ViewChild('detectionmaskcreator', {static: false}) detectionmaskcreator: MaskCreationSvgComponent;
 
-  constructor(private mainStore: Store<MainState>, private store: Store<VisionState>, private rosSvc: BobRosService, 
+  constructor(private coreStore: Store<CoreState>, private store: Store<VisionState>, private rosSvc: BobRosService, 
     private _matDialog: MatDialog, private route: ActivatedRoute) {
   }
 
@@ -112,7 +119,7 @@ export class VisionIndexComponent implements OnInit, OnDestroy {
     .pipe(takeUntil(this._ngUnsubscribe$), filter(message => !!message))
     .subscribe((message: string) => {
       let notificationModel: NotificationModel = { type: NotificationType.Information, message: message };
-      this.mainStore.dispatch(MainActions.Notification({ notification: notificationModel }));      
+      this.coreStore.dispatch(MainActions.Notification({ notification: notificationModel }));      
     });
   }
 

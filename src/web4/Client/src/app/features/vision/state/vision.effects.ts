@@ -6,7 +6,7 @@ import { of, timer } from 'rxjs';
 import { withLatestFrom, mergeMap, map, debounceTime, switchMap, catchError, filter } from 'rxjs/operators';
 
 import { ErrorService } from '../../../core/services';
-import { MainEffects } from '../../../core/state';
+import { SharedEffects } from '../../../core/state/shared.effects';
 
 import { VisionState, getVisionCameraPollingEnabled } from './vision.reducer';
 import { VisionService } from '../services';
@@ -15,7 +15,7 @@ import * as VisionActions from './vision.actions';
 import { CameraQuery, CameraDto } from '../models';
 
 @Injectable()
-export class VisionEffects extends MainEffects {
+export class VisionEffects extends SharedEffects {
 
   constructor(errorService: ErrorService, private store: Store<VisionState>, private actions$: Actions, 
     private visionService: VisionService) { 

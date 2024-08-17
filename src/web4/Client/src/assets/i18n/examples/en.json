@@ -143,5 +143,10 @@
   "anms.examples.todos.toggle.notification": "Toggled {{name}} to",
   "anms.examples.todos.tooltip.add": "Add new todo",
   "anms.examples.todos.tooltip.remove": "Remove done todos",
-  "anms.examples.todos.undo": "Undo"
+  "anms.examples.todos.undo": "Undo",
+
+  "anms.vision.menu.annotated": "Annotated",
+  "anms.vision.menu.detectionmask": "Detection Mask",
+  "anms.vision.menu.foregroundmask": "Foreground Mask",
+  "anms.vision.menu.privacymask": "Privacy Mask"
 }

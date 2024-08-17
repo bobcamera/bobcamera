@@ -13,7 +13,11 @@ import { NotificationPublisher, NotificationHandler, ErrorService, ApiServiceBas
 import { AppComponent, AppRootComponent, NotFoundPageComponent, AccessDeniedPageComponent } from './containers';
 import { ConfirmationDialogComponent } from './components';
 
-import * as fromMain from './state';
+import * as fromCore from './state';
+
+import { GuiEffects } from './state/gui.effects';
+import { SharedEffects } from './state/shared.effects';
+import { SettingsEffects } from './state/settings.effects';
 
 import {
     faCog,
@@ -38,12 +42,12 @@ export const PIPE_PROVIDERS = []
 export const PROVIDERS = [NotificationPublisher, NotificationHandler, ErrorService, ApiServiceBase, SvgService, LocalStorageService ];
 export const GUARDS = []
 export const PIPES = [];
-export const EFFECTS = [fromMain.MainEffects];
+export const EFFECTS = [GuiEffects, SharedEffects, SettingsEffects];
 export const DIRECTIVES = [];
 
 @NgModule({
     imports: [
-        StoreModule.forFeature(fromMain.featureKey, fromMain.mainReducer),
+        StoreModule.forFeature('core', fromCore.coreReducers),
         EffectsModule.forFeature(EFFECTS),
         CommonModule,
         RouterModule,

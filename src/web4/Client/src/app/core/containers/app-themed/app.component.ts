@@ -1,19 +1,26 @@
 import browser from 'browser-detect';
 import { Component, OnInit } from '@angular/core';
 import { MatSelectChange } from '@angular/material/select';
+import { Router, NavigationEnd, ActivatedRoute } from '@angular/router';
+import { Title } from '@angular/platform-browser';
 import { Store, select } from '@ngrx/store';
-import { Observable } from 'rxjs';
+import { Observable, Subject } from 'rxjs';
+import { takeUntil, filter, map } from 'rxjs/operators';
 
 import { environment as env } from '../../../../environments/environment';
 
-import { MainState, selectSettingsLanguage, selectEffectiveTheme } from '../../state/main.reducer';
+import { CoreState } from '../../state';
+import { MenuDrawerToggle } from '../../state/gui.actions';
+import { getNotification } from '../../state/shared.selectors';
+import { getMenuDrawerExpanded } from '../../state/gui.selectors';
+
+import { actionSettingsChangeAnimationsPageDisabled, actionSettingsChangeLanguage } from '../../state/settings.actions';
+import { selectSettingsStickyHeader, selectSettingsLanguage, selectEffectiveTheme } from '../../state/settings.selectors';
 
 import { LocalStorageService } from '../../services';
 
-/*import {
-  actionSettingsChangeAnimationsPageDisabled,
-  actionSettingsChangeLanguage
-} from '../core/settings/settings.actions';*/
+import { NotificationHandler } from '../../services'
+import { NotificationModel, NotificationType } from '../../models'
 
 @Component({
   selector: 'bob-app-root',
@@ -38,14 +45,20 @@ export class AppComponent implements OnInit {
     { link: 'settings', label: 'anms.menu.settings' }
   ];
 
+  ngUnsubscribe$: Subject<void> = new Subject<void>();  
+  menuDrawExpanded$: Observable<boolean>;
+
   isAuthenticated$: Observable<boolean> | undefined;
   stickyHeader$: Observable<boolean> | undefined;
   language$: Observable<string> | undefined;
   theme$: Observable<string> | undefined;
 
   constructor(
-    private store: Store<MainState>,
-    private storageService: LocalStorageService
+    private store: Store<CoreState>, 
+    private router: Router, 
+    private titleService: Title, 
+    private storageService: LocalStorageService,
+    private notificationHandler: NotificationHandler
   ) {}
 
   private static isIEorEdgeOrSafari() {
@@ -62,10 +75,37 @@ export class AppComponent implements OnInit {
       );
     }*/
 
-    /*this.isAuthenticated$ = this.store.pipe(select(selectIsAuthenticated));
-    this.stickyHeader$ = this.store.pipe(select(selectSettingsStickyHeader));*/
+    /*this.isAuthenticated$ = this.store.pipe(select(selectIsAuthenticated));*/
+    this.stickyHeader$ = this.store.pipe(select(selectSettingsStickyHeader));
     this.language$ = this.store.pipe(select(selectSettingsLanguage));
     this.theme$ = this.store.pipe(select(selectEffectiveTheme));
+    this.menuDrawExpanded$ = this.store.select(getMenuDrawerExpanded);
+
+    this.router.events
+    .pipe(
+      takeUntil(this.ngUnsubscribe$),
+      filter((event) => event instanceof NavigationEnd),
+      map(() => {
+        let route: ActivatedRoute = this.router.routerState.root;
+        let routeTitle = '';
+        while (route!.firstChild) {
+          route = route.firstChild;
+        }
+        if (route.snapshot.data['title']) {
+          routeTitle = route!.snapshot.data['title'];
+        }
+        return routeTitle;
+      })
+    )
+    .subscribe((title: string) => {
+      const t = title ? `${title} - ${env.appName}` : env.appName
+      //console.debug(t);
+      this.titleService.setTitle(t);
+    });
+
+    this.store.select(getNotification)
+    .pipe(takeUntil(this.ngUnsubscribe$), filter(notification => !!notification))
+    .subscribe((notification: NotificationModel) => this.handleNotification(notification));        
   }
 
   onLoginClick() {
@@ -77,8 +117,29 @@ export class AppComponent implements OnInit {
   }
 
   onLanguageSelect(event: MatSelectChange) {
-    /*this.store.dispatch(
+    this.store.dispatch(
       actionSettingsChangeLanguage({ language: event.value })
-    );*/
+    );
+  }
+
+  handleNotification(notificationModel: NotificationModel) {
+
+    switch(notificationModel.type) {
+      case NotificationType.Default:
+        this.notificationHandler.default(notificationModel.message);
+        break;
+        case NotificationType.Information:
+          this.notificationHandler.info(notificationModel.message);
+          break;              
+      case NotificationType.Success:
+        this.notificationHandler.success(notificationModel.message);
+        break;
+      case NotificationType.Warning:
+        this.notificationHandler.warn(notificationModel.message);
+        break;
+      case NotificationType.Error:
+        this.notificationHandler.error(notificationModel.message);
+        break;                  
+    }
   }
 }
