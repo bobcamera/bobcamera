@@ -46,7 +46,7 @@ ENDIF()
 add_library(record_manager SHARED src/record_manager.cpp)
 target_compile_definitions(record_manager PRIVATE "COMPOSITION_BUILDING_DLL")
 ament_target_dependencies(record_manager PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV rclcpp_components rclcpp_lifecycle bob_interfaces bob_camera)
-target_link_libraries(record_manager PUBLIC jsoncpp)
+target_link_libraries(record_manager PUBLIC jsoncpp boblib)
 rclcpp_components_register_nodes(record_manager "RecordManager")
 install(TARGETS record_manager DESTINATION lib)
 

@@ -1,1 +1,1 @@
-rm -rf build install log
+rm -rf build install log ../boblib/build

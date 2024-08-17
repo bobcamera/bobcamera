@@ -31,7 +31,6 @@ find_package(jsoncpp REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(lifecycle_msgs REQUIRED)
 
-
 include_directories(${OpenCV_INCLUDE_DIRS})
 include_directories("../bob_shared/include")
 include_directories(/usr/include/jsoncpp)
@@ -76,9 +75,5 @@ ament_target_dependencies(camera_bgs_node PUBLIC
     lifecycle_msgs)
 rclcpp_components_register_nodes(camera_bgs_node "CameraBGS")
 install(TARGETS camera_bgs_node DESTINATION lib)
-
-# rclcpp_components_register_node(camera_bgs_node
-#   PLUGIN "bob_camera::CameraBGS"
-#   EXECUTABLE my_lifecycle_node_executable)
 
 ament_package()

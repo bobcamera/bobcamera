@@ -1,6 +1,4 @@
 #pragma once
-#ifndef __IMAGE_UTILS_H__
-#define __IMAGE_UTILS_H__
 
 #include <opencv2/opencv.hpp>
 #include <cv_bridge/cv_bridge.hpp>
@@ -10,6 +8,8 @@
 #include <rcpputils/endian.hpp>
 #include <rcpputils/endian.hpp>
 #include <rclcpp/rclcpp.hpp>
+
+#include "../base/Image.hpp"
 
 class ImageUtils 
 {
@@ -60,14 +60,49 @@ public:
             _image_out = _image_in;
         }
     }
+
+    static const std::string type_to_encoding(int type)
+    {
+        switch (type) 
+        {
+            case CV_8UC1:
+                return sensor_msgs::image_encodings::MONO8;
+            case CV_8UC3:
+                return sensor_msgs::image_encodings::BGR8;
+            case CV_8UC4:
+                return sensor_msgs::image_encodings::BGRA8;
+            case CV_16UC1:
+                return sensor_msgs::image_encodings::MONO16;
+            case CV_16UC3:
+                return sensor_msgs::image_encodings::BGR16;
+            case CV_16UC4:
+                return sensor_msgs::image_encodings::BGRA16;
+            // Bayer patterns
+            case CV_BayerGR2BGR:
+                return sensor_msgs::image_encodings::BAYER_GBRG8;
+            case CV_BayerGB2BGR:
+                return sensor_msgs::image_encodings::BAYER_GRBG8;
+            case CV_BayerRG2BGR:
+                return sensor_msgs::image_encodings::BAYER_BGGR8;
+            case CV_BayerBG2BGR:
+                return sensor_msgs::image_encodings::BAYER_RGGB8;
+            default:
+                throw std::runtime_error("Unsupported image format");
+        }
+    }
 };
 
 class RosCvImageMsg
 {
 public:
-    RosCvImageMsg(const cv::Mat & image, const std::string & encoding, bool copy_img)
+    RosCvImageMsg(const boblib::base::Image & image, bool copy_img)
     {
-        CreateImageMsg(image, encoding, copy_img);
+        create_image_msg(image, copy_img);
+    }
+
+    RosCvImageMsg(int width, int height, int type, bool use_cuda)
+    {
+        create_image_msg(width, height, type, use_cuda);
     }
 
     std_msgs::msg::Header & get_header() const
@@ -86,63 +121,80 @@ public:
         msg_ptr_->header.frame_id = id;
     }
     
-    cv::Mat & get_image() const
+    boblib::base::Image & get_image() const
     {
         return *image_ptr_;
     }
 
-    sensor_msgs::msg::Image & get_msg() const
+    const sensor_msgs::msg::Image & get_msg()
     {
+        if ((image_msg_size_ != image_ptr_->size()) || (image_type_ != image_ptr_->type()))
+        {
+            image_msg_size_ = image_ptr_->size();
+            image_type_ = image_ptr_->type();
+            msg_ptr_->height = image_ptr_->size().height;
+            msg_ptr_->width = image_ptr_->size().width;
+            msg_ptr_->encoding = ImageUtils::type_to_encoding(image_type_);
+            msg_ptr_->is_bigendian = (rcpputils::endian::native == rcpputils::endian::big);
+            msg_ptr_->step = image_ptr_->size().width * image_ptr_->elemSize();
+        }
+        const size_t totalBytes = image_ptr_->total() * image_ptr_->elemSize();
+        msg_ptr_->data.assign(image_ptr_->data(), image_ptr_->data() + totalBytes);
         return *msg_ptr_;
     }
 
-    bool recreate_if_invalid()
+    static std::unique_ptr<RosCvImageMsg> create(int width, int height, int type, bool use_cuda)
     {
-        if (image_msg_size_ != image_ptr_->size())
-        {
-            auto matCopy = image_ptr_->clone();
-            CreateImageMsg(matCopy, msg_ptr_->encoding, true);
-            return true;
-        }
-
-        return false;
+        return std::make_unique<RosCvImageMsg>(width, height, type, use_cuda);
     }
 
-    static std::unique_ptr<RosCvImageMsg> create(cv::VideoCapture & video_capture)
+    static std::unique_ptr<RosCvImageMsg> create(const cv::Mat & img, bool copy_img, bool use_cuda)
     {
-        auto image_temp_ptr = std::make_unique<cv::Mat>();
-        video_capture.read(*image_temp_ptr);
-        auto roscv_image_msg_ptr = std::make_unique<RosCvImageMsg>(*image_temp_ptr, image_temp_ptr->channels() == 1 ? sensor_msgs::image_encodings::MONO8 : sensor_msgs::image_encodings::BGR8, true);
-        image_temp_ptr = nullptr;
-
-        return roscv_image_msg_ptr;
+        auto img_msg = std::make_unique<RosCvImageMsg>(img.size().width, img.size().height, img.type(), use_cuda);
+        if (copy_img)
+        {
+            img_msg->get_image().create(img);
+        }
+        return img_msg;
     }
 
 private:
     sensor_msgs::msg::Image::SharedPtr msg_ptr_;
-    std::unique_ptr<cv::Mat> image_ptr_;
+    std::unique_ptr<boblib::base::Image> image_ptr_;
     cv::Size image_msg_size_;
+    int image_type_;
 
-    inline void CreateImageMsg(const cv::Mat & image, const std::string & encoding, bool copy_img)
+    inline void create_image_msg(const boblib::base::Image & image, bool copy_img)
     {
         image_msg_size_ = image.size();
+        image_type_ = image.type();
         msg_ptr_ = std::make_shared<sensor_msgs::msg::Image>();
 
+        image_ptr_ = std::make_unique<boblib::base::Image>(image.get_using_cuda());
+        image_ptr_->create(image_msg_size_, image_type_);
         msg_ptr_->height = image.size().height;
         msg_ptr_->width = image.size().width;
-        msg_ptr_->encoding = encoding;
+        msg_ptr_->encoding = ImageUtils::type_to_encoding(image_type_);
         msg_ptr_->is_bigendian = (rcpputils::endian::native == rcpputils::endian::big);
         msg_ptr_->step = image.size().width * image.elemSize();
-        const size_t size = msg_ptr_->step * image.size().height;
-        msg_ptr_->data.resize(size);
-        // TODO: image.type() convert it to take into account the encoding we desire
-        image_ptr_ = std::make_unique<cv::Mat>(image.size(), image.type(), reinterpret_cast<void *>(&msg_ptr_->data[0]));
         if (copy_img)
         {
             image.copyTo(*image_ptr_);
         }
     }
 
-};
+    inline void create_image_msg(int width, int height, int type, bool use_cuda)
+    {
+        image_msg_size_ = cv::Size(width, height);
+        image_type_ = type;
+        msg_ptr_ = std::make_shared<sensor_msgs::msg::Image>();
 
-#endif
+        image_ptr_ = std::make_unique<boblib::base::Image>(use_cuda);
+        image_ptr_->create(image_msg_size_, image_type_);
+        msg_ptr_->height = height;
+        msg_ptr_->width = width;
+        msg_ptr_->encoding = ImageUtils::type_to_encoding(type);
+        msg_ptr_->is_bigendian = (rcpputils::endian::native == rcpputils::endian::big);
+        msg_ptr_->step = width * image_ptr_->elemSize();
+    }
+};

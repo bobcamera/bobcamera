@@ -75,7 +75,7 @@ private:
         video_recorder_ = std::make_unique<VideoRecorder>(total_pre_frames_);
     };
 
-    static std::string get_current_date() 
+    static std::string get_current_date_as_str() 
     {
         auto now = std::chrono::system_clock::now();
         auto time_t = std::chrono::system_clock::to_time_t(now);
@@ -117,7 +117,7 @@ private:
 
         if (std::filesystem::exists(dirPath)) 
         {
-            dated_directory_ = dirPath / get_current_date();
+            dated_directory_ = dirPath / get_current_date_as_str();
 
             if (std::filesystem::create_directory(dated_directory_)) 
             {
@@ -286,7 +286,7 @@ private:
                     current_state_ = RecordingStateEnum::BetweenEvents;
                     base_filename_ = generate_filename(image_msg);
 
-                    if (auto current_date = get_current_date(); current_date != date_)
+                    if (auto current_date = get_current_date_as_str(); current_date != date_)
                     {
                         create_dated_dir(recordings_directory_);
                         date_ = current_date;

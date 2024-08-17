@@ -2,26 +2,20 @@ cmake_minimum_required(VERSION 3.5)
 
 include_directories(${OpenCV_INCLUDE_DIRS})
 include_directories($ENV{QHYCCD_SDK_INCLUDE_DIRS})
+include_directories(${CUDA_INCLUDE_DIRS})
 
 if(MSVC)
-  target_compile_options(boblib PRIVATE /EHsc)
+    target_compile_options(boblib PRIVATE /EHsc)
 endif()
 
 file(GLOB_RECURSE LIB_SOURCES "*.cpp" "*.c")
 
 add_library(boblib STATIC ${LIB_SOURCES})
 
-target_link_libraries(boblib
-                    PRIVATE
-                        "${OpenCV_LIBS}"
-                        qhyccd
-                        )
+target_link_libraries(boblib PRIVATE "${OpenCV_LIBS}" qhyccd)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    target_link_libraries(boblib
-            PRIVATE
-                TBB::tbb
-    )
+    target_link_libraries(boblib PRIVATE TBB::tbb)
 endif ()
 
 file(GLOB_RECURSE ALL_HEADER_FILES "*.h" "*.hpp")
@@ -46,8 +40,7 @@ install(TARGETS boblib
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib
         RUNTIME DESTINATION bin
-        INCLUDES DESTINATION include
-)
+        INCLUDES DESTINATION include)
 
 foreach(_dir ${INCLUDE_DIRS})
     file(RELATIVE_PATH REL_DIR ${CMAKE_SOURCE_DIR} ${_dir})
@@ -57,8 +50,7 @@ endforeach()
 
 install(EXPORT boblibTargets
         FILE boblibTargets.cmake
-        DESTINATION lib/cmake/boblib
-)
+        DESTINATION lib/cmake/boblib)
 
 # Include the CMakePackageConfigHelpers module
 include(CMakePackageConfigHelpers)
@@ -66,31 +58,19 @@ include(CMakePackageConfigHelpers)
 # Generate the config file that is includes the exports
 configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/boblibConfig.cmake.in
     "${CMAKE_CURRENT_BINARY_DIR}/boblibConfig.cmake"
-    INSTALL_DESTINATION "lib/cmake/boblib"
-)
+    INSTALL_DESTINATION "lib/cmake/boblib")
 
 # Generate the version file for the config file
 write_basic_package_version_file(
     "${CMAKE_CURRENT_BINARY_DIR}/boblibConfigVersion.cmake"
     VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}"
-    COMPATIBILITY AnyNewerVersion
-)
+    COMPATIBILITY AnyNewerVersion)
 
 # Install the configuration file
 install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/boblibConfig.cmake
     ${CMAKE_CURRENT_BINARY_DIR}/boblibConfigVersion.cmake
-    DESTINATION lib/cmake/boblib
-)
+    DESTINATION lib/cmake/boblib)
 
 # Setup the exports for the build tree
-export(EXPORT boblibTargets
-    FILE "${CMAKE_CURRENT_BINARY_DIR}/boblibTargets.cmake"
-)
-
-# specify that the library needs to be linked with the Boost libraries
-target_link_libraries(boblib
-                    PRIVATE
-                        "${OpenCV_LIBS}"
-                        qhyccd
-                        )  
+export(EXPORT boblibTargets FILE "${CMAKE_CURRENT_BINARY_DIR}/boblibTargets.cmake")
