@@ -10,7 +10,7 @@ import { EffectsModule } from '@ngrx/effects';
 import { UiModule } from '../ui';
 
 import { NotificationPublisher, NotificationHandler, ErrorService, ApiServiceBase, SvgService, LocalStorageService } from './services';
-import { AppComponent, AppRootComponent, NotFoundPageComponent, AccessDeniedPageComponent } from './containers';
+import { AppComponent, NotFoundPageComponent, AccessDeniedPageComponent } from './containers';
 import { ConfirmationDialogComponent } from './components';
 
 import * as fromCore from './state';
@@ -32,12 +32,14 @@ import {
     faMediumM,
     faTwitter,
     faInstagram,
-    faYoutube
+    faYoutube,
+    faFacebook,
+    faDiscord
   } from '@fortawesome/free-brands-svg-icons';
 
 export const COMPONENTS = [ConfirmationDialogComponent];
 //export const ENTRY_COMPONENTS = [ConfirmationDialogComponent]
-export const CONTAINERS = [AppComponent, AppRootComponent, NotFoundPageComponent, AccessDeniedPageComponent];
+export const CONTAINERS = [AppComponent, NotFoundPageComponent, AccessDeniedPageComponent];
 export const PIPE_PROVIDERS = []
 export const PROVIDERS = [NotificationPublisher, NotificationHandler, ErrorService, ApiServiceBase, SvgService, LocalStorageService ];
 export const GUARDS = []
@@ -85,7 +87,9 @@ export class CoreModule {
       faMediumM,
       faTwitter,
       faInstagram,
-      faYoutube
+      faYoutube,
+      faFacebook,
+      faDiscord      
     );
   }
 }

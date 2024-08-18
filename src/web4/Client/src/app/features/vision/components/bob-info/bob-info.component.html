@@ -6,27 +6,25 @@
         <mat-expansion-panel>
             <mat-expansion-panel-header>
               <mat-panel-title> 
-                <div class="metric-header">Bob Info</div> 
-                <span class="flex-spacer">&nbsp;</span>
+                Bob Info
+                <span class="spacer">&nbsp;</span>
                 <button mat-icon-button matTooltip="Send message" (click)="onReload()">
                     <mat-icon>autorenew</mat-icon>
                 </button>                  
               </mat-panel-title>
             </mat-expansion-panel-header>
-            <div class="metric-panel">
-                <div hidden class="metric-readings">
+                <div class="metric-readings">
                     <label>Version:</label>
                     <span id="applicationVersion">{{(AppInfo$ | async)?.version}}</span>
                 </div>
-                <div hidden class="metric-readings">
+                <div class="metric-readings">
                     <label>Frame Size:</label>
                     <span id="applicationVersion">w:{{(AppInfo$ | async)?.frame_width}} x h:{{(AppInfo$ | async)?.frame_height}}</span>
                 </div>
-                <div hidden class="metric-readings">
+                <div class="metric-readings">
                     <label>FPS:</label>
                     <span id="applicationVersion">{{(AppInfo$ | async)?.video_fps}}</span>
                 </div>
-            </div>
         </mat-expansion-panel>
     </mat-card-content>
     <mat-card-content *ngIf="!this.AppInfo$">

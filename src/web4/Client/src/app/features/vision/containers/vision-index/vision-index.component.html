@@ -21,14 +21,14 @@
   <div>
     <mat-card>
         <mat-card-header>
-            <span class="flex-spacer">&nbsp;</span>
+            <span class="spacer">&nbsp;</span>
             <button mat-icon-button (click)="onToggleContextPanel()">
                 <mat-icon *ngIf="!sideNav.opened">chevron_left</mat-icon>
                 <mat-icon *ngIf="sideNav.opened">chevron_right</mat-icon>
             </button>
         </mat-card-header>
         <mat-card-content>
-            <mat-sidenav-container class="example-container" autosize>
+            <mat-sidenav-container autosize>
                 <mat-sidenav #sideNav mode="side" position="end" (openedChange)="onOpenedChange($event)" [opened]="this._contextPanelExpanded$ | async">
                     <bob-bob-info [AppInfo$]="this._appInfo$" (Reload)="OnBobInfoReload()"></bob-bob-info>
                     <bob-bob-state *ngIf="this._displayAppState$ | async" [AppState$]="this._appState$"></bob-bob-state>
