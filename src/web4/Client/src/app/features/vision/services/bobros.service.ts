@@ -69,7 +69,7 @@ export class BobRosConnection {
             this._ros.on('error', (error) => {
                 console.log('BobRosConnection: Error connecting to websocket server:', error);
                 if (this._ros) {
-                    this._ros.isConnected = false;
+                    this._ros.close();
                 }
                 this._connected.next(false);
             });
@@ -77,7 +77,7 @@ export class BobRosConnection {
             this._ros.on('close', (event: any) => {
                 //console.log('BobRosConnection: Connection to websocket server closed.');
                 if (this._ros) {
-                    this._ros.isConnected = false;
+                    this._ros.close();
                     if (this._config.retry) {
                         console.log('BobRosConnection: Connection lost, attempting to reconnect...');
                         setTimeout(() => this.open(this._config), 1000);
@@ -87,20 +87,21 @@ export class BobRosConnection {
             });
         }
 
-        //console.log(`BobRosConnection: URL: ${this._url}:${this._port}`);
+        console.log(`BobRosConnection: URL: ${this._config.url}:${this._config.port}`);
 
         this._ros.connect(`${this._config.url}:${this._config.port}`);
     }
 
     close() {
-        if (this._ros && this._ros.isConnected) {
-            this._config.retry = false;
+        // set retry to false otherwise it will keep on retrying even when out of scope.
+        this._config.retry = false;
+        if (this._ros) {
             this._ros.close();
             this._ros = null;
             console.log('BobRosConnection: Disconnected.');
         } else {
             console.log('BobRosConnection: No active ROS connection to disconnect.');
-        }
+        }       
     }
 
     execute(callback: () => void) {
@@ -125,7 +126,7 @@ export class BobRosService {
     protected _store: Store<VisionState>;
 
     constructor(store: Store<VisionState>) {
-      this._connection = new BobRosConnection();
+      this._connection = null;
       this._hasListeners = false;
       this._topics = [];
       this._store = store;
@@ -143,13 +144,17 @@ export class BobRosService {
     }
 
     connect(config: BobRosConnectionConfig) {
+        this._connection = new BobRosConnection();
         this._connection.open(config);
     }
 
     disconnect() {        
-        if (this._connection && this._connection.isConnected) {
-            this.unsubscribeTopics();
+        if (this._connection) {
+            if (this._connection.isConnected) {
+                this.unsubscribeTopics();
+            }
             this._connection.close();
+            this._connection = null;
         }
     }
 

@@ -85,17 +85,16 @@ export class VisionIndexComponent implements OnInit, OnDestroy {
 
     this.coreStore.select(selectRosModel)
     .pipe(
-      takeUntil(this._ngUnsubscribe$), 
-      distinctUntilChanged(),
-      filter(port => !!port))
+      takeUntil(this._ngUnsubscribe$)
+    )
     .subscribe((rosConnection: RosConnectionModel) => {
-
-      this._rosUrl = rosConnection.url;
-      this._rosPort = rosConnection.port;
 
       if (this.rosSvc.isConnected) {
         this.rosSvc.disconnect();
       }
+
+      this._rosUrl = rosConnection.url;
+      this._rosPort = rosConnection.port;
 
       this.rosSvc.connect({ url: this._rosUrl, port: this._rosPort, retry: true });
 
@@ -117,8 +116,7 @@ export class VisionIndexComponent implements OnInit, OnDestroy {
     )
     .subscribe((connected: boolean) => {
       console.log(`Connection status to ROS Bridge: ${connected}`);
-      if (connected) {
-       
+      if (connected) {       
         this.store.dispatch(MainActions.Notification({
           notification: { type: NotificationType.Information, message: "Connected to ROS Bridge." }}));
       } else {
@@ -133,9 +131,6 @@ export class VisionIndexComponent implements OnInit, OnDestroy {
     .subscribe((imageStreamType: ImageStreamTypeEnum) => {
       this._imageStream$ = this.rosSvc.subVideoStream(imageStreamType);
       if (imageStreamType === ImageStreamTypeEnum.DetectionMask) {
-
-        let connection = {  }
-
         this.rosSvc.svcGetMask({ url: this._rosUrl, port: this._rosPort, retry: false }, 'detection-mask.svg');
       }
     });
@@ -151,9 +146,7 @@ export class VisionIndexComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this._ngUnsubscribe$.next();
     this._ngUnsubscribe$.complete();
-
     //this.store.dispatch(VisionActions.setCameraPolling({ enabled: false }));
-
     this.rosSvc.disconnect();
   }
 
