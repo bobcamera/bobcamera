@@ -20,7 +20,7 @@ export interface RecordingState {
   recordings: RecordingDto[]
 }
 
-export interface State extends fromRoot.State {
+export interface State extends fromRoot.AppState {
   [featureKey]: RecordingState;
 }
 

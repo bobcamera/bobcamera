@@ -5,20 +5,21 @@ import * as fromRouter from '@ngrx/router-store';
 import { environment } from '../../environments/environment';
 
 import * as fromCore from '../core/state';
+import { clearState, logger, debug, initStateFromLocalStorage } from '../meta-reducers';
 
 import * as fromVision from '../features/vision/state';
 import * as fromPlayback from '../features/playback/state';
 
 import { RouterStateUrl } from '../core/services';
 
-export interface State {  
+export interface AppState {  
   router: fromRouter.RouterReducerState<RouterStateUrl>;
   core: fromCore.CoreState;
   vision: fromVision.VisionState;
   playback: fromPlayback.RecordingState;
 }
 
-export const rootReducers = new InjectionToken<ActionReducerMap<State, Action>>('Root reducers token', {
+export const appReducers = new InjectionToken<ActionReducerMap<AppState, Action>>('Root reducers token', {
   factory: () => ({
     router: fromRouter.routerReducer,
     core: fromCore.coreReducers,
@@ -27,39 +28,9 @@ export const rootReducers = new InjectionToken<ActionReducerMap<State, Action>>(
   }),
 });
 
-export function logger(reducer: ActionReducer<State>): ActionReducer<State> {
-  return (state, action) => {
-    const result = reducer(state, action);
-    console.groupCollapsed(action.type);
-    console.log('prev state', state);
-    console.log('action', action);
-    console.log('next state', result);
-    console.groupEnd();
-
-    return result;
-  };
-}
-
-export function clearState(reducer: ActionReducer<State>): ActionReducer<State> {
-  return function (state, action) {
-    if (action.type === '[Core] Clear State') {
-      state = undefined;
-    }
-    return reducer(state, action);
-  };
-}
-
-export function applicationInit(reducer: ActionReducer<State>): ActionReducer<State> {
-  return function (state, action) {
-    //console.log(`Init state - lookup data loadingCount: ${state?.core?.lookupdata?.loadingCount}`);
-    //console.log(`Init state - lookup data init: ${state?.core?.lookupdata?.init}`);
-    return reducer(state, action);
-  };
-}
-
-export const metaReducers: MetaReducer<State>[] = !environment.production
-  ? [logger, clearState, applicationInit]
-  : [clearState, applicationInit];
+export const metaReducers: MetaReducer<AppState>[] = !environment.production
+  ? [logger, initStateFromLocalStorage]
+  : [initStateFromLocalStorage];
 
 
 /**

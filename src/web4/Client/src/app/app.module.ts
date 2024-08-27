@@ -17,7 +17,7 @@ import { AppRoutingModule } from './app-routing.module';
 
 import { AppComponent } from './core/containers';
 
-import { rootReducers, metaReducers } from './state';
+import { appReducers, metaReducers } from './state';
 
 import { environment } from 'src/environments/environment';
 
@@ -33,12 +33,11 @@ import { environment } from 'src/environments/environment';
     UiModule,
     AppRoutingModule,
     
-    StoreModule.forRoot(rootReducers, { metaReducers }),
+    StoreModule.forRoot(appReducers, { metaReducers }),
     environment.production 
     ? [] 
     : StoreDevtoolsModule.instrument({
-      maxAge: 25,
-      logOnly: environment.production,
+      name: 'BOB Universal Object Tracker'
     }),
 
     EffectsModule.forRoot([]),

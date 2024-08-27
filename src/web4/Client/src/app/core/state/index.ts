@@ -1,6 +1,7 @@
 import { createFeatureSelector, combineReducers, Action, } from '@ngrx/store';
+import * as fromRouter from '@ngrx/router-store';
 
-import * as fromRoot from '../../state';
+import { AppState } from '../../state';
 
 import { SharedState } from './shared.model';
 import { sharedReducer } from './shared.reducer';
@@ -11,13 +12,18 @@ import { guiReducer } from './gui.reducer';
 import { SettingsState } from './settings.model';
 import { settingsReducer } from './settings.reducer';
 
+/**
+ * Router Selectors
+ */
+export const { selectRouteData } = fromRouter.getRouterSelectors();
+
 export interface CoreState {
     shared: SharedState;
     gui: GuiState;
     settings: SettingsState;
 }
 
-export interface State extends fromRoot.State {
+export interface State extends AppState {
   core: CoreState;
 }
 

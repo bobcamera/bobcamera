@@ -4,35 +4,13 @@ import { HttpErrorResponse } from '@angular/common/http';
 import * as fromRoot from '../../../state'
 import * as VisionActions from './vision.actions'
 
+import { VisionState } from'./vision.models';
+
 import { LoadingModel, CameraDto, AppInfoDto, ImageStreamTypeEnum } from '../models';
 
 export const featureKey = 'vision';
 
-export interface VisionState {
-  heading: string;
-  menuPanelExpanded: boolean;
-  contextPanelExpanded: boolean;
-  imageStreamType: ImageStreamTypeEnum;
-  displayPrivacyMaskControls: boolean;
-  displayDetectionMaskControls: boolean;
-  displayAppState: boolean;
-
-  message: string;
-
-  error: HttpErrorResponse;
-  loading: boolean;
-  loadingMessage: string;
-
-  enableCameraPolling: boolean;
-  camera: CameraDto;
-
-  bobInfo: AppInfoDto;
-
-  maskEditMode: boolean;
-  maskSvg: string;
-}
-
-export interface State extends fromRoot.State {
+export interface State extends fromRoot.AppState {
   [featureKey]: VisionState;
 }
 
@@ -132,81 +110,3 @@ export const visionReducer = createReducer<VisionState>(
   on(VisionActions.setMaskSvg, (state, action): VisionState => { return { ...state, maskSvg: action.mask }; }),
   on(VisionActions.clearMaskSvg, (state, action): VisionState => { return { ...state, maskSvg: null }; }),
 )
-
-// Selectors
-const getVisionState = createFeatureSelector<VisionState>(featureKey);
-
-export const getVisionHeading = createSelector(
-  getVisionState,
-  state => state.heading
-);
-
-export const getVisionMenuPanelExpanded = createSelector(
-  getVisionState,
-  state => state.menuPanelExpanded
-);
-
-export const getVisionContextPanelExpanded = createSelector(
-  getVisionState,
-  state => state.contextPanelExpanded
-);
-
-export const getVisionImageStreamType = createSelector(
-  getVisionState,
-  state => state.imageStreamType
-);
-
-export const getVisionDisplayPrivacyMaskControls = createSelector(
-  getVisionState,
-  state => state.displayPrivacyMaskControls
-);
-
-export const getVisionDisplayDetectionMaskControls = createSelector(
-  getVisionState,
-  state => state.displayDetectionMaskControls
-);
-
-export const getVisionDisplayAppState = createSelector(
-  getVisionState,
-  state => state.displayAppState
-);
-
-export const getVisionMessage = createSelector(
-  getVisionState,
-  state => state.message
-);
-
-export const getVisionError = createSelector(
-  getVisionState,
-  state => state.error
-);
-
-export const getVisionLoading = createSelector(
-  getVisionState,
-  state => <LoadingModel>{loading: state.loading, message: state.loadingMessage}
-);
-
-export const getVisionCameraPollingEnabled = createSelector(
-  getVisionState,
-  state => state.enableCameraPolling
-);
-
-export const getVisionCamera = createSelector(
-  getVisionState,
-  state => state.camera
-);
-
-export const getBobInfo = createSelector(
-  getVisionState,
-  state => state.bobInfo
-);
-
-export const getMaskEditMode = createSelector(
-  getVisionState,
-  state => state.maskEditMode
-);
-
-export const getMaskSvg = createSelector(
-  getVisionState,
-  state => state.maskSvg
-);

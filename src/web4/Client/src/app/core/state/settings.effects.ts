@@ -25,8 +25,10 @@ import {
   actionSettingsChangeLanguage,
   actionSettingsChangeTheme,
   actionSettingsChangeStickyHeader,
-  actionSettingsChangeHour
+  actionSettingsChangeHour,
+  actionSettingsChangeRosPort
 } from './settings.actions';
+
 import {
   selectEffectiveTheme,
   selectSettingsLanguage,
@@ -34,12 +36,11 @@ import {
   selectElementsAnimations
 } from './settings.selectors';
 
-//import { State } from './settings.model';
 import { SettingsState } from './settings.model';
 
 export const SETTINGS_KEY = 'SETTINGS';
 
-const INIT = of('anms-init-effect-trigger');
+const INIT = of('ROOT_EFFECTS_INIT');
 
 @Injectable()
 export class SettingsEffects {
@@ -67,7 +68,8 @@ export class SettingsEffects {
           actionSettingsChangeAutoNightMode,
           actionSettingsChangeLanguage,
           actionSettingsChangeStickyHeader,
-          actionSettingsChangeTheme
+          actionSettingsChangeTheme,
+          actionSettingsChangeRosPort
         ),
         withLatestFrom(this.store.pipe(select(selectSettingsState))),
         tap(([action, settings]) =>
@@ -109,11 +111,8 @@ export class SettingsEffects {
       merge(INIT, this.actions$.pipe(ofType(actionSettingsChangeTheme))).pipe(
         withLatestFrom(this.store.pipe(select(selectEffectiveTheme))),
         tap(([action, effectiveTheme]) => {
-          const classList =
-            this.overlayContainer.getContainerElement().classList;
-          const toRemove = Array.from(classList).filter((item: string) =>
-            item.includes('-theme')
-          );
+          const classList = this.overlayContainer.getContainerElement().classList;
+          const toRemove = Array.from(classList).filter((item: string) => item.includes('-theme'));
           if (toRemove.length) {
             classList.remove(...toRemove);
           }

@@ -89,5 +89,23 @@
         </div>
       </div>
     </div>
+    <div class="row"  rtl>
+      <div class="col-md-6 group">
+        <h2>{{ 'anms.settings.camera.title' | translate }}</h2>
+        <div class="icon-form-field">
+          <mat-icon color="accent"><fa-icon icon="video-camera" color="accent"></fa-icon></mat-icon>
+          <mat-form-field>
+            <mat-select [placeholder]="'anms.settings.camera.placeholder' | translate"
+                        [ngModel]="settings.rosModel.port"
+                        (selectionChange)="onCameraSelect($event)"
+                        name="cameras">
+              <mat-option *ngFor="let c of cameras" [value]="c.value">
+                {{ 'anms.settings.cameras.' + c.label | translate }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+      </div>     
+    </div>
   </ng-container>
 </div>

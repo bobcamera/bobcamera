@@ -10,7 +10,9 @@ import {
   actionSettingsChangeHour,
   actionSettingsChangeLanguage,
   actionSettingsChangeStickyHeader,
-  actionSettingsChangeTheme
+  actionSettingsChangeTheme,
+  actionSettingsChangeRosPort,
+  actionSettingsChangeRosUrl
 } from './settings.actions';
 
 export const initialState: SettingsState = {
@@ -22,7 +24,8 @@ export const initialState: SettingsState = {
   pageAnimations: false,
   pageAnimationsDisabled: true,
   elementsAnimations: false,
-  hour: 0
+  hour: 0,
+  rosModel: { url: 'http://localhost', port: 9090}
 };
 
 export const settingsReducer = createReducer<SettingsState>(
@@ -37,6 +40,23 @@ export const settingsReducer = createReducer<SettingsState>(
     actionSettingsChangeHour,
     (state, action) => ({ ...state, ...action })
   ),
+
+  on(
+    actionSettingsChangeRosPort,
+    (state, { rosPort }) => ({
+      ...state,
+      rosModel: { ...state.rosModel, port: rosPort }
+    })
+  ),
+
+  on(
+    actionSettingsChangeRosUrl,
+    (state, { rosUrl }) => ({
+      ...state,
+      rosModel: { ...state.rosModel, url: rosUrl }
+    })
+  ),
+
   on(
     actionSettingsChangeAnimationsPageDisabled,
     (state, { pageAnimationsDisabled }) => ({

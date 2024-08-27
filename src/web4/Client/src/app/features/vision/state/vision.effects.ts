@@ -8,7 +8,8 @@ import { withLatestFrom, mergeMap, map, debounceTime, switchMap, catchError, fil
 import { ErrorService } from '../../../core/services';
 import { SharedEffects } from '../../../core/state/shared.effects';
 
-import { VisionState, getVisionCameraPollingEnabled } from './vision.reducer';
+import { VisionState } from './vision.models';
+import { getVisionCameraPollingEnabled } from './vision.selectors';
 import { VisionService } from '../services';
 import * as VisionActions from './vision.actions';
 

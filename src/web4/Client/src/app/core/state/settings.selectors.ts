@@ -67,3 +67,8 @@ export const selectEffectiveTheme = createSelector(
   (theme, nightTheme, isNightHour) =>
     (isNightHour ? nightTheme : theme).toLowerCase()
 );
+
+export const selectRosModel = createSelector(
+  selectSettings,
+  (settings) => settings.rosModel
+);

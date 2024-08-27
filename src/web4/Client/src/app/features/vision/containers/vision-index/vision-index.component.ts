@@ -15,7 +15,11 @@ import * as VisionActions from '../../state/vision.actions';
 import { VisionState, getVisionHeading, getVisionMenuPanelExpanded, getVisionContextPanelExpanded, getVisionCamera, getBobInfo, 
   getMaskEditMode, getMaskSvg, getVisionImageStreamType, getVisionDisplayAppState, getVisionDisplayDetectionMaskControls, 
   getVisionDisplayPrivacyMaskControls, getVisionMessage
- } from '../../state/vision.reducer';
+ } from '../../state';
+
+import { RosConnectionModel } from '../../../../core/state/settings.model';
+import { selectRosModel } from '../../../../core/state/settings.selectors';
+
 
 import { CameraDto, AppInfoDto, AppStateDto, ImageStreamTypeEnum } from '../../models';
 
@@ -55,6 +59,9 @@ export class VisionIndexComponent implements OnInit, OnDestroy {
   _displayDetectionMaskControls$: Observable<boolean>;
   _displayAppState$: Observable<boolean>;
 
+  _rosPort: number;
+  _rosUrl: string;
+
   @ViewChild('privacymaskcreator', {static: false}) privacymaskcreator: MaskCreationComponent;
   @ViewChild('detectionmaskcreator', {static: false}) detectionmaskcreator: MaskCreationSvgComponent;
 
@@ -63,8 +70,6 @@ export class VisionIndexComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-
-    this.rosSvc.connect(true);    
 
     this._heading$ = this.store.select(getVisionHeading);
     this._menuPanelExpanded$ = this.store.select(getVisionMenuPanelExpanded);
@@ -77,6 +82,25 @@ export class VisionIndexComponent implements OnInit, OnDestroy {
     this._displayPrivacyMaskControls$ = this.store.select(getVisionDisplayPrivacyMaskControls);
     this._displayDetectionMaskControls$ = this.store.select(getVisionDisplayDetectionMaskControls);
     this._displayAppState$ = this.store.select(getVisionDisplayAppState);
+
+    this.coreStore.select(selectRosModel)
+    .pipe(
+      takeUntil(this._ngUnsubscribe$), 
+      distinctUntilChanged(),
+      filter(port => !!port))
+    .subscribe((rosConnection: RosConnectionModel) => {
+
+      this._rosUrl = rosConnection.url;
+      this._rosPort = rosConnection.port;
+
+      if (this.rosSvc.isConnected) {
+        this.rosSvc.disconnect();
+      }
+
+      this.rosSvc.connect({ url: this._rosUrl, port: this._rosPort, retry: true });
+
+      this.OnBobInfoReload();      
+    });
 
     this.route.params.pipe(
       takeUntil(this._ngUnsubscribe$),
@@ -109,11 +133,12 @@ export class VisionIndexComponent implements OnInit, OnDestroy {
     .subscribe((imageStreamType: ImageStreamTypeEnum) => {
       this._imageStream$ = this.rosSvc.subVideoStream(imageStreamType);
       if (imageStreamType === ImageStreamTypeEnum.DetectionMask) {
-        this.rosSvc.svcGetMask('detection-mask.svg');
+
+        let connection = {  }
+
+        this.rosSvc.svcGetMask({ url: this._rosUrl, port: this._rosPort, retry: false }, 'detection-mask.svg');
       }
     });
-
-    this.OnBobInfoReload();
 
     this.store.select(getVisionMessage)
     .pipe(takeUntil(this._ngUnsubscribe$), filter(message => !!message))
@@ -163,13 +188,13 @@ export class VisionIndexComponent implements OnInit, OnDestroy {
   }  
 
   OnPMEdit(): void {
-    this.rosSvc.svcPrivacyMaskOverride(false);
+    this.rosSvc.svcPrivacyMaskOverride({ url: this._rosUrl, port: this._rosPort, retry: false }, false);
     this.privacymaskcreator.clearMask();
   }
 
   OnPMCancel(): void {
     this.privacymaskcreator.cancel();
-    this.rosSvc.svcPrivacyMaskOverride(true);
+    this.rosSvc.svcPrivacyMaskOverride({ url: this._rosUrl, port: this._rosPort, retry: false }, true);
   }
 
   OnPMDelete(): void {
@@ -185,16 +210,16 @@ export class VisionIndexComponent implements OnInit, OnDestroy {
       .afterClosed()
       .subscribe((accept: boolean) => {
         if (accept) {
-          this.rosSvc.svcDeleteMask('privacy-mask.svg');
+          this.rosSvc.svcDeleteMask({ url: this._rosUrl, port: this._rosPort, retry: false }, 'privacy-mask.svg');
         }
       });
   }
 
   OnPMSave(): void {
     const svgContent = this.privacymaskcreator.getMaskAsSVG(false);
-    this.rosSvc.svcSaveMask(svgContent, 'privacy-mask.svg');
+    this.rosSvc.svcSaveMask({ url: this._rosUrl, port: this._rosPort, retry: false }, svgContent, 'privacy-mask.svg');
     this.privacymaskcreator.clearMask();
-    this.rosSvc.svcPrivacyMaskOverride(true);
+    this.rosSvc.svcPrivacyMaskOverride({ url: this._rosUrl, port: this._rosPort, retry: false }, true);
   }
 
   OnPMClear(): void {
@@ -202,13 +227,13 @@ export class VisionIndexComponent implements OnInit, OnDestroy {
   }
 
   OnDMEdit(): void {
-    this.rosSvc.svcDetectionMaskOverride(false);
+    this.rosSvc.svcDetectionMaskOverride({ url: this._rosUrl, port: this._rosPort, retry: false }, false);
     this.detectionmaskcreator.clearMask();
   }
 
   OnDMCancel(): void {
     this.detectionmaskcreator.cancel();
-    this.rosSvc.svcDetectionMaskOverride(true);
+    this.rosSvc.svcDetectionMaskOverride({ url: this._rosUrl, port: this._rosPort, retry: false }, true);
   }
 
   OnDMDelete(): void {
@@ -225,16 +250,16 @@ export class VisionIndexComponent implements OnInit, OnDestroy {
       .afterClosed()
       .subscribe((accept: boolean) => {
         if (accept) {
-          this.rosSvc.svcDeleteMask('detection-mask.svg');
+          this.rosSvc.svcDeleteMask({ url: this._rosUrl, port: this._rosPort, retry: false }, 'detection-mask.svg');
         }
       });
   }
 
   OnDMSave(): void {
     const svgContent = this.detectionmaskcreator.getMaskAsSVG(true);
-    this.rosSvc.svcSaveMask(svgContent, 'detection-mask.svg');
+    this.rosSvc.svcSaveMask({ url: this._rosUrl, port: this._rosPort, retry: false }, svgContent, 'detection-mask.svg');
     this.detectionmaskcreator.clearMask();
-    this.rosSvc.svcDetectionMaskOverride(true);
+    this.rosSvc.svcDetectionMaskOverride({ url: this._rosUrl, port: this._rosPort, retry: false }, true);
   }
 
   OnDMClear(): void {
@@ -242,6 +267,6 @@ export class VisionIndexComponent implements OnInit, OnDestroy {
   }
 
   OnBobInfoReload() : void {
-    this.rosSvc.svcAppInfo();
+    this.rosSvc.svcAppInfo({ url: this._rosUrl, port: this._rosPort, retry: false });
   }
 }

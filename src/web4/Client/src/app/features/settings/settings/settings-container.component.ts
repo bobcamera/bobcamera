@@ -10,8 +10,10 @@ import {
   actionSettingsChangeAutoNightMode,
   actionSettingsChangeLanguage,
   actionSettingsChangeTheme,
-  actionSettingsChangeStickyHeader
+  actionSettingsChangeStickyHeader,
+  actionSettingsChangeRosPort
 } from '../../../core/state/settings.actions';
+
 import { CoreState } from '../../../core/state';
 import { SettingsState } from '../../../core/state/settings.model';
 import { selectSettings } from '../../../core/state/settings.selectors';
@@ -44,6 +46,12 @@ export class SettingsContainerComponent implements OnInit {
     { value: 'ar', label: 'اللغة العربية' }
   ];
 
+  cameras = [
+    { value: 9090, label: 'Camera 1' },
+    { value: 9091, label: 'Camera 2' },
+    { value: 9092, label: 'Camera 3' }
+  ];
+
   constructor(private store: Store<CoreState>) {}
 
   ngOnInit() {
@@ -58,6 +66,10 @@ export class SettingsContainerComponent implements OnInit {
 
   onThemeSelect(event: MatSelectChange) {
     this.store.dispatch(actionSettingsChangeTheme({ theme: event.value }));
+  }
+
+  onCameraSelect(event: MatSelectChange) {
+    this.store.dispatch(actionSettingsChangeRosPort({ rosPort: event.value }));
   }
 
   onAutoNightModeToggle(event: MatSlideToggleChange) {

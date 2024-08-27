@@ -9,7 +9,7 @@ import { EffectsModule } from '@ngrx/effects';
 
 import { UiModule } from '../ui';
 
-import { NotificationPublisher, NotificationHandler, ErrorService, ApiServiceBase, SvgService, LocalStorageService } from './services';
+import { NotificationPublisher, NotificationHandler, ErrorService, ApiServiceBase, LocalStorageService } from './services';
 import { AppComponent, NotFoundPageComponent, AccessDeniedPageComponent } from './containers';
 import { ConfirmationDialogComponent } from './components';
 
@@ -25,7 +25,8 @@ import {
     faRocket,
     faPowerOff,
     faUserCircle,
-    faPlayCircle
+    faPlayCircle,
+    faVideoCamera
   } from '@fortawesome/free-solid-svg-icons';
   import {
     faGithub,
@@ -41,7 +42,7 @@ export const COMPONENTS = [ConfirmationDialogComponent];
 //export const ENTRY_COMPONENTS = [ConfirmationDialogComponent]
 export const CONTAINERS = [AppComponent, NotFoundPageComponent, AccessDeniedPageComponent];
 export const PIPE_PROVIDERS = []
-export const PROVIDERS = [NotificationPublisher, NotificationHandler, ErrorService, ApiServiceBase, SvgService, LocalStorageService ];
+export const PROVIDERS = [NotificationPublisher, NotificationHandler, ErrorService, ApiServiceBase, LocalStorageService ];
 export const GUARDS = []
 export const PIPES = [];
 export const EFFECTS = [GuiEffects, SharedEffects, SettingsEffects];
@@ -83,6 +84,8 @@ export class CoreModule {
       faPowerOff,
       faUserCircle,
       faPlayCircle,
+      faVideoCamera,
+      
       faGithub,
       faMediumM,
       faTwitter,

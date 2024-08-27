@@ -13,17 +13,20 @@ import { VisionState } from '../state';
 
 import { ImageStreamTypeEnum, AppInfoDto, AppStateDto } from '../models';
 
+export interface BobRosConnectionConfig {
+    url: string;
+    port: number;
+    retry: boolean;
+}
+
 export class BobRosConnection {
 
     // https://stackoverflow.com/questions/64647388/roslib-with-angular-10
-    protected _port: number;
-    protected _url: string;
     protected _ros: ROSLIB.Ros;
+    protected _config: BobRosConnectionConfig;
     private _connected = new Subject<boolean>();    
 
-    constructor(url: string = "http://localhost", port: number = 9090) {
-        this._url = url;
-        this._port = port;
+    constructor() {
         this._connected.next(false);
     }
 
@@ -42,7 +45,9 @@ export class BobRosConnection {
         return this._connected.asObservable();
     }
 
-    open(retry: boolean = false) {
+    open(config: BobRosConnectionConfig) {
+
+        this._config = config;
         
         let attach:boolean = false;
 
@@ -73,9 +78,9 @@ export class BobRosConnection {
                 //console.log('BobRosConnection: Connection to websocket server closed.');
                 if (this._ros) {
                     this._ros.isConnected = false;
-                    if (retry) {
+                    if (this._config.retry) {
                         console.log('BobRosConnection: Connection lost, attempting to reconnect...');
-                        setTimeout(() => this.open(retry), 1000);
+                        setTimeout(() => this.open(this._config), 1000);
                     }
                 }
                 this._connected.next(false);
@@ -84,11 +89,12 @@ export class BobRosConnection {
 
         //console.log(`BobRosConnection: URL: ${this._url}:${this._port}`);
 
-        this._ros.connect(`${this._url}:${this._port}`);
+        this._ros.connect(`${this._config.url}:${this._config.port}`);
     }
 
     close() {
         if (this._ros && this._ros.isConnected) {
+            this._config.retry = false;
             this._ros.close();
             this._ros = null;
             console.log('BobRosConnection: Disconnected.');
@@ -118,7 +124,7 @@ export class BobRosService {
     protected _topics: ROSLIB.Topic[];
     protected _store: Store<VisionState>;
 
-    constructor(@Inject('BASE_URL') baseUrl: string, store: Store<VisionState>) {
+    constructor(store: Store<VisionState>) {
       this._connection = new BobRosConnection();
       this._hasListeners = false;
       this._topics = [];
@@ -136,8 +142,8 @@ export class BobRosService {
       return this._connection.connected;
     }
 
-    connect(retry: boolean = false) {
-        this._connection.open(retry);
+    connect(config: BobRosConnectionConfig) {
+        this._connection.open(config);
     }
 
     disconnect() {        
@@ -185,10 +191,10 @@ export class BobRosService {
           );
     }
 
-    public svcAppInfo(): void {
+    public svcAppInfo(config: BobRosConnectionConfig): void {
 
         let connection = new BobRosConnection();
-        connection.open(false); 
+        connection.open(config); 
         connection.execute(() => {
             
             let service = new ROSLIB.Service({
@@ -218,10 +224,10 @@ export class BobRosService {
         });     
     }
 
-    public svcPrivacyMaskOverride(mask_enabled: boolean = true) {
+    public svcPrivacyMaskOverride(config: BobRosConnectionConfig, mask_enabled: boolean = true) {
 
         let connection = new BobRosConnection();
-        connection.open(false); 
+        connection.open(config); 
         connection.execute(() => {     
 
             let service = new ROSLIB.Service({
@@ -256,10 +262,10 @@ export class BobRosService {
         });          
     }
 
-    public svcDetectionMaskOverride(mask_enabled: boolean = true) {
+    public svcDetectionMaskOverride(config: BobRosConnectionConfig, mask_enabled: boolean = true) {
 
         let connection = new BobRosConnection();
-        connection.open(false); 
+        connection.open(config); 
         connection.execute(() => {     
 
             let service = new ROSLIB.Service({
@@ -294,10 +300,10 @@ export class BobRosService {
         });          
     }
 
-    public svcDeleteMask(maskFilename: string) {
+    public svcDeleteMask(config: BobRosConnectionConfig, maskFilename: string) {
 
         let connection = new BobRosConnection();
-        connection.open(false); 
+        connection.open(config); 
         connection.execute(() => {          
 
             let deleteMaskService = new ROSLIB.Service({
@@ -327,10 +333,10 @@ export class BobRosService {
         });           
     }
 
-    public svcSaveMask(svgContent: string, maskFilename: string) {
+    public svcSaveMask(config: BobRosConnectionConfig, svgContent: string, maskFilename: string) {
 
         let connection = new BobRosConnection();
-        connection.open(false); 
+        connection.open(config); 
         connection.execute(() => {     
 
             let updateSvgMaskService = new ROSLIB.Service({
@@ -361,10 +367,10 @@ export class BobRosService {
         });
     }
 
-    public svcGetMask(maskFilename: string) {
+    public svcGetMask(config: BobRosConnectionConfig, maskFilename: string) {
 
         let connection = new BobRosConnection();
-        connection.open(false); 
+        connection.open(config); 
         connection.execute(() => {     
 
             let updateSvgMaskService = new ROSLIB.Service({

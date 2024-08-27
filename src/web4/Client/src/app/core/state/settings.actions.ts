@@ -1,6 +1,6 @@
 import { createAction, props } from '@ngrx/store';
 
-import { Language } from './settings.model';
+import { Language, RosConnectionModel } from './settings.model';
 
 export const actionSettingsChangeLanguage = createAction(
   '[Settings] Change Language',
@@ -38,4 +38,12 @@ export const actionSettingsChangeAnimationsElements = createAction(
 export const actionSettingsChangeHour = createAction(
   '[Settings] Change Hours',
   props<{ hour: number }>()
+);
+export const actionSettingsChangeRosPort = createAction(
+  '[Settings] Change ROS Port',
+  props<{ rosPort: number }>()
+);
+export const actionSettingsChangeRosUrl = createAction(
+  '[Settings] Change ROS Url',
+  props<{ rosUrl: string }>()
 );
