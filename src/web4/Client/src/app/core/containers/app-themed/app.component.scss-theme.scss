@@ -52,22 +52,26 @@
   }
 
   .error-notification-overlay {
-    color: mat.get-color-from-palette($warn, default-contrast);
-    background-color: mat.get-color-from-palette($warn);
+    --mdc-snackbar-supporting-text-color: #{mat.get-color-from-palette($warn, default-contrast)} !important;
+    --mdc-snackbar-container-color: #{mat.get-color-from-palette($warn)} !important;
+    //--mat-snack-bar-button-color: #ff4081;
   }
 
   .info-notification-overlay {
-    color: mat.get-color-from-palette($accent, default-contrast);
-    background-color: mat.get-color-from-palette($accent);
+    --mdc-snackbar-supporting-text-color: #{mat.get-color-from-palette($accent, default-contrast)} !important;
+    --mdc-snackbar-container-color: #{mat.get-color-from-palette($accent)} !important;
+    //--mat-snack-bar-button-color: #ff4081;
   }
 
   .success-notification-overlay {
-    color: mat.get-color-from-palette($success-colors, default-contrast);
-    background-color: mat.get-color-from-palette($success-colors);
-  }
+    --mdc-snackbar-supporting-text-color: #{mat.get-color-from-palette($success-colors, default-contrast)} !important;
+    --mdc-snackbar-container-color: #{mat.get-color-from-palette($success-colors)} !important;
+    //--mat-snack-bar-button-color: #ff4081;
+  }  
 
   .warning-notification-overlay {
-    color: mat.get-color-from-palette($warning-colors, default-contrast);
-    background-color: mat.get-color-from-palette($warning-colors);
+    --mdc-snackbar-supporting-text-color: #{mat.get-color-from-palette($warning-colors, default-contrast)} !important;
+    --mdc-snackbar-container-color: #{mat.get-color-from-palette($warning-colors)} !important;
+    //--mat-snack-bar-button-color: #ff4081;
   }
 }

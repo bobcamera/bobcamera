@@ -10,7 +10,11 @@ import { CoreState } from '../../../../core/state';
 import { RecordingState, getRecordingHeading, getRecordingMessage, getRecordingItems, getRecordingMenuPanelExpanded } from '../../state/recording.reducer';
 
 import { NotificationType, NotificationModel } from '../../../../core/models';
+
+import { NotificationPublisher } from '../../../../core/services';
+
 import { RecordingQuery, RecordingDto } from '../../models';
+import { error } from 'console';
 
 @Component({
   selector: 'bob-recording-index',
@@ -25,7 +29,7 @@ export class RecordingIndexComponent implements OnInit, OnDestroy {
   _heading$: Observable<string>;
   _menuPanelExpanded$: Observable<boolean>;
 
-  constructor(private mainStore: Store<CoreState>, private store: Store<RecordingState>) {
+  constructor(private mainStore: Store<CoreState>, private store: Store<RecordingState>, private notificationService: NotificationPublisher) {
   }
 
   ngOnInit(): void {
@@ -61,7 +65,12 @@ export class RecordingIndexComponent implements OnInit, OnDestroy {
   }
 
   setMessage(message: string) {
-    this.store.dispatch(RecordingActions.setMessage({message: message}));
+    //this.store.dispatch(RecordingActions.setMessage({message: message}));
+    //this.notificationService.default(message);
+    //this.notificationService.info(message);
+    this.notificationService.success(message);
+    //this.notificationService.warn(message);
+    //this.notificationService.error(message);
   }
 
   loadRecords() {

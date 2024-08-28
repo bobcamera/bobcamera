@@ -11,6 +11,8 @@ import { NotificationType, NotificationModel } from '../../../../core/models';
 
 import { ConfirmationDialogComponent } from '../../../../core/components';
 
+import { NotificationPublisher } from '../../../../core/services';
+
 import * as VisionActions from '../../state/vision.actions';
 import { VisionState, getVisionHeading, getVisionMenuPanelExpanded, getVisionContextPanelExpanded, getVisionCamera, getBobInfo, 
   getMaskEditMode, getMaskSvg, getVisionImageStreamType, getVisionDisplayAppState, getVisionDisplayDetectionMaskControls, 
@@ -66,7 +68,7 @@ export class VisionIndexComponent implements OnInit, OnDestroy {
   @ViewChild('detectionmaskcreator', {static: false}) detectionmaskcreator: MaskCreationSvgComponent;
 
   constructor(private coreStore: Store<CoreState>, private store: Store<VisionState>, private rosSvc: BobRosService, 
-    private _matDialog: MatDialog, private route: ActivatedRoute) {
+    private _matDialog: MatDialog, private route: ActivatedRoute, private notificationService: NotificationPublisher) {
   }
 
   ngOnInit(): void {
@@ -116,12 +118,10 @@ export class VisionIndexComponent implements OnInit, OnDestroy {
     )
     .subscribe((connected: boolean) => {
       console.log(`Connection status to ROS Bridge: ${connected}`);
-      if (connected) {       
-        this.store.dispatch(MainActions.Notification({
-          notification: { type: NotificationType.Information, message: "Connected to ROS Bridge." }}));
+      if (connected) {      
+        this.notificationService.info("Connected to ROS Bridge.");
       } else {
-        this.store.dispatch(MainActions.Notification({
-          notification: { type: NotificationType.Error, message: "Connection lost to ROS Bridge." }}));
+        this.notificationService.error("Connection lost to ROS Bridge.");
       }
     });
 
