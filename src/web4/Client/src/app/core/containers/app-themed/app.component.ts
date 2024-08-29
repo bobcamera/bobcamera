@@ -36,13 +36,13 @@ export class AppComponent implements OnInit {
   logo = 'assets/images/bob_logo_horizontal.png';
   languages = ['en', 'de', 'sk', 'fr', 'es', 'pt-br', 'zh-cn', 'he', 'ar'];
   navigation = [
-    { link: 'about', label: 'anms.menu.about' },
-    { link: 'vision', label: 'anms.menu.vision' },
-    { link: 'playback', label: 'anms.menu.playback' },
+    { link: 'about', label: 'bob.menu.about' },
+    { link: 'vision', label: 'bob.menu.vision' },
+    { link: 'playback', label: 'bob.menu.playback' },
   ];  
   navigationSideMenu = [
     ...this.navigation,
-    { link: 'settings', label: 'anms.menu.settings' }
+    { link: 'settings', label: 'bob.menu.settings' }
   ];
 
   ngUnsubscribe$: Subject<void> = new Subject<void>();  

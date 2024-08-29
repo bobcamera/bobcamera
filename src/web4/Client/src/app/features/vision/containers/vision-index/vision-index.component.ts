@@ -39,10 +39,10 @@ import { MaskCreationComponent, MaskCreationSvgComponent } from '../../component
 export class VisionIndexComponent implements OnInit, OnDestroy {
 
   visions = [
-    { link: '/vision/annotated', label: 'anms.vision.menu.annotated' },
-    { link: '/vision/foregroundmask', label: 'anms.vision.menu.foregroundmask' },
-    { link: '/vision/privacymask', label: 'anms.vision.menu.privacymask' },
-    { link: '/vision/detectionmask', label: 'anms.vision.menu.detectionmask' }
+    { link: '/vision/annotated', label: 'bob.vision.menu.annotated' },
+    { link: '/vision/foregroundmask', label: 'bob.vision.menu.foregroundmask' },
+    { link: '/vision/privacymask', label: 'bob.vision.menu.privacymask' },
+    { link: '/vision/detectionmask', label: 'bob.vision.menu.detectionmask' }
   ];
 
   _ngUnsubscribe$: Subject<void> = new Subject<void>();

@@ -7,7 +7,7 @@ const routes: Routes = [
   {
     path: '',
     component: SettingsContainerComponent,
-    data: { title: 'anms.menu.settings' }
+    data: { title: 'bob.menu.settings' }
   }
 ];
 

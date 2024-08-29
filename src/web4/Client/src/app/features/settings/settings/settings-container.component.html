@@ -1,22 +1,22 @@
 <div class="container">
   <div class="row" rtl>
-    <div class="col-sm-12"><h1>{{ 'anms.settings.title' | translate }}</h1></div>
+    <div class="col-sm-12"><h1>{{ 'bob.settings.title' | translate }}</h1></div>
   </div>
   <br>
   <ng-container *ngIf="settings$ | async as settings">
     <div class="row" rtl>
       <div class="col-md-6 group">
-        <h2>{{ 'anms.settings.general.title' | translate }}</h2>
+        <h2>{{ 'bob.settings.general.title' | translate }}</h2>
         <div class="icon-form-field">
           <mat-icon color="accent"><fa-icon icon="language" color="accent"></fa-icon></mat-icon>
           <mat-form-field>
-            <mat-select [placeholder]="'anms.settings.general.placeholder' | translate"
+            <mat-select [placeholder]="'bob.settings.general.placeholder' | translate"
                         [ngModel]="settings.language"
                         (selectionChange)="onLanguageSelect($event)"
                         name="language">
               <ng-container  *ngFor="let l of languages">
                 <!-- ngFor hack of missing ngLet of Angular -->
-                <mat-option *ngFor="let title of ['anms.settings.general.language.' + l.value | translate]"
+                <mat-option *ngFor="let title of ['bob.settings.general.language.' + l.value | translate]"
                   [value]="l.value"
                   [title]="title !== l.label
                     ? title
@@ -29,7 +29,7 @@
         </div>
         <div class="icon-form-field">
            <mat-icon color="accent"><fa-icon icon="bars" color="accent"></fa-icon></mat-icon>
-           <mat-label>{{ 'anms.settings.themes.sticky-header' | translate }}</mat-label>
+           <mat-label>{{ 'bob.settings.themes.sticky-header' | translate }}</mat-label>
            <mat-slide-toggle
              [checked]="settings.stickyHeader"
              (change)="onStickyHeaderToggle($event)">
@@ -39,23 +39,23 @@
     </div>
     <div class="row"  rtl>
       <div class="col-md-6 group">
-        <h2>{{ 'anms.settings.themes.title' | translate }}</h2>
+        <h2>{{ 'bob.settings.themes.title' | translate }}</h2>
         <div class="icon-form-field">
           <mat-icon color="accent"><fa-icon icon="paint-brush" color="accent"></fa-icon></mat-icon>
           <mat-form-field>
-            <mat-select [placeholder]="'anms.settings.themes.placeholder' | translate"
+            <mat-select [placeholder]="'bob.settings.themes.placeholder' | translate"
                         [ngModel]="settings.theme"
                         (selectionChange)="onThemeSelect($event)"
                         name="themes">
               <mat-option *ngFor="let t of themes" [value]="t.value">
-                {{ 'anms.settings.themes.' + t.label | translate }}
+                {{ 'bob.settings.themes.' + t.label | translate }}
               </mat-option>
             </mat-select>
           </mat-form-field>
         </div>
         <div class="icon-form-field">
           <mat-icon color="accent"><fa-icon icon="lightbulb" color="accent"></fa-icon></mat-icon>
-          <mat-label>{{ 'anms.settings.themes.night-mode' | translate }}</mat-label>
+          <mat-label>{{ 'bob.settings.themes.night-mode' | translate }}</mat-label>
           <mat-slide-toggle
             [checked]="settings.autoNightMode"
             (change)="onAutoNightModeToggle($event)">
@@ -63,10 +63,10 @@
         </div>
       </div>
       <div class="col-md-6 group">
-        <h2>{{ 'anms.settings.animations.title' | translate }}</h2>
+        <h2>{{ 'bob.settings.animations.title' | translate }}</h2>
         <div class="icon-form-field">
           <mat-icon color="accent"><mat-icon color="accent"><fa-icon icon="window-maximize"></fa-icon></mat-icon></mat-icon>
-          <mat-label>{{ 'anms.settings.animations.page' | translate }}</mat-label>
+          <mat-label>{{ 'bob.settings.animations.page' | translate }}</mat-label>
           <mat-slide-toggle
             matTooltip="Sorry, this feature is disabled in IE, EDGE and Safari"
             matTooltipPosition="before"
@@ -81,7 +81,7 @@
         </div>
         <div class="icon-form-field">
           <mat-icon color="accent"><fa-icon icon="stream" color="accent"></fa-icon></mat-icon>
-          <mat-label>{{ 'anms.settings.animations.elements' | translate }}</mat-label>
+          <mat-label>{{ 'bob.settings.animations.elements' | translate }}</mat-label>
           <mat-slide-toggle
             [checked]="settings.elementsAnimations"
             (change)="onElementsAnimationsToggle($event)">
@@ -91,16 +91,16 @@
     </div>
     <div class="row"  rtl>
       <div class="col-md-6 group">
-        <h2>{{ 'anms.settings.camera.title' | translate }}</h2>
+        <h2>{{ 'bob.settings.camera.title' | translate }}</h2>
         <div class="icon-form-field">
           <mat-icon color="accent"><fa-icon icon="video-camera" color="accent"></fa-icon></mat-icon>
           <mat-form-field>
-            <mat-select [placeholder]="'anms.settings.camera.placeholder' | translate"
+            <mat-select [placeholder]="'bob.settings.camera.placeholder' | translate"
                         [ngModel]="settings.rosModel.port"
                         (selectionChange)="onCameraSelect($event)"
                         name="cameras">
               <mat-option *ngFor="let c of cameras" [value]="c.value">
-                {{ 'anms.settings.cameras.' + c.label | translate }}
+                {{ 'bob.settings.cameras.' + c.label | translate }}
               </mat-option>
             </mat-select>
           </mat-form-field>

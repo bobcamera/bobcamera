@@ -1,12 +1,11 @@
 import { Injectable } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Actions, ofType, createEffect } from '@ngrx/effects';
-import { of } from 'rxjs';
-import { map, switchMap, catchError, filter } from 'rxjs/operators';
+import { map, switchMap, filter, debounceTime } from 'rxjs/operators';
 
 import { ErrorService } from '../services';
 
-import * as AppActions from './shared.actions'
+import * as SharedActions from './shared.actions'
 
 @Injectable()
 export class SharedEffects {
@@ -18,15 +17,21 @@ export class SharedEffects {
 
   notification$ = createEffect(() =>
     this._actions$.pipe(
-        ofType(AppActions.Notification),
-        switchMap(() => [AppActions.ClearNotification()])
+        ofType(SharedActions.Notification),
+        map((action) => action.notification),
+        filter(notification => !!notification),
+        filter(notification => !!notification.message),
+        //debounceTime(1000),
+        switchMap(() => [SharedActions.ClearNotification()])
     )
   );
 
   error$ = createEffect(() =>
     this._actions$.pipe(
-        ofType(AppActions.Error),
-        switchMap(() => [AppActions.ClearError()])
+        ofType(SharedActions.Error),
+        map((action) => action.error),
+        filter(error => !!error),        
+        switchMap(() => [SharedActions.ClearError()])
     )
   );
 
