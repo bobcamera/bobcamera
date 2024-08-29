@@ -1,4 +1,4 @@
-# bob_web4.Web
+# bob-web4-web
 
 This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 15.2.8.
 

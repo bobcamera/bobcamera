@@ -3,7 +3,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "bob_web4.Web": {
+    "bob-web4-web": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:application": {
@@ -75,10 +75,10 @@
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {
             "production": {
-              "browserTarget": "bob_web4.Web:build:production"
+              "browserTarget": "bob-web4-web:build:production"
             },
             "development": {
-              "browserTarget": "bob_web4.Web:build:development",
+              "browserTarget": "bob-web4-web:build:development",
               "proxyConfig": "proxy.conf.js"
             }
           },
@@ -87,7 +87,7 @@
         "extract-i18n": {
           "builder": "@angular-devkit/build-angular:extract-i18n",
           "options": {
-            "browserTarget": "bob_web4.Web:build"
+            "browserTarget": "bob-web4-web:build"
           }
         },
         "test": {
@@ -137,7 +137,7 @@
       }
     }
   },
-  "defaultProject": "bob_web4.Web",
+  "defaultProject": "bob-web4-web",
   "cli": {
     "analytics": false
   }

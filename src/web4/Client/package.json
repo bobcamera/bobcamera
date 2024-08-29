@@ -7,7 +7,7 @@
     "start:windows": "ng serve --port 44447 -o",
     "start:default": "ng serve --port 44447 -o",
     "build": "ng build",
-    "build:ssr": "ng run bob_web4.Web:server:dev",
+    "build:ssr": "ng run bob-web4-web:server:dev",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
   },
