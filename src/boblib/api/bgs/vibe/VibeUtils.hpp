@@ -121,10 +121,10 @@ namespace boblib::bgs
             {
                 h = _inputImg.size.height - y;
             }
-            _outputImages[i] = Img::create(ImgSize(_inputImg.size.width, h, _inputImg.size.num_channels, _inputImg.size.bytes_per_pixel, y * _inputImg.size.width), false);
+            _outputImages[i] = Img::create(ImgSize(_inputImg.size.width, h, _inputImg.size.num_channels, _inputImg.size.bytes_per_channel, y * _inputImg.size.width), false);
 
             memcpy(_outputImages[i]->data,
-                   _inputImg.data + (_outputImages[i]->size.original_pixel_pos * _inputImg.size.num_channels * _inputImg.size.bytes_per_pixel),
+                   _inputImg.data + (_outputImages[i]->size.original_pixel_pos * _inputImg.size.num_channels * _inputImg.size.bytes_per_channel),
                    _outputImages[i]->size.size_in_bytes);
             y += h;
         }

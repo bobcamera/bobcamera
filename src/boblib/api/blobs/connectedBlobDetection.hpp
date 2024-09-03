@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../include/coreUtils.hpp"
-
+#include "../base/Image.hpp"
 #include <opencv2/core.hpp>
 
 namespace boblib::blobs
@@ -59,26 +59,18 @@ namespace boblib::blobs
         inline void set_min_distance(int _distance) { m_params.setMinDistance(_distance); }
 
         // Finds the connected components in the image and returns a list of bounding boxes
-        DetectionResult detect(const cv::Mat &_image, std::vector<cv::Rect> &_bboxes);
-
-        // Finds the connected components in the image and returns a list of keypoints
-        // This function uses detect and converts from Rect to KeyPoints using a fixed scale
-        std::vector<cv::KeyPoint> detect_kp(const cv::Mat &_image);
-
-        // Finds the connected components in the image and returns a list of bounding boxes
-        std::vector<cv::Rect> detect_ret(const cv::Mat &_image);
+        DetectionResult detect(const boblib::base::Image & _image, std::vector<cv::Rect> & _bboxes);
 
     private:
         ConnectedBlobDetectionParams m_params;
         size_t m_num_processes_parallel;
         bool m_initialized;
-        cv::Mat m_labels;
         std::vector<size_t> m_process_seq;
         std::vector<std::unique_ptr<ImgSize>> m_img_sizes_parallel;
         std::vector<std::vector<cv::Rect>> m_bboxes_parallel;
         std::unique_ptr<ImgSize> m_original_img_size;
 
-        void prepare_parallel(const cv::Mat &_image);
+        void prepare_parallel(const boblib::base::Image &_image);
         static void apply_detect_bboxes(const cv::Mat &_labels, std::vector<cv::Rect> &_bboxes);
         inline void pos_process_bboxes(std::vector<cv::Rect> &_bboxes);
     };

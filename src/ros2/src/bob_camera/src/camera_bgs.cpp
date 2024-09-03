@@ -28,7 +28,7 @@ public:
 
         bgs_worker_ptr_ = std::make_unique<BackgroundSubtractorWorker>(*this, *bgs_params_ptr_);
         camera_worker_ptr_ = std::make_unique<CameraWorker>(*this, *camera_params_ptr_, 
-            [this](const std_msgs::msg::Header & header, const cv::Mat & img)
+            [this](const std_msgs::msg::Header & header, const boblib::base::Image & img)
             {
                 bgs_worker_ptr_->image_callback(header, img);
             });
@@ -148,6 +148,14 @@ private:
                 [this](const rclcpp::Parameter& param) 
                 {
                     camera_params_ptr_->set_fps_update_client(create_client<bob_interfaces::srv::ConfigEntryUpdate>(param.as_string()));
+                }
+            ),
+            ParameterLifeCycleNode::ActionParam(
+                rclcpp::Parameter("use_cuda", true), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    camera_params_ptr_->set_use_cuda(param.as_bool());
+                    bgs_params_ptr_->set_use_cuda(param.as_bool());
                 }
             ),
             ParameterLifeCycleNode::ActionParam(
@@ -352,6 +360,13 @@ private:
                         bgs_params_ptr_->set_image_resized_publisher(nullptr);
                         log_debug("Resizer topics disabled");
                     }
+                }
+            ),
+            ParameterLifeCycleNode::ActionParam(
+                rclcpp::Parameter("limit_fps", true), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    camera_params_ptr_->set_limit_fps(param.as_bool());
                 }
             ),
         };

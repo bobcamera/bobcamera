@@ -4,11 +4,11 @@
 #########################################################################
 basic_config:
   camera_node:
-    source_type: 'RTSP_STREAM' # USB_CAMERA | VIDEO_FILE | RTSP_STREAM
+    source_type: 'VIDEO_FILE' # USB_CAMERA | VIDEO_FILE | RTSP_STREAM
     # Pattern: rtsp_uri: 'rtsp://{name of the user}:{password of user}@{IP-Address}:{Port Number}/{Path}'
     #   Example Hikvision: rtsp_uri: 'rtsp://peter:pAsSwOrD123427@12.8.9.3:554/Streaming/Channels/101'
     #   Example Amcrest and Dahua: rtsp_uri: 'rtsp://user:password@0.0.0.0:554/cam/realmonitor?channel=1&subtype=0'
-    rtsp_uri: 'rtsp://bob:Bobuser$01@192.168.68.52:554/Streaming/Channels/101'
+    rtsp_uri: 'rtsp://bob:Bobuser$01@192.168.68.63:554/Streaming/Channels/101'
     camera_id: 0
     usb_camera_resolution: [640, 480] # Resolution for USB Camera [WIDTH, HEIGHT]
     videos:                     # List of videos to display in sequence if source_type is VIDEO_FILE
@@ -19,6 +19,7 @@ basic_config:
     simulator_num_objects: 15   # Number of simulated objects if the simulator parameter is True
     bgs_sensitivity: 'high_c'    # Initial sensitivity configuration based on the 'bgs_json_params' in the advanced config section
     bgs_type: 'vibe'            # The background subtractor to use: 'vibe' | 'wmv'
+    limit_fps: false
 
   allsky_recorder_node:
     codec: 'avc1'
@@ -43,7 +44,8 @@ advanced_config:
     onvif_host: ''
     onvif_port: 0
     onvif_user: ''
-    onvif_password: ''  
+    onvif_password: ''
+    use_cuda: true
     mask_timer_seconds: 5
     privacy_mask_file: 'assets/masks/privacy-mask.jpg'
     privacy_mask_override_service_topic: 'bob/mask/privacy/override'
@@ -170,7 +172,7 @@ advanced_config:
     onvif_wsdl_path: 'assets/wsdl'
 
   info_webapi_node:
-    application_version: '1.5.7'
+    application_version: '1.5.8'
     frame_width: 0
     frame_height: 0
     video_fps: 15.0

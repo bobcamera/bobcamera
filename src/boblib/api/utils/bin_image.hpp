@@ -82,10 +82,10 @@ namespace boblib::utils
                 [&](int np)
                 {
                     const cv::Mat img_in_split(m_img_sizes_parallel[np]->height, m_img_sizes_parallel[np]->width, _image_in.type(),
-                                           _image_in.data + (m_img_sizes_parallel[np]->original_pixel_pos * m_img_sizes_parallel[np]->num_channels * m_img_sizes_parallel[np]->bytes_per_pixel));
+                                           _image_in.data + (m_img_sizes_parallel[np]->original_pixel_pos * m_img_sizes_parallel[np]->num_channels * m_img_sizes_parallel[np]->bytes_per_channel));
                     cv::Mat img_out_split(m_img_sizes_parallel[np]->height / 2, m_img_sizes_parallel[np]->width / 2, _image_out.type(),
-                                        _image_out.data + (m_img_sizes_parallel[np]->original_pixel_pos * m_img_sizes_parallel[np]->bytes_per_pixel) / 4);
-                    if (m_img_sizes_parallel[np]->bytes_per_pixel == 1)
+                                        _image_out.data + (m_img_sizes_parallel[np]->original_pixel_pos * m_img_sizes_parallel[np]->bytes_per_channel) / 4);
+                    if (m_img_sizes_parallel[np]->bytes_per_channel == 1)
                     {
                         process(img_in_split, img_out_split, np);
                     }

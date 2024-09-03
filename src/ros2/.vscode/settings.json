@@ -82,7 +82,8 @@
         "format": "cpp",
         "span": "cpp",
         "stdfloat": "cpp",
-        "ranges": "cpp"
+        "ranges": "cpp",
+        "expected": "cpp"
     },
     "cSpell.words": [
         "rclcpp"

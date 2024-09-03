@@ -15,7 +15,7 @@
 #include "image_utils.hpp"
 #include "background_subtractor_companion.hpp"
 #include "mask_worker.hpp"
-//#include "sensitivity_config_collection.hpp"
+#include <boblib/api/base/Image.hpp>
 
 class BackgroundSubtractorWorkerParams
 {
@@ -40,6 +40,7 @@ public:
     [[nodiscard]] const auto& get_image_resized_publish_topic() const { return image_resized_publish_topic_; }
     [[nodiscard]] const auto& get_detection_publish_topic() const { return detection_publish_topic_; }
     [[nodiscard]] const auto& get_detection_state_publish_topic() const { return detection_state_publish_topic_; }
+    [[nodiscard]] bool get_use_cuda() const { return use_cuda_; }
     [[nodiscard]] BGSType get_bgs_type() const { return bgs_type_; }
     [[nodiscard]] const auto& get_sensitivity() const { return sensitivity_; }
     [[nodiscard]] const auto& get_sensitivity_collection() const { return sensitivity_collection_; }
@@ -58,6 +59,7 @@ public:
     void set_image_resized_publish_topic(const std::string& topic) { image_resized_publish_topic_ = topic; }
     void set_detection_publish_topic(const std::string& topic) { detection_publish_topic_ = topic; }
     void set_detection_state_publish_topic(const std::string& topic) { detection_state_publish_topic_ = topic; }
+    void set_use_cuda(bool enable) { use_cuda_ = enable; }
     void set_bgs_type(BGSType type) { bgs_type_ = type; }
     void set_sensitivity(const std::string& sensitivity) { sensitivity_ = sensitivity; }
     void set_sensitivity_collection(const SensitivityConfigCollection& collection) { sensitivity_collection_ = collection; }
@@ -77,6 +79,7 @@ private:
     std::string image_resized_publish_topic_;
     std::string detection_publish_topic_;
     std::string detection_state_publish_topic_;
+    bool use_cuda_{true};
     BGSType bgs_type_{BGSType::Unknown};
     std::string sensitivity_;
     SensitivityConfigCollection sensitivity_collection_;
@@ -98,7 +101,10 @@ public:
 
     void init()
     {
-        //bgs_masked_publisher_ = node_.create_publisher<sensor_msgs::msg::Image>("bob/frames/foreground_mask/masked", params_.get_image_publisher()->get_actual_qos());
+        using_cuda_ = params_.get_use_cuda() ? boblib::base::Utils::HasCuda() : false;
+        detection_mask_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_);
+        bgs_img_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_);
+
         mask_worker_ptr_->init(params_.get_mask_timer_seconds(), params_.get_mask_filename());
     }
 
@@ -204,77 +210,39 @@ public:
         cv_.notify_all();
     }
 
-    void image_callback(const std_msgs::msg::Header& header, const cv::Mat& img)
+    void image_callback(const std_msgs::msg::Header& header, const boblib::base::Image & img)
     {
         std::unique_lock lock(mutex_);
         cv_.wait(lock, [this] { return ready_; });
 
         processing_ = true;
 
+        boblib::base::Image blank_mask(using_cuda_);
+        boblib::base::Image gray_img(using_cuda_);
+        sensor_msgs::msg::Image bgs_msg;
+
         try
         {
-            cv::Mat gray_img;
-            if (img.channels() == 1)
+            bgs_msg.header = header;
+
+            img.convertTo(gray_img, cv::COLOR_BGR2GRAY);
+
+            if (mask_enabled_ && (detection_mask_ptr_->size() != gray_img.size()))
             {
-                gray_img = img;
+                detection_mask_ptr_->resize(gray_img.size());
             }
-            else
-            {
-                cv::cvtColor(img, gray_img, cv::COLOR_BGR2GRAY);
-            }
+            
+            bgs_ptr_->apply(gray_img, *bgs_img_ptr_, mask_enabled_ ? *detection_mask_ptr_ : blank_mask);
 
-            if (!ros_cv_foreground_mask_ || (gray_img.size() != ros_cv_foreground_mask_->get_image().size()))
-            {
-                ros_cv_foreground_mask_ = std::make_unique<RosCvImageMsg>(gray_img, sensor_msgs::image_encodings::MONO8, true);
-            }
-            ros_cv_foreground_mask_->set_header(header);
+            fill_header(bgs_msg, *bgs_img_ptr_);
 
-            if (mask_enabled_ && (detection_mask_.size() != gray_img.size()))
-            {
-                cv::resize(detection_mask_, detection_mask_, gray_img.size());
-            }
+            publish_frame(bgs_msg, *bgs_img_ptr_);
 
-            bgs_ptr_->apply(gray_img, ros_cv_foreground_mask_->get_image(), mask_enabled_ ? detection_mask_ : cv::Mat());
+            publish_resized_frame(bgs_msg, *bgs_img_ptr_);
 
-            /*if (mask_enabled_)
-            {
-                apply_mask(gray_img);
-                auto bgs_masked_msg = cv_bridge::CvImage(header, "MONO8", gray_img).toImageMsg();
-                node_.publish_if_subscriber(bgs_masked_publisher_, *bgs_masked_msg);
-            }*/
-
-            node_.publish_if_subscriber(params_.get_image_publisher(), ros_cv_foreground_mask_->get_msg());
-
-            publish_resized_frame(*ros_cv_foreground_mask_);
-
-            if (median_filter_)
-            {
-                cv::medianBlur(ros_cv_foreground_mask_->get_image(), ros_cv_foreground_mask_->get_image(), 3);
-            }
-
-            bob_interfaces::msg::DetectorState state;
-            state.sensitivity = params_.get_sensitivity();
-            bob_interfaces::msg::DetectorBBoxArray bbox2D_array;
-            bbox2D_array.header = header;
-            bbox2D_array.image_width = gray_img.size().width;
-            bbox2D_array.image_height = gray_img.size().height;
-
-            std::vector<cv::Rect> bboxes;
-            auto det_result = blob_detector_ptr_->detect(ros_cv_foreground_mask_->get_image(), bboxes);
-            if (det_result == boblib::blobs::DetectionResult::Success)
-            {
-                state.max_blobs_reached = false;
-                add_bboxes(bbox2D_array, bboxes);
-            }
-            else if (det_result == boblib::blobs::DetectionResult::MaxBlobsReached)
-            {
-                state.max_blobs_reached = true;
-            }
-
-            node_.publish_if_subscriber(params_.get_state_publisher(), state);
-            node_.publish_if_subscriber(params_.get_detection_publisher(), bbox2D_array);
+            do_detection(bgs_msg, *bgs_img_ptr_);
         }
-        catch (const std::exception& e)
+        catch (const std::exception & e)
         {
             node_.log_send_error("bgs_worker: image_callback: exception: %s", e.what());
         }
@@ -288,7 +256,77 @@ public:
     }
 
 private:
-    void add_bboxes(bob_interfaces::msg::DetectorBBoxArray& bbox2D_array, const std::vector<cv::Rect>& bboxes)
+    inline void fill_header(sensor_msgs::msg::Image & bgs_msg, boblib::base::Image & bgs_img)
+    {
+        bgs_msg.height = bgs_img.size().height;
+        bgs_msg.width = bgs_img.size().width;
+        bgs_msg.encoding = ImageUtils::type_to_encoding(bgs_img.type());
+        bgs_msg.is_bigendian = (rcpputils::endian::native == rcpputils::endian::big);
+        bgs_msg.step = bgs_img.size().width * bgs_img.elemSize();
+    }
+
+    inline void publish_frame(sensor_msgs::msg::Image & bgs_msg, boblib::base::Image & bgs_img)
+    {
+        if (node_.count_subscribers(params_.get_image_publisher()->get_topic_name()) <= 0)
+        {
+            return;
+        }
+        const size_t totalBytes = bgs_img.total() * bgs_img.elemSize();
+        bgs_msg.data.assign(bgs_img.data(), bgs_img.data() + totalBytes);;        
+
+        params_.get_image_publisher()->publish(bgs_msg);
+    }
+
+    inline void publish_resized_frame(sensor_msgs::msg::Image & bgs_msg, const boblib::base::Image & bgs_img) const
+    {
+        if (!params_.get_image_resized_publisher()
+            || (params_.get_resize_height() <= 0)
+            || (node_.count_subscribers(params_.get_image_resized_publisher()->get_topic_name()) <= 0))
+        {
+            return;
+        }
+        boblib::base::Image resized_img(using_cuda_);
+        if (params_.get_resize_height() > 0)
+        {
+            const auto frame_width = static_cast<int>(bgs_img.size().aspectRatio() * static_cast<double>(params_.get_resize_height()));
+            bgs_img.resizeTo(resized_img, cv::Size(frame_width, params_.get_resize_height()));
+        }
+
+        auto resized_frame_msg = cv_bridge::CvImage(bgs_msg.header, bgs_msg.encoding, resized_img.toMat()).toImageMsg();
+        params_.get_image_resized_publisher()->publish(*resized_frame_msg);            
+    }
+
+    inline void do_detection(sensor_msgs::msg::Image & bgs_msg, boblib::base::Image & bgs_img)
+    {
+        bob_interfaces::msg::DetectorState state;
+        state.sensitivity = params_.get_sensitivity();
+        bob_interfaces::msg::DetectorBBoxArray bbox2D_array;
+        bbox2D_array.header = bgs_msg.header;
+        bbox2D_array.image_width = bgs_img_ptr_->size().width;
+        bbox2D_array.image_height = bgs_img_ptr_->size().height;
+
+        if (median_filter_)
+        {
+            bgs_img.medianBlur(3);
+        }
+
+        std::vector<cv::Rect> bboxes;
+        auto det_result = blob_detector_ptr_->detect(bgs_img, bboxes);
+        if (det_result == boblib::blobs::DetectionResult::Success)
+        {
+            state.max_blobs_reached = false;
+            add_bboxes(bbox2D_array, bboxes);
+        }
+        else if (det_result == boblib::blobs::DetectionResult::MaxBlobsReached)
+        {
+            state.max_blobs_reached = true;
+        }
+
+        node_.publish_if_subscriber(params_.get_state_publisher(), state);
+        node_.publish_if_subscriber(params_.get_detection_publisher(), bbox2D_array);
+    }
+
+    inline void add_bboxes(bob_interfaces::msg::DetectorBBoxArray& bbox2D_array, const std::vector<cv::Rect>& bboxes)
     {
         for (const auto& bbox : bboxes)
         {
@@ -314,48 +352,6 @@ private:
         }
     }
 
-    void apply_mask(cv::Mat & img)
-    {
-        if (!mask_enabled_ || !params_.get_mask_enable_override())
-        {
-            return;
-        }
-        if (img.size() != detection_mask_.size())
-        {
-            cv::resize(detection_mask_, detection_mask_, img.size());
-        }
-        if (img.channels() != detection_mask_.channels())
-        {
-            cv::cvtColor(detection_mask_, detection_mask_, img.channels() == 3 ? cv::COLOR_GRAY2BGR : cv::COLOR_BGR2GRAY);
-        }
-        cv::bitwise_and(img, detection_mask_, img);
-    }    
-
-    void publish_resized_frame(const RosCvImageMsg& image_msg)
-    {
-        if (!params_.get_image_resized_publisher()
-            || (params_.get_resize_height() <= 0)
-            || (node_.count_subscribers(params_.get_image_resized_publisher()->get_topic_name()) <= 0))
-        {
-            return;
-        }
-        cv::Mat resized_img;
-        if (params_.get_resize_height() > 0)
-        {
-            const double aspect_ratio = static_cast<double>(image_msg.get_image().size().width) / image_msg.get_image().size().height;
-            const int frame_height = params_.get_resize_height();
-            const auto frame_width = static_cast<int>(aspect_ratio * frame_height);
-            cv::resize(image_msg.get_image(), resized_img, cv::Size(frame_width, frame_height));
-        }
-        else
-        {
-            resized_img = image_msg.get_image();
-        }
-
-        auto resized_frame_msg = cv_bridge::CvImage(image_msg.get_header(), image_msg.get_msg().encoding, resized_img).toImageMsg();
-        params_.get_image_resized_publisher()->publish(*resized_frame_msg);
-    }
-
     void mask_timer_callback(MaskWorker::MaskCheckType detection_mask_result, const cv::Mat& mask)
     {
         if (detection_mask_result == MaskWorker::MaskCheckType::Enable)
@@ -369,13 +365,13 @@ private:
             {
                 node_.log_send_info("Detection Mask Changed.");
             }
-            detection_mask_ = mask.clone();
+            detection_mask_ptr_->create(mask);
         }
         else if ((detection_mask_result == MaskWorker::MaskCheckType::Disable) && mask_enabled_)
         {
             node_.log_send_info("Detection Mask Disabled.");
             mask_enabled_ = false;
-            detection_mask_.release();
+            detection_mask_ptr_.release();
         }
     }
 
@@ -392,15 +388,12 @@ private:
     std::unique_ptr<boblib::bgs::WMVParams> wmv_params_;
     std::unique_ptr<boblib::blobs::ConnectedBlobDetectionParams> blob_params_;
 
-    std::unique_ptr<RosCvImageMsg> ros_cv_foreground_mask_;
-
-    cv::Mat detection_mask_;
+    std::unique_ptr<boblib::base::Image> bgs_img_ptr_;
+    std::unique_ptr<boblib::base::Image> detection_mask_ptr_;
 
     std::condition_variable cv_;
     std::mutex mutex_;
     bool ready_{false};
     bool processing_{false};
-
-    // NEED TO REMOVE THIS LATER
-    //rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr bgs_masked_publisher_;
+    bool using_cuda_{false};
 };

@@ -1,0 +1,33 @@
+version: '3.8'
+services:
+  web:
+    image: bobcamera/bob-web-prod:1.6.0
+    ports:
+      - "8080:80"
+    volumes: 
+      - ${PWD}/assets/recordings:/var/www/html/videos
+    depends_on:
+      - bob
+
+  bob:
+    image: bobcamera/bob-ros2-prod-cuda:1.6.0
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - BOB_LOGLEVEL=${BOB_LOGLEVEL:-INFO}
+    ports:
+      - "9090:9090"
+    volumes: 
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro    
+      - ${PWD}/assets/:/workspaces/bobcamera/src/ros2/assets/
+      - ${PWD}/temp_config.yaml:/workspaces/bobcamera/src/ros2/assets/config/app_config.yaml
+  # If you want to use a usb camera uncomment the devices comment below
+  #  devices:
+  #    - /dev/video0:/dev/video0 
+
+volumes:
+  assets:
+    driver: local

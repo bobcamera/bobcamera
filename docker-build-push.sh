@@ -65,6 +65,14 @@ else
     echo "Failed to update version number - ./docker/docker-compose.yaml."
 fi
 
+# Replace version number in docker-compose-cuda.yaml
+if sed -i "s/bobcamera\/bob-web-prod:$web_version/bobcamera\/bob-web-prod:$version_number/" ./docker/docker-compose-cuda.yaml && \
+   sed -i "s/bobcamera\/bob-ros2-prod-cuda:$bob_version/bobcamera\/bob-ros2-prod-cuda:$version_number/" ./docker/docker-compose-cuda.yaml; then
+    echo "Version number successfully updated - ./docker/docker-compose-cuda.yaml."
+else
+    echo "Failed to update version number - ./docker/docker-compose-cuda.yaml."
+fi
+
 # Replace version number in docker-compose-rstudio.yaml
 if sed -i "s/bobcamera\/bob-web-prod:$web_version/bobcamera\/bob-web-prod:$version_number/" ./docker/docker-compose-rstudio.yaml && \
    sed -i "s/bobcamera\/bob-ros2-prod:$bob_version/bobcamera\/bob-ros2-prod:$version_number/" ./docker/docker-compose-rstudio.yaml; then
@@ -154,6 +162,15 @@ docker build \
     -t bobcamera/bob-ros2-prod:$version_number \
     -t bobcamera/bob-ros2-prod:latest \
     --target bob-ros2-prod
+
+docker build \
+    --progress=plain \
+    --push \
+    --platform linux/amd64 \
+    -f ./docker/Dockerfile . \
+    -t bobcamera/bob-ros2-prod-cuda:$version_number \
+    -t bobcamera/bob-ros2-prod-cuda:latest \
+    --target bob-ros2-prod-cuda
 
 docker build \
     --progress=plain \

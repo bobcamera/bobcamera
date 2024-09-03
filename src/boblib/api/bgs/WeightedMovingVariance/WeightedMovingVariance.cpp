@@ -73,7 +73,7 @@ namespace boblib::bgs
 
         if (_img_input_prev.p_img_size->num_channels == 1)
         {
-            if (_img_input_prev.p_img_size->bytes_per_pixel == 1)
+            if (_img_input_prev.p_img_size->bytes_per_channel == 1)
             {
                 weighted_variance_mono(_img_input_prev.p_img_input, _img_input_prev.p_img_input_prev1, _img_input_prev.p_img_input_prev2, detectMaskPtr,
                                     _img_output.data, (size_t)_img_input_prev.p_img_size->num_pixels, 
@@ -88,7 +88,7 @@ namespace boblib::bgs
         }
         else
         {
-            if (_img_input_prev.p_img_size->bytes_per_pixel == 1)
+            if (_img_input_prev.p_img_size->bytes_per_channel == 1)
             {
                 weighted_variance_color(_img_input_prev.p_img_input, _img_input_prev.p_img_input_prev1, _img_input_prev.p_img_input_prev2, detectMaskPtr,
                                     _img_output.data, (size_t)_img_input_prev.p_img_size->num_pixels, 
