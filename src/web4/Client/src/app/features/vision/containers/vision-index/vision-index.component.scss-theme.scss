@@ -1,0 +1,25 @@
+@use '@angular/material' as mat;
+
+@mixin anms-vision-index-component-theme($theme) {
+  $primary: map-get($theme, primary);
+  $accent: map-get($theme, accent);
+
+  bob-vision-index {
+    .nav-responsive {
+      border-bottom: 1px solid mat.get-color-from-palette($primary);
+
+      mat-select {
+        line-height: 48px;
+        margin: 0 20px;
+        width: 100%;
+      }
+    }
+  }
+
+  .nav-responsive-overlay {
+    .active {
+      color: mat.get-color-from-palette($accent, default-contrast);
+      background-color: mat.get-color-from-palette($accent);
+    }
+  }
+}

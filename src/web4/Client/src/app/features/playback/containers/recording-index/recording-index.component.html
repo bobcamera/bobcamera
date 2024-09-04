@@ -1,0 +1,42 @@
+<mat-sidenav-container class="example-container">
+    <mat-sidenav #menuNav mode="side" [opened]="this._menuPanelExpanded$ | async" [fixedInViewport]="true" class="navbar">
+        <mat-toolbar class="nav-item-heading">
+            Recording
+        </mat-toolbar>
+        <mat-nav-list>
+            <mat-list-item>
+                <span matListItemTitle class="bold">Recordings</span>
+            </mat-list-item>
+            <mat-divider></mat-divider>
+            <bob-nav-item icon="holiday_village" hint="" [routerLink]="['all']">Info Panel</bob-nav-item>
+            <bob-nav-item icon="search" hint="" [routerLink]="['search']">Wide View</bob-nav-item>
+            <bob-nav-item icon="assured_workload" [routerLink]="['/assets']">Foreground Mask</bob-nav-item>
+            <bob-nav-item icon="assured_workload" [routerLink]="['/assets']">Log Wide View</bob-nav-item>
+        </mat-nav-list>
+    </mat-sidenav>
+
+    <mat-sidenav-content>
+        <mat-toolbar>
+            <mat-toolbar-row>
+                <button mat-icon-button (click)="this.onToggleMenuPanel()">
+                    <mat-icon *ngIf="!menuNav.opened">chevron_right</mat-icon>
+                    <mat-icon *ngIf="menuNav.opened">chevron_left</mat-icon>
+                </button>
+                <span>{{(this._heading$ | async)}}</span>
+                <span></span>
+                <span class="flex-spacer">&nbsp;</span>
+                <button mat-icon-button matTooltip="Load Recordings" (click)="loadRecords()">
+                    <mat-icon>autorenew</mat-icon>
+                </button>
+                <button mat-icon-button matTooltip="Delete Recording" (click)="deleteRecording()">
+                    <mat-icon>delete</mat-icon>
+                </button>
+                <mat-divider></mat-divider>
+                <button mat-icon-button matTooltip="Send message" (click)="setMessage('Hello World')">
+                    <mat-icon>chat</mat-icon>
+                </button>
+            </mat-toolbar-row>
+        </mat-toolbar>
+        <router-outlet></router-outlet>
+    </mat-sidenav-content>
+  </mat-sidenav-container>  

@@ -1,0 +1,52 @@
+@import '../../../../../styles-variables';
+
+mat-card {
+
+    mat-card-header {
+
+        mat-card-title {
+
+        }
+  
+      .spacer {
+        flex: 1 1 auto;
+      }
+  
+      button {
+  
+      }
+    }
+  
+    mat-card-content {
+  
+        mat-expansion-panel {
+
+            position: relative;
+            display: flex;
+            flex-direction: column;
+
+            .metric-readings {
+                display: flex;
+                justify-content: space-between;
+                padding-bottom: 5px;
+            }             
+
+            mat-expansion-panel-header {
+
+                mat-panel-title {
+
+                    font-size: 16px;
+                    font-weight: bold;
+                }
+
+                .spacer {
+                    flex: 1 1 auto;
+                }
+
+                button {
+
+                }
+            }          
+        }
+    }
+  }

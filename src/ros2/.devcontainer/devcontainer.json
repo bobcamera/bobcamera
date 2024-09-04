@@ -19,7 +19,7 @@
 		"--cap-add=SYS_PTRACE",
 		"--security-opt=seccomp:unconfined",
 		"--security-opt=apparmor:unconfined",
-		"--device=/dev/video0:/dev/video0",
+		//"--device=/dev/video0:/dev/video0",
 		"--volume=/dev:/dev",
 		"--volume=/tmp/.X11-unix:/tmp/.X11-unix",
 	],

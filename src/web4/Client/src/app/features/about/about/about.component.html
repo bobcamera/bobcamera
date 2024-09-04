@@ -1,0 +1,115 @@
+<div class="background">
+  <div class="gradient">
+    <div class="container">
+      <h1>{{ 'bob.title.long' | translate }}</h1>
+      <div class="actions">
+        <a mat-raised-button class="actions-main" color="primary" routerLink="../feature-list">
+          {{ 'bob.menu.features' | translate }}
+        </a>
+        <a mat-raised-button class="actions-main" color="accent" routerLink="../examples">
+          {{ 'bob.menu.examples' | translate }}
+        </a>
+        <a mat-raised-button class="actions-main" color="warn" routerLink="../settings">
+          {{ 'bob.about.change-theme' | translate }}
+        </a>
+        <br>
+        <a mat-raised-button
+           rel="noopener noreferrer"
+           target="_blank"
+           href="https://medium.com/@tomastrajan/the-complete-guide-to-angular-material-themes-4d165a9d24d1">
+           <fa-icon [icon]="['fab','medium-m']"></fa-icon>
+          Material Theming
+        </a>
+        <a mat-raised-button
+           rel="noopener noreferrer"
+           target="_blank"
+           href="https://medium.com/@tomastrajan/6-best-practices-pro-tips-for-angular-cli-better-developer-experience-7b328bc9db81">
+           <fa-icon [icon]="['fab','medium-m']"></fa-icon>
+          Angular Cli Tips
+        </a>
+        <a mat-raised-button
+           target="_blank"
+           rel="noopener noreferrer"
+           href="https://medium.com/@tomastrajan/object-assign-vs-object-spread-in-angular-ngrx-reducers-3d62ecb4a4b0">
+           <fa-icon [icon]="['fab','medium-m']"></fa-icon>
+          Ngrx Typescript Tips
+        </a>
+        <a mat-raised-button
+           target="_blank"
+           rel="noopener noreferrer"
+           href="https://medium.com/@tomastrajan/how-to-style-angular-application-loading-with-angular-cli-like-a-boss-cdd4f5358554">
+           <fa-icon [icon]="['fab','medium-m']"></fa-icon>
+          App Loading Style
+        </a>
+      </div>
+      <div class="get-started">
+        <h2 rtl>{{ 'bob.about.get-started' | translate }}</h2>
+        <code>git clone
+          https://github.com/tomastrajan/angular-ngrx-material-starter.git
+          new-project</code><br>
+        <code>cd new-project</code><br>
+        <code>npm install</code><br>
+        <code>npm start</code>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="container" rtl>
+  <div class="contributors">
+    <h2>{{ 'bob.about.contributors.title' | translate }}</h2>
+    <p>{{ 'bob.about.contributors.description1' | translate }}</p>
+    <p>{{ 'bob.about.contributors.description2' | translate }}</p>
+    <p>
+      {{ 'bob.about.contributors.description3' | translate }}
+      <a href="https://github.com/tomastrajan/angular-ngrx-material-starter/issues" rel="noopener noreferrer" target="_blank">{{'bob.about.contributors.issues'
+        | translate}}</a>
+      {{ 'bob.about.contributors.description4' | translate }}
+      <a href="https://github.com/tomastrajan/angular-ngrx-material-starter/blob/master/CONTRIBUTING.md" rel="noopener noreferrer" target="_blank">{{'bob.about.contributors.guide'
+        | translate}}</a>
+      ...
+    </p>
+
+    <div class="contributors-wrapper">
+
+      <!-- ALL-CONTRIBUTORS-LIST:START -->
+      <a class="contributor" href="https://medium.com/@tomastrajan" rel="noopener noreferrer" target="_blank">
+        <img alt src="https://avatars0.githubusercontent.com/u/3764868?v=4">
+        <span>Tomas Trajan</span>
+      </a>
+
+
+      <a class="contributor" href="https://twitter.com/tim_deschryver" rel="noopener noreferrer" target="_blank">
+        <img alt src="https://avatars1.githubusercontent.com/u/28659384?v=4">
+        <span>Tim Deschryver</span>
+      </a>
+
+
+      <a class="contributor" href="http://santoshyadavblog.com" rel="noopener noreferrer" target="_blank">
+        <img alt src="https://avatars3.githubusercontent.com/u/11923975?v=4">
+        <span>Santosh Yadav</span>
+      </a>
+
+
+      <a class="contributor" href="http://gs500coder.blogspot.com" rel="noopener noreferrer" target="_blank">
+        <img alt src="https://avatars0.githubusercontent.com/u/1336862?v=4">
+        <span>Moshe</span>
+      </a>
+
+
+      <a class="contributor" href="https://github.com/hhubik" rel="noopener noreferrer" target="_blank">
+        <img alt src="https://avatars0.githubusercontent.com/u/14813201?v=4">
+        <span>hhubik</span>
+      </a>
+
+
+      <a class="contributor" href="https://github.com/mumairofficial" rel="noopener noreferrer" target="_blank">
+        <img alt src="https://avatars2.githubusercontent.com/u/6498132?v=4">
+        <span>Muhammad Umair</span>
+      </a>
+
+
+    <!-- ALL-CONTRIBUTORS-LIST:END -->
+
+    </div>
+  </div>
+</div>

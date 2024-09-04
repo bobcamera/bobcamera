@@ -28,7 +28,7 @@ basic_config:
     #pipeline: 'appsrc ! videoconvert ! openh264enc bitrate=10240000 qp-min=10 qp-max=51 ! h264parse ! mp4mux ! filesink location='
     
   multi_frame_viewer_node:
-    topics: 
+    topics:
       - '/bob/frames/annotated/resized/compressed'
       - '/bob/frames/allsky/original/resized/compressed'
       - '/bob/frames/foreground_mask/resized/compressed'
@@ -272,14 +272,14 @@ launch:
           plugin: FrameCompressor
           name: foreground_mask_compressor_node
           remappings: []
-    - name: Display
-      executable: component_container # Has to be single-threaded because of OpenCV display
-      output: both
-      nodes:
-        - package: bob_visualizers
-          plugin: FrameViewer
-          name: multi_frame_viewer_node
-          remappings: []
+    # - name: Display
+    #   executable: component_container # Has to be single-threaded because of OpenCV display
+    #   output: both
+    #   nodes:
+    #     - package: bob_visualizers
+    #       plugin: FrameViewer
+    #       name: multi_frame_viewer_node
+    #       remappings: []
     - name: Monitor
       executable: component_container_mt
       output: both
