@@ -8,6 +8,8 @@
 #include <cstring>
 #include <thread>
 
+#include "../base/Image.hpp"
+
 namespace boblib
 {
     struct ImgSize
@@ -18,11 +20,22 @@ namespace boblib
         }
 
         ImgSize(int _width, int _height, int _num_channels, int _bytes_per_pixel, size_t _original_pixel_pos)
-            : width(_width), height(_height), num_channels(_num_channels), bytes_per_channel(_bytes_per_pixel), num_pixels(_width * _height), size_in_bytes(_width * _height * _num_channels * _bytes_per_pixel), original_pixel_pos{_original_pixel_pos}
+            : width(_width)
+            , height(_height)
+            , num_channels(_num_channels)
+            , bytes_per_channel(_bytes_per_pixel)
+            , num_pixels(_width * _height)
+            , size_in_bytes(_width * _height * _num_channels * _bytes_per_pixel)
+            , original_pixel_pos{_original_pixel_pos}
         {
         }
 
-        ImgSize(const cv::Mat& _cv_mat)
+        ImgSize(const boblib::base::Image & img)
+            : ImgSize(img.size().width, img.size().height, img.channels(), img.elemSize1(), 0)
+        {
+        }
+
+        ImgSize(const cv::Mat & _cv_mat)
             : ImgSize(_cv_mat.size().width, _cv_mat.size().height, _cv_mat.channels(), _cv_mat.elemSize1(), 0)
         {
         }
@@ -30,6 +43,16 @@ namespace boblib
         static std::unique_ptr<ImgSize> create(int _width, int _height, int _num_channels, int _bytes_per_pixel, size_t _original_pixel_pos)
         {
             return std::make_unique<ImgSize>(_width, _height, _num_channels, _bytes_per_pixel, _original_pixel_pos);
+        }
+
+        static std::unique_ptr<ImgSize> create(const cv::Mat & cv_mat)
+        {
+            return std::make_unique<ImgSize>(cv_mat);
+        }
+
+        static std::unique_ptr<ImgSize> create(const boblib::base::Image & img)
+        {
+            return std::make_unique<ImgSize>(img);
         }
 
         bool operator==(const ImgSize &rhs) const

@@ -4,7 +4,7 @@
 #########################################################################
 basic_config:
   camera_node:
-    source_type: 'RTSP_STREAM' # USB_CAMERA | VIDEO_FILE | RTSP_STREAM
+    source_type: 'VIDEO_FILE' # USB_CAMERA | VIDEO_FILE | RTSP_STREAM
     # Pattern: rtsp_uri: 'rtsp://{name of the user}:{password of user}@{IP-Address}:{Port Number}/{Path}'
     #   Example Hikvision: rtsp_uri: 'rtsp://peter:pAsSwOrD123427@12.8.9.3:554/Streaming/Channels/101'
     #   Example Amcrest and Dahua: rtsp_uri: 'rtsp://user:password@0.0.0.0:554/cam/realmonitor?channel=1&subtype=0'
@@ -29,8 +29,8 @@ basic_config:
   multi_frame_viewer_node:
     topics: 
       - '/bob/frames/annotated/resized/compressed'
-      - '/bob/frames/allsky/original/resized/compressed'
-      - '/bob/frames/foreground_mask/resized/compressed'
+      - '/bob/frames/allsky/original'
+      - '/bob/frames/foreground_mask' #/resized/compressed
 
 #########################################################################
 # Advanced configuration for nodes
@@ -283,10 +283,10 @@ launch:
       executable: component_container_mt
       output: both
       nodes:
-        - package: bob_image_processing
-          plugin: TrackSensitivityMonitor
-          name: track_sensitivity_monitor_node
-          remappings: []
+        # - package: bob_image_processing
+        #   plugin: TrackSensitivityMonitor
+        #   name: track_sensitivity_monitor_node
+        #   remappings: []
         - package: bob_recorder
           plugin: RecordingMonitor
           name: allsky_recorder_monitoring_node

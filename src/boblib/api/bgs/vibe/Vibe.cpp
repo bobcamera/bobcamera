@@ -3,19 +3,27 @@
 #include <iostream>
 #include <execution>
 
+#include <opencv2/cudaarithm.hpp>
+#include <cuda_runtime.h>
+
 namespace boblib::bgs
 {
-    Vibe::Vibe(VibeParams _params, size_t _num_processes_parallel)
-        : CoreBgs(_num_processes_parallel)
-        , m_params{_params}
+    Vibe::Vibe(VibeParams _params, bool use_cuda, size_t _num_processes_parallel)
+        : CoreBgs(use_cuda, _num_processes_parallel), m_params(_params), memory_allocated(false)
     {
     }
 
-    void Vibe::initialize(const cv::Mat &_init_img)
+    Vibe::~Vibe()
     {
+        free_memory();
+    }
+
+    void Vibe::initialize(const boblib::base::Image &_init_img)
+    {
+        auto &init_img = _init_img.toMat();
         std::vector<std::unique_ptr<Img>> img_split(m_num_processes_parallel);
-        m_orig_img_size = ImgSize::create(_init_img.size().width, _init_img.size().height, _init_img.channels(), _init_img.elemSize1(), 0);
-        Img frameImg(_init_img.data, *m_orig_img_size);
+        m_orig_img_size = ImgSize::create(init_img);
+        Img frameImg(init_img.data, *m_orig_img_size);
         split_img(frameImg, img_split, m_num_processes_parallel);
 
         m_random_generators.resize(m_num_processes_parallel);
@@ -36,7 +44,7 @@ namespace boblib::bgs
         }
     }
 
-    template<class T>
+    template <class T>
     void Vibe::initialize(const Img &_init_img, std::vector<std::unique_ptr<Img>> &_bg_img_samples, Pcg32 &_rnd_gen)
     {
         int y_sample, x_sample;
@@ -62,11 +70,16 @@ namespace boblib::bgs
         }
     }
 
-    void Vibe::process(const cv::Mat &_image, cv::Mat &_fg_mask, const cv::Mat & _detectMask, int _num_process)
+    void Vibe::process(const boblib::base::Image &_image, boblib::base::Image &_fg_mask, const boblib::base::Image &_detect_mask, int _num_process)
     {
-        Img img_split(_image.data, ImgSize(_image.size().width, _image.size().height, _image.channels(), _image.elemSize1(), 0));
-        Img mask_partial(_fg_mask.data, ImgSize(_image.size().width, _image.size().height, _fg_mask.channels(), _fg_mask.elemSize1(), 0));
-        Img detect_mask_partial(_detectMask.data, ImgSize(_detectMask.size().width, _detectMask.size().height, _detectMask.channels(), _detectMask.elemSize1(), 0));
+        if (false && using_cuda_)
+        {
+            process_cuda(_image, _fg_mask, _detect_mask);
+        }
+        auto &fg_mask = _fg_mask.toMat();
+        Img img_split(_image.data(), ImgSize(_image));
+        Img mask_partial(fg_mask.data, ImgSize(fg_mask));
+        Img detect_mask_partial(_detect_mask.data(), ImgSize(_detect_mask));
         if (img_split.size.num_channels > 1)
         {
             if (img_split.size.bytes_per_channel == 1)
@@ -91,11 +104,11 @@ namespace boblib::bgs
         }
     }
 
-    template<class T>
+    template <class T>
     void Vibe::apply3(const Img &_image,
-                    Img &_fg_mask,
-                    const Img & _detect_mask,
-                    int _num_process)
+                      Img &_fg_mask,
+                      const Img &_detect_mask,
+                      int _num_process)
     {
         auto &_bg_img = m_bg_img_samples[_num_process];
         auto &_rnd_gen = m_random_generators[_num_process];
@@ -159,11 +172,11 @@ namespace boblib::bgs
         }
     }
 
-    template<class T>
+    template <class T>
     void Vibe::apply1(const Img &_image,
-                    Img &_fg_mask,
-                    const Img & _detect_mask,
-                    int _num_process)
+                      Img &_fg_mask,
+                      const Img &_detect_mask,
+                      int _num_process)
     {
         auto &_bg_img = m_bg_img_samples[_num_process];
         auto &_rnd_gen = m_random_generators[_num_process];
@@ -232,8 +245,8 @@ namespace boblib::bgs
                 size_t in_pix_offset{0};
                 size_t out_pix_offset{bg_samples[0]->size.original_pixel_pos * sizeof(float) * bg_samples[0]->size.num_channels};
                 for (; in_pix_offset < bg_samples[n]->size.size_in_bytes;
-                    in_pix_offset += m_orig_img_size->num_channels,
-                    out_pix_offset += sizeof(float) * bg_samples[0]->size.num_channels)
+                     in_pix_offset += m_orig_img_size->num_channels,
+                     out_pix_offset += sizeof(float) * bg_samples[0]->size.num_channels)
                 {
                     const uint8_t *const pix_data{&bg_samples[n]->data[in_pix_offset]};
                     float *const out_data{(float *)(avg_bg_img.data + out_pix_offset)};
@@ -246,5 +259,83 @@ namespace boblib::bgs
         }
 
         avg_bg_img.convertTo(_bg_image, CV_8U);
+    }
+
+    void Vibe::free_memory()
+    {
+        // if (memory_allocated)
+        // {
+        //     // Free the device memory for d_bg_img_samples
+        //     cudaFree(d_bg_img_samples);
+        //     d_bg_img_samples = nullptr;
+        //     memory_allocated = false;
+        // }
+    }
+
+    void Vibe::allocate_memory_if_needed(const boblib::base::Image &)
+    {
+        // if (!memory_allocated)
+        // {
+        //     // Allocate device memory for d_bg_img_samples (array of pointers)
+        //     cudaMalloc(&d_bg_img_samples, m_bg_img_samples.size() * sizeof(uchar *));
+
+        //     // Allocate memory for each Img on the device and collect their pointers
+        //     std::vector<uchar *> h_bg_img_samples(m_bg_img_samples.size());
+
+        //     for (size_t i = 0; i < m_bg_img_samples.size(); ++i)
+        //     {
+        //         m_bg_img_samples[i] = std::make_unique<cv::cuda::GpuMat>(_image.size(), _image.type());
+        //         h_bg_img_samples[i] = m_bg_img_samples[i]->ptr<uchar>();
+        //     }
+
+        //     // Copy the array of pointers from host to device
+        //     cudaMemcpy(d_bg_img_samples, h_bg_img_samples.data(), m_bg_img_samples.size() * sizeof(uchar *), cudaMemcpyHostToDevice);
+
+        //     memory_allocated = true; // Mark memory as allocated
+        // }
+    }
+
+    __global__ void vibeKernel(const uchar *d_image, uchar *d_fg_mask, const uchar *d_detect_mask, uchar **d_bg_img_samples,
+                               int img_width, int img_height, int n_color_dist_threshold, int bg_samples,
+                               int required_bg_samples, int and_learning_rate, bool has_detect_mask, uint32_t *rand_states);
+
+    void Vibe::process_cuda(const boblib::base::Image &_image, boblib::base::Image &_fg_mask, const boblib::base::Image &_detect_mask)
+    {
+        // const int img_width = _image.size().width;
+        // const int img_height = _image.size().height;
+        // const int n_color_dist_threshold = m_params.threshold_mono;
+        // const bool has_detect_mask = !_detect_mask.empty();
+
+        // // Allocate memory if it hasn't been allocated yet
+        // allocate_memory_if_needed(_image);
+
+        // // Set up CUDA grid and block dimensions
+        // dim3 blockDim(16, 16);
+        // dim3 gridDim((img_width + blockDim.x - 1) / blockDim.x, (img_height + blockDim.y - 1) / blockDim.y);
+
+        // // Allocate and initialize RNG states
+        // uint32_t *d_rand_states;
+        // cudaMalloc(&d_rand_states, img_width * img_height * sizeof(uint32_t));
+        // uint32_t *h_rand_states = new uint32_t[img_width * img_height];
+        // for (int i = 0; i < img_width * img_height; ++i)
+        // {
+        //     h_rand_states[i] = i * 123456789; // Initialize with a seed
+        // }
+        // cudaMemcpy(d_rand_states, h_rand_states, img_width * img_height * sizeof(uint32_t), cudaMemcpyHostToDevice);
+        // delete[] h_rand_states;
+
+        // // Launch the kernel
+        // vibeKernel<<<gridDim, blockDim>>>(_image.ptr<uchar>(), _fg_mask.ptr<uchar>(),
+        //                                   has_detect_mask ? _detect_mask.ptr<uchar>() : nullptr,
+        //                                   d_bg_img_samples, img_width, img_height,
+        //                                   n_color_dist_threshold, m_params.bg_samples,
+        //                                   m_params.required_bg_samples, m_params.and_learning_rate,
+        //                                   has_detect_mask, d_rand_states);
+
+        // // Wait for kernel execution to finish
+        // cudaDeviceSynchronize();
+
+        // // Free RNG state memory
+        // cudaFree(d_rand_states);
     }
 }
