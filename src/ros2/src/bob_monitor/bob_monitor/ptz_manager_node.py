@@ -5,7 +5,7 @@ from rclpy.node import Node
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy, QoSHistoryPolicy
 from bob_shared.node_runner import NodeRunner
 from bob_interfaces.msg import Tracking
-from .detection import DetectionCounter2
+from .deprecated.detection import DetectionCounter2
 
 class PTZManagerNode(Node):
 

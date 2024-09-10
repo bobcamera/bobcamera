@@ -191,7 +191,7 @@ public:
 
             bgs_ptr_ = create_bgs(params_.get_bgs_type());
 
-            blob_params_ = std::make_unique<boblib::blobs::ConnectedBlobDetectionParams>(
+            blob_params_ = std::make_unique<boblib::blobs::ConnectedBlobDetectionParams>(false,
                 config.sensitivity.blob_size_threshold, config.sensitivity.blob_area_threshold, config.sensitivity.blob_min_distance, 
                 config.sensitivity.blob_max_blobs);
             blob_detector_ptr_ = std::make_unique<boblib::blobs::ConnectedBlobDetection>(*blob_params_);
@@ -227,12 +227,12 @@ public:
 
             img.convertTo(gray_img, cv::COLOR_BGR2GRAY);
 
-            if (mask_enabled_ && (detection_mask_ptr_->size() != gray_img.size()))
+            if (mask_enabled_ && params_.get_mask_enable_override() && (detection_mask_ptr_->size() != gray_img.size()))
             {
                 detection_mask_ptr_->resize(gray_img.size());
             }
             
-            bgs_ptr_->apply(gray_img, *bgs_img_ptr_, mask_enabled_ ? *detection_mask_ptr_ : blank_mask);
+            bgs_ptr_->apply(gray_img, *bgs_img_ptr_, (mask_enabled_ && params_.get_mask_enable_override()) ? *detection_mask_ptr_ : blank_mask);
 
             fill_header(bgs_msg, *bgs_img_ptr_);
 

@@ -19,10 +19,10 @@ class MaskWebApiNode(Node):
       ('height', 1080)])
     
     self.masks_folder = self.get_parameter('masks_folder').value
-    self.mask_width = self.get_parameter('width').value
-    self.mask_height = self.get_parameter('height').value
+    self.mask_width = 0
+    self.mask_height = 0
 
-    self.get_logger().info(f'Masks path {self.masks_folder}, width {self.mask_width}, height {self.mask_height}.')
+    self.get_logger().info(f'Masks path {self.masks_folder}.')
 
     self.br = CvBridge()
 

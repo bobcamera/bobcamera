@@ -300,9 +300,7 @@
     // Connect to the ROS2 environment
     // ros = rosConnect(websocketsURL, true);
 
-    var ros2ImageTopic1 = '/bob/camera/all_sky/bayer/resized/compressed'; // define the ROS2 Subscription Topic 1
-    var ros2ImageTopic2 = '/bob/frames/annotated/resized/compressed'; // define the ROS2 Subscription Topic 2
-    var currentRos2ImageTopic = ros2ImageTopic2; // Set the ROS2 Topic to Subscribe to
+    var currentRos2ImageTopic = '/bob/camera1/annotated/resized/compressed'; // define the ROS2 Subscription
     var compressedImageMsgType = 'sensor_msgs/msg/CompressedImage'; // define the Msg Type of the ROS2 Subsc. Topic
 
     var frameStream = new ROSLIB.Topic({
@@ -313,7 +311,7 @@
 
     var stateStream = new ROSLIB.Topic({
         ros: ros,
-        name: '/bob/monitoring/status',
+        name: '/bob/camera1/monitoring/status',
         messageType: 'bob_interfaces/msg/MonitoringStatus'
     });
 

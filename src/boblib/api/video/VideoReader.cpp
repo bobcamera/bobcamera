@@ -39,26 +39,33 @@ void VideoReader::release()
 
 bool VideoReader::read(boblib::base::Image & image)
 {
-    if (using_cuda_)
+    try
     {
-        if (!cuda_video_reader_ptr_->nextFrame(image.toCudaMat())) 
+        if (using_cuda_)
         {
-            return false;
+            if (!cuda_video_reader_ptr_->nextFrame(image.toCudaMat())) 
+            {
+                return false;
+            }
+            if (!image.get_using_cuda())
+            {
+                image.download();
+            }
+            return true;
         }
-        if (!image.get_using_cuda())
-        {
-            image.download();
-        }
-        return true;
-    }
 
-    auto success = video_capture_ptr_->read(image.toMat());
-    if (success)
+        auto success = video_capture_ptr_->read(image.toMat());
+        if (success)
+        {
+            image.upload();
+        }
+        return success;
+    }
+    catch (const std::exception & e)
     {
-        image.upload();
+        std::cerr << e.what() << std::endl;
     }
-
-    return success;
+    return false;
 }
 
 bool VideoReader::set(int parameter_id, double value)

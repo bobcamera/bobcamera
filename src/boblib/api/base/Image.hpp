@@ -25,11 +25,13 @@ namespace boblib::base
 
         Image clone() const;
 
-        void create(int rows, int cols, int type);
+        Image & create(int rows, int cols, int type);
 
-        void create(cv::Size size, int type);
+        Image & create(int rows, int cols, int type, void* data);
 
-        void create(const cv::Mat & image);
+        Image & create(cv::Size size, int type);
+
+        Image & create(const cv::Mat & image);
 
         size_t elemSize() const;
 

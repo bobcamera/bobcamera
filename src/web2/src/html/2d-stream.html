@@ -76,7 +76,7 @@
                      // Instanciate maskprovider so we can publish the image mask when the sendMaskJPG button is clicked via "maskprovider.publish(imageMessage);"
                     var maskprovider = new ROSLIB.Topic({
                         ros: ros,
-                        name: '/sky360/config/input_mask_image',
+                        name: '/bob/config/input_mask_image',
                         messageType: 'sensor_msgs/msg/CompressedImage'
                     });
                      sendMaskJPG.addEventListener('click', () => {
@@ -114,12 +114,12 @@
                         }
                     });
 
-                    var sky360_single_frame_classifier = new ROSLIB.Topic({
+                    var bob_single_frame_classifier = new ROSLIB.Topic({
                         ros: ros,
-                        name: 'sky360/classification',
+                        name: 'bob/classification',
                         messageType: 'std_msgs/String',
                     });
-                     sky360_single_frame_classifier.subscribe(function(message) {
+                     bob_single_frame_classifier.subscribe(function(message) {
                         console.log('test');
                         // updateMessageRate();
                         parseClassificationMsg(message);

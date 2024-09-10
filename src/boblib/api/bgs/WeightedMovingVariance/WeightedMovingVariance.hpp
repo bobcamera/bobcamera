@@ -15,8 +15,7 @@ namespace boblib::bgs
         : public CoreBgs 
     {
     public:
-        WeightedMovingVariance(WMVParams _params = WMVParams(),
-                               size_t _num_processes_parallel = DETECT_NUMBER_OF_THREADS);
+        WeightedMovingVariance(WMVParams _params = WMVParams(), bool use_cuda = true, size_t _num_processes_parallel = DETECT_NUMBER_OF_THREADS);
         ~WeightedMovingVariance();
 
         virtual WMVParams &get_parameters() { return m_params; }
@@ -24,8 +23,8 @@ namespace boblib::bgs
         virtual void get_background_image(cv::Mat &_bgImage);
 
     private:
-        virtual void initialize(const cv::Mat &_image);
-        virtual void process(const cv::Mat &img_input, cv::Mat &img_output, const cv::Mat & _detectMask, int _num_process);
+        virtual void initialize(const boblib::base::Image &_image);
+        virtual void process(const boblib::base::Image &img_input, boblib::base::Image &img_output, const boblib::base::Image & _detectMask, int _num_process);
 
         static const inline int ROLLING_BG_IDX[3][3] = {{0, 1, 2}, {2, 0, 1}, {1, 2, 0}};
 

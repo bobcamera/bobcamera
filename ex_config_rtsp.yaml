@@ -3,7 +3,7 @@
 #   This is the basic configuration, where most of the users need to worry
 #########################################################################
 basic_config:
-  camera_node:
+  camera1_node:
     source_type: 'RTSP_STREAM' # USB_CAMERA | VIDEO_FILE | RTSP_STREAM
     # Pattern: rtsp_uri: 'rtsp://{name of the user}:{password of user}@{IP-Address}:{Port Number}/{Path}'
     #   Example Hikvision: rtsp_uri: 'rtsp://peter:pAsSwOrD123427@12.8.9.3:554/Streaming/Channels/101'
@@ -17,20 +17,19 @@ basic_config:
     resize_height: 960          # 0 to disable resize publish
     simulator: False             # True for including simulated objects, False otherwise
     simulator_num_objects: 15   # Number of simulated objects if the simulator parameter is True
-    bgs_sensitivity: 'high_c'    # Initial sensitivity configuration based on the 'bgs_json_params' in the advanced config section
+    bgs_sensitivity: 'medium_c'    # Initial sensitivity configuration based on the 'bgs_json_params' in the advanced config section
     bgs_type: 'vibe'            # The background subtractor to use: 'vibe' | 'wmv'
 
-  allsky_recorder_node:
+  camera1_recorder_node:
     codec: 'avc1'
-    video_fps: 15.0
     seconds_save: 2
     #pipeline: 'appsrc ! videoconvert ! openh264enc bitrate=10240000 qp-min=10 qp-max=51 ! h264parse ! mp4mux ! filesink location='
     
   multi_frame_viewer_node:
     topics: 
-      - '/bob/frames/annotated/resized/compressed'
-      - '/bob/frames/allsky/original/resized/compressed'
-      - '/bob/frames/foreground_mask/resized/compressed'
+      - '/bob/camera1/annotated/resized/compressed'
+      - '/bob/camera1/original/resized/compressed'
+      - '/bob/camera1/foreground_mask/resized/compressed'
 
 #########################################################################
 # Advanced configuration for nodes
@@ -39,24 +38,24 @@ basic_config:
 # !!! CHANGING BELOW CAN BREAK BOB, PLAY WITH CAUTION !!!
 #########################################################################
 advanced_config:
-  camera_node:
+  camera1_node:
     onvif_host: ''
     onvif_port: 0
     onvif_user: ''
-    onvif_password: ''  
+    onvif_password: ''
+    use_cuda: true
     mask_timer_seconds: 5
-    privacy_mask_file: 'assets/masks/privacy-mask.jpg'
-    privacy_mask_override_service_topic: 'bob/mask/privacy/override'
-    image_publish_topic: 'bob/frames/allsky/original'
-    image_info_publish_topic: 'bob/camera/all_sky/image_info'
-    camera_info_publish_topic: 'bob/camera/all_sky/camera_info'
-    camera_settings_client_topic: 'bob/camera/settings'
-    fps_update_client_topic: 'bob/config/update/fps'
-    bgs_publish_topic: 'bob/frames/foreground_mask'
-    bgs_detection_topic: 'bob/detection/allsky/boundingboxes'
-    bgs_detection_state_topic: 'bob/detection/detector_state'
-    bgs_mask_file: 'assets/masks/detection-mask.jpg'
-    bgs_mask_override_service_topic: 'bob/mask/detection/override'
+    privacy_mask_file: 'assets/masks/camera1-privacy-mask.jpg'
+    privacy_mask_override_service_topic: 'bob/mask/privacy/override/camera1'
+    image_publish_topic: 'bob/camera1/original'
+    image_info_publish_topic: 'bob/camera1/image_info'
+    camera_info_publish_topic: 'bob/camera1/camera_info'
+    camera_settings_client_topic: 'bob/camera1/settings'
+    bgs_publish_topic: 'bob/camera1/foreground_mask'
+    bgs_detection_topic: 'bob/camera1/boundingboxes'
+    bgs_detection_state_topic: 'bob/camera1/detection/detector_state'
+    bgs_mask_file: 'assets/masks/camera1-detection-mask.jpg'
+    bgs_mask_override_service_topic: 'bob/mask/detection/override/camera1'
     bgs_json_params: '[
                     { "name": "low",
                       "sensitivity": {
@@ -96,92 +95,89 @@ advanced_config:
                         "median_filter": true}}
                   ]'
 
-  track_provider_node:
-    bounding_boxes_subscription_topic: 'bob/detection/allsky/boundingboxes'
-    tracker_publisher_topic: 'bob/tracker/tracking'
+  camera1_track_provider_node:
+    bounding_boxes_subscription_topic: 'bob/camera1/boundingboxes'
+    tracker_publisher_topic: 'bob/camera1/tracker/tracking'
     resize_height: 960
 
-  allsky_recorder_node:
+  camera1_recorder_node:
     recordings_directory: 'assets/recordings'
-    recording_request_service_topic: 'bob/recording/update'
-    state_publisher_topic: 'bob/recording/state'
-    img_topic: 'bob/frames/allsky/original'
-    fg_img_topic: 'bob/frames/foreground_mask'
-    tracking_topic: 'bob/tracker/tracking'
-    camera_info_topic: 'bob/camera/all_sky/camera_info'
+    recording_request_service_topic: 'bob/recording/update/camera1'
+    state_publisher_topic: 'bob/camera1/recording/state'
+    img_topic: 'bob/camera1/original'
+    fg_img_topic: 'bob/camera1/foreground_mask'
+    tracking_topic: 'bob/camera1/tracker/tracking'
+    camera_info_topic: 'bob/camera1/camera_info'
     prefix: ''
 
-  annotated_frame_provider_node:
+  camera1_annotated_frame_provider_node:
     tracking_status_message: False
     resize_height: 960
-    annotated_frame_publisher_topic: 'bob/frames/annotated'
-    camera_frame_topic: 'bob/frames/allsky/original/resized'
-    tracking_topic: 'bob/tracker/tracking/resized'
+    annotated_frame_publisher_topic: 'bob/camera1/annotated'
+    camera_frame_topic: 'bob/camera1/original/resized'
+    tracking_topic: 'bob/camera1/tracker/tracking/resized'
 
-  annotated_frame_compressor_node:
-    compressed_frame_subscriber_topic: 'bob/frames/annotated/resized'
-    compressed_frame_publisher_topic: 'bob/frames/annotated/resized/compressed'
+  camera1_annotated_frame_compressor_node:
+    compressed_frame_subscriber_topic: 'bob/camera1/annotated/resized'
+    compressed_frame_publisher_topic: 'bob/camera1/annotated/resized/compressed'
     compression_quality: 75
 
-  detection_masked_compressor_node:
-    compressed_frame_subscriber_topic: 'bob/frames/allsky/original/resized'
-    compressed_frame_publisher_topic: 'bob/frames/allsky/original/resized/compressed'
+  camera1_detection_masked_compressor_node:
+    compressed_frame_subscriber_topic: 'bob/camera1/original/resized'
+    compressed_frame_publisher_topic: 'bob/camera1/original/resized/compressed'
     compression_quality: 75
 
-  foreground_mask_compressor_node:
-    compressed_frame_subscriber_topic: 'bob/frames/foreground_mask/resized'
-    compressed_frame_publisher_topic: 'bob/frames/foreground_mask/resized/compressed'
+  camera1_foreground_mask_compressor_node:
+    compressed_frame_subscriber_topic: 'bob/camera1/foreground_mask/resized'
+    compressed_frame_publisher_topic: 'bob/camera1/foreground_mask/resized/compressed'
     compression_quality: 75
 
-  image_estimator_node:
-    camera_subscription_topic: 'bob/frames/allsky/original/resized'
-    cloud_estimation_publish_topic: 'bob/observer/cloud_estimation'
-    day_night_publish_topic: 'bob/observer/day_night_classifier'
+  camera1_image_estimator_node:
+    camera_subscription_topic: 'bob/camera1/original/resized'
+    cloud_estimation_publish_topic: 'bob/camera1/observer/cloud_estimation'
+    day_night_publish_topic: 'bob/camera1/observer/day_night_classifier'
     observer_timer_interval: 30
     observer_day_night_brightness_threshold: 95
     mask_timer_seconds: 5
-    mask_file: 'assets/masks/detection-mask.jpg'
+    mask_file: 'assets/masks/camera1-detection-mask.jpg'
+
+  camera1_monitoring_status_aggregator_node:
+    observer_tracker_aggregation_interval: 1
+    sub_detector_state_topic: 'bob/camera1/detection/detector_state'
+    sub_tracking_state_topic: 'bob/camera1/tracker/tracking'
+    sub_recording_state_topic: 'bob/camera1/recording/state'
+    sub_environment_day_night_topic: 'bob/camera1/observer/day_night_classifier'
+    sub_cloud_estimation_topic: 'bob/camera1/observer/cloud_estimation'
+    pub_aggregation_state_topic: 'bob/camera1/monitoring/status'
+
+  camera1_track_sensitivity_monitor_node:
+    monitoring_subscription_topic: 'bob/camera1/monitoring/status'
+    bgs_node: 'camera1_node'
+    check_interval: 10
+    sensitivity_increase_count_threshold: 5
+    sensitivity: 'medium_c'
+    star_mask_enabled: True    
+
+  # camera1_recorder_monitoring_node:
+  #   check_interval: 5
+
+  onvif_service_node:
+    onvif_wsdl_path: 'assets/wsdl'
+
+  info_webapi_node:
+    version_file: 'version.txt'
+
+  mask_webapi_node:
+    masks_folder: 'assets/masks'
+
+  lifecycle_manager_node:
+    prune_time_seconds: 5
 
   # star_mask_node:
   #   detection_mask_file: 'assets/masks/detection-mask.jpg'
   #   detection_mask_backup_file: 'assets/masks/detection-mask-backup.jpg'
   #   observer_timer_interval: 90
   #   observer_cross_correlation_threshold: 0.5
-
-  monitoring_status_aggregator_node:
-    observer_tracker_monitor_busy_interval: 5
-    observer_tracker_monitor_idle_interval: 60
-    observer_tracker_aggregation_interval: 1
-    observer_tracking_profile_busy_switch_threshold: 5
-    observer_tracker_sample_set: 5
-
-  track_sensitivity_monitor_node:
-    monitoring_subscription_topic: 'bob/monitoring/status'
-    bgs_node: 'camera_node'
-    check_interval: 10
-    sensitivity_increase_count_threshold: 5
-    sensitivity: 'medium_c'
-    star_mask_enabled: True    
-
-  allsky_recorder_monitoring_node:
-    check_interval: 5
-
-  onvif_service_node:
-    onvif_wsdl_path: 'assets/wsdl'
-
-  info_webapi_node:
-    application_version: '1.6.0'
-    frame_width: 0
-    frame_height: 0
-    video_fps: 15.0
-
-  mask_webapi_node:
-    masks_folder: 'assets/masks'
-    width: 0
-    height: 0
-
-  lifecycle_manager_node:
-    prune_time_seconds: 5
 
 #########################################################################
 # Launch nodes configuration
@@ -238,61 +234,63 @@ launch:
   lifecycle: True
 
   node_containers:
-    - name: Kernel
+    - name: Kernel_Camera1
       executable: component_container_mt
       output: both 
       nodes:
         - package: bob_camera
           plugin: CameraBGS
-          name: camera_node
+          name: camera1_node
           remappings: []
         - package: bob_tracking
           plugin: TrackProvider
-          name: track_provider_node
+          name: camera1_track_provider_node
           remappings: []
-        - package: bob_recorder
-          plugin: RecordManager
-          name: allsky_recorder_node
-          remappings: []
+        # - package: bob_recorder
+        #   plugin: RecordManager
+        #   name: allsky_recorder_node
+        #   remappings: []
         - package: bob_image_processing
           plugin: AnnotatedFrameProvider
-          name: annotated_frame_provider_node
+          name: camera1_annotated_frame_provider_node
           remappings: []
         - package: bob_image_processing
           plugin: FrameCompressor
-          name: annotated_frame_compressor_node
+          name: camera1_annotated_frame_compressor_node
           remappings: []
         - package: bob_image_processing
           plugin: FrameCompressor
-          name: detection_masked_compressor_node
+          name: camera1_detection_masked_compressor_node
           remappings: []
         - package: bob_image_processing
           plugin: FrameCompressor
-          name: foreground_mask_compressor_node
+          name: camera1_foreground_mask_compressor_node
           remappings: []
-    # - name: Display
-    #   executable: component_container # Has to be single-threaded because of OpenCV display
-    #   output: both
-    #   nodes:
-    #     - package: bob_visualizers
-    #       plugin: FrameViewer
-    #       name: multi_frame_viewer_node
-    #       remappings: []
-    - name: Monitor
+
+    - name: Display
+      executable: component_container # Has to be single-threaded because of OpenCV display
+      output: both
+      nodes:
+        - package: bob_visualizers
+          plugin: FrameViewer
+          name: multi_frame_viewer_node
+          remappings: []
+
+    - name: Monitor_Camera1
       executable: component_container_mt
       output: both
       nodes:
         - package: bob_image_processing
           plugin: TrackSensitivityMonitor
-          name: track_sensitivity_monitor_node
+          name: camera1_track_sensitivity_monitor_node
           remappings: []
-        - package: bob_recorder
-          plugin: RecordingMonitor
-          name: allsky_recorder_monitoring_node
-          remappings: []
+        # - package: bob_recorder
+        #   plugin: RecordingMonitor
+        #   name: camera1_recorder_monitoring_node
+        #   remappings: []
         - package: bob_observer
           plugin: ImageEstimator
-          name: image_estimator_node
+          name: camera1_image_estimator_node
           remappings: []
         
   standalone_nodes:
@@ -304,7 +302,7 @@ launch:
     #   output: screen
     - package: bob_monitor
       executable: monitoring_status_aggregator
-      name: monitoring_status_aggregator_node
+      name: camera1_monitoring_status_aggregator_node
       remappings: []
       output: screen
     - package: bob_monitor

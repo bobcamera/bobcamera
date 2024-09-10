@@ -50,39 +50,59 @@ Image Image::clone() const
     return copy;
 }
 
-void Image::create(int rows, int cols, int type)
+Image & Image::create(int rows, int cols, int type)
 {
+    mat_ptr_->release();
     if (using_cuda_)
     {
         gpu_mat_ptr_->release();
         gpu_mat_ptr_->create(rows, cols, type);
-        return;
+        return *this;
     }
-    mat_ptr_->release();
     mat_ptr_->create(rows, cols, type);
+
+    return *this;
 }
 
-void Image::create(cv::Size size, int type)
+Image & Image::create(int rows, int cols, int type, void* data)
 {
+    mat_ptr_->release();
+    if (using_cuda_)
+    {
+        gpu_mat_ptr_->release();
+        gpu_mat_ptr_ = std::make_unique<cv::cuda::GpuMat>(rows, cols, type, data);
+        return *this;
+    }
+    mat_ptr_ = std::make_unique<cv::Mat>(rows, cols, type, data);
+
+    return *this;
+}
+
+Image & Image::create(cv::Size size, int type)
+{
+    mat_ptr_->release();
     if (using_cuda_)
     {
         gpu_mat_ptr_->release();
         gpu_mat_ptr_->create(size, type);
-        return;
+        return *this;
     }
-    mat_ptr_->release();
     mat_ptr_->create(size, type);
+
+    return *this;
 }
 
-void Image::create(const cv::Mat & image)
+Image & Image::create(const cv::Mat & image)
 {
     if (using_cuda_)
     {
         gpu_mat_ptr_->upload(image);
-        return;
+        return *this;
     }
 
     *mat_ptr_ = image.clone();
+
+    return *this;
 }
 
 size_t Image::elemSize() const

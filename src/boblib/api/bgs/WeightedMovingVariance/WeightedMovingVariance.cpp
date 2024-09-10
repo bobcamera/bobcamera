@@ -8,9 +8,8 @@ static const uint8_t ZERO_UC{0};
 
 namespace boblib::bgs
 {
-    WeightedMovingVariance::WeightedMovingVariance(WMVParams _params,
-                                                size_t _num_processes_parallel)
-        : CoreBgs(_num_processes_parallel),
+    WeightedMovingVariance::WeightedMovingVariance(WMVParams _params, bool use_cuda, size_t _num_processes_parallel)
+        : CoreBgs(use_cuda, _num_processes_parallel),
         m_params{_params}
     {
         m_params.set_bgs(this);
@@ -25,7 +24,7 @@ namespace boblib::bgs
         // Not implemented
     }
 
-    void WeightedMovingVariance::initialize(const cv::Mat &)
+    void WeightedMovingVariance::initialize(const boblib::base::Image &)
     {
         m_img_input_prev.resize(m_num_processes_parallel);
         for (size_t i = 0; i < m_num_processes_parallel; ++i)
@@ -53,15 +52,17 @@ namespace boblib::bgs
         ++_rolling_images.current_rolling_idx;
     }
 
-    void WeightedMovingVariance::process(const cv::Mat &_img_input, cv::Mat &_img_output, const cv::Mat & _detectMask, int _num_process)
+    void WeightedMovingVariance::process(const boblib::base::Image &_img_input, boblib::base::Image &_img_output, const boblib::base::Image & _detectMask, int _num_process)
     {
+        auto & img_input = _img_input.toMat();
         if (_img_output.empty())
         {
-            _img_output.create(_img_input.size(), CV_8UC1);
+            _img_output.create(img_input.size(), CV_8UC1);
         }
+        auto & img_output = _img_output.toMat();
 
         auto & _img_input_prev =  m_img_input_prev[_num_process];
-        memcpy(_img_input_prev.p_img_input, _img_input.data, _img_input_prev.p_img_size->size_in_bytes);
+        memcpy(_img_input_prev.p_img_input, img_input.data, _img_input_prev.p_img_size->size_in_bytes);
 
         if (_img_input_prev.first_phase < 2)
         {
@@ -69,20 +70,20 @@ namespace boblib::bgs
             return;
         }
 
-        uint8_t* detectMaskPtr = _detectMask.empty() ? nullptr : _detectMask.data;
+        uint8_t* detectMaskPtr = _detectMask.empty() ? nullptr : _detectMask.data();
 
         if (_img_input_prev.p_img_size->num_channels == 1)
         {
             if (_img_input_prev.p_img_size->bytes_per_channel == 1)
             {
                 weighted_variance_mono(_img_input_prev.p_img_input, _img_input_prev.p_img_input_prev1, _img_input_prev.p_img_input_prev2, detectMaskPtr,
-                                    _img_output.data, (size_t)_img_input_prev.p_img_size->num_pixels, 
+                                    img_output.data, (size_t)_img_input_prev.p_img_size->num_pixels, 
                                     m_params.weight, m_params.enable_threshold, m_params.threshold_squared);
             }
             else
             {
                 weighted_variance_mono((uint16_t*)_img_input_prev.p_img_input, (uint16_t*)_img_input_prev.p_img_input_prev1, (uint16_t*)_img_input_prev.p_img_input_prev2, detectMaskPtr,
-                                    _img_output.data, (size_t)_img_input_prev.p_img_size->num_pixels, 
+                                    img_output.data, (size_t)_img_input_prev.p_img_size->num_pixels, 
                                     m_params.weight, m_params.enable_threshold, m_params.threshold_squared16);
             }
         }
@@ -91,13 +92,13 @@ namespace boblib::bgs
             if (_img_input_prev.p_img_size->bytes_per_channel == 1)
             {
                 weighted_variance_color(_img_input_prev.p_img_input, _img_input_prev.p_img_input_prev1, _img_input_prev.p_img_input_prev2, detectMaskPtr,
-                                    _img_output.data, (size_t)_img_input_prev.p_img_size->num_pixels, 
+                                    img_output.data, (size_t)_img_input_prev.p_img_size->num_pixels, 
                                     m_params.weight, m_params.enable_threshold, m_params.threshold_squared);
             }
             else
             {
                 weighted_variance_color((uint16_t*)_img_input_prev.p_img_input, (uint16_t*)_img_input_prev.p_img_input_prev1, (uint16_t*)_img_input_prev.p_img_input_prev2, detectMaskPtr,
-                                    _img_output.data, (size_t)_img_input_prev.p_img_size->num_pixels, 
+                                    img_output.data, (size_t)_img_input_prev.p_img_size->num_pixels, 
                                     m_params.weight, m_params.enable_threshold, m_params.threshold_squared16);
             }
         }

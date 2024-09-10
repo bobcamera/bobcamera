@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+
+<html>
+
+    <head>
+        <title>Annotated Image Stream (Wide View)</title>
+
+        <meta charset="utf-8" />
+
+        <!-- JS Library Needed for Connecting to the ROS2 Environment -->
+        <script src="https://cdn.jsdelivr.net/npm/eventemitter2@6.4.9/lib/eventemitter2.min.js"></script>
+
+        <!-- JS Library Needed for Connecting to the ROS2 Environment -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/roslibjs/1.1.0/roslib.min.js"></script>
+
+        <script src="../lib/bob.js"></script>
+
+    </head>
+
+    <body>
+
+        <img id="imageDisplayWindow" style="width: 100%"/>
+
+        <script type="text/javascript" type="text/javascript">
+
+            var ros = new ROSLIB.Ros();
+            rosConnect(ros, websocketsURL, true);
+
+            var topicStream = new ROSLIB.Topic({
+                ros: ros,
+                name: '/bob/camera2/annotated/resized/compressed',
+                messageType: 'sensor_msgs/msg/CompressedImage'
+            });
+
+            // Stream Messages Published From a ROS2 Topic (On each new message arrival, the function is called)
+            topicStream.subscribe(function (message) {
+                // Display Image In imageDisplayWindow element
+                displayImage(message);
+            });
+
+            // Declare a function to display the image in the imageDisplayWindow element
+            function displayImage(message) {
+                document.getElementById('imageDisplayWindow').src = "data:image/jpeg;base64," + message.data;
+            }
+
+            window.onbeforeunload = function(event) {
+
+                console.log('Cleaning up resources...');
+
+                // Unsubscribe from the topic
+                if (topicStream) {
+                    topicStream.unsubscribe();
+                    console.log('Unsubscribed from topic.');
+                }
+
+                // Close the ROS2 connection
+                // ros.close();
+
+                // console.log('ROS connection closed.');
+
+                // Close the ROS2 connection
+                disconnectRos(ros);
+            }
+
+        </script>
+
+    </body>
+
+</html>
