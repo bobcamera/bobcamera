@@ -144,13 +144,6 @@ private:
                 }
             ),
             ParameterLifeCycleNode::ActionParam(
-                rclcpp::Parameter("fps_update_client_topic", "bob/config/update/fps"), 
-                [this](const rclcpp::Parameter& param) 
-                {
-                    camera_params_ptr_->set_fps_update_client(create_client<bob_interfaces::srv::ConfigEntryUpdate>(param.as_string()));
-                }
-            ),
-            ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("use_cuda", true), 
                 [this](const rclcpp::Parameter& param) 
                 {

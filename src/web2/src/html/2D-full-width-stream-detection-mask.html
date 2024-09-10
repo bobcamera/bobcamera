@@ -152,7 +152,7 @@
             // Create a topicStream for subscription
             var topicStream = new ROSLIB.Topic({
                 ros: ros,
-                name: '/bob/frames/allsky/original/resized/compressed',
+                name: '/bob/camera1/original/resized/compressed',
                 messageType: 'sensor_msgs/msg/CompressedImage'
             });
             
@@ -162,7 +162,7 @@
             let maskCanvasCtx = maskCanvas.getContext('2d');
 
             const invertMask = true;
-            const maskFilename = 'detection-mask.svg';
+            const maskFilename = 'camera1-detection-mask.svg';
             let drawing = false;
             let editMode = false;
             let polygons = [];
@@ -456,7 +456,7 @@
 
                 let maskOverrideService = new ROSLIB.Service({
                     ros : rosCon,
-                    name : '/bob/mask/detection/override',
+                    name : '/bob/mask/detection/override/camera1',
                     serviceType : 'bob_interfaces/srv/MaskOverrideRequest'
                 });
 

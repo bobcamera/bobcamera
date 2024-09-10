@@ -14,9 +14,28 @@ class MonitoringStatusAggregatorNode(Node):
     self.declare_parameters(
       namespace='',
       parameters=
-      [('observer_tracker_aggregation_interval', 1)])
+      [('observer_tracker_aggregation_interval', 1),
+       ('sub_detector_state_topic', 'bob/detection/detector_state'),
+       ('sub_tracking_state_topic', 'bob/tracker/tracking'),
+       ('sub_recording_state_topic', 'bob/recording/state'),
+       ('sub_environment_day_night_topic', 'bob/observer/day_night_classifier'),
+       ('sub_cloud_estimation_topic', 'bob/observer/cloud_estimation'),
+       ('pub_aggregation_state_topic', 'bob/monitoring/status')])
 
     self.observer_tracker_aggregation_interval = self.get_parameter('observer_tracker_aggregation_interval').value
+    self.sub_detector_state_topic = self.get_parameter('sub_detector_state_topic').value
+    self.sub_tracking_state_topic = self.get_parameter('sub_tracking_state_topic').value
+    self.sub_recording_state_topic = self.get_parameter('sub_recording_state_topic').value
+    self.sub_environment_day_night_topic = self.get_parameter('sub_environment_day_night_topic').value
+    self.sub_cloud_estimation_topic = self.get_parameter('sub_cloud_estimation_topic').value
+    self.pub_aggregation_state_topic = self.get_parameter('pub_aggregation_state_topic').value
+
+    # self.get_logger().info(f'sub_detector_state_topic: {self.sub_detector_state_topic}.')
+    # self.get_logger().info(f'sub_tracking_state_topic: {self.sub_tracking_state_topic}.')
+    # self.get_logger().info(f'sub_recording_state_topic: {self.sub_recording_state_topic}.')
+    # self.get_logger().info(f'sub_environment_day_night_topic: {self.sub_environment_day_night_topic}.')
+    # self.get_logger().info(f'sub_cloud_estimation_topic: {self.sub_cloud_estimation_topic}.')
+    # self.get_logger().info(f'pub_aggregation_state_topic: {self.pub_aggregation_state_topic}.')
 
     self.msg_tracking_state = None
     self.msg_recording_state = None
@@ -27,16 +46,14 @@ class MonitoringStatusAggregatorNode(Node):
     self.aggregation_timer = self.create_timer(self.observer_tracker_aggregation_interval, self.monitoring_status_publisher)
 
     # setup services, publishers and subscribers    
-    self.sub_detector_state = self.create_subscription(DetectorState, 'bob/detection/detector_state', self.detector_state_callback, subscriber_qos_profile)
-    self.sub_tracking_state = self.create_subscription(Tracking, 'bob/tracker/tracking', self.tracking_state_callback, subscriber_qos_profile)
-    self.sub_recording_state = self.create_subscription(RecordingState, 'bob/recording/state', self.recording_state_callback, subscriber_qos_profile)
+    self.sub_detector_state = self.create_subscription(DetectorState, self.sub_detector_state_topic, self.detector_state_callback, subscriber_qos_profile)
+    self.sub_tracking_state = self.create_subscription(Tracking, self.sub_tracking_state_topic, self.tracking_state_callback, subscriber_qos_profile)
+    self.sub_recording_state = self.create_subscription(RecordingState, self.sub_recording_state_topic, self.recording_state_callback, subscriber_qos_profile)
 
-    self.sub_environment_day_night = self.create_subscription(ObserverDayNight, 'bob/observer/day_night_classifier', 
-      self.day_night_callback, subscriber_qos_profile)
-    self.sub_recording_state = self.create_subscription(ObserverCloudEstimation, 'bob/observer/cloud_estimation', 
-      self.cloud_estimation_callback, subscriber_qos_profile)
+    self.sub_environment_day_night = self.create_subscription(ObserverDayNight, self.sub_environment_day_night_topic, self.day_night_callback, subscriber_qos_profile)
+    self.sub_cloud_estimation = self.create_subscription(ObserverCloudEstimation, self.sub_cloud_estimation_topic, self.cloud_estimation_callback, subscriber_qos_profile)
 
-    self.pub_aggregation_state = self.create_publisher(MonitoringStatus, 'bob/monitoring/status', publisher_qos_profile)
+    self.pub_aggregation_state = self.create_publisher(MonitoringStatus, self.pub_aggregation_state_topic, publisher_qos_profile)
 
     self.get_logger().info(f'{self.get_name()} node is up and running.')
    

@@ -10,7 +10,7 @@
 
 namespace boblib::blobs
 {
-    ConnectedBlobDetection::ConnectedBlobDetection(const ConnectedBlobDetectionParams &params, size_t num_processes_parallel)
+    ConnectedBlobDetection::ConnectedBlobDetection(const ConnectedBlobDetectionParams & params, size_t num_processes_parallel)
         : params_(params)
         , num_processes_parallel_(num_processes_parallel == DETECT_NUMBER_OF_THREADS ? calc_available_threads() : num_processes_parallel)
         , initialized_(false)
@@ -144,7 +144,7 @@ namespace boblib::blobs
         int num_blobs(0);
 
         // Use connected component analysis to find the blobs in the image
-        if (image.get_using_cuda())
+        if (params_.use_cuda && image.get_using_cuda())
         {
             cv::cuda::GpuMat gpu_labels;
             cv::cuda::connectedComponents(image.toCudaMat(), gpu_labels, 8, CV_32S);
@@ -158,6 +158,10 @@ namespace boblib::blobs
             if ((num_labels > 0) && (num_labels < params_.max_labels))
             {
                 num_blobs = run_parallel(labels, bboxes_map);
+            }
+            else if (num_labels > params_.max_labels)
+            {
+                num_blobs = params_.max_blobs + 1;
             }
         }
 
@@ -184,6 +188,7 @@ namespace boblib::blobs
 
     inline int ConnectedBlobDetection::run_parallel(const cv::Mat & labels, std::unordered_map<int, cv::Rect> & bboxes)
     {
+        bool max_labels(false);
         // Parallel execution to process each chunk of the image
         std::for_each(
             std::execution::par,
@@ -201,12 +206,16 @@ namespace boblib::blobs
                     labels.type(),
                     labels.data + (img_sizes_parallel_[np]->original_pixel_pos * img_sizes_parallel_[np]->num_channels));
                 apply_detect_bboxes(imgSplit, bboxesParallel);
+                max_labels = max_labels || (static_cast<int>(bboxesParallel.size()) > params_.max_labels);
             });
 
-        // Post-process the bounding boxes after parallel execution
-        pos_process_bboxes(bboxes);
+        if (!max_labels)
+        {
+            // Post-process the bounding boxes after parallel execution
+            pos_process_bboxes(bboxes);
+        }
 
-        return static_cast<int>(bboxes.size());
+        return !max_labels ? static_cast<int>(bboxes.size()) : (params_.max_labels + 1);
     }
 
     inline void ConnectedBlobDetection::apply_detect_bboxes(const cv::Mat & labels, std::unordered_map<int, cv::Rect> & bboxes)

@@ -20,7 +20,29 @@ basic_config:
     bgs_sensitivity: 'medium_c'    # Initial sensitivity configuration based on the 'bgs_json_params' in the advanced config section
     bgs_type: 'vibe'            # The background subtractor to use: 'vibe' | 'wmv'
 
+  camera2_node:
+    source_type: 'RTSP_STREAM' # USB_CAMERA | VIDEO_FILE | RTSP_STREAM
+    # Pattern: rtsp_uri: 'rtsp://{name of the user}:{password of user}@{IP-Address}:{Port Number}/{Path}'
+    #   Example Hikvision: rtsp_uri: 'rtsp://peter:pAsSwOrD123427@12.8.9.3:554/Streaming/Channels/101'
+    #   Example Amcrest and Dahua: rtsp_uri: 'rtsp://user:password@0.0.0.0:554/cam/realmonitor?channel=1&subtype=0'
+    rtsp_uri: 'rtsp://bob:Bobuser$01@192.168.68.63:554/Streaming/Channels/101'
+    camera_id: 0
+    usb_camera_resolution: [640, 480] # Resolution for USB Camera [WIDTH, HEIGHT]
+    videos:                     # List of videos to display in sequence if source_type is VIDEO_FILE
+      - '/workspaces/bobcamera/media/fisheye_videos/mike-drone.mp4'
+      - '/workspaces/bobcamera/media/fisheye_videos/mikeg-30min.mp4'
+    resize_height: 960          # 0 to disable resize publish
+    simulator: False             # True for including simulated objects, False otherwise
+    simulator_num_objects: 15   # Number of simulated objects if the simulator parameter is True
+    bgs_sensitivity: 'medium_c'    # Initial sensitivity configuration based on the 'bgs_json_params' in the advanced config section
+    bgs_type: 'vibe'            # The background subtractor to use: 'vibe' | 'wmv'
+
   camera1_recorder_node:
+    codec: 'avc1'
+    seconds_save: 2
+    #pipeline: 'appsrc ! videoconvert ! openh264enc bitrate=10240000 qp-min=10 qp-max=51 ! h264parse ! mp4mux ! filesink location='
+    
+  camera2_recorder_node:
     codec: 'avc1'
     seconds_save: 2
     #pipeline: 'appsrc ! videoconvert ! openh264enc bitrate=10240000 qp-min=10 qp-max=51 ! h264parse ! mp4mux ! filesink location='
@@ -28,8 +50,11 @@ basic_config:
   multi_frame_viewer_node:
     topics: 
       - '/bob/camera1/annotated/resized/compressed'
+      - '/bob/camera2/annotated/resized/compressed'
       - '/bob/camera1/original/resized/compressed'
+      - '/bob/camera2/original/resized/compressed'
       - '/bob/camera1/foreground_mask/resized/compressed'
+      - '/bob/camera2/foreground_mask/resized/compressed'
 
 #########################################################################
 # Advanced configuration for nodes
@@ -95,9 +120,71 @@ advanced_config:
                         "median_filter": true}}
                   ]'
 
+  camera2_node:
+    onvif_host: ''
+    onvif_port: 0
+    onvif_user: ''
+    onvif_password: ''
+    use_cuda: true
+    mask_timer_seconds: 5
+    privacy_mask_file: 'assets/masks/camera2-privacy-mask.jpg'
+    privacy_mask_override_service_topic: 'bob/mask/privacy/override/camera2'
+    image_publish_topic: 'bob/camera2/original'
+    image_info_publish_topic: 'bob/camera2/image_info'
+    camera_info_publish_topic: 'bob/camera2/camera_info'
+    camera_settings_client_topic: 'bob/camera2/settings'
+    bgs_publish_topic: 'bob/camera2/foreground_mask'
+    bgs_detection_topic: 'bob/camera2/boundingboxes'
+    bgs_detection_state_topic: 'bob/camera2/detection/detector_state'
+    bgs_mask_file: 'assets/masks/camera2-detection-mask.jpg'
+    bgs_mask_override_service_topic: 'bob/mask/detection/override/camera2'
+    bgs_json_params: '[
+                    { "name": "low",
+                      "sensitivity": {
+                        "vibe": {"threshold": 65, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8}, 
+                        "wmv": {"enableWeight": true, "enableThreshold": true, "threshold": 50.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}, 
+                        "blob": {"sizeThreshold": 10, "areaThreshold": 100, "minDistance": 100, "maxBlobs": 25}, 
+                        "median_filter": false}},
+                    { "name": "medium",
+                      "sensitivity": {
+                        "vibe": {"threshold": 45, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 4}, 
+                        "wmv": {"enableWeight": true, "enableThreshold": true, "threshold": 30.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}, 
+                        "blob": {"sizeThreshold": 6, "areaThreshold": 36, "minDistance": 36, "maxBlobs": 25}, 
+                        "median_filter": false}},
+                    { "name": "high",
+                      "sensitivity": {
+                        "vibe": {"threshold": 30, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4}, 
+                        "wmv": {"enableWeight": true, "enableThreshold": true, "threshold": 15.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}, 
+                        "blob": {"sizeThreshold": 4, "areaThreshold": 16, "minDistance": 16, "maxBlobs": 25}, 
+                        "median_filter": false}},    
+                    { "name": "low_c",
+                      "sensitivity": {
+                        "vibe": {"threshold": 65, "bgSamples": 32, "requiredBGSamples": 1, "learningRate": 8}, 
+                        "wmv": {"enableWeight": true, "enableThreshold": true, "threshold": 50.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}, 
+                        "blob": {"sizeThreshold": 10, "areaThreshold": 100, "minDistance": 100, "maxBlobs": 25}, 
+                        "median_filter": true}},
+                    { "name": "medium_c",
+                      "sensitivity": {
+                        "vibe": {"threshold": 45, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4}, 
+                        "wmv": {"enableWeight": true, "enableThreshold": true, "threshold": 25.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}, 
+                        "blob": {"sizeThreshold": 6, "areaThreshold": 36, "minDistance": 36, "maxBlobs": 25}, 
+                        "median_filter": true}},
+                    { "name": "high_c",
+                      "sensitivity": {
+                        "vibe": {"threshold": 25, "bgSamples": 16, "requiredBGSamples": 1, "learningRate": 4}, 
+                        "wmv": {"enableWeight": true, "enableThreshold": true, "threshold": 15.0, "weight1": 0.5, "weight2": 0.3, "weight3": 0.2}, 
+                        "blob": {"sizeThreshold": 4, "areaThreshold": 16, "minDistance": 16, "maxBlobs": 25}, 
+                        "median_filter": true}}
+                  ]'
+
   camera1_track_provider_node:
     bounding_boxes_subscription_topic: 'bob/camera1/boundingboxes'
     tracker_publisher_topic: 'bob/camera1/tracker/tracking'
+    resize_height: 960
+
+  camera2_track_provider_node:
+    bounding_boxes_subscription_topic: 'bob/camera2/boundingboxes'
+    tracker_publisher_topic: 'bob/camera2/tracker/tracking'
     resize_height: 960
 
   camera1_recorder_node:
@@ -110,6 +197,16 @@ advanced_config:
     camera_info_topic: 'bob/camera1/camera_info'
     prefix: ''
 
+  camera2_recorder_node:
+    recordings_directory: 'assets/recordings'
+    recording_request_service_topic: 'bob/recording/update/camera2'
+    state_publisher_topic: 'bob/camera2/recording/state'
+    img_topic: 'bob/camera2/original'
+    fg_img_topic: 'bob/camera2/foreground_mask'
+    tracking_topic: 'bob/camera2/tracker/tracking'
+    camera_info_topic: 'bob/camera2/camera_info'
+    prefix: 'c2'
+
   camera1_annotated_frame_provider_node:
     tracking_status_message: False
     resize_height: 960
@@ -117,9 +214,21 @@ advanced_config:
     camera_frame_topic: 'bob/camera1/original/resized'
     tracking_topic: 'bob/camera1/tracker/tracking/resized'
 
+  camera2_annotated_frame_provider_node:
+    tracking_status_message: False
+    resize_height: 960
+    annotated_frame_publisher_topic: 'bob/camera2/annotated'
+    camera_frame_topic: 'bob/camera2/original/resized'
+    tracking_topic: 'bob/camera2/tracker/tracking/resized'
+
   camera1_annotated_frame_compressor_node:
     compressed_frame_subscriber_topic: 'bob/camera1/annotated/resized'
     compressed_frame_publisher_topic: 'bob/camera1/annotated/resized/compressed'
+    compression_quality: 75
+
+  camera2_annotated_frame_compressor_node:
+    compressed_frame_subscriber_topic: 'bob/camera2/annotated/resized'
+    compressed_frame_publisher_topic: 'bob/camera2/annotated/resized/compressed'
     compression_quality: 75
 
   camera1_detection_masked_compressor_node:
@@ -127,9 +236,19 @@ advanced_config:
     compressed_frame_publisher_topic: 'bob/camera1/original/resized/compressed'
     compression_quality: 75
 
+  camera2_detection_masked_compressor_node:
+    compressed_frame_subscriber_topic: 'bob/camera2/original/resized'
+    compressed_frame_publisher_topic: 'bob/camera2/original/resized/compressed'
+    compression_quality: 75
+
   camera1_foreground_mask_compressor_node:
     compressed_frame_subscriber_topic: 'bob/camera1/foreground_mask/resized'
     compressed_frame_publisher_topic: 'bob/camera1/foreground_mask/resized/compressed'
+    compression_quality: 75
+
+  camera2_foreground_mask_compressor_node:
+    compressed_frame_subscriber_topic: 'bob/camera2/foreground_mask/resized'
+    compressed_frame_publisher_topic: 'bob/camera2/foreground_mask/resized/compressed'
     compression_quality: 75
 
   camera1_image_estimator_node:
@@ -141,6 +260,15 @@ advanced_config:
     mask_timer_seconds: 5
     mask_file: 'assets/masks/camera1-detection-mask.jpg'
 
+  camera2_image_estimator_node:
+    camera_subscription_topic: 'bob/camera2/original/resized'
+    cloud_estimation_publish_topic: 'bob/camera2/observer/cloud_estimation'
+    day_night_publish_topic: 'bob/camera2/observer/day_night_classifier'
+    observer_timer_interval: 30
+    observer_day_night_brightness_threshold: 95
+    mask_timer_seconds: 5
+    mask_file: 'assets/masks/camera2-detection-mask.jpg'
+
   camera1_monitoring_status_aggregator_node:
     observer_tracker_aggregation_interval: 1
     sub_detector_state_topic: 'bob/camera1/detection/detector_state'
@@ -150,6 +278,15 @@ advanced_config:
     sub_cloud_estimation_topic: 'bob/camera1/observer/cloud_estimation'
     pub_aggregation_state_topic: 'bob/camera1/monitoring/status'
 
+  camera2_monitoring_status_aggregator_node:
+    observer_tracker_aggregation_interval: 1
+    sub_detector_state_topic: 'bob/camera2/detection/detector_state'
+    sub_tracking_state_topic: 'bob/camera2/tracker/tracking'
+    sub_recording_state_topic: 'bob/camera2/recording/state'
+    sub_environment_day_night_topic: 'bob/camera2/observer/day_night_classifier'
+    sub_cloud_estimation_topic: 'bob/camera2/observer/cloud_estimation'
+    pub_aggregation_state_topic: 'bob/camera2/monitoring/status'
+
   camera1_track_sensitivity_monitor_node:
     monitoring_subscription_topic: 'bob/camera1/monitoring/status'
     bgs_node: 'camera1_node'
@@ -158,7 +295,18 @@ advanced_config:
     sensitivity: 'medium_c'
     star_mask_enabled: True    
 
+  camera2_track_sensitivity_monitor_node:
+    monitoring_subscription_topic: 'bob/camera2/monitoring/status'
+    bgs_node: 'camera2_node'
+    check_interval: 10
+    sensitivity_increase_count_threshold: 5
+    sensitivity: 'medium_c'
+    star_mask_enabled: True    
+
   # camera1_recorder_monitoring_node:
+  #   check_interval: 5
+
+  # camera2_recorder_monitoring_node:
   #   check_interval: 5
 
   onvif_service_node:
@@ -248,7 +396,7 @@ launch:
           remappings: []
         # - package: bob_recorder
         #   plugin: RecordManager
-        #   name: allsky_recorder_node
+        #   name: camera1_recorder_node
         #   remappings: []
         - package: bob_image_processing
           plugin: AnnotatedFrameProvider
@@ -265,6 +413,39 @@ launch:
         - package: bob_image_processing
           plugin: FrameCompressor
           name: camera1_foreground_mask_compressor_node
+          remappings: []
+
+    - name: Kernel_Camera2
+      executable: component_container_mt
+      output: both 
+      nodes:
+        - package: bob_camera
+          plugin: CameraBGS
+          name: camera2_node
+          remappings: []
+        - package: bob_tracking
+          plugin: TrackProvider
+          name: camera2_track_provider_node
+          remappings: []
+        # - package: bob_recorder
+        #   plugin: RecordManager
+        #   name: camera2_recorder_node
+        #   remappings: []
+        - package: bob_image_processing
+          plugin: AnnotatedFrameProvider
+          name: camera2_annotated_frame_provider_node
+          remappings: []
+        - package: bob_image_processing
+          plugin: FrameCompressor
+          name: camera2_annotated_frame_compressor_node
+          remappings: []
+        - package: bob_image_processing
+          plugin: FrameCompressor
+          name: camera2_detection_masked_compressor_node
+          remappings: []
+        - package: bob_image_processing
+          plugin: FrameCompressor
+          name: camera2_foreground_mask_compressor_node
           remappings: []
 
     - name: Display
@@ -293,6 +474,23 @@ launch:
           name: camera1_image_estimator_node
           remappings: []
         
+    - name: Monitor_Camera2
+      executable: component_container_mt
+      output: both
+      nodes:
+        - package: bob_image_processing
+          plugin: TrackSensitivityMonitor
+          name: camera2_track_sensitivity_monitor_node
+          remappings: []
+        # - package: bob_recorder
+        #   plugin: RecordingMonitor
+        #   name: camera1_recorder_monitoring_node
+        #   remappings: []
+        - package: bob_observer
+          plugin: ImageEstimator
+          name: camera2_image_estimator_node
+          remappings: []
+        
   standalone_nodes:
     # - package: bob_observer
     #   executable: star_mask
@@ -303,6 +501,11 @@ launch:
     - package: bob_monitor
       executable: monitoring_status_aggregator
       name: camera1_monitoring_status_aggregator_node
+      remappings: []
+      output: screen
+    - package: bob_monitor
+      executable: monitoring_status_aggregator
+      name: camera2_monitoring_status_aggregator_node
       remappings: []
       output: screen
     - package: bob_monitor

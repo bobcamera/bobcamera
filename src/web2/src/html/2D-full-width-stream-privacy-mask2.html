@@ -139,7 +139,7 @@
             // Create a topicStream for subscription
             var topicStream = new ROSLIB.Topic({
                 ros: ros,
-                name: '/bob/camera1/original/resized/compressed',
+                name: '/bob/camera2/original/resized/compressed',
                 messageType: 'sensor_msgs/msg/CompressedImage'
             });
 
@@ -149,7 +149,7 @@
             let maskCanvasCtx = maskCanvas.getContext('2d');
 
             const invertMask = false;
-            const maskFilename = 'camera1-privacy-mask.svg';
+            const maskFilename = 'camera2-privacy-mask.svg';
             let drawing = false;
             let editMode = false;
             let polygons = [];
@@ -391,7 +391,7 @@
 
                 let maskOverrideService = new ROSLIB.Service({
                     ros : rosCon,
-                    name : '/bob/mask/privacy/override/camera1',
+                    name : '/bob/mask/privacy/override/camera2',
                     serviceType : 'bob_interfaces/srv/MaskOverrideRequest'
                 });
 

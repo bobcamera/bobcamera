@@ -191,7 +191,7 @@ public:
 
             bgs_ptr_ = create_bgs(params_.get_bgs_type());
 
-            blob_params_ = std::make_unique<boblib::blobs::ConnectedBlobDetectionParams>(
+            blob_params_ = std::make_unique<boblib::blobs::ConnectedBlobDetectionParams>(false,
                 config.sensitivity.blob_size_threshold, config.sensitivity.blob_area_threshold, config.sensitivity.blob_min_distance, 
                 config.sensitivity.blob_max_blobs);
             blob_detector_ptr_ = std::make_unique<boblib::blobs::ConnectedBlobDetection>(*blob_params_);

@@ -88,19 +88,7 @@ else
     echo "Failed to update version number - ROS2 .devcontainer Dockerfile."
 fi
 
-# Replace version number in example_config.yaml
-if sed -i "s/application_version: '$web_version'/application_version: '$version_number'/" src/ros2/example_config.yaml; then
-    echo "Version number successfully updated - example_config.yaml."
-else
-    echo "Failed to update version number - example_config.yaml."
-fi
-
-# Replace version number in example_config.yaml
-if sed -i "s/application_version: '$web_version'/application_version: '$version_number'/" ex_config_rtsp.yaml; then
-    echo "Version number successfully updated - ex_config_rtsp.yaml."
-else
-    echo "Failed to update version number - ex_config_rtsp.yaml."
-fi
+echo $version_number >> version.txt
 
 echo ""
 

@@ -18,19 +18,21 @@ namespace boblib::blobs
 
     struct ConnectedBlobDetectionParams final
     {
-        static const int DEFAULT_SIZE_THRESHOLD = 5;
-        static const int DEFAULT_AREA_THRESHOLD = 25;
-        static const int DEFAULT_MIN_DISTANCE = 25;
-        static const int DEFAULT_MAX_BLOBS = 100;
-        static const int DEFAULT_MAX_LABELS = 1000;
+        static constexpr bool USE_CUDA = true;
+        static constexpr int DEFAULT_SIZE_THRESHOLD = 5;
+        static constexpr int DEFAULT_AREA_THRESHOLD = 25;
+        static constexpr int DEFAULT_MIN_DISTANCE = 25;
+        static constexpr int DEFAULT_MAX_BLOBS = 100;
+        static constexpr int DEFAULT_MAX_LABELS = 1000;
 
         ConnectedBlobDetectionParams()
-            : ConnectedBlobDetectionParams(DEFAULT_SIZE_THRESHOLD, DEFAULT_AREA_THRESHOLD, DEFAULT_MIN_DISTANCE, DEFAULT_MAX_BLOBS, DEFAULT_MAX_LABELS)
+            : ConnectedBlobDetectionParams(USE_CUDA, DEFAULT_SIZE_THRESHOLD, DEFAULT_AREA_THRESHOLD, DEFAULT_MIN_DISTANCE, DEFAULT_MAX_BLOBS, DEFAULT_MAX_LABELS)
         {
         }
 
-        ConnectedBlobDetectionParams(int _sizeThreshold, int _areaThreshold, int _minDistance, int _maxBlobs, int _maxLabels = DEFAULT_MAX_LABELS)
-            : size_threshold{_sizeThreshold}
+        ConnectedBlobDetectionParams(bool _use_cuda, int _sizeThreshold, int _areaThreshold, int _minDistance, int _maxBlobs, int _maxLabels = DEFAULT_MAX_LABELS)
+            : use_cuda(_use_cuda)
+            , size_threshold{_sizeThreshold}
             , area_threshold{_areaThreshold}
             , min_mistance{_minDistance}
             , min_distance_squared{_minDistance * _minDistance}
@@ -47,6 +49,7 @@ namespace boblib::blobs
             min_distance_squared = min_mistance * min_mistance;
         }
 
+        bool use_cuda;
         int size_threshold;
         int area_threshold;
         int min_mistance;
@@ -61,7 +64,7 @@ namespace boblib::blobs
         /// Detects the number of available threads to use
         static const size_t DETECT_NUMBER_OF_THREADS{0};
 
-        ConnectedBlobDetection(const ConnectedBlobDetectionParams &params = ConnectedBlobDetectionParams(),
+        ConnectedBlobDetection(const ConnectedBlobDetectionParams & params = ConnectedBlobDetectionParams(),
                                size_t numProcessesParallel = DETECT_NUMBER_OF_THREADS);
 
         inline void set_size_threshold(int threshold) { params_.set_size_threshold(threshold); }

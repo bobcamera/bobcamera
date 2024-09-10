@@ -300,7 +300,7 @@
     // Connect to the ROS2 environment
     // ros = rosConnect(websocketsURL, true);
 
-    var currentRos2ImageTopic = '/bob/camera1/annotated/resized/compressed'; // define the ROS2 Subscription
+    var currentRos2ImageTopic = '/bob/camera2/annotated/resized/compressed'; // define the ROS2 Subscription
     var compressedImageMsgType = 'sensor_msgs/msg/CompressedImage'; // define the Msg Type of the ROS2 Subsc. Topic
 
     var frameStream = new ROSLIB.Topic({
@@ -311,7 +311,7 @@
 
     var stateStream = new ROSLIB.Topic({
         ros: ros,
-        name: '/bob/camera1/monitoring/status',
+        name: '/bob/camera2/monitoring/status',
         messageType: 'bob_interfaces/msg/MonitoringStatus'
     });
 

@@ -44,7 +44,6 @@ public:
     [[nodiscard]] const auto& get_image_info_publisher() const { return image_info_publisher_; }
     [[nodiscard]] const auto& get_camera_info_publisher() const { return camera_info_publisher_; }
     [[nodiscard]] const auto& get_camera_settings_client() const { return camera_settings_client_; }
-    [[nodiscard]] const auto& get_fps_update_client() const { return fps_update_client_; }
 
     [[nodiscard]] bool get_use_cuda() const { return use_cuda_; }
     [[nodiscard]] int get_camera_id() const { return camera_id_; }
@@ -74,7 +73,6 @@ public:
     void set_image_info_publisher(const rclcpp::Publisher<bob_camera::msg::ImageInfo>::SharedPtr& publisher) { image_info_publisher_ = publisher; }
     void set_camera_info_publisher(const rclcpp::Publisher<bob_camera::msg::CameraInfo>::SharedPtr& publisher) { camera_info_publisher_ = publisher; }
     void set_camera_settings_client(const rclcpp::Client<bob_interfaces::srv::CameraSettings>::SharedPtr& client) { camera_settings_client_ = client; }
-    void set_fps_update_client(const rclcpp::Client<bob_interfaces::srv::ConfigEntryUpdate>::SharedPtr& client) { fps_update_client_ = client; }
 
     void set_use_cuda(bool enable) { use_cuda_ = enable; }
     void set_camera_id(int id) { camera_id_ = id; }
@@ -104,7 +102,6 @@ private:
     rclcpp::Publisher<bob_camera::msg::ImageInfo>::SharedPtr image_info_publisher_;
     rclcpp::Publisher<bob_camera::msg::CameraInfo>::SharedPtr camera_info_publisher_;
     rclcpp::Client<bob_interfaces::srv::CameraSettings>::SharedPtr camera_settings_client_;
-    rclcpp::Client<bob_interfaces::srv::ConfigEntryUpdate>::SharedPtr fps_update_client_;
 
     bool use_cuda_{true};
     int camera_id_{};
@@ -267,6 +264,7 @@ public:
             else
             {
                 node_.log_send_error("Could not open stream.");
+                video_reader_ptr_.reset();
             }
 
             return is_open_;
@@ -279,6 +277,8 @@ public:
         {
             node_.log_error("open_camera: unknown exception");
         }
+
+        video_reader_ptr_.reset();
         return false;
     }    
 
@@ -317,7 +317,7 @@ private:
                 return false;
             }
 
-            if (!video_reader_ptr_->read(camera_img))
+            if ((video_reader_ptr_ == nullptr) || !video_reader_ptr_->read(camera_img))
             {
                 if (params_.get_source_type() == CameraWorkerParams::SourceType::VIDEO_FILE)
                 {
@@ -655,26 +655,6 @@ private:
             mask_enabled_ = false;
             privacy_mask_ptr_.release();
         }
-    }
-
-    void request_update_fps(float fps, 
-            const std::function<void(const bob_interfaces::srv::ConfigEntryUpdate::Response::SharedPtr&)> & user_callback) const
-    {
-        auto request = std::make_shared<bob_interfaces::srv::ConfigEntryUpdate::Request>();
-        request->key = "fps";
-        request->type = "double";
-        request->value = std::to_string(fps);
-
-        auto response_received_callback = [user_callback](rclcpp::Client<bob_interfaces::srv::ConfigEntryUpdate>::SharedFuture future) 
-        {
-            auto response = future.get();
-            if (response->success)
-            {
-                user_callback(response);
-            }
-        };
-
-        params_.get_fps_update_client()->async_send_request(request, response_received_callback);
     }
 
     static constexpr double UNKNOWN_DEVICE_FPS = 30.0;
