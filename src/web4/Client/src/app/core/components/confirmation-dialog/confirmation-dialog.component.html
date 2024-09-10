@@ -1,0 +1,10 @@
+<h2 mat-dialog-title class="primary">{{this._title}}</h2>
+
+<mat-dialog-content class="accent">
+  {{this._message}}
+</mat-dialog-content>
+
+<mat-dialog-actions>
+  <button mat-raised-button color="primary" (click)="cancel()">{{this._cancelButton}}</button>
+  <button mat-raised-button color="primary" (click)="accept()">{{this._acceptButton}}</button>
+</mat-dialog-actions>

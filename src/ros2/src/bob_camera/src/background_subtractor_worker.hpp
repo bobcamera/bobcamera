@@ -395,6 +395,5 @@ private:
     std::mutex mutex_;
     bool ready_{false};
     bool processing_{false};
-
     bool using_cuda_{false};
 };
