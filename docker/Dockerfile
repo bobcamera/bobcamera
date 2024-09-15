@@ -54,6 +54,7 @@ ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 # Copy the compiled libs
 COPY --from=qhy /opt/sdk_qhy /opt/sdk_qhy/
+COPY version.txt src/ros2/
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
         # libtbb12 libqt5opengl5 libqt5test5 libdc1394-25 \
         # libavcodec-extra60 libavformat-extra60 libswscale7 \
@@ -139,6 +140,7 @@ ENV LANG=en_GB.UTF-8
 ARG USERNAME=ros
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
+COPY version.txt ./
 # Copy the compiled libs
 COPY --from=bob-ros2-build /usr/local/lib /usr/local/lib
 COPY --from=bob-ros2-build /usr/lib/python3 /usr/lib/python3
@@ -148,6 +150,7 @@ COPY --from=qhy /opt/sdk_qhy /opt/sdk_qhy/
 COPY --from=bob-ros2-build /workspaces/bobcamera/src/ros2/install /workspaces/bobcamera/src/ros2/install
 COPY --from=bob-ros2-build /workspaces/bobcamera/src/ros2/config /workspaces/bobcamera/src/ros2/config
 COPY --from=bob-ros2-build /workspaces/bobcamera/src/ros2/launch* /workspaces/bobcamera/src/ros2/
+COPY --from=bob-ros2-build /workspaces/bobcamera/src/ros2/dual_camera_config.yaml /workspaces/bobcamera/src/ros2/
 COPY --from=bob-ros2-build /opt/ros2_ws/install/ /opt/ros2_ws/install/
 
 # Copying and configuring the CUDA stub to make Bob work
@@ -253,6 +256,7 @@ ENV LANG=en_GB.UTF-8
 ARG USERNAME=ros
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
+COPY version.txt ./
 # Copy the compiled libs
 COPY --from=bob-ros2-build /usr/local/lib /usr/local/lib
 COPY --from=bob-ros2-build /usr/lib/python3 /usr/lib/python3
@@ -262,6 +266,7 @@ COPY --from=qhy /opt/sdk_qhy /opt/sdk_qhy/
 COPY --from=bob-ros2-build /workspaces/bobcamera/src/ros2/install /workspaces/bobcamera/src/ros2/install
 COPY --from=bob-ros2-build /workspaces/bobcamera/src/ros2/config /workspaces/bobcamera/src/ros2/config
 COPY --from=bob-ros2-build /workspaces/bobcamera/src/ros2/launch* /workspaces/bobcamera/src/ros2/
+COPY --from=bob-ros2-build /workspaces/bobcamera/src/ros2/dual_camera_config.yaml /workspaces/bobcamera/src/ros2/
 COPY --from=bob-ros2-build /opt/ros2_ws/install/ /opt/ros2_ws/install/
 
 # Copying and configuring the CUDA stub to make Bob work

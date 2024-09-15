@@ -41,7 +41,7 @@ option(USE_FAST_MATH "Enable fast math optimization" OFF)
 option(USE_OPENMP "Enable OpenMP in internal implementations" ON)
 
 set(BOBLIB_PYTHON_SUPPORT OFF)
-set(BOBLIB_APPS_COMPILE OFF)
+set(BOBLIB_APPS_COMPILE ON)
 
 find_package(OpenCV 4.0 REQUIRED)
 message(STATUS "Found OpenCV >=4.0")
