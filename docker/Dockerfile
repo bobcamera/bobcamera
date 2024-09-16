@@ -10,6 +10,8 @@
 # docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY bobcamera/boblib-app:latest bash
 # docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY bobcamera/boblib-opencv:latest bash
 
+# docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY -v .:/home/test pytorch/pytorch:2.4.1-cuda12.4-cudnn9-runtime bash
+
 # --progress=plain this build switch will show entire build output
 # --no-cache this build switch will rebuild and not use any cached output
 
@@ -230,7 +232,7 @@ ENV ROS_DISTRO jazzy
 # setup timezone and install packages
 RUN echo 'Etc/UTC' > /etc/timezone && \
     ln -s /usr/share/zoneinfo/Etc/UTC /etc/localtime && \
-    apt-get update && apt-get upgrade && \
+    apt-get update && apt-get -y upgrade && \
     apt-get install -q -y --no-install-recommends tzdata dirmngr gnupg2 && \
     rm -rf /var/lib/apt/lists/*
 # setup keys and setup sources.list
