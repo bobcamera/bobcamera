@@ -72,8 +72,6 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     && pip install --upgrade onvif2_zeep \
     # Install QHY SDK
     && cd /opt/sdk_qhy && bash install.sh \
-    # # Install the libs locally
-    # && sh -c 'echo "/usr/local/lib" >> /etc/ld.so.conf.d/opencv.conf' && ldconfig \
     # cleaning
     && apt-get autoclean && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
@@ -223,7 +221,7 @@ CMD ["ros2", "launch", "bob_launch", "dynamic_launch.py"]
 
 
 
-FROM nvidia/cuda:12.6.0-runtime-ubuntu24.04 AS bob-ros2-prod-cuda
+FROM nvidia/cuda:12.5.1-runtime-ubuntu24.04 AS bob-ros2-prod-cuda
 ################# ROS JAZZY CORE
 # setup environment
 ENV LANG C.UTF-8

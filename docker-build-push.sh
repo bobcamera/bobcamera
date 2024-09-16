@@ -88,7 +88,7 @@ else
     echo "Failed to update version number - ROS2 .devcontainer Dockerfile."
 fi
 
-echo $version_number >> version.txt
+echo $version_number > version.txt
 
 echo ""
 
