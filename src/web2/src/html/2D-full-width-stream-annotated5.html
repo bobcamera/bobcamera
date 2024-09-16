@@ -3,7 +3,7 @@
 <html>
 
     <head>
-        <title>Camera 2: Foreground Mask Image Stream (Wide View)</title>
+        <title>Camera 5: Annotated Image Stream (Wide View)</title>
 
         <meta charset="utf-8" />
 
@@ -28,7 +28,7 @@
 
             var topicStream = new ROSLIB.Topic({
                 ros: ros,
-                name: '/bob/camera2/foreground_mask/resized/compressed',
+                name: '/bob/camera5/annotated/resized/compressed',
                 messageType: 'sensor_msgs/msg/CompressedImage'
             });
 
@@ -44,13 +44,20 @@
             }
 
             window.onbeforeunload = function(event) {
-                // console.log('disposing......');
-                // ros.close();
+
+                console.log('Cleaning up resources...');
+
                 // Unsubscribe from the topic
                 if (topicStream) {
                     topicStream.unsubscribe();
                     console.log('Unsubscribed from topic.');
                 }
+
+                // Close the ROS2 connection
+                // ros.close();
+
+                // console.log('ROS connection closed.');
+
                 // Close the ROS2 connection
                 disconnectRos(ros);
             }

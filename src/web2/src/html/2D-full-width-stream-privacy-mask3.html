@@ -93,7 +93,7 @@
 
         </style>
 
-        <title>Camera 2: Privacy Mask Image Stream (Wide View)</title>
+        <title>Camera 3: Privacy Mask Image Stream (Wide View)</title>
 
         <meta charset="utf-8" />
 
@@ -139,7 +139,7 @@
             // Create a topicStream for subscription
             var topicStream = new ROSLIB.Topic({
                 ros: ros,
-                name: '/bob/camera2/original/resized/compressed',
+                name: '/bob/camera3/original/resized/compressed',
                 messageType: 'sensor_msgs/msg/CompressedImage'
             });
 
@@ -149,7 +149,7 @@
             let maskCanvasCtx = maskCanvas.getContext('2d');
 
             const invertMask = false;
-            const maskFilename = 'camera2-privacy-mask.svg';
+            const maskFilename = 'camera3-privacy-mask.svg';
             let drawing = false;
             let editMode = false;
             let polygons = [];
