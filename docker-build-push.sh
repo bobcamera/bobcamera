@@ -89,6 +89,7 @@ else
 fi
 
 echo $version_number > version.txt
+echo $version_number > ./src/ros2/version.txt
 
 echo ""
 

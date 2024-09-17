@@ -12,42 +12,33 @@
 
 #include "bob_interfaces/msg/tracking.hpp"
 
-#include "../../bob_shared/include/tracking_state.hpp"
+#include "tracking_state.hpp"
+#include "utils.hpp"
 
 class AnnotatedFrameCreator
 {
-private:
-    std::map<std::string, std::string> settings;
-    rclcpp::Logger logger;
-    cv::Scalar font_colour;
-    cv::Scalar prediction_colour;
-    int prediction_radius;
-    int bbox_line_thickness;
-    std::string frame_type;
-    int fontScaleWidth;
-    double fontScale;
-
 public:
     AnnotatedFrameCreator(std::map<std::string, std::string> settings)
-        : settings(settings),
-          logger(rclcpp::get_logger("annotated_frame_creator")),
-          font_colour(50, 170, 50),
-          prediction_colour(255, 0, 0),
-          prediction_radius(1),
-          fontScaleWidth(0),
-          fontScale(1)
+        : settings_(settings),
+          logger_(rclcpp::get_logger("annotated_frame_creator")),
+          prediction_colour_(255, 0, 0)
     {
-        bbox_line_thickness = 1; //(settings["visualiser_bbox_line_thickness"]),
-        frame_type = "masked";         //(settings["visualiser_frame_source"]),
+        bbox_line_thickness_ = string_to_number(settings_["bbox_line_thickness"], 1);
+        font_scale_width_ = string_to_number(settings_["font_scale_width"], 0);
+        font_scale_ = string_to_number(settings_["font_scale"], 1.0);
+        zoom_factor_ = string_to_number(settings_["zoom_factor"], 2.0);
+        enable_cropped_tracks_ = (settings_.contains("enable_cropped_tracks") ? (to_lowercase(settings_["enable_cropped_tracks"]) == "true") : true);
+        const auto &[fr, fg, fb] = (settings_.contains("font_colour") ? extract_rgb(settings_["font_colour"]) : std::tuple<int, int, int>{50, 170, 50});
+        font_colour_ = cv::Scalar(fr, fg, fb);
+        const auto &[pr, pg, pb] = (settings_.contains("prediction_colour") ? extract_rgb(settings_["prediction_colour"]) : std::tuple<int, int, int>{255, 0, 0});
+        prediction_colour_ = cv::Scalar(pr, pg, pb);
     }
-
-    void create_frame(const cv::Mat& annotated_frame,
-                    const bob_interfaces::msg::Tracking& msg_tracking,
-                    bool enable_tracking_status)
+    //[{"bbox_line_thickness", "1"},{"font_scale_width", "0"},{"font_scale_width", "0"},{"font_scale", "1.0"},{"zoom_factor", "2.0"},{"enable_cropped_tracks", "true"},{"font_colour","{50,170,50}"},{"prediction_colour","{255,0,50}"}]
+    void create_frame(const cv::Mat &annotated_frame,
+                      const bob_interfaces::msg::Tracking &msg_tracking,
+                      bool enable_tracking_status)
     {
         int cropped_track_counter = 0;
-        const bool enable_cropped_tracks = true; // settings.at("visualiser_show_cropped_tracks");
-        const double zoom_factor = 2.0;          // settings.at("visualiser_cropped_zoom_factor");
         std::map<int, cv::Rect> detections;
         std::map<std::string, bob_interfaces::msg::TrackPoint> final_trajectory_points;
 
@@ -61,16 +52,16 @@ public:
                                      ", started:" + std::to_string(msg_tracking.state.started) +
                                      ", ended:" + std::to_string(msg_tracking.state.ended);
 
-        if (total_width != fontScaleWidth)
+        if (total_width != font_scale_width_)
         {
-            fontScale = get_optimal_font_scale(status_message, total_width * 0.30);
-            fontScaleWidth = total_width;
+            font_scale_ = get_optimal_font_scale(status_message, total_width * 0.30);
+            font_scale_width_ = total_width;
         }
 
         if (enable_tracking_status)
         {
             cv::putText(annotated_frame, status_message, cv::Point(25, 50), cv::FONT_HERSHEY_SIMPLEX,
-                        fontScale, font_colour, 2);
+                        font_scale_, font_colour_, 2);
         }
 
         for (const auto &detection : msg_tracking.detections)
@@ -83,36 +74,35 @@ public:
                 detections[detection.id] = bbox;
                 cv::Point p1(bbox.x, bbox.y);
                 cv::Point p2(bbox.x + bbox.width, bbox.y + bbox.height);
-            
+
                 cv::Scalar color = _color(tracking_state);
 
-                if (enable_cropped_tracks)
+                if (enable_cropped_tracks_)
                 {
                     int margin = (cropped_track_counter == 0) ? 0 : 10;
-                    double zoom_w = bbox.width * zoom_factor;
+                    double zoom_w = bbox.width * zoom_factor_;
                     int cropped_image_x = 10 + (cropped_track_counter * zoom_w) + margin;
                     if (cropped_image_x + zoom_w < total_width)
                     {
                         try
                         {
                             cv::Mat cropped_image = annotated_frame(cv::Rect(bbox.x, bbox.y, bbox.width, bbox.height));
-                            const double cropped_percentage = 0.04;  
+                            const double cropped_percentage = 0.04;
                             int cropped_size = static_cast<int>(std::min(total_width, total_height) * cropped_percentage);
 
                             cv::Mat resized_cropped_image;
                             cv::resize(cropped_image, resized_cropped_image, cv::Size(cropped_size, cropped_size));
 
-                            int cropped_image_x_position = 10 + (cropped_track_counter * (cropped_size + 10)); 
-                            int cropped_image_y_position = total_height - cropped_size - 10; 
+                            int cropped_image_x_position = 10 + (cropped_track_counter * (cropped_size + 10));
+                            int cropped_image_y_position = total_height - cropped_size - 10;
 
                             resized_cropped_image.copyTo(annotated_frame(cv::Rect(cropped_image_x_position, cropped_image_y_position, cropped_size, cropped_size)));
                             cv::rectangle(annotated_frame, cv::Rect(cropped_image_x_position, cropped_image_y_position, cropped_size, cropped_size), color, 1);
 
-                            int textHeight = cv::getTextSize(std::to_string(id), cv::FONT_HERSHEY_SIMPLEX, fontScale, 2, nullptr).height;
+                            int textHeight = cv::getTextSize(std::to_string(id), cv::FONT_HERSHEY_SIMPLEX, font_scale_, 2, nullptr).height;
                             cv::putText(annotated_frame, std::to_string(id),
                                         cv::Point(cropped_image_x_position, cropped_image_y_position - textHeight / 2),
-                                        cv::FONT_HERSHEY_SIMPLEX, fontScale, color, 2);
-
+                                        cv::FONT_HERSHEY_SIMPLEX, font_scale_, color, 2);
                         }
                         catch (cv::Exception &e)
                         {
@@ -121,8 +111,8 @@ public:
                         cropped_track_counter++;
                     }
                 }
-                cv::rectangle(annotated_frame, p1, p2, color, bbox_line_thickness, 1);
-                cv::putText(annotated_frame, std::to_string(id), cv::Point(p1.x, p1.y - 4), cv::FONT_HERSHEY_SIMPLEX, fontScale, color, 1);
+                cv::rectangle(annotated_frame, p1, p2, color, bbox_line_thickness_, 1);
+                cv::putText(annotated_frame, std::to_string(id), cv::Point(p1.x, p1.y - 4), cv::FONT_HERSHEY_SIMPLEX, font_scale_, color, 1);
                 // cv::ellipse(annotated_frame, ellipse, cv::Scalar(255, 0, 0), 1, cv::LINE_8);
             }
         }
@@ -170,9 +160,10 @@ public:
         //     }
         // }
 
-        //return annotated_frame;
+        // return annotated_frame;
     }
 
+private:
     double get_optimal_font_scale(const std::string &text, int width)
     {
         const int fontFace = cv::FONT_HERSHEY_SIMPLEX;
@@ -218,4 +209,15 @@ public:
             return cv::Scalar(0, 0, 0); // Default color
         }
     }
+
+    std::map<std::string, std::string> settings_;
+    rclcpp::Logger logger_;
+
+    cv::Scalar font_colour_;
+    cv::Scalar prediction_colour_;
+    int bbox_line_thickness_;
+    int font_scale_width_;
+    double font_scale_;
+    bool enable_cropped_tracks_;
+    double zoom_factor_;
 };

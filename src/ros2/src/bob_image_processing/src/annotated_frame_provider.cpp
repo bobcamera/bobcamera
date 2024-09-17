@@ -12,17 +12,15 @@
 #include <parameter_lifecycle_node.hpp>
 #include <image_utils.hpp>
 #include <visibility_control.h>
+#include <json/json.h>
 #include "annotated_frame/annotated_frame_creator.hpp"
 
 class AnnotatedFrameProvider : public ParameterLifeCycleNode
 {
 public:
     COMPOSITION_PUBLIC
-    explicit AnnotatedFrameProvider(const rclcpp::NodeOptions & options)
-        : ParameterLifeCycleNode("annotated_frame_provider_node", options)
-        , pub_qos_profile_(10)
-        , sub_qos_profile_(10)
-        , annotated_frame_creator_(std::map<std::string, std::string>())
+    explicit AnnotatedFrameProvider(const rclcpp::NodeOptions &options)
+        : ParameterLifeCycleNode("annotated_frame_provider_node", options), pub_qos_profile_(10), sub_qos_profile_(10)
     {
     }
 
@@ -49,7 +47,9 @@ private:
         enable_tracking_status_ = true;
 
         declare_node_parameters();
-        
+
+        annotated_frame_creator_ptr_ = std::make_unique<AnnotatedFrameCreator>(annotated_frame_creator_settings_);
+
         time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::Tracking>>(*sub_masked_frame_, *sub_tracking_, 10);
         time_synchronizer_->registerCallback(&AnnotatedFrameProvider::callback, this);
     }
@@ -58,37 +58,39 @@ private:
     {
         std::vector<ParameterLifeCycleNode::ActionParam> params = {
             ParameterLifeCycleNode::ActionParam(
-                rclcpp::Parameter("annotated_frame_publisher_topic", "bob/frames/annotated"), 
-                [this](const rclcpp::Parameter& param) 
+                rclcpp::Parameter("annotated_frame_publisher_topic", "bob/frames/annotated"),
+                [this](const rclcpp::Parameter &param)
                 {
                     pub_annotated_frame_ = create_publisher<sensor_msgs::msg::Image>(param.as_string(), pub_qos_profile_);
                     image_resized_publish_topic_ = param.as_string() + "/resized";
-                }
-            ),                     
+                }),
             ParameterLifeCycleNode::ActionParam(
-                rclcpp::Parameter("camera_frame_topic", "bob/frames/allsky/original/resized"), 
-                [this](const rclcpp::Parameter& param) 
+                rclcpp::Parameter("camera_frame_topic", "bob/frames/allsky/original/resized"),
+                [this](const rclcpp::Parameter &param)
                 {
                     sub_masked_frame_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image, rclcpp_lifecycle::LifecycleNode>>(shared_from_this(), param.as_string(), sub_qos_profile_.get_rmw_qos_profile());
-                }
-            ),                     
+                }),
             ParameterLifeCycleNode::ActionParam(
-                rclcpp::Parameter("tracking_topic", "bob/tracker/tracking/resized"), 
-                [this](const rclcpp::Parameter& param) 
+                rclcpp::Parameter("tracking_topic", "bob/tracker/tracking/resized"),
+                [this](const rclcpp::Parameter &param)
                 {
                     sub_tracking_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::Tracking, rclcpp_lifecycle::LifecycleNode>>(shared_from_this(), param.as_string(), sub_qos_profile_.get_rmw_qos_profile());
-                }
-            ),                     
+                }),
             ParameterLifeCycleNode::ActionParam(
-                rclcpp::Parameter("tracking_status_message", false), 
-                [this](const rclcpp::Parameter& param) 
+                rclcpp::Parameter("tracking_status_message", false),
+                [this](const rclcpp::Parameter &param)
                 {
                     enable_tracking_status_ = param.as_bool();
-                }
-            ),                     
+                }),
             ParameterLifeCycleNode::ActionParam(
-                rclcpp::Parameter("resize_height", 960), 
-                [this](const rclcpp::Parameter& param) 
+                rclcpp::Parameter("visualiser_settings", ""),
+                [this](const rclcpp::Parameter &param)
+                {
+                    annotated_frame_creator_settings_ = parse_json_to_map(param.as_string());
+                }),
+            ParameterLifeCycleNode::ActionParam(
+                rclcpp::Parameter("resize_height", 960),
+                [this](const rclcpp::Parameter &param)
                 {
                     resize_height_ = static_cast<int>(param.as_int());
                     if (resize_height_ > 0)
@@ -100,33 +102,32 @@ private:
                         image_resized_publisher_.reset();
                         log_send_info("Resizer topic disabled");
                     }
-                }
-            ),
+                }),
         };
         add_action_parameters(params);
     }
 
-    void callback(const sensor_msgs::msg::Image::SharedPtr& image_msg,
-                  const bob_interfaces::msg::Tracking::SharedPtr& tracking)
+    void callback(const sensor_msgs::msg::Image::SharedPtr &image_msg,
+                  const bob_interfaces::msg::Tracking::SharedPtr &tracking)
     {
         try
         {
             cv::Mat img;
             ImageUtils::convert_image_msg(image_msg, img, true);
 
-            annotated_frame_creator_.create_frame(img, *tracking, enable_tracking_status_);
+            annotated_frame_creator_ptr_->create_frame(img, *tracking, enable_tracking_status_);
 
             pub_annotated_frame_->publish(*image_msg);
 
             publish_resized_frame(image_msg, img);
         }
-        catch (const std::exception& e)
+        catch (const std::exception &e)
         {
             log_send_error("callback: exception: %s", e.what());
-        }        
+        }
     }
 
-    void publish_resized_frame(const sensor_msgs::msg::Image::SharedPtr& annotated_frame_msg, const cv::Mat& img) const
+    void publish_resized_frame(const sensor_msgs::msg::Image::SharedPtr &annotated_frame_msg, const cv::Mat &img) const
     {
         try
         {
@@ -148,7 +149,7 @@ private:
                 image_resized_publisher_->publish(*annotated_frame_msg);
             }
         }
-        catch (const std::exception& e)
+        catch (const std::exception &e)
         {
             log_send_error("publish_resized_frame: exception: %s", e.what());
         }
@@ -162,7 +163,8 @@ private:
     std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::Tracking>> time_synchronizer_;
 
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_annotated_frame_;
-    AnnotatedFrameCreator annotated_frame_creator_;
+    std::unique_ptr<AnnotatedFrameCreator> annotated_frame_creator_ptr_;
+    std::map<std::string, std::string> annotated_frame_creator_settings_;
 
     bool enable_tracking_status_ = true;
 

@@ -61,13 +61,7 @@ private:
                 {
                     resized_frame_subscriber_topic_ = param.as_string();
                     image_subscription_.reset();
-                }
-            ),
-            ParameterLifeCycleNode::ActionParam(
-                rclcpp::Parameter("resized_frame_publisher_topic", "bob/resizer/target"), 
-                [this](const rclcpp::Parameter& param) 
-                {
-                    pub_resized_frame_ = create_publisher<sensor_msgs::msg::Image>(param.as_string(), pub_qos_profile_);
+                    pub_resized_frame_ = create_publisher<sensor_msgs::msg::Image>(resized_frame_subscriber_topic_ + "/resized", pub_qos_profile_);
                     log_debug("Creating topic %s", pub_resized_frame_->get_topic_name());
                 }
             ),

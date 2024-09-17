@@ -65,13 +65,7 @@ private:
                 {
                     compressed_frame_subscriber_topic_ = param.as_string();
                     image_subscription_.reset();
-                }
-            ),
-            ParameterLifeCycleNode::ActionParam(
-                rclcpp::Parameter("compressed_frame_publisher_topic", "bob/compressor/target"), 
-                [this](const rclcpp::Parameter& param) 
-                {
-                    pub_compressed_frame_ = create_publisher<sensor_msgs::msg::CompressedImage>(param.as_string(), pub_qos_profile_);
+                    pub_compressed_frame_ = create_publisher<sensor_msgs::msg::CompressedImage>(compressed_frame_subscriber_topic_ + "/compressed", pub_qos_profile_);
                     log_debug("Creating topic %s", pub_compressed_frame_->get_topic_name());
                 }
             ),

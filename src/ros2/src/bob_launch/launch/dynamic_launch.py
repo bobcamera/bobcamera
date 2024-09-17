@@ -18,8 +18,17 @@ def parse_yaml(file_path):
         print(f"Error loading YAML file: {e}")
         return None
     
+
 def get_node_parameters(config, node_name):
-    return config['basic_config'].get(node_name, {}) | config['advanced_config'].get(node_name, {})
+    params = config['basic_config'].get(node_name, {}) | config['advanced_config'].get(node_name, {})
+    if 'copy' in params:
+        node_copy = params.pop('copy')
+        params = get_node_parameters(config, node_copy) | params
+    for key, value in params.items():
+        if isinstance(value, str) and value.startswith('$'):
+            params[key] = config['variables'].get(value[1:])
+    return params
+
 
 def generate_composable_nodes(config, node_container, namespace):
     node_descriptions = node_container.get('nodes', [])
@@ -33,8 +42,8 @@ def generate_composable_nodes(config, node_container, namespace):
             for k, v in mapping.items()
         ]
         parameters = get_node_parameters(config, node_description['name'])
-
         print(f"  Node: Package: {node_description['package']}, Plugin: {node_description['plugin']}, Name: {node_description['name']}")
+        print(f"  Parameters: {parameters}")
         node = ComposableNode(
             package=node_description['package'],
             plugin=node_description['plugin'],
@@ -47,6 +56,7 @@ def generate_composable_nodes(config, node_container, namespace):
         nodes.append(node)
 
     return nodes
+
 
 def generate_containers(config, namespace, loglevel):
     node_containers = config['launch'].get('node_containers', [])
@@ -83,6 +93,7 @@ def generate_containers(config, namespace, loglevel):
             
     return containers
 
+
 def generate_standalone_nodes(config, namespace, loglevel):
     config_nodes = config['launch'].get('standalone_nodes', [])
     if config_nodes is None:
@@ -96,7 +107,7 @@ def generate_standalone_nodes(config, namespace, loglevel):
         ]
         parameters = get_node_parameters(config, config_node['name'])
         print(f"Standalone Node: Package: {config_node['package']}, Executable: {config_node['executable']}, Name: {config_node['name']}")
-        print(f"  Parameters: {parameters}")
+        # print(f"  Parameters: {parameters}")
 
         node = None
         try:
