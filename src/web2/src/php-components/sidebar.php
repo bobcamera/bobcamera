@@ -1,3 +1,11 @@
+<select id="cameraCountSelect">
+    <option value="1">1 Camera</option>
+    <option value="2">2 Cameras</option>
+    <option value="3">3 Cameras</option>
+    <option value="4">4 Cameras</option>
+    <option value="5">5 Cameras</option>
+</select>
+<br>
 <div id="bobSidebarMenu" ></div>
 <br>
 <div id="stationInfo" class="mt-3 p-3 border rounded bg-body-tertiary text-body-secondary">
@@ -29,7 +37,6 @@
         <option value="Urdu">اردو</option>
         <option value="Hindi">हिन्दी</option>
     </select>
-
 </div>
 <div id="stationMap" style="width: 100%; height: 100px;"></div>
 
@@ -46,6 +53,7 @@
         if (document.getElementById('use24hr')) {
             document.getElementById('use24hr').addEventListener('change', updateSettingsBasedOnUserInput);
         }
+        // Preferred Launguage
         const savedLanguage = localStorage.getItem('preferredLanguage');
         const languageSelect = document.getElementById('languageSelect');
         if (savedLanguage) {
@@ -55,8 +63,7 @@
         } else {
             // Default language if none is saved
             preferredLanguage = 'English';
-        }
-        loadMenuAndTranslations(preferredLanguage);
+        }        
         // Event listener for language selection
         languageSelect.addEventListener('change', function() {
                 changeLanguage(this.value);
@@ -85,6 +92,49 @@
             this.style.borderColor = '#495057';
             this.style.boxShadow = 'none';
         });
+
+        // Camera Count
+        const savedCameraCount = localStorage.getItem('cameraCount');
+        const cameraCountSelect = document.getElementById('cameraCountSelect');
+        if (savedCameraCount) {
+            cameraCount = savedCameraCount;
+            // Set the select dropdown to match the saved Camera Count
+            cameraCountSelect.value = cameraCount;
+        } else {
+            // Default language if none is saved
+            cameraCount = 1;
+        }
+        // Event listener for language selection
+        cameraCountSelect.addEventListener('change', function() {
+            changeCameraCount(this.value);
+            });
+        // Apply custom styles
+        cameraCountSelect.style.border = '1px solid #495057'; // Darker border color
+        cameraCountSelect.style.borderRadius = '3px'; // Rounded corners
+        cameraCountSelect.style.padding = '0'; // Padding
+        cameraCountSelect.style.marginLeft = '0px'; // Margin
+        cameraCountSelect.style.marginBottom = '0px'; // Margin
+        cameraCountSelect.style.fontSize = '14px'; // Font size
+        cameraCountSelect.style.lineHeight = '1'; // Line height
+        cameraCountSelect.style.color = '#ffffff'; // Lighter text color for contrast
+        cameraCountSelect.style.backgroundColor = '#343a40'; // Darker background color
+        cameraCountSelect.style.display = 'block'; // Ensure it's block level for full width
+        cameraCountSelect.style.width = '60%'; // Narrower width
+        cameraCountSelect.style.height = '25px'; // Adjusted height
+        cameraCountSelect.style.transition = 'border-color .15s ease-in-out,box-shadow .15s ease-in-out'; // Smooth transition for focus
+        // Adjusted focus styles for reversed coloration
+        cameraCountSelect.addEventListener('focus', function() {
+            this.style.borderColor = '#adb5bd';
+            this.style.outline = '0';
+            this.style.boxShadow = '0 0 0 0.2rem rgba(108,117,125,.25)';
+        });
+        cameraCountSelect.addEventListener('blur', function() {
+            this.style.borderColor = '#495057';
+            this.style.boxShadow = 'none';
+        });
+
+        loadMenuAndTranslations(preferredLanguage, cameraCount);
+
         // Example function to update station information
         // updateStationInfo("Example", "America/Chicago", "41.8781", "87.6298");
         // Update time every minute
@@ -194,9 +244,9 @@
         });
     }
 
-    function loadMenuAndTranslations(lang) {
+    function loadMenuAndTranslations(lang, cameraCount) {
         Promise.all([
-            fetchJson('json/sidebarMenu.json'),
+            fetchJson(`json/sidebarMenu${cameraCount}.json`),
             fetchJson('json/translations.json')
         ]).then(([menuData, translationsData]) => {
             const translatedMenu = applyTranslations(menuData.menu, translationsData, lang);
@@ -207,7 +257,13 @@
     function changeLanguage(newLanguage) {
         preferredLanguage = newLanguage;
         localStorage.setItem('preferredLanguage', newLanguage); // Save the new language preference
-        loadMenuAndTranslations(preferredLanguage);
+        loadMenuAndTranslations(preferredLanguage, cameraCount);
+    }
+
+    function changeCameraCount(newCameraCount) {
+        cameraCount = newCameraCount;
+        localStorage.setItem('cameraCount', newCameraCount); // Save the new language preference
+        loadMenuAndTranslations(preferredLanguage, cameraCount);
     }
 
     // This function consolidates updates based on user input, assuming you're storing these preferences in local storage

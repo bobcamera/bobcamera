@@ -1,0 +1,262 @@
+{
+    "menu": [
+        {
+            "title": "Camera1",
+            "key": "streaming",
+            "items": [
+                {
+                    "name": "Info View",
+                    "key": "infoPanel",
+                    "url": "iframe.php?file=html/2d-Stream-With-Controls.html",
+                    "icon": "bi-camera"
+                },
+                {
+                    "name": "Wide View",
+                    "key": "wideView",
+                    "url": "iframe.php?file=html/2D-full-width-stream-annotated.html",
+                    "icon": "bi-camera"
+                },
+                {
+                    "name": "Foreground View",
+                    "key": "foregroundMask",
+                    "url": "iframe.php?file=html/2D-full-width-stream-forgroung-mask.html",
+                    "icon": "bi-camera"
+                },
+                {
+                    "name": "Privacy Mask",
+                    "key": "privacyMask",
+                    "url": "iframe.php?file=html/2D-full-width-stream-privacy-mask.html",
+                    "icon": "bi-mask"
+                },
+                {
+                    "name": "Detection Mask",
+                    "key": "detectionMask",
+                    "url": "iframe.php?file=html/2D-full-width-stream-detection-mask.html",
+                    "icon": "bi-mask"
+                }
+            ]
+        },
+        {
+            "title": "Camera2",
+            "key": "streaming",
+            "items": [
+                {
+                    "name": "Info View",
+                    "key": "infoPanel",
+                    "url": "iframe.php?file=html/2d-Stream-With-Controls2.html",
+                    "icon": "bi-camera"
+                },
+                {
+                    "name": "Wide View",
+                    "key": "wideView",
+                    "url": "iframe.php?file=html/2D-full-width-stream-annotated2.html",
+                    "icon": "bi-camera"
+                },
+                {
+                    "name": "Foreground View",
+                    "key": "foregroundMask",
+                    "url": "iframe.php?file=html/2D-full-width-stream-forgroung-mask2.html",
+                    "icon": "bi-camera"
+                },
+                {
+                    "name": "Privacy Mask",
+                    "key": "privacyMask",
+                    "url": "iframe.php?file=html/2D-full-width-stream-privacy-mask2.html",
+                    "icon": "bi-mask"
+                },
+                {
+                    "name": "Detection Mask",
+                    "key": "detectionMask",
+                    "url": "iframe.php?file=html/2D-full-width-stream-detection-mask2.html",
+                    "icon": "bi-mask"
+                }
+            ]
+        },
+        {
+            "title": "Camera3",
+            "key": "streaming",
+            "items": [
+                {
+                    "name": "Info View",
+                    "key": "infoPanel",
+                    "url": "iframe.php?file=html/2d-Stream-With-Controls3.html",
+                    "icon": "bi-camera"
+                },
+                {
+                    "name": "Wide View",
+                    "key": "wideView",
+                    "url": "iframe.php?file=html/2D-full-width-stream-annotated3.html",
+                    "icon": "bi-camera"
+                },
+                {
+                    "name": "Foreground View",
+                    "key": "foregroundMask",
+                    "url": "iframe.php?file=html/2D-full-width-stream-forgroung-mask3.html",
+                    "icon": "bi-camera"
+                },
+                {
+                    "name": "Privacy Mask",
+                    "key": "privacyMask",
+                    "url": "iframe.php?file=html/2D-full-width-stream-privacy-mask3.html",
+                    "icon": "bi-mask"
+                },
+                {
+                    "name": "Detection Mask",
+                    "key": "detectionMask",
+                    "url": "iframe.php?file=html/2D-full-width-stream-detection-mask3.html",
+                    "icon": "bi-mask"
+                }
+            ]
+        },  
+        {
+            "title": "Camera4",
+            "key": "streaming",
+            "items": [
+                {
+                    "name": "Info View",
+                    "key": "infoPanel",
+                    "url": "iframe.php?file=html/2d-Stream-With-Controls4.html",
+                    "icon": "bi-camera"
+                },
+                {
+                    "name": "Wide View",
+                    "key": "wideView",
+                    "url": "iframe.php?file=html/2D-full-width-stream-annotated4.html",
+                    "icon": "bi-camera"
+                },
+                {
+                    "name": "Foreground View",
+                    "key": "foregroundMask",
+                    "url": "iframe.php?file=html/2D-full-width-stream-forgroung-mask4.html",
+                    "icon": "bi-camera"
+                },
+                {
+                    "name": "Privacy Mask",
+                    "key": "privacyMask",
+                    "url": "iframe.php?file=html/2D-full-width-stream-privacy-mask4.html",
+                    "icon": "bi-mask"
+                },
+                {
+                    "name": "Detection Mask",
+                    "key": "detectionMask",
+                    "url": "iframe.php?file=html/2D-full-width-stream-detection-mask4.html",
+                    "icon": "bi-mask"
+                }
+            ]
+        },
+        {
+            "title": "Camera5",
+            "key": "streaming",
+            "items": [
+                {
+                    "name": "Info View",
+                    "key": "infoPanel",
+                    "url": "iframe.php?file=html/2d-Stream-With-Controls5.html",
+                    "icon": "bi-camera"
+                },
+                {
+                    "name": "Wide View",
+                    "key": "wideView",
+                    "url": "iframe.php?file=html/2D-full-width-stream-annotated5.html",
+                    "icon": "bi-camera"
+                },
+                {
+                    "name": "Foreground View",
+                    "key": "foregroundMask",
+                    "url": "iframe.php?file=html/2D-full-width-stream-forgroung-mask5.html",
+                    "icon": "bi-camera"
+                },
+                {
+                    "name": "Privacy Mask",
+                    "key": "privacyMask",
+                    "url": "iframe.php?file=html/2D-full-width-stream-privacy-mask5.html",
+                    "icon": "bi-mask"
+                },
+                {
+                    "name": "Detection Mask",
+                    "key": "detectionMask",
+                    "url": "iframe.php?file=html/2D-full-width-stream-detection-mask5.html",
+                    "icon": "bi-mask"
+                }
+            ]
+        },
+        {
+            "title": "Recordings",
+            "key": "recordings",
+            "items": [
+                {
+                    "name": "Recording Navigation",
+                    "key": "recordingNavigation",
+                    "url": "iframe.php?file=recordings.php",
+                    "icon": "bi-camera-video"
+                }
+            ]
+        },
+        {
+            "title": "Data Science",
+            "key": "dataScience",
+            "items": [
+                {
+                    "name": "RStudio",
+                    "key": "rStudio",
+                    "url": "http://localhost:8787",
+                    "icon": "bi-terminal",
+                    "target": "_blank"
+                }
+            ]
+        },
+        {
+            "title": "Support",
+            "key": "social",
+            "items": [
+                {
+                    "name": "Log Wide View",
+                    "key": "logview",
+                    "url": "iframe.php?file=html/2D-full-width-stream-log.html",
+                    "icon": "bi-camera"
+                },
+                {
+                    "name": "Youtube",
+                    "key": "youtube",
+                    "url": "https://www.youtube.com/@BobUniversalObjectTracker",
+                    "icon": "bi-youtube",
+                    "target": "_blank"
+                },
+                {
+                    "name": "Facebook",
+                    "key": "facebook",
+                    "url": "https://www.facebook.com/groups/7533264616717176",
+                    "icon": "bi-facebook",
+                    "target": "_blank"
+                }
+            ]
+        },
+        {
+            "title": "Github",
+            "key": "documentation",
+            "items": [
+                {
+                    "name": "Code",
+                    "key": "github",
+                    "url": "https://github.com/bobcamera/bobcamera",
+                    "icon": "bi-github",
+                    "target": "_blank"
+                },
+                {
+                    "name": "Report Bug",
+                    "key": "foundABug",
+                    "url": "https://github.com/bobcamera/bobcamera/issues/new/choose",
+                    "icon": "bi-github",
+                    "target": "_blank"
+                },
+                {
+                    "name": "Request Feature",
+                    "key": "requestFeature",
+                    "url": "https://github.com/bobcamera/bobcamera/issues/new/choose",
+                    "icon": "bi-github",
+                    "target": "_blank"
+                }
+            ]
+        }
+    ]
+}

@@ -136,7 +136,7 @@
             }
 
         </style>
-        <title>Camera 2: Compressed Annotated Frame Stream</title>
+        <title>Camera 3: Compressed Annotated Frame Stream</title>
         <meta charset="utf-8" />
         <script src="https://cdn.jsdelivr.net/npm/eventemitter2@6.4.9/lib/eventemitter2.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/roslibjs/1.1.0/roslib.min.js"></script>
@@ -150,7 +150,7 @@
             <div style="padding: 0px 10px 20px 0px;">
                 <button id="pauseBtn" title="Pause"><i class="fas fa-pause"></i></button>
                 <button id="playBtn" title="Play"><i class="fas fa-play"></i></button>
-                <a href="2d-Stream-With-Controls2.html"><button id="2dViewBtn" title="View Stream in 2D"><i class="far fa-square"></i></button></a>
+                <a href="2d-Stream-With-Controls3.html"><button id="2dViewBtn" title="View Stream in 2D"><i class="far fa-square"></i></button></a>
             </div>
             <div class="metric-header"> ----- Incoming ROS2 Messages ----- </div><br>
             <div hidden class="metric-readings">
@@ -311,7 +311,7 @@
 
     var stateStream = new ROSLIB.Topic({
         ros: ros,
-        name: '/bob/camera2/monitoring/status',
+        name: '/bob/camera3/monitoring/status',
         messageType: 'bob_interfaces/msg/MonitoringStatus'
     });
 
