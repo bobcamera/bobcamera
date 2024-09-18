@@ -126,7 +126,7 @@ RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash \
 # docker buildx build --progress=plain --push --platform linux/amd64 -f Dockerfile . -t bobcamera/bob-ros2-prod:1.2.7 -t bobcamera/bob-ros2-prod:latest --target bob-ros2-prod
 # docker buildx build --progress=plain --push --platform linux/amd64,linux/arm64 -f Dockerfile . -t bobcamera/bob-ros2-prod:1.2.7 -t bobcamera/bob-ros2-prod:latest --target bob-ros2-prod
 # docker buildx build --progress=plain --platform linux/amd64 -f ./docker/Dockerfile . -t bobcamera/bob-ros2-prod:1.5.8 -t bobcamera/bob-ros2-prod:latest --target bob-ros2-prod
-# docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY -v .:/workspaces/bobcamera/src/ros2/assets/ bobcamera/bob-ros2-prod:1.5.8 bash
+# docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY -v .:/workspaces/bobcamera/src/ros2/assets/ bobcamera/bob-ros2-prod:1.6.3 bash
 
 ###################################################################################
 # MWG: This docker stage is used to construct the image with the build artifacts 
@@ -140,7 +140,7 @@ ENV LANG=en_GB.UTF-8
 ARG USERNAME=ros
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
-COPY version.txt ./
+COPY --from=bob-ros2-build /workspaces/bobcamera/src/ros2/version.txt /workspaces/bobcamera/src/ros2/
 # Copy the compiled libs
 COPY --from=bob-ros2-build /usr/local/lib /usr/local/lib
 COPY --from=bob-ros2-build /usr/lib/python3 /usr/lib/python3
@@ -256,7 +256,7 @@ ENV LANG=en_GB.UTF-8
 ARG USERNAME=ros
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
-COPY version.txt ./
+COPY --from=bob-ros2-build /workspaces/bobcamera/src/ros2/version.txt /workspaces/bobcamera/src/ros2/
 # Copy the compiled libs
 COPY --from=bob-ros2-build /usr/local/lib /usr/local/lib
 COPY --from=bob-ros2-build /usr/lib/python3 /usr/lib/python3

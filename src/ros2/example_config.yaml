@@ -4,21 +4,21 @@
 #########################################################################
 basic_config:
   camera1_node:
-    source_type: 'RTSP_STREAM' # USB_CAMERA | VIDEO_FILE | RTSP_STREAM
+    source_type: 'RTSP_STREAM'        # USB_CAMERA | VIDEO_FILE | RTSP_STREAM
     # Pattern: rtsp_uri: 'rtsp://{name of the user}:{password of user}@{IP-Address}:{Port Number}/{Path}'
     #   Example Hikvision: rtsp_uri: 'rtsp://peter:pAsSwOrD123427@12.8.9.3:554/Streaming/Channels/101'
     #   Example Amcrest and Dahua: rtsp_uri: 'rtsp://user:password@0.0.0.0:554/cam/realmonitor?channel=1&subtype=0'
     rtsp_uri: 'rtsp://bob:Bobuser$01@192.168.68.54:554/Streaming/Channels/101'
     camera_id: 0
     usb_camera_resolution: [640, 480] # Resolution for USB Camera [WIDTH, HEIGHT]
-    videos:                     # List of videos to display in sequence if source_type is VIDEO_FILE
+    videos:                           # List of videos to display in sequence if source_type is VIDEO_FILE
       - '/workspaces/bobcamera/media/fisheye_videos/mike-drone.mp4'
       - '/workspaces/bobcamera/media/fisheye_videos/mikeg-30min.mp4'
-    resize_height: 960          # 0 to disable resize publish
-    simulator: False             # True for including simulated objects, False otherwise
-    simulator_num_objects: 15   # Number of simulated objects if the simulator parameter is True
-    bgs_sensitivity: 'medium_c'    # Initial sensitivity configuration based on the 'bgs_json_params' in the advanced config section
-    bgs_type: 'vibe'            # The background subtractor to use: 'vibe' | 'wmv'
+    resize_height: $resize_height     # 0 to disable resize publish
+    simulator: False                  # True for including simulated objects, False otherwise
+    simulator_num_objects: 15         # Number of simulated objects if the simulator parameter is True
+    bgs_sensitivity: 'medium_c'       # Initial sensitivity configuration based on the 'bgs_json_params' in the advanced config section
+    bgs_type: 'vibe'                  # The background subtractor to use: 'vibe' | 'wmv'
 
   camera1_recorder_node:
     codec: 'avc1'
@@ -30,6 +30,12 @@ basic_config:
       - '/bob/camera1/annotated/resized/compressed'
       - '/bob/camera1/original/resized/compressed'
       - '/bob/camera1/foreground_mask/resized/compressed'
+
+#########################################################################
+# Variables to use in nodes
+#########################################################################
+variables:
+  resize_height: 960
 
 #########################################################################
 # Advanced configuration for nodes
@@ -98,7 +104,7 @@ advanced_config:
   camera1_track_provider_node:
     bounding_boxes_subscription_topic: 'bob/camera1/boundingboxes'
     tracker_publisher_topic: 'bob/camera1/tracker/tracking'
-    resize_height: 960
+    resize_height: $resize_height
 
   camera1_recorder_node:
     recordings_directory: 'assets/recordings'
@@ -112,24 +118,21 @@ advanced_config:
 
   camera1_annotated_frame_provider_node:
     tracking_status_message: False
-    resize_height: 960
+    resize_height: $resize_height
     annotated_frame_publisher_topic: 'bob/camera1/annotated'
     camera_frame_topic: 'bob/camera1/original/resized'
     tracking_topic: 'bob/camera1/tracker/tracking/resized'
 
   camera1_annotated_frame_compressor_node:
     compressed_frame_subscriber_topic: 'bob/camera1/annotated/resized'
-    compressed_frame_publisher_topic: 'bob/camera1/annotated/resized/compressed'
     compression_quality: 75
 
   camera1_detection_masked_compressor_node:
     compressed_frame_subscriber_topic: 'bob/camera1/original/resized'
-    compressed_frame_publisher_topic: 'bob/camera1/original/resized/compressed'
     compression_quality: 75
 
   camera1_foreground_mask_compressor_node:
     compressed_frame_subscriber_topic: 'bob/camera1/foreground_mask/resized'
-    compressed_frame_publisher_topic: 'bob/camera1/foreground_mask/resized/compressed'
     compression_quality: 75
 
   camera1_image_estimator_node:
@@ -165,7 +168,7 @@ advanced_config:
     onvif_wsdl_path: 'assets/wsdl'
 
   info_webapi_node:
-    version_file: 'version.txt'
+    version_file: '/workspaces/bobcamera/src/ros2/version.txt'
 
   mask_webapi_node:
     masks_folder: 'assets/masks'
