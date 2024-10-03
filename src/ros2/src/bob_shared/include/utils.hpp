@@ -3,7 +3,7 @@
 #include <string>
 #include <algorithm>
 
-std::string to_lowercase(const std::string &str)
+std::string to_lowercase(const std::string & str)
 {
     std::string lower_str = str;
     std::transform(lower_str.begin(), lower_str.end(), lower_str.begin(), ::tolower);
@@ -11,7 +11,7 @@ std::string to_lowercase(const std::string &str)
 }
 
 template <typename T>
-T string_to_number(const std::string &str, T default_value)
+T string_to_number(const std::string & str, T default_value)
 {
     T value;
     auto result = std::from_chars(str.data(), str.data() + str.size(), value);
@@ -72,10 +72,10 @@ std::tuple<int, int, int> extract_rgb(const std::string &str)
 
 std::map<std::string, std::string> parse_json_to_map(const std::string & jsonString)
 {
-    // if (jsonString.empty())
-    // {
-    //     return {};
-    // }
+    if (jsonString.empty())
+    {
+        return {};
+    }
 
     // Create a JSON root object to hold the parsed data
     Json::Value root;

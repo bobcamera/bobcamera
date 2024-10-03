@@ -16,8 +16,11 @@ namespace boblib::base
     {
     public:
         Image(bool use_cuda = true);
-
-        Image(const Image & img);
+        Image(const Image& img);
+        Image(Image&& img) noexcept;
+        
+        Image& operator=(const Image& img);
+        Image& operator=(Image&& img) noexcept;
 
         ~Image();
 

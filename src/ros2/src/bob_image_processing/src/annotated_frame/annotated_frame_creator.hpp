@@ -33,7 +33,7 @@ public:
         const auto &[pr, pg, pb] = (settings_.contains("prediction_colour") ? extract_rgb(settings_["prediction_colour"]) : std::tuple<int, int, int>{255, 0, 0});
         prediction_colour_ = cv::Scalar(pr, pg, pb);
     }
-    //[{"bbox_line_thickness", "1"},{"font_scale_width", "0"},{"font_scale_width", "0"},{"font_scale", "1.0"},{"zoom_factor", "2.0"},{"enable_cropped_tracks", "true"},{"font_colour","{50,170,50}"},{"prediction_colour","{255,0,50}"}]
+
     void create_frame(const cv::Mat &annotated_frame,
                       const bob_interfaces::msg::Tracking &msg_tracking,
                       bool enable_tracking_status)

@@ -6,6 +6,11 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
+if [ ! -f "$1" ]; then
+  echo "Error: File '$1' does not exist."
+  exit 1
+fi
+
 #xdg-open http://localhost:8080 & MY_UID="$(id -u)" MY_GID="$(id -g)" docker compose up
 export MY_UID="$(id -u)" 
 export MY_GID="$(id -g)" 

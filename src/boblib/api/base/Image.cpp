@@ -7,28 +7,77 @@
 using namespace boblib::base;
 
 Image::Image(bool use_cuda)
-: using_cuda_(use_cuda ? Utils::HasCuda() : false)
+    : using_cuda_(use_cuda ? Utils::HasCuda() : false),
+      mat_ptr_(std::make_unique<cv::Mat>()),
+      gpu_mat_ptr_(using_cuda_ ? std::make_unique<cv::cuda::GpuMat>() : nullptr),
+      box_filter_(nullptr),
+      box_filter_size_(0)
 {
-    if (using_cuda_)
-    {
-        gpu_mat_ptr_ = std::make_unique<cv::cuda::GpuMat>();
-    }
-    mat_ptr_ = std::make_unique<cv::Mat>();
 }
 
 Image::Image(const Image & img)
-: Image(img.using_cuda_)
+    : Image(img.using_cuda_)
 {
     img.copyTo(*this);
 }
 
+Image::Image(Image && img) noexcept
+    : using_cuda_(img.using_cuda_),
+      mat_ptr_(std::move(img.mat_ptr_)),
+      gpu_mat_ptr_(std::move(img.gpu_mat_ptr_)),
+      box_filter_(std::move(img.box_filter_)),
+      box_filter_size_(img.box_filter_size_)
+{
+    img.box_filter_size_ = 0;
+}
+
+Image & Image::operator=(const Image & img)
+{
+    if (this != &img)
+    {
+        gpu_mat_ptr_.reset();
+        mat_ptr_.reset();
+
+        using_cuda_ = img.using_cuda_;
+        if (using_cuda_)
+        {
+            gpu_mat_ptr_ = std::make_unique<cv::cuda::GpuMat>();
+        }
+        else
+        {
+            gpu_mat_ptr_.reset();
+        }
+        mat_ptr_ = std::make_unique<cv::Mat>();
+
+        img.copyTo(*this);
+    }
+
+    return *this;
+}
+
+Image & Image::operator=(Image && img) noexcept
+{
+    if (this != &img)
+    {
+        gpu_mat_ptr_.reset();
+        mat_ptr_.reset();
+
+        using_cuda_ = img.using_cuda_;
+        mat_ptr_ = std::move(img.mat_ptr_);
+        gpu_mat_ptr_ = std::move(img.gpu_mat_ptr_);
+        box_filter_ = std::move(img.box_filter_);
+        box_filter_size_ = img.box_filter_size_;
+
+        img.using_cuda_ = false;
+        img.box_filter_size_ = 0;
+    }
+    return *this;
+}
+
 Image::~Image()
 {
-    if (using_cuda_)
-    {
-        gpu_mat_ptr_->release();
-    }
-    mat_ptr_->release();
+    gpu_mat_ptr_.reset();
+    mat_ptr_.reset();
 }
 
 int Image::channels() const

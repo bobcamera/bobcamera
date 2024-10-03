@@ -6,6 +6,11 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
+if [ ! -f "$1" ]; then
+  echo "Error: File '$1' does not exist."
+  exit 1
+fi
+
 # Log level for Bob to help with debugging
 # Options: DEBUG, INFO, WARN, ERROR or FATAL
 export BOB_LOGLEVEL=${BOB_LOGLEVEL:-"INFO"}
