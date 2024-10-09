@@ -19,12 +19,12 @@
 #include "json_recorder.hpp"
 #include "video_recorder.hpp"
 
-class RecordManager 
+class RecordManager2
     : public ParameterLifeCycleNode 
 {
 public:
     COMPOSITION_PUBLIC
-    explicit RecordManager(const rclcpp::NodeOptions& options)
+    explicit RecordManager2(const rclcpp::NodeOptions& options)
         : ParameterLifeCycleNode("recorder_manager", options)
         , pub_qos_profile_(4)
         , sub_qos_profile_(10)
@@ -65,7 +65,7 @@ private:
 
         time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<bob_interfaces::msg::Tracking, bob_camera::msg::CameraInfo>>
             (*sub_tracking_, *sub_camera_info_, 10);
-        time_synchronizer_->registerCallback(&RecordManager::process_recordings, this);
+        time_synchronizer_->registerCallback(&RecordManager2::process_recordings, this);
     };
 
     static std::string get_current_date_as_str() 
@@ -306,4 +306,4 @@ private:
     bool recording_;
 };
 
-RCLCPP_COMPONENTS_REGISTER_NODE(RecordManager)
+RCLCPP_COMPONENTS_REGISTER_NODE(RecordManager2)

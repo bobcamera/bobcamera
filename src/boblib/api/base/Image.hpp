@@ -12,22 +12,28 @@
 
 namespace boblib::base
 {
-    class Image
+    class Image final
     {
     public:
         Image(bool use_cuda = true);
 
         Image(const Image & img);
 
+        Image(Image&& img) noexcept;
+
         ~Image();
 
-        int channels() const;
+        void reset() noexcept;
+
+        Image & operator=(const Image & img);
+
+        Image & operator=(Image && img) noexcept;
+
+        int channels() const noexcept;
 
         Image clone() const;
 
-        Image & create(int rows, int cols, int type);
-
-        Image & create(int rows, int cols, int type, void* data);
+        Image & create(int rows, int cols, int type, void * data = nullptr);
 
         Image & create(cv::Size size, int type);
 

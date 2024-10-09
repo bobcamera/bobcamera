@@ -294,7 +294,10 @@ private:
 
                     const std::string full_path = dated_directory_ + "/allsky/" + prefix_str_ + base_filename_ + ".mp4";
                     const std::string out_pipeline = pipeline_str_ + full_path;
-                    video_recorder_->open_new_video(full_path, codec_str_, video_fps_, img.size());
+                    if (!video_recorder_->open_new_video(full_path, codec_str_, video_fps_, img.size()))
+                    {
+                        log_error("Could not create video in '%s' to write", full_path.c_str());
+                    }
                     img_recorder_->update_frame_for_drawing(img);
                 } 
                 else 

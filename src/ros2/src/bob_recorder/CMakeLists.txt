@@ -50,6 +50,14 @@ target_link_libraries(record_manager PUBLIC jsoncpp boblib)
 rclcpp_components_register_nodes(record_manager "RecordManager")
 install(TARGETS record_manager DESTINATION lib)
 
+# Recorder Manager New
+add_library(record_manager2 SHARED src/record_manager2.cpp)
+target_compile_definitions(record_manager2 PRIVATE "COMPOSITION_BUILDING_DLL")
+ament_target_dependencies(record_manager2 PUBLIC rclcpp sensor_msgs vision_msgs cv_bridge message_filters OpenCV rclcpp_components rclcpp_lifecycle bob_interfaces bob_camera)
+target_link_libraries(record_manager2 PUBLIC jsoncpp boblib)
+rclcpp_components_register_nodes(record_manager2 "RecordManager2")
+install(TARGETS record_manager2 DESTINATION lib)
+
 # Recording Monitor Node
 add_library(recording_monitor_node SHARED src/recording_monitor.cpp)
 target_compile_definitions(recording_monitor_node PRIVATE "COMPOSITION_BUILDING_DLL")

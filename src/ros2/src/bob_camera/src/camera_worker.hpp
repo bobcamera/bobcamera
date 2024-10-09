@@ -351,7 +351,6 @@ private:
     void capture_loop()
     {
         boblib::base::Image camera_img(using_cuda_);
-        sensor_msgs::msg::Image camera_msg;
 
         while (run_ && rclcpp::ok())
         {
@@ -363,6 +362,7 @@ private:
 
             try
             {
+                // This block will acquire the image apply the simulation and then the Privacy mask
                 if (!acquire_image(camera_img))
                 {
                     continue;
@@ -373,25 +373,17 @@ private:
                     object_simulator_ptr_->move(camera_img);
                 }
 
-                fill_header(camera_msg, camera_img);
-
                 apply_mask(camera_img);
 
-                publish_frame(camera_msg, camera_img);
-
-                publish_resized_frame(camera_msg, camera_img);
-
-                publish_image_info(camera_msg, camera_img);
-
-                publish_camera_info(camera_msg.header, camera_img);
-
-                if (user_callback_)
+                // Pushing to the image to the queue to process
                 {
-                    user_callback_(camera_msg.header, camera_img);
+                    std::unique_lock<std::mutex> lock(queue_mutex_);
+                    image_queue_.push(std::move(camera_img));
                 }
+                queue_cv_.notify_one();
 
-                if (params_.get_limit_fps() 
-                    && (params_.get_source_type() == CameraWorkerParams::SourceType::VIDEO_FILE))
+                // Only limiting fps if it is video and the limit_fps param is set
+                if (params_.get_limit_fps() && (params_.get_source_type() == CameraWorkerParams::SourceType::VIDEO_FILE))
                 {
                     loop_rate_ptr_->sleep();
                 }
@@ -410,6 +402,49 @@ private:
         node_.log_send_info("CameraWorker: Leaving capture_loop");
 
         boblib::base::Utils::ResetCuda();
+    }
+
+    void process_images()
+    {
+        sensor_msgs::msg::Image camera_msg;
+
+        while (rclcpp::ok())
+        {
+            boblib::base::Image camera_img;
+            {
+                std::unique_lock<std::mutex> lock(queue_mutex_);
+                queue_cv_.wait(lock, [this] { return !image_queue_.empty() || !processing_run_; });
+
+                if (!image_queue_.empty())
+                {
+                    camera_img = std::move(image_queue_.front());
+                    image_queue_.pop();
+                }
+                else
+                {
+                    continue;
+                }
+            }
+
+            if (image_queue_.size() > 0)
+                node_.log_info("Queue size: %d", image_queue_.size());
+
+            fill_header(camera_msg, camera_img);
+
+            publish_frame(camera_msg, camera_img);
+
+            publish_resized_frame(camera_msg, camera_img);
+
+            publish_image_info(camera_msg, camera_img);
+
+            publish_camera_info(camera_msg.header, camera_img);
+
+            if (user_callback_)
+            {
+                user_callback_(camera_msg.header, camera_img);
+            }
+        }
+        node_.log_send_info("CameraWorker: Leaving process_images");
     }
 
     inline void fill_header(sensor_msgs::msg::Image & camera_msg, boblib::base::Image & camera_img)
@@ -467,15 +502,23 @@ private:
     void start_capture()
     {
         run_ = true;
+        processing_thread_ = std::jthread(&CameraWorker::process_images, this);
         capture_thread_ = std::jthread(&CameraWorker::capture_loop, this);
     }
 
     void stop_capture()
     {
         run_ = false;
+        processing_run_ = false;
+        queue_cv_.notify_all();
+
         if (capture_thread_.joinable())
         {
             capture_thread_.join();
+        }
+        if (processing_thread_.joinable())
+        {
+            processing_thread_.join();
         }
     }
 
@@ -698,6 +741,10 @@ private:
     rclcpp::Time last_camera_connect_;
 
     bool using_cuda_{false};
+
+    std::queue<boblib::base::Image> image_queue_;
+    std::mutex queue_mutex_;
+    std::condition_variable queue_cv_;
+    bool processing_run_ = false;
+    std::jthread processing_thread_;
 };
-
-

@@ -4,25 +4,25 @@
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/cuda.hpp>
- #include <opencv2/cudacodec.hpp>
+#include <opencv2/cudacodec.hpp>
 
 namespace boblib::video
 {
     enum class Codec
     {
-        H264, 
+        H264,
         HEVC,
-        AVC1    // Does not work with Cuda, will switch to H264
+        AVC1 // Does not work with Cuda, will switch to H264
     };
 
     class VideoWriter
     {
     public:
-        VideoWriter(const std::string & fileName, const cv::Size & frame_size, boblib::video::Codec codec, double fps, bool use_cuda = true);
+        VideoWriter(const std::string &fileName, const cv::Size &frame_size, boblib::video::Codec codec, double fps, bool use_cuda = true);
 
         ~VideoWriter();
 
-        void write(const cv::Mat & image);
+        void write(const cv::Mat &image);
 
         void release();
 
@@ -30,12 +30,13 @@ namespace boblib::video
 
         bool using_cuda() const;
 
-    private:
+        [[nodiscard]] static boblib::video::Codec codec_from_string(std::string_view codec_str) noexcept;
 
+    private:
         inline void create_video_writer();
 
         const bool using_cuda_;
-        const std::string & fileName_;
+        const std::string &fileName_;
         const boblib::video::Codec codec_;
         const double fps_;
         const cv::Size frame_size_;

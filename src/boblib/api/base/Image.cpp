@@ -7,31 +7,107 @@
 using namespace boblib::base;
 
 Image::Image(bool use_cuda)
-: using_cuda_(use_cuda ? Utils::HasCuda() : false)
+    : using_cuda_(use_cuda ? Utils::HasCuda() : false)
+{
+    reset();
+}
+
+
+Image::Image(const Image & img)
+    : using_cuda_(img.using_cuda_),
+      box_filter_(img.box_filter_),
+      box_filter_size_(img.box_filter_size_)
+{
+    if (using_cuda_) 
+    {
+        gpu_mat_ptr_ = std::make_unique<cv::cuda::GpuMat>();
+        img.gpu_mat_ptr_->copyTo(*gpu_mat_ptr_);
+    } 
+    else
+    {
+        mat_ptr_ = std::make_unique<cv::Mat>(img.mat_ptr_->clone());
+    }
+}
+
+Image::Image(Image && img) noexcept
+    : using_cuda_(img.using_cuda_),
+      gpu_mat_ptr_(std::move(img.gpu_mat_ptr_)),
+      mat_ptr_(std::move(img.mat_ptr_)),
+      box_filter_(std::move(img.box_filter_)),
+      box_filter_size_(std::exchange(img.box_filter_size_, -1))
+{
+    // Reseting the Moved img
+    img.reset();
+}
+
+Image::~Image()
+{
+}
+
+void Image::reset() noexcept
 {
     if (using_cuda_)
     {
         gpu_mat_ptr_ = std::make_unique<cv::cuda::GpuMat>();
     }
     mat_ptr_ = std::make_unique<cv::Mat>();
+
+    box_filter_.reset();
+    box_filter_size_ = -1;
 }
 
-Image::Image(const Image & img)
-: Image(img.using_cuda_)
+Image & Image::operator=(const Image & img)
 {
-    img.copyTo(*this);
-}
-
-Image::~Image()
-{
-    if (using_cuda_)
+    if (this == &img) 
     {
-        gpu_mat_ptr_->release();
+        return *this;
     }
-    mat_ptr_->release();
+
+    using_cuda_ = img.using_cuda_;
+    box_filter_size_ = img.box_filter_size_;
+    box_filter_ = img.box_filter_; 
+
+    if (using_cuda_) 
+    {
+        if (!gpu_mat_ptr_) 
+        {
+            gpu_mat_ptr_ = std::make_unique<cv::cuda::GpuMat>();
+        }
+        img.gpu_mat_ptr_->copyTo(*gpu_mat_ptr_);
+        mat_ptr_ = std::make_unique<cv::Mat>();
+    } 
+    else
+    {
+        if (!mat_ptr_) 
+        {
+            mat_ptr_ = std::make_unique<cv::Mat>();
+        }
+        img.mat_ptr_->copyTo(*mat_ptr_);
+        gpu_mat_ptr_.reset();
+    }
+
+    return *this;
 }
 
-int Image::channels() const
+Image& Image::operator=(Image && img) noexcept
+{
+    if (this == &img)
+    {
+        return *this;
+    }
+
+    using_cuda_ = img.using_cuda_;
+    gpu_mat_ptr_ = std::move(img.gpu_mat_ptr_);
+    mat_ptr_ = std::move(img.mat_ptr_);
+    box_filter_ = std::move(img.box_filter_);
+    box_filter_size_ = std::exchange(img.box_filter_size_, -1);
+
+    img.reset();
+
+    return *this;
+}
+
+int Image::channels() const noexcept
 {
     return using_cuda_ ? gpu_mat_ptr_->channels() : mat_ptr_->channels();
 }
@@ -50,30 +126,16 @@ Image Image::clone() const
     return copy;
 }
 
-Image & Image::create(int rows, int cols, int type)
-{
-    mat_ptr_->release();
-    if (using_cuda_)
-    {
-        gpu_mat_ptr_->release();
-        gpu_mat_ptr_->create(rows, cols, type);
-        return *this;
-    }
-    mat_ptr_->create(rows, cols, type);
-
-    return *this;
-}
-
 Image & Image::create(int rows, int cols, int type, void* data)
 {
-    mat_ptr_->release();
     if (using_cuda_)
     {
-        gpu_mat_ptr_->release();
-        gpu_mat_ptr_ = std::make_unique<cv::cuda::GpuMat>(rows, cols, type, data);
+        gpu_mat_ptr_ = data != nullptr ? std::make_unique<cv::cuda::GpuMat>(rows, cols, type, data) : std::make_unique<cv::cuda::GpuMat>(rows, cols, type);
+        mat_ptr_ = std::make_unique<cv::Mat>();    
         return *this;
     }
-    mat_ptr_ = std::make_unique<cv::Mat>(rows, cols, type, data);
+    mat_ptr_ = data != nullptr ? std::make_unique<cv::Mat>(rows, cols, type, data) : std::make_unique<cv::Mat>(rows, cols, type);
+    gpu_mat_ptr_.reset();
 
     return *this;
 }
@@ -172,6 +234,11 @@ uint8_t* Image::data() const
 
 void Image::copyTo(Image & copy) const
 {
+    if (this == &copy) 
+    {
+        return;
+    }
+
     if (using_cuda_)
     {
         if (copy.using_cuda_)
