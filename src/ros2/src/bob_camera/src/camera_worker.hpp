@@ -12,6 +12,7 @@
 #include <sensor_msgs/msg/image.hpp>
 
 #include <boblib/api/video/VideoReader.hpp>
+#include <boblib/api/base/SynchronizedQueue.hpp>
 #include <bob_interfaces/srv/camera_settings.hpp>
 #include <bob_interfaces/srv/config_entry_update.hpp>
 #include <bob_camera/msg/image_info.hpp>
@@ -375,12 +376,7 @@ private:
 
                 apply_mask(camera_img);
 
-                // Pushing to the image to the queue to process
-                {
-                    std::unique_lock<std::mutex> lock(queue_mutex_);
-                    image_queue_.push(std::move(camera_img));
-                }
-                queue_cv_.notify_one();
+                image_queue_.push(std::move(camera_img));
 
                 // Only limiting fps if it is video and the limit_fps param is set
                 if (params_.get_limit_fps() && (params_.get_source_type() == CameraWorkerParams::SourceType::VIDEO_FILE))
@@ -411,37 +407,38 @@ private:
         while (rclcpp::ok())
         {
             boblib::base::Image camera_img;
+            if (image_queue_.pop_move(camera_img))
             {
-                std::unique_lock<std::mutex> lock(queue_mutex_);
-                queue_cv_.wait(lock, [this] { return !image_queue_.empty() || !processing_run_; });
-
-                if (!image_queue_.empty())
+                try
                 {
-                    camera_img = std::move(image_queue_.front());
-                    image_queue_.pop();
+                    if (image_queue_.size() > 0)
+                        node_.log_info("Queue size: %d", image_queue_.size());
+
+                    fill_header(camera_msg, camera_img);
+
+                    publish_frame(camera_msg, camera_img);
+
+                    publish_resized_frame(camera_msg, camera_img);
+
+                    publish_image_info(camera_msg, camera_img);
+
+                    publish_camera_info(camera_msg.header, camera_img);
+
+                    if (user_callback_)
+                    {
+                        user_callback_(camera_msg.header, camera_img);
+                    }
                 }
-                else
+                catch (const std::exception & e)
                 {
-                    continue;
+                    node_.log_send_error("CameraWorker: process_images: Exception: %s", e.what());
+                    rcutils_reset_error();
                 }
-            }
-
-            if (image_queue_.size() > 0)
-                node_.log_info("Queue size: %d", image_queue_.size());
-
-            fill_header(camera_msg, camera_img);
-
-            publish_frame(camera_msg, camera_img);
-
-            publish_resized_frame(camera_msg, camera_img);
-
-            publish_image_info(camera_msg, camera_img);
-
-            publish_camera_info(camera_msg.header, camera_img);
-
-            if (user_callback_)
-            {
-                user_callback_(camera_msg.header, camera_img);
+                catch (...)
+                {
+                    node_.log_send_error("CameraWorker: process_images: Unknown exception");
+                    rcutils_reset_error();
+                }
             }
         }
         node_.log_send_info("CameraWorker: Leaving process_images");
@@ -509,8 +506,6 @@ private:
     void stop_capture()
     {
         run_ = false;
-        processing_run_ = false;
-        queue_cv_.notify_all();
 
         if (capture_thread_.joinable())
         {
@@ -742,9 +737,6 @@ private:
 
     bool using_cuda_{false};
 
-    std::queue<boblib::base::Image> image_queue_;
-    std::mutex queue_mutex_;
-    std::condition_variable queue_cv_;
-    bool processing_run_ = false;
+    SynchronizedQueue<boblib::base::Image> image_queue_;
     std::jthread processing_thread_;
 };

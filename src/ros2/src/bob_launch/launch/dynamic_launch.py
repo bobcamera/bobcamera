@@ -141,6 +141,7 @@ def generate_standalone_nodes(config, namespace, loglevel):
     
     return nodes
 
+
 def generate_lifecycle_manager(config, namespace, loglevel):
     parameters = get_node_parameters(config, 'lifecycle_manager_node')
     return ComposableNodeContainer(
@@ -160,6 +161,7 @@ def generate_lifecycle_manager(config, namespace, loglevel):
                                             )],
                 output='both',
             )
+
 
 def generate_launch_description():
     config_file_path = 'assets/config/app_config.yaml'

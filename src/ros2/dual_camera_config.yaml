@@ -1,4 +1,13 @@
 #########################################################################
+# Variables to use in nodes
+#########################################################################
+variables:
+  resize_height: 960
+  use_cuda: false
+  use_recording: false
+  logging_type: screen
+
+#########################################################################
 # Basic configuration for nodes
 #   This is the basic configuration, where most of the users need to worry
 #########################################################################
@@ -40,12 +49,6 @@ basic_config:
       - '/bob/camera1/foreground_mask/resized/compressed'
       - '/bob/camera2/foreground_mask/resized/compressed'
 
-
-#########################################################################
-# Variables to use in nodes
-#########################################################################
-variables:
-  resize_height: 960
 
 #########################################################################
 # Advanced configuration for nodes
@@ -90,7 +93,7 @@ advanced_config:
     onvif_port: 0
     onvif_user: ''
     onvif_password: ''
-    use_cuda: true
+    use_cuda: $use_cuda
     mask_timer_seconds: 5
     bgs_json_params: '[
                     { "name": "low",
@@ -142,6 +145,7 @@ advanced_config:
     resize_height: $resize_height
 
   base_camera_recorder_node:
+    enable: $use_recording
     codec: 'avc1'
     seconds_save: 2
     recordings_directory: 'assets/recordings'
@@ -256,9 +260,11 @@ advanced_config:
     star_mask_enabled: True    
 
   camera1_recorder_monitoring_node:
+    enable: $use_recording
     check_interval: 5
 
   camera2_recorder_monitoring_node:
+    enable: $use_recording
     check_interval: 5
 
   onvif_service_node:
@@ -336,7 +342,7 @@ launch:
   node_containers:
     - name: Kernel_Camera1
       executable: component_container_mt
-      output: both 
+      output: $logging_type
       nodes:
         - package: bob_camera
           plugin: CameraBGS
@@ -346,10 +352,10 @@ launch:
           plugin: TrackProvider
           name: camera1_track_provider_node
           remappings: []
-        # - package: bob_recorder
-        #   plugin: RecordManager
-        #   name: camera1_recorder_node
-        #   remappings: []
+        - package: bob_recorder
+          plugin: RecordManager
+          name: camera1_recorder_node
+          remappings: []
         - package: bob_image_processing
           plugin: AnnotatedFrameProvider
           name: camera1_annotated_frame_provider_node
@@ -369,7 +375,7 @@ launch:
 
     - name: Kernel_Camera2
       executable: component_container_mt
-      output: both 
+      output: $logging_type
       nodes:
         - package: bob_camera
           plugin: CameraBGS
@@ -379,10 +385,10 @@ launch:
           plugin: TrackProvider
           name: camera2_track_provider_node
           remappings: []
-        # - package: bob_recorder
-        #   plugin: RecordManager
-        #   name: camera2_recorder_node
-        #   remappings: []
+        - package: bob_recorder
+          plugin: RecordManager
+          name: camera2_recorder_node
+          remappings: []
         - package: bob_image_processing
           plugin: AnnotatedFrameProvider
           name: camera2_annotated_frame_provider_node
@@ -402,7 +408,7 @@ launch:
 
     - name: Display
       executable: component_container # Has to be single-threaded because of OpenCV display
-      output: both
+      output: $logging_type
       nodes:
         - package: bob_visualizers
           plugin: FrameViewer
@@ -411,16 +417,16 @@ launch:
 
     - name: Monitor_Camera1
       executable: component_container_mt
-      output: both
+      output: $logging_type
       nodes:
         - package: bob_image_processing
           plugin: TrackSensitivityMonitor
           name: camera1_track_sensitivity_monitor_node
           remappings: []
-        # - package: bob_recorder
-        #   plugin: RecordingMonitor
-        #   name: camera1_recorder_monitoring_node
-        #   remappings: []
+        - package: bob_recorder
+          plugin: RecordingMonitor
+          name: camera1_recorder_monitoring_node
+          remappings: []
         - package: bob_observer
           plugin: ImageEstimator
           name: camera1_image_estimator_node
@@ -428,16 +434,16 @@ launch:
         
     - name: Monitor_Camera2
       executable: component_container_mt
-      output: both
+      output: $logging_type
       nodes:
         - package: bob_image_processing
           plugin: TrackSensitivityMonitor
           name: camera2_track_sensitivity_monitor_node
           remappings: []
-        # - package: bob_recorder
-        #   plugin: RecordingMonitor
-        #   name: camera2_recorder_monitoring_node
-        #   remappings: []
+        - package: bob_recorder
+          plugin: RecordingMonitor
+          name: camera2_recorder_monitoring_node
+          remappings: []
         - package: bob_observer
           plugin: ImageEstimator
           name: camera2_image_estimator_node
@@ -454,24 +460,24 @@ launch:
       executable: monitoring_status_aggregator
       name: camera1_monitoring_status_aggregator_node
       remappings: []
-      output: screen
+      output: $logging_type
     - package: bob_monitor
       executable: monitoring_status_aggregator
       name: camera2_monitoring_status_aggregator_node
       remappings: []
-      output: screen
+      output: $logging_type
     - package: bob_monitor
       executable: onvif_service
       name: onvif_service_node
       remappings: []
-      output: screen
+      output: $logging_type
     - package: bob_webapi
       executable: info_webapi
       name: info_webapi_node
       remappings: []
-      output: screen
+      output: $logging_type
     - package: bob_webapi
       executable: mask_webapi
       name: mask_webapi_node
       remappings: []
-      output: screen
+      output: $logging_type
