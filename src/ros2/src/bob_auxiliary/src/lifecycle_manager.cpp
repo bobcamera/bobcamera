@@ -13,6 +13,8 @@
 #include <rclcpp_components/register_node_macro.hpp>
 #include <visibility_control.h>
 
+#include <boblib/api/base/Utils.hpp>
+
 #include <parameter_node.hpp>
 
 class LifecycleManager 
@@ -30,13 +32,29 @@ public:
     void init()
     {
         timer_nodes_->cancel();
+        log_common_information();
 
         declare_node_parameters();
-        timer_callback();
         timer_nodes_ = create_wall_timer(std::chrono::seconds(timer_seconds_), [this](){timer_callback();});
     }
 
 private:
+    void log_common_information()
+    {
+        RCLCPP_INFO(get_logger(), "LifecycleManager Starting, will start nodes in %d seconds", timer_seconds_);
+        RCLCPP_INFO(get_logger(), "Basic Information:");
+        RCLCPP_INFO(get_logger(), "              CPU: %s", boblib::base::Utils::get_cpu_name().c_str());
+        RCLCPP_INFO(get_logger(), "Available Threads: %ld", boblib::base::Utils::get_available_threads());
+        RCLCPP_INFO(get_logger(), "     Total Memory: %ld GB", boblib::base::Utils::get_memory_total() / (1024 * 1024 * 1024));
+        RCLCPP_INFO(get_logger(), "         Has Cuda: %s", boblib::base::Utils::has_cuda() ? "True" : "False");
+        auto has_opencl = boblib::base::Utils::has_opencl();
+        RCLCPP_INFO(get_logger(), "       Has OpenCL: %s", has_opencl ? "True" : "False");
+        if (has_opencl)
+        {
+            RCLCPP_INFO(get_logger(), "%s", boblib::base::Utils::get_ocl_info().c_str());
+        }
+    }
+
     class NodeStatusManager
     {
     public:
@@ -148,6 +166,7 @@ private:
     void timer_callback()
     {
         timer_nodes_->cancel();
+
         try
         {
             add_remove_nodes();

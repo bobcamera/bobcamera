@@ -12,7 +12,7 @@ VideoReader::VideoReader(int usb_camera_id, const std::vector<int> & params)
 }
 
 VideoReader::VideoReader(const std::string & camera_uri, bool use_cuda, const std::vector<int> & params)
-: using_cuda_(use_cuda ? boblib::base::Utils::HasCuda() : false)
+: using_cuda_(use_cuda ? boblib::base::Utils::has_cuda() : false)
 , is_usb_(false)
 , camera_uri_(camera_uri)
 , params_(params)

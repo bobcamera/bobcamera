@@ -41,7 +41,7 @@ ENDIF()
 # LifecycleServiceClient Node Library
 add_library(lifecycle_manager_node SHARED src/lifecycle_manager.cpp)
 target_compile_definitions(lifecycle_manager_node PRIVATE "COMPOSITION_BUILDING_DLL")
-target_link_libraries(lifecycle_manager_node PUBLIC "${cpp_typesupport_target}")
+target_link_libraries(lifecycle_manager_node PUBLIC "${cpp_typesupport_target}" boblib)
 ament_target_dependencies(lifecycle_manager_node PUBLIC rclcpp std_msgs rcl_interfaces rclcpp_components rclcpp_lifecycle bob_interfaces lifecycle_msgs)
 rclcpp_components_register_nodes(lifecycle_manager_node "LifecycleManager")
 install(TARGETS lifecycle_manager_node DESTINATION lib)

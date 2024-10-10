@@ -4,7 +4,7 @@
 using namespace boblib::video;
 
 VideoWriter::VideoWriter(const std::string &fileName, const cv::Size &frame_size, boblib::video::Codec codec, double fps, bool use_cuda)
-    : using_cuda_(use_cuda ? boblib::base::Utils::HasCuda() : false), fileName_(fileName), codec_(codec), fps_(fps), frame_size_(frame_size)
+    : using_cuda_(use_cuda ? boblib::base::Utils::has_cuda() : false), fileName_(fileName), codec_(codec), fps_(fps), frame_size_(frame_size)
 {
     create_video_writer();
 }

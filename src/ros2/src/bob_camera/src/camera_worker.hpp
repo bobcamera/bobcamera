@@ -127,7 +127,7 @@ private:
     bool limit_fps_{true};
 };
 
-class CameraWorker
+class CameraWorker final
 {
 public:
     explicit CameraWorker(ParameterLifeCycleNode & node,
@@ -164,7 +164,7 @@ public:
             camera_info_msg_.frame_width = 0;
             camera_info_msg_.fps = 0;
 
-            using_cuda_ = params_.get_use_cuda() ? boblib::base::Utils::HasCuda() : false;
+            using_cuda_ = params_.get_use_cuda() ? boblib::base::Utils::has_cuda() : false;
             privacy_mask_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_);
 
             circuit_breaker_ptr_ = std::make_unique<CircuitBreaker>(CIRCUIT_BREAKER_MAX_RETRIES, CIRCUIT_BREAKER_INITIAL_TIMEOUT, CIRCUIT_BREAKER_MAX_TIMEOUT);
@@ -291,12 +291,10 @@ private:
             double fps;
             double frame_width;
             double frame_height;
-            double format;
             fps_ = video_reader_ptr_->get(cv::CAP_PROP_FPS, fps) ? static_cast<float>(fps) : UNKNOWN_DEVICE_FPS;
-            cv_camera_width_ = video_reader_ptr_->get(cv::CAP_PROP_FRAME_WIDTH, frame_width) ? static_cast<int>(frame_width) : 0;
-            cv_camera_height_ = video_reader_ptr_->get(cv::CAP_PROP_FRAME_HEIGHT, frame_height) ? static_cast<int>(frame_height) : 0;
-            cv_camera_format_ = video_reader_ptr_->get(cv::CAP_PROP_FORMAT, frame_height) ? format: CV_8UC3;
-            node_.log_send_info("Stream capture Info: %dx%d at %.2g FPS", cv_camera_width_, cv_camera_height_, fps_);
+            int cv_camera_width = video_reader_ptr_->get(cv::CAP_PROP_FRAME_WIDTH, frame_width) ? static_cast<int>(frame_width) : 0;
+            int cv_camera_height = video_reader_ptr_->get(cv::CAP_PROP_FRAME_HEIGHT, frame_height) ? static_cast<int>(frame_height) : 0;
+            node_.log_send_info("Stream capture Info: %dx%d at %.2g FPS", cv_camera_width, cv_camera_height, fps_);
             loop_rate_ptr_ = std::make_unique<rclcpp::WallRate>(fps_);
 
             create_camera_info_msg();
@@ -397,7 +395,7 @@ private:
         }
         node_.log_send_info("CameraWorker: Leaving capture_loop");
 
-        boblib::base::Utils::ResetCuda();
+        boblib::base::Utils::reset_cuda();
     }
 
     void process_images()
@@ -406,7 +404,7 @@ private:
 
         while (rclcpp::ok())
         {
-            boblib::base::Image camera_img;
+            boblib::base::Image camera_img(using_cuda_);
             if (image_queue_.pop_move(camera_img))
             {
                 try
@@ -714,14 +712,12 @@ private:
 
     bool run_{false};
     std::jthread capture_thread_;
+    std::jthread processing_thread_;
 
     uint32_t current_video_idx_{0};
     
     std::unique_ptr<rclcpp::WallRate> loop_rate_ptr_;
     float fps_{UNKNOWN_DEVICE_FPS};
-    int cv_camera_width_{};
-    int cv_camera_height_{};
-    int cv_camera_format_{};
     bool is_open_{false};
     bool is_camera_info_auto_{false};
     bool is_initialized_{false};
@@ -735,8 +731,7 @@ private:
     rclcpp::Time initial_camera_connect_;
     rclcpp::Time last_camera_connect_;
 
-    bool using_cuda_{false};
-
     SynchronizedQueue<boblib::base::Image> image_queue_;
-    std::jthread processing_thread_;
+
+    bool using_cuda_{false};
 };

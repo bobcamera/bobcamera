@@ -9,13 +9,13 @@
 namespace boblib::bgs
 {
     CoreBgs::CoreBgs(bool use_cuda, size_t _numProcessesParallel)
-        : using_cuda_(use_cuda ? boblib::base::Utils::HasCuda() : false)
+        : using_cuda_(use_cuda ? boblib::base::Utils::has_cuda() : false)
         , m_num_processes_parallel{_numProcessesParallel}
         , m_initialized{false}
     {
         if (_numProcessesParallel == DETECT_NUMBER_OF_THREADS)
         {
-            m_num_processes_parallel = calc_available_threads();;
+            m_num_processes_parallel = boblib::base::Utils::get_available_threads();
         }
     }
 

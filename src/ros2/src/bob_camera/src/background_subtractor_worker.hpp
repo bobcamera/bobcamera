@@ -101,7 +101,7 @@ public:
 
     void init()
     {
-        using_cuda_ = params_.get_use_cuda() ? boblib::base::Utils::HasCuda() : false;
+        using_cuda_ = params_.get_use_cuda() ? boblib::base::Utils::has_cuda() : false;
         detection_mask_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_);
         bgs_img_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_);
 

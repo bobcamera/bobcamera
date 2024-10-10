@@ -7,7 +7,7 @@
 using namespace boblib::base;
 
 Image::Image(bool use_cuda)
-    : using_cuda_(use_cuda ? Utils::HasCuda() : false)
+    : using_cuda_(use_cuda ? Utils::has_cuda() : false)
 {
     reset();
 }
