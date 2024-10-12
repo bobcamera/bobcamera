@@ -8,26 +8,41 @@ template <typename T>
 class SynchronizedQueue
 {
 public:
-    SynchronizedQueue() = default;
+    SynchronizedQueue(size_t max_size = 0)
+        : max_size_(max_size)
+    {
+    }
 
     // Add an item to the queue (copy version)
-    void push(const T& item)
+    bool push(const T & item)
     {
+        if (max_size_ > 0 && queue_.size() >= max_size_)
+        {
+            return false;
+        }
+
         std::unique_lock<std::mutex> lock(mutex_);
         queue_.push(item);
         cv_.notify_one();
+        return true;
     }
 
     // Add an item to the queue (move version)
-    void push(T&& item)
+    bool push(T && item)
     {
         std::unique_lock<std::mutex> lock(mutex_);
+        if (max_size_ > 0 && queue_.size() >= max_size_)
+        {
+            return false;
+        }
+
         queue_.push(std::move(item));
         cv_.notify_one();
+        return true;
     }
 
     // Retrieve and remove an item from the queue (copy version)
-    bool pop(T& item)
+    bool pop(T & item)
     {
         std::unique_lock<std::mutex> lock(mutex_);
         cv_.wait(lock, [this] { return !queue_.empty() || !running_; });
@@ -41,7 +56,7 @@ public:
     }
 
     // Retrieve and remove an item from the queue (move version)
-    bool pop_move(T& item)
+    bool pop_move(T & item)
     {
         std::unique_lock<std::mutex> lock(mutex_);
         cv_.wait(lock, [this] { return !queue_.empty() || !running_; });
@@ -109,6 +124,7 @@ public:
     }
 
 private:
+    const size_t max_size_;
     std::queue<T> queue_;
     mutable std::mutex mutex_;
     std::condition_variable cv_;

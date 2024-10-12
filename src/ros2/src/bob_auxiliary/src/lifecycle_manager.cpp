@@ -41,13 +41,13 @@ public:
 private:
     void log_common_information()
     {
+        auto has_opencl = boblib::base::Utils::has_opencl();
         RCLCPP_INFO(get_logger(), "LifecycleManager Starting, will start nodes in %d seconds", timer_seconds_);
         RCLCPP_INFO(get_logger(), "Basic Information:");
         RCLCPP_INFO(get_logger(), "              CPU: %s", boblib::base::Utils::get_cpu_name().c_str());
         RCLCPP_INFO(get_logger(), "Available Threads: %ld", boblib::base::Utils::get_available_threads());
-        RCLCPP_INFO(get_logger(), "     Total Memory: %ld GB", boblib::base::Utils::get_memory_total() / (1024 * 1024 * 1024));
+        RCLCPP_INFO(get_logger(), "     Total Memory: %.2f GB", static_cast<double>(boblib::base::Utils::get_memory_total()) / (1024.0 * 1024.0 * 1024.0));
         RCLCPP_INFO(get_logger(), "         Has Cuda: %s", boblib::base::Utils::has_cuda() ? "True" : "False");
-        auto has_opencl = boblib::base::Utils::has_opencl();
         RCLCPP_INFO(get_logger(), "       Has OpenCL: %s", has_opencl ? "True" : "False");
         if (has_opencl)
         {

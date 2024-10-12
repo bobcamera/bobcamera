@@ -67,6 +67,7 @@ public:
     [[nodiscard]] bool get_simulator_enable() const { return simulator_enable_; }
     [[nodiscard]] int get_mask_timer_seconds() const { return mask_timer_seconds_; }
     [[nodiscard]] bool get_limit_fps() const { return limit_fps_; }
+    [[nodiscard]] size_t get_max_queue_process_size() const { return max_queue_process_size_; }
 
     // Setters
     void set_image_publisher(const rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr& publisher) { image_publisher_ = publisher; }
@@ -96,6 +97,7 @@ public:
     void set_simulator_enable(bool enable) { simulator_enable_ = enable; }
     void set_mask_timer_seconds(int seconds) { mask_timer_seconds_ = seconds; }
     void set_limit_fps(bool enable) { limit_fps_ = enable; }
+    void set_max_queue_process_size(size_t size) { max_queue_process_size_ = size; }
 
 private:
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
@@ -105,9 +107,9 @@ private:
     rclcpp::Client<bob_interfaces::srv::CameraSettings>::SharedPtr camera_settings_client_;
 
     bool use_cuda_{true};
-    int camera_id_{};
+    int camera_id_;
     std::vector<long> usb_resolution_;
-    int resize_height_{};
+    int resize_height_{0};
     std::vector<std::string> videos_;
     std::string image_publish_topic_;
     std::string image_info_publish_topic_;
@@ -116,15 +118,16 @@ private:
     SourceType source_type_{SourceType::UNKNOWN};
     std::string rtsp_uri_;
     std::string onvif_host_;
-    int onvif_port_{};
+    int onvif_port_;
     std::string onvif_user_;
     std::string onvif_password_;
     bool mask_enable_override_{false};
     std::string mask_filename_;
-    int simulator_num_objects_{};
+    int simulator_num_objects_{0};
     bool simulator_enable_{false};
-    int mask_timer_seconds_{};
+    int mask_timer_seconds_;
     bool limit_fps_{true};
+    size_t max_queue_process_size_{0};
 };
 
 class CameraWorker final
@@ -173,6 +176,9 @@ public:
             {
                 object_simulator_ptr_ = std::make_unique<ObjectSimulator>(params_.get_simulator_num_objects());
             }
+
+            image_queue_ptr_ = std::make_unique<SynchronizedQueue<boblib::base::Image>>(params_.get_max_queue_process_size());
+            publish_queue_ptr_ = std::make_unique<SynchronizedQueue<PublishImage>>();
 
             mask_worker_ptr_->init(params_.get_mask_timer_seconds(), params_.get_mask_filename());
 
@@ -374,7 +380,7 @@ private:
 
                 apply_mask(camera_img);
 
-                image_queue_.push(std::move(camera_img));
+                image_queue_ptr_->push(std::move(camera_img));
 
                 // Only limiting fps if it is video and the limit_fps param is set
                 if (params_.get_limit_fps() && (params_.get_source_type() == CameraWorkerParams::SourceType::VIDEO_FILE))
@@ -405,27 +411,21 @@ private:
         while (rclcpp::ok())
         {
             boblib::base::Image camera_img(using_cuda_);
-            if (image_queue_.pop_move(camera_img))
+            if (image_queue_ptr_->pop_move(camera_img))
             {
                 try
                 {
-                    if (image_queue_.size() > 0)
-                        node_.log_info("Queue size: %d", image_queue_.size());
+                    if (image_queue_ptr_->size() > 0)
+                        node_.log_info("Process Queue size: %d", image_queue_ptr_->size());
 
                     fill_header(camera_msg, camera_img);
-
-                    publish_frame(camera_msg, camera_img);
-
-                    publish_resized_frame(camera_msg, camera_img);
-
-                    publish_image_info(camera_msg, camera_img);
-
-                    publish_camera_info(camera_msg.header, camera_img);
 
                     if (user_callback_)
                     {
                         user_callback_(camera_msg.header, camera_img);
                     }
+
+                    publish_queue_ptr_->push(PublishImage(std::move(camera_msg), std::move(camera_img)));
                 }
                 catch (const std::exception & e)
                 {
@@ -440,6 +440,45 @@ private:
             }
         }
         node_.log_send_info("CameraWorker: Leaving process_images");
+    }
+
+    void publish_images()
+    {
+        while (rclcpp::ok())
+        {
+            auto publish_image = publish_queue_ptr_->pop();
+            if (publish_image.has_value())
+            {
+                try
+                {
+                    if (publish_queue_ptr_->size() > 0)
+                        node_.log_info("Publish Queue size: %d", publish_queue_ptr_->size());
+
+                    auto & camera_msg = publish_image.value().Image_msg;
+                    auto & camera_img = publish_image.value().Image;
+
+                    publish_frame(camera_msg, camera_img);
+
+                    publish_resized_frame(camera_msg, camera_img);
+
+                    publish_image_info(camera_msg, camera_img);
+
+                    publish_camera_info(camera_msg.header, camera_img);
+
+                }
+                catch (const std::exception & e)
+                {
+                    node_.log_send_error("CameraWorker: publish_images: Exception: %s", e.what());
+                    rcutils_reset_error();
+                }
+                catch (...)
+                {
+                    node_.log_send_error("CameraWorker: publish_images: Unknown exception");
+                    rcutils_reset_error();
+                }
+            }
+        }
+        node_.log_send_info("CameraWorker: Leaving publish_images");
     }
 
     inline void fill_header(sensor_msgs::msg::Image & camera_msg, boblib::base::Image & camera_img)
@@ -499,6 +538,7 @@ private:
         run_ = true;
         processing_thread_ = std::jthread(&CameraWorker::process_images, this);
         capture_thread_ = std::jthread(&CameraWorker::capture_loop, this);
+        publish_thread_ = std::jthread(&CameraWorker::publish_images, this);
     }
 
     void stop_capture()
@@ -512,6 +552,10 @@ private:
         if (processing_thread_.joinable())
         {
             processing_thread_.join();
+        }
+        if (publish_thread_.joinable())
+        {
+            publish_thread_.join();
         }
     }
 
@@ -693,6 +737,16 @@ private:
         }
     }
 
+    struct PublishImage
+    {
+        PublishImage(sensor_msgs::msg::Image && _Image_msg, boblib::base::Image && _Image)
+            : Image_msg(std::move(_Image_msg)), Image(std::move(_Image))
+        {}
+
+        sensor_msgs::msg::Image Image_msg;
+        boblib::base::Image Image;
+    };
+
     static constexpr double UNKNOWN_DEVICE_FPS = 30.0;
     static constexpr int CIRCUIT_BREAKER_MAX_RETRIES = 10;
     static constexpr int CIRCUIT_BREAKER_INITIAL_TIMEOUT = 10;
@@ -713,6 +767,7 @@ private:
     bool run_{false};
     std::jthread capture_thread_;
     std::jthread processing_thread_;
+    std::jthread publish_thread_;
 
     uint32_t current_video_idx_{0};
     
@@ -731,7 +786,9 @@ private:
     rclcpp::Time initial_camera_connect_;
     rclcpp::Time last_camera_connect_;
 
-    SynchronizedQueue<boblib::base::Image> image_queue_;
+    std::unique_ptr<SynchronizedQueue<boblib::base::Image>> image_queue_ptr_;
+
+    std::unique_ptr<SynchronizedQueue<PublishImage>> publish_queue_ptr_;
 
     bool using_cuda_{false};
 };

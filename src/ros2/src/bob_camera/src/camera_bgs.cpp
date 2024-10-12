@@ -362,6 +362,13 @@ private:
                     camera_params_ptr_->set_limit_fps(param.as_bool());
                 }
             ),
+            ParameterLifeCycleNode::ActionParam(
+                rclcpp::Parameter("max_queue_process_size", 0), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    camera_params_ptr_->set_max_queue_process_size(static_cast<size_t>(param.as_int()));
+                }
+            ),
         };
         add_action_parameters(params);
     }

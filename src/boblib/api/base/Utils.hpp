@@ -4,7 +4,7 @@
 
 namespace boblib::base
 {
-    class Utils
+    class Utils final
     {
     public:
         static bool has_cuda();
