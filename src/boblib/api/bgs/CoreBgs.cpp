@@ -9,7 +9,8 @@
 namespace boblib::bgs
 {
     CoreBgs::CoreBgs(bool use_cuda, size_t _numProcessesParallel)
-        : using_cuda_(use_cuda ? boblib::base::Utils::has_cuda() : false)
+        // : using_cuda_(use_cuda ? boblib::base::Utils::has_cuda() : false)
+        : using_cuda_(false) // Forcing false for now since it is not done
         , m_num_processes_parallel{_numProcessesParallel}
         , m_initialized{false}
     {
@@ -26,6 +27,14 @@ namespace boblib::bgs
 
     void CoreBgs::apply(const boblib::base::Image &_image, boblib::base::Image &_fgmask, const boblib::base::Image & _detectMask)
     {
+        if (!using_cuda_)
+        {
+            _fgmask.download();
+        }
+        else
+        {
+            _fgmask.upload();
+        }
         if (!m_initialized || *m_original_img_size != ImgSize(_image))
         {
             prepare_parallel(_image);
@@ -42,7 +51,14 @@ namespace boblib::bgs
         {
             apply_parallel(_image, _fgmask, _detectMask);
         }
-        _fgmask.upload();
+        if (!using_cuda_)
+        {
+            _fgmask.upload();
+        }
+        else
+        {
+            _fgmask.download();
+        }
     }
 
     void CoreBgs::prepare_parallel(const boblib::base::Image & _image)

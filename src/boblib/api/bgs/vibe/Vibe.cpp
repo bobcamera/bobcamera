@@ -72,7 +72,7 @@ namespace boblib::bgs
 
     void Vibe::process(const boblib::base::Image &_image, boblib::base::Image &_fg_mask, const boblib::base::Image &_detect_mask, int _num_process)
     {
-        if (false && using_cuda_)
+        if (using_cuda_)
         {
             process_cuda(_image, _fg_mask, _detect_mask);
         }

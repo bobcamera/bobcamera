@@ -380,6 +380,7 @@ private:
 
                 apply_mask(camera_img);
 
+                // Pushing the image to the processing queue
                 image_queue_ptr_->push(std::move(camera_img));
 
                 // Only limiting fps if it is video and the limit_fps param is set
