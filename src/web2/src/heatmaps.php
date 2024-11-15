@@ -42,16 +42,16 @@
 <head>
     <meta charset="UTF-8">
     <title>BOB the Universal Object Tracker</title>
-    <link rel="stylesheet" href="https://cdn.plyr.io/3.6.2/plyr.css" />
-    <link rel="stylesheet" href="https://golden-layout.com/files/latest/css/goldenlayout-base.css" />
+    <link rel="stylesheet" href="/assets/plyr.css" />
+    <link rel="stylesheet" href="/assets/goldenlayout-base.css" />
     <!-- <link rel="stylesheet" href="https://golden-layout.com/files/latest/css/goldenlayout-light-theme.css" /> -->
-    <link type="text/css" rel="stylesheet" href="https://golden-layout.com/assets/css/goldenlayout-dark-theme.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/echarts@latest/dist/echarts.min.js"></script>
-    <script src="https://cdn.plyr.io/3.6.2/plyr.polyfilled.js"></script>
-    <script src="https://golden-layout.com/files/latest/js/goldenlayout.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js" integrity="sha512-WoO4Ih0CDOSLYafy22wZD/mcJ7k0ESLqtQsFa6zFKnEUrbtuGU+GkLtVhgt93xa2qewG5gKEC6CWlN8OaCTSVg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <link type="text/css" rel="stylesheet" href="/assets/goldenlayout-dark-theme.css" />
+    <link rel="stylesheet" href="/assets/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="/assets/jquery-3.6.0.min.js"></script>
+    <script src="/assets/echarts.min.js"></script>
+    <script src="/assets/plyr.polyfilled.js"></script>
+    <script src="/assets/goldenlayout.min.js"></script>
+    <script src="/assets/dat.gui.min.js" integrity="sha512-WoO4Ih0CDOSLYafy22wZD/mcJ7k0ESLqtQsFa6zFKnEUrbtuGU+GkLtVhgt93xa2qewG5gKEC6CWlN8OaCTSVg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <style>
         /* CSS for the loading spinner */
         .spinner-overlay {

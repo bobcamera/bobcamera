@@ -13,14 +13,13 @@ $time = $_GET['time'] ?? '1705000021';
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="">
     <title>BOB the Universal Object Tracker</title>
-    <link rel="canonical" href="https://getbootstrap.com/docs/5.3/examples/dashboard/">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@3">
+    <link rel="stylesheet" href="/assets/css@3.css">
     <link href="lib/bootstrap/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" crossorigin="anonymous">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.33/moment-timezone-with-data-10-year-range.min.js"></script>
+    <link rel="stylesheet" href="/assets/leaflet.css" />
+    <script src="/assets/leaflet.js"></script>
+    <link rel="stylesheet" href="/assets/all.min.css" crossorigin="anonymous">
+    <script src="/assets/moment.min.js"></script>
+    <script src="/assets/moment-timezone-with-data-10-year-range.min.js"></script>
 
 
     <style>
@@ -102,7 +101,7 @@ $time = $_GET['time'] ?? '1705000021';
         }
     </style>
     <!-- Custom styles for this template -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="/assets/bootstrap-icons.min.css" rel="stylesheet">
     <!-- Custom styles for this template -->
     <link href="lib/bootstrap/dashboard.css" rel="stylesheet">
 </head>
@@ -128,7 +127,7 @@ $time = $_GET['time'] ?? '1705000021';
         </div>
     </div>
     <script src="lib/bootstrap/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.2/dist/chart.umd.js" integrity="sha384-eI7PSr3L1XLISH8JdDII5YN/njoSsxfbrkCTnJrzXt+ENP5MOVBxD+l6sEG4zoLp" crossorigin="anonymous"></script>
+    <script src="/assets/chart.umd.js" integrity="sha384-eI7PSr3L1XLISH8JdDII5YN/njoSsxfbrkCTnJrzXt+ENP5MOVBxD+l6sEG4zoLp" crossorigin="anonymous"></script>
     <script src="lib/bootstrap/dashboard.js"></script>
 </body>
 

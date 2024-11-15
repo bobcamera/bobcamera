@@ -90,7 +90,7 @@ advanced_config:
     onvif_port: 0
     onvif_user: ''
     onvif_password: ''
-    use_cuda: true
+    use_cuda: false
     mask_timer_seconds: 5
     bgs_json_params: '[
                     { "name": "low",
