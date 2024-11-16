@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Video Display</title>
-    <link rel="stylesheet" href="https://cdn.plyr.io/3.6.2/plyr.css" />
+    <link rel="stylesheet" href="/assets/plyr.css" />
 
     <style>
         body {
@@ -69,7 +69,7 @@
     </div>
 
     <!-- Plyr.js Library -->
-    <script src="https://cdn.plyr.io/3.7.2/plyr.polyfilled.js"></script>
+    <script src="/assets/plyr.polyfilled.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const player = new Plyr('#player');

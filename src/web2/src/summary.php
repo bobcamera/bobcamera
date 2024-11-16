@@ -125,9 +125,9 @@ $meanDuration = $totalEvents > 0 ? $totalDuration / $totalEvents : 0;
 <head>
     <meta charset="UTF-8">
     <title>Event Summary</title>
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
+    <link rel="stylesheet" href="/assets/jquery.dataTables.min.css">
+    <link href="/lib/bootstrap/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/all.min.css">
     <style>
         th,
         td {
@@ -143,10 +143,10 @@ $meanDuration = $totalEvents > 0 ? $totalDuration / $totalEvents : 0;
             /* Ensure the image is above other content */
         }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/assets/jquery.min.js"></script>
+    <script src="/assets/jquery.dataTables.min.js"></script>
+    <script src="/lib/bootstrap/bootstrap.bundle.min.js"></script>
+    <script src="/assets/chart.js"></script>
     <script>
         $(document).ready(function() {
             $('#event-table').DataTable({
