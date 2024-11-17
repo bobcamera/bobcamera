@@ -179,6 +179,7 @@ public:
 
             image_queue_ptr_ = std::make_unique<SynchronizedQueue<boblib::base::Image>>(params_.get_max_queue_process_size());
             publish_queue_ptr_ = std::make_unique<SynchronizedQueue<PublishImage>>();
+            record_queue_ptr_ = std::make_unique<SynchronizedQueue<boblib::base::Image>>(params_.get_max_queue_process_size());
 
             mask_worker_ptr_->init(params_.get_mask_timer_seconds(), params_.get_mask_filename());
 
@@ -466,6 +467,8 @@ private:
 
                     publish_camera_info(camera_msg.header, camera_img);
 
+                    // Pushing the image to the saving queue
+                    record_queue_ptr_->push(std::move(camera_img));
                 }
                 catch (const std::exception & e)
                 {
@@ -480,6 +483,33 @@ private:
             }
         }
         node_.log_send_info("CameraWorker: Leaving publish_images");
+    }
+
+    void record_images()
+    {
+        while (rclcpp::ok())
+        {
+            boblib::base::Image camera_img(using_cuda_);
+            if (record_queue_ptr_->pop_move(camera_img))
+            {
+                try
+                {
+                    if (record_queue_ptr_->size() > 0)
+                        node_.log_info("Record Queue size: %d", record_queue_ptr_->size());
+                }
+                catch (const std::exception & e)
+                {
+                    node_.log_send_error("CameraWorker: process_images: Exception: %s", e.what());
+                    rcutils_reset_error();
+                }
+                catch (...)
+                {
+                    node_.log_send_error("CameraWorker: process_images: Unknown exception");
+                    rcutils_reset_error();
+                }
+            }
+        }
+        node_.log_send_info("CameraWorker: Leaving process_images");
     }
 
     inline void fill_header(sensor_msgs::msg::Image & camera_msg, boblib::base::Image & camera_img)
@@ -540,6 +570,7 @@ private:
         processing_thread_ = std::jthread(&CameraWorker::process_images, this);
         capture_thread_ = std::jthread(&CameraWorker::capture_loop, this);
         publish_thread_ = std::jthread(&CameraWorker::publish_images, this);
+        record_thread_ = std::jthread(&CameraWorker::record_images, this);
     }
 
     void stop_capture()
@@ -557,6 +588,10 @@ private:
         if (publish_thread_.joinable())
         {
             publish_thread_.join();
+        }
+        if (record_thread_.joinable())
+        {
+            record_thread_.join();
         }
     }
 
@@ -769,6 +804,7 @@ private:
     std::jthread capture_thread_;
     std::jthread processing_thread_;
     std::jthread publish_thread_;
+    std::jthread record_thread_;
 
     uint32_t current_video_idx_{0};
     
@@ -788,8 +824,8 @@ private:
     rclcpp::Time last_camera_connect_;
 
     std::unique_ptr<SynchronizedQueue<boblib::base::Image>> image_queue_ptr_;
-
     std::unique_ptr<SynchronizedQueue<PublishImage>> publish_queue_ptr_;
+    std::unique_ptr<SynchronizedQueue<boblib::base::Image>> record_queue_ptr_;
 
     bool using_cuda_{false};
 };
