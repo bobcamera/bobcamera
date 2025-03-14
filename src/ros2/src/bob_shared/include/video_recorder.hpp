@@ -20,7 +20,9 @@ class VideoRecorder final
 {
 public:
     explicit VideoRecorder(size_t pre_buffer_size)
-        : max_pre_buffer_size_(pre_buffer_size) {}
+        : max_pre_buffer_size_(pre_buffer_size) 
+    {
+    }
 
     // Delete copy operations
     VideoRecorder(const VideoRecorder &) = delete;
@@ -30,7 +32,7 @@ public:
     VideoRecorder(VideoRecorder &&) = default;
     VideoRecorder &operator=(VideoRecorder &&) = default;
 
-    void add_to_pre_buffer(const cv::Mat &img)
+    void add_to_pre_buffer(const cv::Mat & img) noexcept
     {
         if (pre_buffer_.size() >= max_pre_buffer_size_)
         {
@@ -72,11 +74,19 @@ public:
         return true;
     }
 
-    void write_frame(const cv::Mat &frame)
+    void write_frame(const cv::Mat & frame)
     {
         if (video_writer_ && video_writer_->is_open())
         {
             video_writer_->write(frame);
+        }
+    }
+
+    void write_frame(const boblib::base::Image & image)
+    {
+        if (video_writer_ && video_writer_->is_open())
+        {
+            video_writer_->write(image);
         }
     }
 
@@ -94,6 +104,11 @@ public:
         }
     }
 
+    bool is_recording()
+    {
+        return video_writer_ != nullptr;
+    }
+
 private:
     void write_pre_buffer_to_video()
     {
@@ -101,7 +116,7 @@ private:
         {
             return;
         }
-        for (const auto &img : pre_buffer_)
+        for (const auto & img : pre_buffer_)
         {
             video_writer_->write(img);
         }

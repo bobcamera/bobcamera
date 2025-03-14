@@ -28,6 +28,19 @@ void VideoWriter::write(const cv::Mat &image)
     }
 }
 
+void VideoWriter::write(const boblib::base::Image & image)
+{
+    if (using_cuda_)
+    {
+        cuda_video_writer_ptr_->write(image.toCudaMat());
+    }
+    else
+    {
+        video_writer_ptr_->write(image.toMat());
+    }
+
+}
+
 void VideoWriter::release()
 {
     if (using_cuda_)

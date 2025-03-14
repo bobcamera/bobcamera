@@ -12,6 +12,7 @@
 #include "bob_camera/msg/camera_info.hpp"
 #include "bob_interfaces/msg/tracking.hpp"
 #include "bob_interfaces/msg/recording_state.hpp"
+#include "bob_interfaces/msg/recording_event.hpp"
 #include "bob_interfaces/srv/recording_request.hpp"
 #include "parameter_lifecycle_node.hpp"
 #include "image_utils.hpp"
@@ -162,6 +163,13 @@ private:
                 }
             ),
             ParameterLifeCycleNode::ActionParam(
+                rclcpp::Parameter("event_publisher_topic", "bob/recording/event"), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    event_publisher_ = create_publisher<bob_interfaces::msg::RecordingEvent>(param.as_string(), pub_qos_profile_);
+                }
+            ),
+            ParameterLifeCycleNode::ActionParam(
                 rclcpp::Parameter("tracking_topic", "bob/tracker/tracking"), 
                 [this](const rclcpp::Parameter& param) 
                 {
@@ -222,9 +230,13 @@ private:
                     }
 
                     // Directory for recordings
-                    const std::string full_path = dated_directory_;
                     log_send_info("Starting track recording...");
-                    // TODO: Send message to start recording
+
+                    bob_interfaces::msg::RecordingEvent event;
+                    event.trigger_header = tracking_msg->header;
+                    event.recording = recording_;
+                    event.recording_path = dated_directory_;
+                    event_publisher_->publish(event);
                 } 
                 break;
 
@@ -241,7 +253,12 @@ private:
                     recording_ = false;
                     log_send_info("Ending track recording...");
                     current_state_ = RecordingStateEnum::BeforeStart;
-                    // TODO: Send message to end recording
+
+                    bob_interfaces::msg::RecordingEvent event;
+                    event.trigger_header = tracking_msg->header;
+                    event.recording = recording_;
+                    event.recording_path = dated_directory_;
+                    event_publisher_->publish(event);
                 }
                 else 
                 {
@@ -259,7 +276,12 @@ private:
                     recording_ = false;
                     current_state_ = RecordingStateEnum::BeforeStart;
                     log_send_info("Requested: Ending track recording...");
-                    // TODO: Send message to end recording
+
+                    bob_interfaces::msg::RecordingEvent event;
+                    event.trigger_header = tracking_msg->header;
+                    event.recording = recording_;
+                    event.recording_path = dated_directory_;
+                    event_publisher_->publish(event);
                 }
                 break;
             }
@@ -294,7 +316,8 @@ private:
     std::string tracking_topic_;
     std::string camera_info_topic_;
     rclcpp::Service<bob_interfaces::srv::RecordingRequest>::SharedPtr recording_request_service_;
-    rclcpp::Publisher<bob_interfaces::msg::RecordingState>::SharedPtr state_publisher_;    
+    rclcpp::Publisher<bob_interfaces::msg::RecordingState>::SharedPtr state_publisher_;
+    rclcpp::Publisher<bob_interfaces::msg::RecordingEvent>::SharedPtr event_publisher_;
     std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::Tracking, rclcpp_lifecycle::LifecycleNode>> sub_tracking_;
     std::shared_ptr<message_filters::Subscriber<bob_camera::msg::CameraInfo, rclcpp_lifecycle::LifecycleNode>> sub_camera_info_;
     std::shared_ptr<message_filters::TimeSynchronizer<bob_interfaces::msg::Tracking, bob_camera::msg::CameraInfo>> time_synchronizer_;

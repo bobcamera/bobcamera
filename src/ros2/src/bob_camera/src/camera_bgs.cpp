@@ -5,6 +5,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
 #include <bob_interfaces/srv/mask_override_request.hpp>
+#include <bob_interfaces/msg/recording_event.hpp>
 #include <parameter_lifecycle_node.hpp>
 #include <image_utils.hpp>
 #include <visibility_control.h>
@@ -91,6 +92,15 @@ private:
                 {
                     camera_params_ptr_->set_camera_info_publish_topic(param.as_string()); 
                     camera_params_ptr_->set_camera_info_publisher(create_publisher<bob_camera::msg::CameraInfo>(camera_params_ptr_->get_camera_info_publish_topic(), qos_profile_));
+                }
+            ),
+            ParameterLifeCycleNode::ActionParam(
+                rclcpp::Parameter("camera_recording_event_subscriber_topic", "bob/camera1/recording/event"), 
+                [this](const rclcpp::Parameter& param) 
+                {
+                    camera_params_ptr_->set_recording_event_subscriber_topic(param.as_string()); 
+                    camera_params_ptr_->set_recording_event_subscriber(create_subscription<bob_interfaces::msg::RecordingEvent>(camera_params_ptr_->get_recording_event_subscriber_topic(), qos_profile_,
+                        [this](const bob_interfaces::msg::RecordingEvent::SharedPtr event){recording_event_callback(event);}));
                 }
             ),
             ParameterLifeCycleNode::ActionParam(
@@ -371,6 +381,11 @@ private:
             ),
         };
         add_action_parameters(params);
+    }
+
+    void recording_event_callback(const bob_interfaces::msg::RecordingEvent::SharedPtr event)
+    {
+        camera_worker_ptr_->recording_event(*event);
     }
 
     void privacy_mask_override_request(const std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Request> request, 

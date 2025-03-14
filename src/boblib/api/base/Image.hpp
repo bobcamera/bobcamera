@@ -15,9 +15,9 @@ namespace boblib::base
     class Image final
     {
     public:
-        Image(bool use_cuda = true);
+        Image(bool use_cuda = true) noexcept;
 
-        Image(const Image & img);
+        Image(const Image & img) noexcept;
 
         Image(Image&& img) noexcept;
 

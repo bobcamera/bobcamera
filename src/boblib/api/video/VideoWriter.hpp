@@ -6,6 +6,9 @@
 #include <opencv2/core/cuda.hpp>
 #include <opencv2/cudacodec.hpp>
 
+#include "../base/Image.hpp"
+
+
 namespace boblib::video
 {
     enum class Codec
@@ -18,11 +21,13 @@ namespace boblib::video
     class VideoWriter
     {
     public:
-        VideoWriter(const std::string &fileName, const cv::Size &frame_size, boblib::video::Codec codec, double fps, bool use_cuda = true);
+        VideoWriter(const std::string & fileName, const cv::Size & frame_size, boblib::video::Codec codec, double fps, bool use_cuda = true);
 
         ~VideoWriter();
 
-        void write(const cv::Mat &image);
+        void write(const cv::Mat & image);
+
+        void write(const boblib::base::Image & image);
 
         void release();
 

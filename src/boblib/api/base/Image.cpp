@@ -6,14 +6,14 @@
 
 using namespace boblib::base;
 
-Image::Image(bool use_cuda)
+Image::Image(bool use_cuda) noexcept
     : using_cuda_(use_cuda ? Utils::has_cuda() : false)
 {
     reset();
 }
 
 
-Image::Image(const Image & img)
+Image::Image(const Image & img) noexcept
     : using_cuda_(img.using_cuda_),
       box_filter_(img.box_filter_),
       box_filter_size_(img.box_filter_size_)

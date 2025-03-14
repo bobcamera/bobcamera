@@ -30,6 +30,7 @@ find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/RecordingState.msg"
+  "msg/RecordingEvent.msg"
   "msg/DetectorBBox.msg"
   "msg/DetectorBBoxArray.msg"
   "msg/DetectorState.msg"
