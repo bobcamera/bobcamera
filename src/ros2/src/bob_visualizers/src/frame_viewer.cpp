@@ -63,6 +63,7 @@ private:
 
     void check_topics_callback()
     {
+        static int retries = 0;
         timer_->cancel();
         std::string specific_topic_name = topics_[current_topic_];
         auto topics_and_types = get_topic_names_and_types();
@@ -91,8 +92,14 @@ private:
                 timer_->reset();
             }
             return;
-        } 
-        log_warn("Topic '%s' not found", specific_topic_name.c_str());
+        }
+        log_warn("Topic '%s' not found, retries: %d", specific_topic_name.c_str(), retries);
+        if (++retries > 3)
+        {
+            retries = 0;
+            current_topic_ = ++current_topic_ >= (int)topics_.size() ? 0 : current_topic_;
+            log_info("Switch Topic to '%s' not found because number of retries", topics_[current_topic_].c_str());
+        }
         timer_->reset();
     }
 

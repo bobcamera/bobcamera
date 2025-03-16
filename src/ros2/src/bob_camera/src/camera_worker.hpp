@@ -79,7 +79,7 @@ public:
     [[nodiscard]] int get_simulator_num_objects() const { return simulator_params_.simulator_num_objects_; }
     [[nodiscard]] bool get_simulator_enable() const { return simulator_params_.simulator_enable_; }
 
-    [[nodiscard]] bool get_recording_enable() const { return recording_params_.recording_enable_; }
+    [[nodiscard]] bool get_recording_enabled() const { return recording_params_.recording_enabled_; }
     [[nodiscard]] const std::string &get_recording_codec() const { return recording_params_.recording_codec_; }
     [[nodiscard]] int get_recording_seconds_save() const { return recording_params_.recording_seconds_save_; }
     [[nodiscard]] const std::string &get_recording_directory() const { return recording_params_.recording_directory_; }
@@ -127,7 +127,7 @@ public:
 
     void set_pre_recording_seconds(int seconds) { recording_params_.recording_seconds_save_ = seconds; }
 
-    void set_recording_enable(bool enable) { recording_params_.recording_enable_ = enable; }
+    void set_recording_enabled(bool enable) { recording_params_.recording_enabled_ = enable; }
     void set_recording_codec(const std::string & codec) { recording_params_.recording_codec_ = codec; }
     void set_recording_seconds_save(int seconds) { recording_params_.recording_seconds_save_ = seconds; }
     void set_recording_directory(const std::string &directory) { recording_params_.recording_directory_ = directory; }
@@ -190,7 +190,7 @@ private:
 
     struct RecordingParams
     {
-        bool recording_enable_{false};
+        bool recording_enabled_{false};
         std::string recording_codec_{"avc1"};
         int recording_seconds_save_{2};
         std::string recording_directory_{"assets/recordings"};
@@ -591,7 +591,7 @@ private:
                         node_.log_info("Record Queue size: %d", record_queue_ptr_->size());
                     }
 
-                    if (last_recording_event_.recording && params_.get_recording_enable())
+                    if (last_recording_event_.recording && params_.get_recording_enabled())
                     {
                         bool could_open(false);
                         if (!video_recorder_ptr_->is_recording())

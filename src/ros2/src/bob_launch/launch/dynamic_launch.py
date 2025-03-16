@@ -49,7 +49,7 @@ def generate_composable_nodes(config, node_container, namespace):
             for k, v in mapping.items()
         ]
         parameters = get_node_parameters(config, node_description['name'])
-        if parameters.get('enable', True):
+        if parameters.get('enabled', True):
             logger.info(f"{TextStyle.BRIGHT_CYAN}  Node: Name: {TextStyle.BOLD+TextStyle.BRIGHT_WHITE}{node_description['name']}{TextStyle.RESET+TextStyle.BRIGHT_CYAN}, Package: {TextStyle.RESET}{node_description['package']}{TextStyle.BRIGHT_CYAN}, Plugin: {TextStyle.RESET}{node_description['plugin']}")
             logger.debug(f"  Parameters: {parameters}")
             node = ComposableNode(
@@ -77,28 +77,30 @@ def generate_containers(config, namespace, loglevel):
         node_container_name = node_container['name']
         node_container_executable = node_container.get('executable', 'component_container')
         node_container_output = node_container.get('output', 'screen')
-        logger.info(f"{TextStyle.YELLOW}Container Name: {TextStyle.BOLD+TextStyle.BRIGHT_WHITE}{node_container_name}{TextStyle.RESET+TextStyle.YELLOW}, executable: {TextStyle.RESET}{node_container_executable}")
+        node_container_enabled = node_container.get('enabled', True)
+        logger.info(f"{TextStyle.YELLOW}Container Name: {TextStyle.BOLD+TextStyle.BRIGHT_WHITE}{node_container_name}{TextStyle.RESET+TextStyle.YELLOW}, executable: {TextStyle.RESET}{node_container_executable}, {TextStyle.YELLOW}enabled: {TextStyle.RESET+TextStyle.BOLD+TextStyle.BRIGHT_WHITE}{node_container_enabled}{TextStyle.RESET}")
 
-        composable_nodes = generate_composable_nodes(config, node_container, namespace)
+        if (node_container_enabled):
+            composable_nodes = generate_composable_nodes(config, node_container, namespace)
 
-        container = None
-        try:
-            container = ComposableNodeContainer(
-                name=node_container_name,
-                namespace=namespace,
-                arguments=['--ros-args', '--log-level', loglevel],
-                package='rclcpp_components',
-                executable=node_container_executable,
-                composable_node_descriptions=composable_nodes,
-                output=node_container_output,
-            )
-        except Exception as e:
-            logger.error(f"Error creating ComposableNodeContainer: {e}")
-        
-        if container is None:
-            raise RuntimeError("Failed to create ComposableNodeContainer")
+            container = None
+            try:
+                container = ComposableNodeContainer(
+                    name=node_container_name,
+                    namespace=namespace,
+                    arguments=['--ros-args', '--log-level', loglevel],
+                    package='rclcpp_components',
+                    executable=node_container_executable,
+                    composable_node_descriptions=composable_nodes,
+                    output=node_container_output,
+                )
+            except Exception as e:
+                logger.error(f"Error creating ComposableNodeContainer: {e}")
+            
+            if container is None:
+                raise RuntimeError("Failed to create ComposableNodeContainer")
 
-        containers.append(container)
+            containers.append(container)
             
     return containers
 
@@ -142,7 +144,7 @@ def generate_standalone_nodes(config, namespace, loglevel):
     return nodes
 
 
-def generate_lifecycle_manager(config, namespace, loglevel):
+def generate_information_manager(config, namespace, loglevel):
     parameters = get_node_parameters(config, 'information_node')
     return ComposableNodeContainer(
                 name='Information',
@@ -174,18 +176,18 @@ def generate_launch_description():
 
     loglevel = EnvironmentVariable('BOB_LOGLEVEL', default_value="INFO")
     namespace = config['launch'].get('namespace', '')
-    rosbridge_enable = config['launch'].get('rosbridge', True)
+    rosbridge_enabled = config['launch'].get('rosbridge', True)
 
     launch_list = generate_containers(config, namespace, loglevel)
     launch_list.extend(generate_standalone_nodes(config, namespace, loglevel))
 
-    if (rosbridge_enable):
+    if (rosbridge_enabled):
         logger.info(f"{TextStyle.BRIGHT_MAGENTA}Package: {TextStyle.RESET+TextStyle.BOLD+TextStyle.BRIGHT_WHITE}RosBridge{TextStyle.RESET}")
         ros_bridge_package_xml = os.path.join(get_package_share_directory('rosbridge_server'), 'launch/rosbridge_websocket_launch.xml')
         launch_list.append(IncludeLaunchDescription(FrontendLaunchDescriptionSource(ros_bridge_package_xml)))
 
     logger.info(f"{TextStyle.BRIGHT_MAGENTA}Package: {TextStyle.RESET+TextStyle.BOLD+TextStyle.BRIGHT_WHITE}Information{TextStyle.RESET}")
-    launch_list.append(generate_lifecycle_manager(config, namespace, loglevel))
+    launch_list.append(generate_information_manager(config, namespace, loglevel))
 
     logger.info(f"{TextStyle.BG_GREEN+TextStyle.BOLD+TextStyle.BLACK}    All Added    {TextStyle.RESET}")
 
