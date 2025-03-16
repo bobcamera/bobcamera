@@ -9,28 +9,26 @@
 #include <bob_interfaces/msg/tracking.hpp>
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
-#include <parameter_lifecycle_node.hpp>
+#include <parameter_node.hpp>
 #include <image_utils.hpp>
 #include <visibility_control.h>
 #include <json/json.h>
 #include "annotated_frame/annotated_frame_creator.hpp"
 
-class AnnotatedFrameProvider : public ParameterLifeCycleNode
+class AnnotatedFrameProvider : public ParameterNode
 {
 public:
     COMPOSITION_PUBLIC
     explicit AnnotatedFrameProvider(const rclcpp::NodeOptions &options)
-        : ParameterLifeCycleNode("annotated_frame_provider_node", options), pub_qos_profile_(10), sub_qos_profile_(10)
+        : ParameterNode("annotated_frame_provider_node", options), pub_qos_profile_(10), sub_qos_profile_(10)
     {
     }
 
-    CallbackReturn on_configure(const rclcpp_lifecycle::State &) override
+    void on_configure()
     {
         log_info("Configuring");
 
         init();
-
-        return CallbackReturn::SUCCESS;
     }
 
 private:
@@ -56,39 +54,39 @@ private:
 
     void declare_node_parameters()
     {
-        std::vector<ParameterLifeCycleNode::ActionParam> params = {
-            ParameterLifeCycleNode::ActionParam(
+        std::vector<ParameterNode::ActionParam> params = {
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("annotated_frame_publisher_topic", "bob/frames/annotated"),
                 [this](const rclcpp::Parameter &param)
                 {
                     pub_annotated_frame_ = create_publisher<sensor_msgs::msg::Image>(param.as_string(), pub_qos_profile_);
                     image_resized_publish_topic_ = param.as_string() + "/resized";
                 }),
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("camera_frame_topic", "bob/frames/allsky/original/resized"),
                 [this](const rclcpp::Parameter &param)
                 {
-                    sub_masked_frame_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image, rclcpp_lifecycle::LifecycleNode>>(shared_from_this(), param.as_string(), sub_qos_profile_.get_rmw_qos_profile());
+                    sub_masked_frame_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(shared_from_this(), param.as_string(), sub_qos_profile_.get_rmw_qos_profile());
                 }),
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("tracking_topic", "bob/tracker/tracking/resized"),
                 [this](const rclcpp::Parameter &param)
                 {
-                    sub_tracking_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::Tracking, rclcpp_lifecycle::LifecycleNode>>(shared_from_this(), param.as_string(), sub_qos_profile_.get_rmw_qos_profile());
+                    sub_tracking_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::Tracking>>(shared_from_this(), param.as_string(), sub_qos_profile_.get_rmw_qos_profile());
                 }),
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("tracking_status_message", false),
                 [this](const rclcpp::Parameter &param)
                 {
                     enable_tracking_status_ = param.as_bool();
                 }),
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("visualiser_settings", ""),
                 [this](const rclcpp::Parameter &param)
                 {
                     annotated_frame_creator_settings_ = parse_json_to_map(param.as_string());
                 }),
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("resize_height", 960),
                 [this](const rclcpp::Parameter &param)
                 {
@@ -158,8 +156,8 @@ private:
     rclcpp::QoS pub_qos_profile_;
     rclcpp::QoS sub_qos_profile_;
 
-    std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image, rclcpp_lifecycle::LifecycleNode>> sub_masked_frame_;
-    std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::Tracking, rclcpp_lifecycle::LifecycleNode>> sub_tracking_;
+    std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> sub_masked_frame_;
+    std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::Tracking>> sub_tracking_;
     std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::Tracking>> time_synchronizer_;
 
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_annotated_frame_;

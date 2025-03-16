@@ -13,13 +13,8 @@
 class CloudEstimatorWorker 
 {
 public:
-    explicit CloudEstimatorWorker(ParameterLifeCycleNode & node)
-        : node_(node)
-        , start_(-1.0)
-        , end_(1.0)
-        , num_bins_(201)
-        , x_(linspace(start_, end_, num_bins_))
-        , mask_enabled_(false)
+    explicit CloudEstimatorWorker(ParameterNode &node)
+        : node_(node), start_(-1.0), end_(1.0), num_bins_(201), x_(linspace(start_, end_, num_bins_)), mask_enabled_(false)
     {}
 
     virtual ~CloudEstimatorWorker() = default;
@@ -33,7 +28,7 @@ public:
     }
 
 protected:
-    ParameterLifeCycleNode & node_;
+    ParameterNode &node_;
     const double start_;
     const double end_;
     const std::size_t num_bins_;
@@ -178,8 +173,8 @@ class DayTimeCloudEstimator
     : public CloudEstimatorWorker 
 {
 public:
-    DayTimeCloudEstimator(ParameterLifeCycleNode & node) 
-        : CloudEstimatorWorker(node) 
+    DayTimeCloudEstimator(ParameterNode &node)
+        : CloudEstimatorWorker(node)
     {}
 
     ~DayTimeCloudEstimator() override = default;
@@ -252,8 +247,8 @@ class NightTimeCloudEstimator
     : public CloudEstimatorWorker 
 {
 public:
-    NightTimeCloudEstimator(ParameterLifeCycleNode & node) 
-        : CloudEstimatorWorker(node) 
+    NightTimeCloudEstimator(ParameterNode &node)
+        : CloudEstimatorWorker(node)
     {}
 
     ~NightTimeCloudEstimator() override = default;

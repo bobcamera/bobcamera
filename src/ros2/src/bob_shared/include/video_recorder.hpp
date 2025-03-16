@@ -32,13 +32,22 @@ public:
     VideoRecorder(VideoRecorder &&) = default;
     VideoRecorder &operator=(VideoRecorder &&) = default;
 
-    void add_to_pre_buffer(const cv::Mat & img) noexcept
+    void add_to_pre_buffer(cv::Mat && img) noexcept
     {
-        if (pre_buffer_.size() >= max_pre_buffer_size_)
+        if (pre_buffer_mat_.size() >= max_pre_buffer_size_)
         {
-            pre_buffer_.pop_front();
+            pre_buffer_mat_.pop_front();
         }
-        pre_buffer_.push_back(img.clone());
+        pre_buffer_mat_.push_back(std::move(img));
+    }
+
+    void add_to_pre_buffer(boblib::base::Image && img) noexcept
+    {
+        if (pre_buffer_image_.size() >= max_pre_buffer_size_)
+        {
+            pre_buffer_image_.pop_front();
+        }
+        pre_buffer_image_.push_back(std::move(img));
     }
 
     [[nodiscard]] bool open_new_video(const std::string &full_path,
@@ -92,7 +101,7 @@ public:
 
     void clear_pre_buffer()
     {
-        pre_buffer_.clear();
+        pre_buffer_mat_.clear();
     }
 
     void close_video()
@@ -116,16 +125,17 @@ private:
         {
             return;
         }
-        for (const auto & img : pre_buffer_)
+        for (const auto & img : pre_buffer_mat_)
         {
             video_writer_->write(img);
         }
-        pre_buffer_.clear();
+        pre_buffer_mat_.clear();
     }
 
     size_t max_pre_buffer_size_;
     std::unique_ptr<boblib::video::VideoWriter> video_writer_;
-    std::deque<cv::Mat> pre_buffer_;
+    std::deque<cv::Mat> pre_buffer_mat_;
+    std::deque<boblib::base::Image> pre_buffer_image_;
 };
 
 // class VideoRecorder final

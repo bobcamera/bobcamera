@@ -4,7 +4,7 @@
 variables:
   resize_height: 1024
   use_cuda: false
-  use_recording: false
+  use_recording: true
   logging_type: screen
 
 #########################################################################
@@ -71,7 +71,7 @@ advanced_config:
     bgs_detection_state_topic: 'bob/camera1/detection/detector_state'
     bgs_mask_file: 'assets/masks/camera1-detection-mask.jpg'
     bgs_mask_override_service_topic: 'bob/mask/detection/override/camera1'
-    camera_recording_event_subscriber_topic: 'bob/camera1/recording/event1'
+    camera_recording_event_subscriber_topic: 'bob/camera1/recording/event'
 
   camera2_node:
     privacy_mask_file: 'assets/masks/camera2-privacy-mask.jpg'
@@ -85,7 +85,7 @@ advanced_config:
     bgs_detection_state_topic: 'bob/camera2/detection/detector_state'
     bgs_mask_file: 'assets/masks/camera2-detection-mask.jpg'
     bgs_mask_override_service_topic: 'bob/mask/detection/override/camera2'
-    camera_recording_event_subscriber_topic: 'bob/camera1/recording/event2'
+    camera_recording_event_subscriber_topic: 'bob/camera2/recording/event'
 
   base_camera_node:
     resize_height: $resize_height # 0 to disable resize publish
@@ -161,7 +161,7 @@ advanced_config:
   camera1_recorder_node:
     recording_request_service_topic: 'bob/recording/update/camera1'
     state_publisher_topic: 'bob/camera1/recording/state'
-    event_publisher_topic: 'bob/camera1/recording/event1'
+    event_publisher_topic: 'bob/camera1/recording/event'
     img_topic: 'bob/camera1/original'
     fg_img_topic: 'bob/camera1/foreground_mask'
     tracking_topic: 'bob/camera1/tracker/tracking'
@@ -170,7 +170,7 @@ advanced_config:
   camera2_recorder_node:
     recording_request_service_topic: 'bob/recording/update/camera2'
     state_publisher_topic: 'bob/camera2/recording/state'
-    event_publisher_topic: 'bob/camera1/recording/event2'
+    event_publisher_topic: 'bob/camera2/recording/event'
     img_topic: 'bob/camera2/original'
     fg_img_topic: 'bob/camera2/foreground_mask'
     tracking_topic: 'bob/camera2/tracker/tracking'
@@ -347,7 +347,6 @@ advanced_config:
 launch:
   namespace: ''
   rosbridge: True
-  lifecycle: True
 
   node_containers:
     - name: Kernel_Camera1

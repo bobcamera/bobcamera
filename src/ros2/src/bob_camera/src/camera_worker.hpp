@@ -24,7 +24,7 @@
 #include <circuit_breaker.hpp>
 #include <video_recorder.hpp>
 
-#include <parameter_lifecycle_node.hpp>
+#include <parameter_node.hpp>
 #include "object_simulator.hpp"
 
 class CameraWorkerParams
@@ -213,9 +213,9 @@ private:
 class CameraWorker final
 {
 public:
-    explicit CameraWorker(ParameterLifeCycleNode & node,
-                          CameraWorkerParams & params,
-                          const std::function<void(const std_msgs::msg::Header &, const boblib::base::Image &)> & user_callback = nullptr)
+    explicit CameraWorker(ParameterNode &node,
+                          CameraWorkerParams &params,
+                          const std::function<void(const std_msgs::msg::Header &, const boblib::base::Image &)> &user_callback = nullptr)
         : node_(node),
           params_(params),
           user_callback_(user_callback)
@@ -373,6 +373,7 @@ public:
     void recording_event(const bob_interfaces::msg::RecordingEvent & event)
     {
         last_recording_event_ = event;
+        node_.log_info("Recording event: %s", event.recording ? "Yes" : "No");
     }
 
 private:
@@ -590,24 +591,28 @@ private:
                         node_.log_info("Record Queue size: %d", record_queue_ptr_->size());
                     }
 
-                    if (last_recording_event_.recording)
+                    if (last_recording_event_.recording && params_.get_recording_enable())
                     {
+                        bool could_open(false);
                         if (!video_recorder_ptr_->is_recording())
                         {
-                            // TODO GET codec from settings
-                            video_recorder_ptr_->open_new_video(last_recording_event_.recording_path, "avc1", fps_, camera_img.size());
+                            node_.log_info("Opening new video");
+                            could_open = video_recorder_ptr_->open_new_video(last_recording_event_.recording_path, params_.get_recording_codec(), fps_, camera_img.size());
                         }
 
-                        // TODO change video_recorder to receive Image
-                        video_recorder_ptr_->write_frame(camera_img.toMat());
+                        if (could_open)
+                        {
+                            video_recorder_ptr_->write_frame(std::move(camera_img));
+                        }
                     }
                     else
                     {
                         if (video_recorder_ptr_->is_recording())
                         {
+                            node_.log_info("Closing video");
                             video_recorder_ptr_->close_video();
                         }
-                        video_recorder_ptr_->add_to_pre_buffer(camera_img.toMat());
+                        video_recorder_ptr_->add_to_pre_buffer(std::move(camera_img));
                     }
                 }
                 catch (const std::exception & e)
@@ -628,7 +633,7 @@ private:
     inline void fill_header(sensor_msgs::msg::Image & camera_msg, boblib::base::Image & camera_img)
     {
         camera_msg.header.stamp = node_.now();
-        camera_msg.header.frame_id = ParameterLifeCycleNode::generate_uuid();
+        camera_msg.header.frame_id = ParameterNode::generate_uuid();
 
         camera_msg.height = camera_img.size().height;
         camera_msg.width = camera_img.size().width;
@@ -904,7 +909,7 @@ private:
     static constexpr int CIRCUIT_BREAKER_SLEEP_MS = 1000;
     static constexpr int INITIALIZED_SLEEP_MS = 200;
 
-    ParameterLifeCycleNode & node_;
+    ParameterNode &node_;
     CameraWorkerParams & params_;
 
     std::unique_ptr<MaskWorker> mask_worker_ptr_;

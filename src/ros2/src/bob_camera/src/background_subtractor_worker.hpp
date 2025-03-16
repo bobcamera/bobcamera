@@ -11,7 +11,7 @@
 #include <boblib/api/bgs/bgs.hpp>
 #include <boblib/api/bgs/WeightedMovingVariance/WeightedMovingVarianceUtils.hpp>
 #include <boblib/api/blobs/connectedBlobDetection.hpp>
-#include "parameter_lifecycle_node.hpp"
+#include "parameter_node.hpp"
 #include "image_utils.hpp"
 #include "background_subtractor_companion.hpp"
 #include "mask_worker.hpp"
@@ -92,7 +92,7 @@ private:
 class BackgroundSubtractorWorker
 {
 public:
-    BackgroundSubtractorWorker(ParameterLifeCycleNode& node, BackgroundSubtractorWorkerParams& params)
+    BackgroundSubtractorWorker(ParameterNode& node, BackgroundSubtractorWorkerParams& params)
         : node_(node)
         , params_(params)
         , mask_worker_ptr_(std::make_unique<MaskWorker>(node_, 
@@ -375,7 +375,7 @@ private:
         }
     }
 
-    ParameterLifeCycleNode& node_;
+    ParameterNode& node_;
     BackgroundSubtractorWorkerParams& params_;
 
     std::unique_ptr<MaskWorker> mask_worker_ptr_;

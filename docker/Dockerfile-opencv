@@ -9,7 +9,7 @@
 #############################################################################
 #FROM ubuntu:noble as opencv
 FROM bobcamera/bob-base-cuda:latest AS opencv
-ENV OPENCV_VERSION=4.10.0
+ENV OPENCV_VERSION=4.11.0
 ENV TZ=Europe/London
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
     && echo $TZ > /etc/timezone \

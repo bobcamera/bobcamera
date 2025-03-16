@@ -13,31 +13,29 @@
 #include "bob_interfaces/msg/tracking.hpp"
 #include "bob_interfaces/msg/recording_state.hpp"
 #include "bob_interfaces/srv/recording_request.hpp"
-#include "parameter_lifecycle_node.hpp"
+#include "parameter_node.hpp"
 #include "image_utils.hpp"
 #include "image_recorder.hpp"
 #include "json_recorder.hpp"
 #include "video_recorder.hpp"
 
-class RecordManager 
-    : public ParameterLifeCycleNode 
+class RecordManager3
+    : public ParameterNode 
 {
 public:
     COMPOSITION_PUBLIC
-    explicit RecordManager(const rclcpp::NodeOptions& options)
-        : ParameterLifeCycleNode("recorder_manager", options)
+    explicit RecordManager3(const rclcpp::NodeOptions& options)
+        : ParameterNode("recorder_manager", options)
         , pub_qos_profile_(4)
         , sub_qos_profile_(10)
     {
     }
 
-    CallbackReturn on_configure(const rclcpp_lifecycle::State &)
+    void on_configure() override
     {
         log_info("Configuring");
 
         init();
-
-        return CallbackReturn::SUCCESS;
     }
 
 private:
@@ -67,7 +65,7 @@ private:
 
         time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image, 
             bob_interfaces::msg::Tracking, bob_camera::msg::CameraInfo>>(*sub_frame_, *sub_fg_frame_, *sub_tracking_, *sub_camera_info_, 10);
-        time_synchronizer_->registerCallback(&RecordManager::process_recordings, this);
+        time_synchronizer_->registerCallback(&RecordManager3::process_recordings, this);
 
         // TODO: Recreate this when fps or seconds save change
         img_recorder_ = std::make_unique<ImageRecorder>(total_pre_frames_);
@@ -147,8 +145,8 @@ private:
 
     void declare_node_parameters() 
     {
-        std::vector<ParameterLifeCycleNode::ActionParam> params = {
-            ParameterLifeCycleNode::ActionParam(
+        std::vector<ParameterNode::ActionParam> params = {
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("recordings_directory", "."), 
                 [this](const rclcpp::Parameter& param) 
                 {
@@ -156,7 +154,7 @@ private:
                     create_dir(recordings_directory_);
                 }
             ),
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("recording_request_service_topic", "bob/recording/update"), 
                 [this](const rclcpp::Parameter& param) 
                 {
@@ -165,67 +163,67 @@ private:
                                 {change_recording_enabled_request(request, response);});
                 }
             ),
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("state_publisher_topic", "bob/recording/state"), 
                 [this](const rclcpp::Parameter& param) 
                 {
                     state_publisher_ = create_publisher<bob_interfaces::msg::RecordingState>(param.as_string(), pub_qos_profile_);
                 }
             ),
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("img_topic", "bob/frames/allsky/original"), 
                 [this](const rclcpp::Parameter& param) 
                 {
                     img_topic_ = param.as_string();
-                    sub_frame_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image, rclcpp_lifecycle::LifecycleNode>>(shared_from_this(), img_topic_, sub_qos_profile_.get_rmw_qos_profile());
+                    sub_frame_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(shared_from_this(), img_topic_, sub_qos_profile_.get_rmw_qos_profile());
                 }
             ),
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("tracking_topic", "bob/tracker/tracking"), 
                 [this](const rclcpp::Parameter& param) 
                 {
                     tracking_topic_ = param.as_string();
-                    sub_tracking_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::Tracking, rclcpp_lifecycle::LifecycleNode>>(shared_from_this(), tracking_topic_, sub_qos_profile_.get_rmw_qos_profile());
+                    sub_tracking_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::Tracking>>(shared_from_this(), tracking_topic_, sub_qos_profile_.get_rmw_qos_profile());
                 }
             ),
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("fg_img_topic", "bob/frames/foreground_mask"), 
                 [this](const rclcpp::Parameter& param) 
                 {
                     fg_img_topic_ = param.as_string();
-                    sub_fg_frame_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image, rclcpp_lifecycle::LifecycleNode>>(shared_from_this(), fg_img_topic_, sub_qos_profile_.get_rmw_qos_profile());
+                    sub_fg_frame_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(shared_from_this(), fg_img_topic_, sub_qos_profile_.get_rmw_qos_profile());
                 }
             ),
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("camera_info_topic", "bob/camera/all_sky/camera_info"), 
                 [this](const rclcpp::Parameter& param)
                 {
                     camera_info_topic_ = param.as_string();
-                    sub_camera_info_ = std::make_shared<message_filters::Subscriber<bob_camera::msg::CameraInfo, rclcpp_lifecycle::LifecycleNode>>(shared_from_this(), camera_info_topic_, sub_qos_profile_.get_rmw_qos_profile());
+                    sub_camera_info_ = std::make_shared<message_filters::Subscriber<bob_camera::msg::CameraInfo>>(shared_from_this(), camera_info_topic_, sub_qos_profile_.get_rmw_qos_profile());
                 }
             ),
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("prefix", "video"), 
                 [this](const rclcpp::Parameter& param) 
                 {
                     prefix_str_ = param.as_string();
                 }
             ),            
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("codec", "avc1"), 
                 [this](const rclcpp::Parameter& param)
                 {
                     codec_str_ = param.as_string();
                 }
             ),
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("pipeline", "appsrc ! videoconvert ! x264enc ! mp4mux ! filesink location="), 
                 [this](const rclcpp::Parameter& param)
                 {
                     pipeline_str_ = param.as_string();
                 }
             ),            
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("video_fps", 30.0), 
                 [this](const rclcpp::Parameter& param) 
                 {
@@ -233,7 +231,7 @@ private:
                     total_pre_frames_ = (size_t)(number_seconds_save_ * video_fps_);
                 }
             ),
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("seconds_save", 2), 
                 [this](const rclcpp::Parameter& param) 
                 {
@@ -304,7 +302,7 @@ private:
                 {
                     json_data = JsonRecorder::build_json_value(tracking_msg, false);
                     json_recorder_->add_to_pre_buffer(json_data, false);
-                    video_recorder_->add_to_pre_buffer(img);
+                    video_recorder_->add_to_pre_buffer(std::move(img));
                 }
                 break;
 
@@ -363,7 +361,7 @@ private:
                         video_recorder_->clear_pre_buffer();
                     }
                 }
-                video_recorder_->add_to_pre_buffer(img);
+                video_recorder_->add_to_pre_buffer(std::move(img));
                 break;
 
             case RecordingStateEnum::Disabled:
@@ -425,10 +423,10 @@ private:
     std::string prefix_str_;
     rclcpp::Service<bob_interfaces::srv::RecordingRequest>::SharedPtr recording_request_service_;
     rclcpp::Publisher<bob_interfaces::msg::RecordingState>::SharedPtr state_publisher_;    
-    std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image, rclcpp_lifecycle::LifecycleNode>> sub_frame_;
-    std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image, rclcpp_lifecycle::LifecycleNode>> sub_fg_frame_;
-    std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::Tracking, rclcpp_lifecycle::LifecycleNode>> sub_tracking_;
-    std::shared_ptr<message_filters::Subscriber<bob_camera::msg::CameraInfo, rclcpp_lifecycle::LifecycleNode>> sub_camera_info_;
+    std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> sub_frame_;
+    std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> sub_fg_frame_;
+    std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::Tracking>> sub_tracking_;
+    std::shared_ptr<message_filters::Subscriber<bob_camera::msg::CameraInfo>> sub_camera_info_;
     std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, sensor_msgs::msg::Image,
     bob_interfaces::msg::Tracking, bob_camera::msg::CameraInfo>> time_synchronizer_;
 
@@ -441,4 +439,4 @@ private:
     bool recording_;
 };
 
-RCLCPP_COMPONENTS_REGISTER_NODE(RecordManager)
+RCLCPP_COMPONENTS_REGISTER_NODE(RecordManager3)

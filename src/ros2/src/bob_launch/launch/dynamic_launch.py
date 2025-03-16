@@ -143,17 +143,17 @@ def generate_standalone_nodes(config, namespace, loglevel):
 
 
 def generate_lifecycle_manager(config, namespace, loglevel):
-    parameters = get_node_parameters(config, 'lifecycle_manager_node')
+    parameters = get_node_parameters(config, 'information_node')
     return ComposableNodeContainer(
-                name='LifeCycleManager',
+                name='Information',
                 namespace=namespace,
                 arguments=['--ros-args', '--log-level', loglevel],
                 package='rclcpp_components',
                 executable='component_container',
                 composable_node_descriptions=[ComposableNode(
                                                 package='bob_auxiliary',
-                                                plugin='LifecycleManager',
-                                                name='lifecycle_manager_node',
+                                                plugin='Information',
+                                                name='information_node',
                                                 namespace=namespace,
                                                 parameters=[parameters],
                                                 extra_arguments=[{'use_intra_process_comms': True}],
@@ -175,7 +175,6 @@ def generate_launch_description():
     loglevel = EnvironmentVariable('BOB_LOGLEVEL', default_value="INFO")
     namespace = config['launch'].get('namespace', '')
     rosbridge_enable = config['launch'].get('rosbridge', True)
-    lifecycle_enable = config['launch'].get('lifecycle', True)
 
     launch_list = generate_containers(config, namespace, loglevel)
     launch_list.extend(generate_standalone_nodes(config, namespace, loglevel))
@@ -185,9 +184,8 @@ def generate_launch_description():
         ros_bridge_package_xml = os.path.join(get_package_share_directory('rosbridge_server'), 'launch/rosbridge_websocket_launch.xml')
         launch_list.append(IncludeLaunchDescription(FrontendLaunchDescriptionSource(ros_bridge_package_xml)))
 
-    if (lifecycle_enable):
-        logger.info(f"{TextStyle.BRIGHT_MAGENTA}Package: {TextStyle.RESET+TextStyle.BOLD+TextStyle.BRIGHT_WHITE}LifeCycle{TextStyle.RESET}")
-        launch_list.append(generate_lifecycle_manager(config, namespace, loglevel))
+    logger.info(f"{TextStyle.BRIGHT_MAGENTA}Package: {TextStyle.RESET+TextStyle.BOLD+TextStyle.BRIGHT_WHITE}Information{TextStyle.RESET}")
+    launch_list.append(generate_lifecycle_manager(config, namespace, loglevel))
 
     logger.info(f"{TextStyle.BG_GREEN+TextStyle.BOLD+TextStyle.BLACK}    All Added    {TextStyle.RESET}")
 

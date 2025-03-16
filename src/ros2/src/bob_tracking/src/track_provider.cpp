@@ -9,31 +9,29 @@
 #include <bob_interfaces/msg/tracking.hpp>
 
 #include "sort/include/sort_tracker.h"
-#include "parameter_lifecycle_node.hpp"
+#include "parameter_node.hpp"
 #include "image_utils.hpp"
 
 #include <visibility_control.h>
 
 class TrackProvider
-    : public ParameterLifeCycleNode
+    : public ParameterNode
 {
 public:
     COMPOSITION_PUBLIC
     explicit TrackProvider(const rclcpp::NodeOptions & options)
-        : ParameterLifeCycleNode("frame_provider_node", options)
+        : ParameterNode("frame_provider_node", options)
         , pub_qos_profile_(4)
         , sub_qos_profile_(4)        
         , video_tracker_(get_logger())
     {
     }
 
-    CallbackReturn on_configure(const rclcpp_lifecycle::State &)
+    void on_configure()
     {
         log_info("Configuring");
 
         init();
-
-        return CallbackReturn::SUCCESS;
     }
 
 private:
@@ -52,8 +50,8 @@ private:
 
     void declare_node_parameters() 
     {
-        std::vector<ParameterLifeCycleNode::ActionParam> params = {
-            ParameterLifeCycleNode::ActionParam(
+        std::vector<ParameterNode::ActionParam> params = {
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("bounding_boxes_subscription_topic", "bob/detection/allsky/boundingboxes"), 
                 [this](const rclcpp::Parameter& param) 
                 {
@@ -61,7 +59,7 @@ private:
                         [this](const bob_interfaces::msg::DetectorBBoxArray::SharedPtr bounding_boxes_msg){callback(bounding_boxes_msg);});
                 }
             ),        
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("tracker_publisher_topic", "bob/tracker/tracking"), 
                 [this](const rclcpp::Parameter& param) 
                 {
@@ -70,7 +68,7 @@ private:
                 }
             ),        
 
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("resize_height", 960), 
                 [this](const rclcpp::Parameter& param) 
                 {
