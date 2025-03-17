@@ -1,3 +1,3 @@
+std_msgs/Header header
 bool recording
-std_msgs/Header trigger_header
 string recording_path

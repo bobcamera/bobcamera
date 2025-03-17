@@ -373,7 +373,7 @@ public:
     void recording_event(const bob_interfaces::msg::RecordingEvent & event)
     {
         last_recording_event_ = event;
-        node_.log_info("Recording event: %s", event.recording ? "Yes" : "No");
+        node_.log_info("Recording Event: %s", event.recording ? "Yes" : "No");
     }
 
 private:
@@ -593,14 +593,16 @@ private:
 
                     if (last_recording_event_.recording && params_.get_recording_enabled())
                     {
-                        bool could_open(false);
                         if (!video_recorder_ptr_->is_recording())
                         {
                             node_.log_info("Opening new video");
-                            could_open = video_recorder_ptr_->open_new_video(last_recording_event_.recording_path, params_.get_recording_codec(), fps_, camera_img.size());
+                            if (!video_recorder_ptr_->open_new_video(last_recording_event_.recording_path, params_.get_recording_codec(), fps_, camera_img.size()))
+                            {
+                                node_.log_info("Could not create new video");
+                            }
                         }
 
-                        if (could_open)
+                        if (video_recorder_ptr_->is_recording())
                         {
                             video_recorder_ptr_->write_frame(std::move(camera_img));
                         }

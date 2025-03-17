@@ -50,7 +50,7 @@ private:
 
     void init()
     {
-        pub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
+        pub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::Reliable);
         pub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
         pub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
 
@@ -137,59 +137,58 @@ private:
     {
         std::vector<ParameterNode::ActionParam> params = {
             ParameterNode::ActionParam(
-                rclcpp::Parameter("recordings_directory", "."), 
-                [this](const rclcpp::Parameter& param) 
+                rclcpp::Parameter("recordings_directory", "."),
+                [this](const rclcpp::Parameter &param)
                 {
                     recordings_directory_ = param.as_string();
                     create_dir(recordings_directory_);
-                }
-            ),
+                }),
             ParameterNode::ActionParam(
-                rclcpp::Parameter("recording_request_service_topic", "bob/recording/update"), 
-                [this](const rclcpp::Parameter& param) 
+                rclcpp::Parameter("recording_request_service_topic", "bob/recording/update"),
+                [this](const rclcpp::Parameter &param)
                 {
                     recording_request_service_ = create_service<bob_interfaces::srv::RecordingRequest>(param.as_string(),
                             [this](const std::shared_ptr<bob_interfaces::srv::RecordingRequest::Request> request, std::shared_ptr<bob_interfaces::srv::RecordingRequest::Response> response)
                                 {change_recording_enabled_request(request, response);});
-                }
-            ),
+                }),
             ParameterNode::ActionParam(
-                rclcpp::Parameter("state_publisher_topic", "bob/recording/state"), 
-                [this](const rclcpp::Parameter& param) 
+                rclcpp::Parameter("state_publisher_topic", "bob/recording/state"),
+                [this](const rclcpp::Parameter &param)
                 {
                     state_publisher_ = create_publisher<bob_interfaces::msg::RecordingState>(param.as_string(), pub_qos_profile_);
-                }
-            ),
+                }),
             ParameterNode::ActionParam(
-                rclcpp::Parameter("event_publisher_topic", "bob/recording/event"), 
-                [this](const rclcpp::Parameter& param) 
+                rclcpp::Parameter("event_publisher_topic", "bob/recording/event"),
+                [this](const rclcpp::Parameter &param)
                 {
                     event_publisher_ = create_publisher<bob_interfaces::msg::RecordingEvent>(param.as_string(), pub_qos_profile_);
-                }
-            ),
+                }),
             ParameterNode::ActionParam(
-                rclcpp::Parameter("tracking_topic", "bob/tracker/tracking"), 
-                [this](const rclcpp::Parameter& param) 
+                rclcpp::Parameter("tracking_topic", "bob/tracker/tracking"),
+                [this](const rclcpp::Parameter &param)
                 {
                     tracking_topic_ = param.as_string();
                     sub_tracking_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::Tracking>>(shared_from_this(), tracking_topic_, sub_qos_profile_.get_rmw_qos_profile());
-                }
-            ),
+                }),
             ParameterNode::ActionParam(
-                rclcpp::Parameter("camera_info_topic", "bob/camera/all_sky/camera_info"), 
-                [this](const rclcpp::Parameter& param)
+                rclcpp::Parameter("camera_info_topic", "bob/camera/all_sky/camera_info"),
+                [this](const rclcpp::Parameter &param)
                 {
                     camera_info_topic_ = param.as_string();
                     sub_camera_info_ = std::make_shared<message_filters::Subscriber<bob_camera::msg::CameraInfo>>(shared_from_this(), camera_info_topic_, sub_qos_profile_.get_rmw_qos_profile());
-                }
-            ),
+                }),
             ParameterNode::ActionParam(
-                rclcpp::Parameter("seconds_save", 2), 
-                [this](const rclcpp::Parameter& param) 
+                rclcpp::Parameter("seconds_save", 2),
+                [this](const rclcpp::Parameter &param)
                 {
                     number_seconds_save_ = static_cast<int>(param.as_int());
-                }
-            ),
+                }),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("prefix", ""),
+                [this](const rclcpp::Parameter &param)
+                {
+                    prefix_str_ = param.as_string();
+                }),
         };
         add_action_parameters(params);
     }
@@ -200,8 +199,7 @@ private:
     {
         try
         {
-            if ((current_state_ != RecordingStateEnum::BeforeStart) 
-                && (prev_frame_size_ != cv::Size(camera_info_msg->frame_width, camera_info_msg->frame_height)))
+            if ((current_state_ != RecordingStateEnum::BeforeStart) && (prev_frame_size_ != cv::Size(camera_info_msg->frame_width, camera_info_msg->frame_height)))
             {
                 log_send_info("Frame dimensions changed.");
                 current_state_ = RecordingStateEnum::AfterEnd;
@@ -226,14 +224,14 @@ private:
                         create_dated_dir(recordings_directory_);
                         date_ = current_date;
                     }
+                    const std::string full_path = dated_directory_ + "/" + prefix_str_ + base_filename_ + ".mp4";
 
-                    // Directory for recordings
                     log_send_info("Starting track recording...");
 
                     bob_interfaces::msg::RecordingEvent event;
-                    event.trigger_header = tracking_msg->header;
+                    event.header = tracking_msg->header;
                     event.recording = recording_;
-                    event.recording_path = dated_directory_;
+                    event.recording_path = full_path;
                     event_publisher_->publish(event);
                 } 
                 break;
@@ -242,6 +240,7 @@ private:
                 if (tracking_msg->state.trackable == 0) 
                 {
                     current_state_ = RecordingStateEnum::AfterEnd;
+                    current_end_frame_ = number_seconds_save_ * video_fps_;
                 }
                 break;
 
@@ -253,7 +252,7 @@ private:
                     current_state_ = RecordingStateEnum::BeforeStart;
 
                     bob_interfaces::msg::RecordingEvent event;
-                    event.trigger_header = tracking_msg->header;
+                    event.header = tracking_msg->header;
                     event.recording = recording_;
                     event.recording_path = dated_directory_;
                     event_publisher_->publish(event);
@@ -264,6 +263,7 @@ private:
                     if (tracking_msg->state.trackable > 0) 
                     {
                         current_state_ = RecordingStateEnum::BetweenEvents;
+                        current_end_frame_ = number_seconds_save_ * video_fps_;
                     }
                 }
                 break;
@@ -276,7 +276,7 @@ private:
                     log_send_info("Requested: Ending track recording...");
 
                     bob_interfaces::msg::RecordingEvent event;
-                    event.trigger_header = tracking_msg->header;
+                    event.header = tracking_msg->header;
                     event.recording = recording_;
                     event.recording_path = dated_directory_;
                     event_publisher_->publish(event);
@@ -311,6 +311,7 @@ private:
     std::string dated_directory_;
     std::string date_;
     std::string base_filename_;
+    std::string prefix_str_;
     std::string tracking_topic_;
     std::string camera_info_topic_;
     rclcpp::Service<bob_interfaces::srv::RecordingRequest>::SharedPtr recording_request_service_;

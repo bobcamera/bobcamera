@@ -6,8 +6,8 @@ variables:
   use_cuda: false
   use_recording: true
   logging_type: screen
-  camera1_enabled: False
-  camera2_enabled: True
+  camera1_enabled: false
+  camera2_enabled: true
 
 #########################################################################
 # Basic configuration for nodes
@@ -108,7 +108,7 @@ advanced_config:
     recording_enabled: $use_recording
     recording_codec: 'avc1'
     recording_seconds_save: 2
-    recording_directory: 'assets/recordings'
+    recording_directory: 'assets/recordings/'
     bgs_json_params: '[
                     { "name": "low",
                       "sensitivity": {
@@ -161,10 +161,10 @@ advanced_config:
     resize_height: $resize_height
 
   base_camera_recorder_node:
-    enable: $use_recording
+    enabled: $use_recording
     codec: 'avc1'
     seconds_save: 2
-    recordings_directory: 'assets/recordings'
+    recordings_directory: 'assets/recordings/'
 
   camera1_recorder_node:
     enabled: $camera1_enabled
@@ -294,11 +294,11 @@ advanced_config:
     star_mask_enabled: True    
 
   camera1_recorder_monitoring_node:
-    enable: $use_recording
+    enabled: $use_recording
     check_interval: 5
 
   camera2_recorder_monitoring_node:
-    enable: $use_recording
+    enabled: $use_recording
     check_interval: 5
 
   onvif_service_node:

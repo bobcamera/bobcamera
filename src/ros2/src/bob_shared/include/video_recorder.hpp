@@ -65,7 +65,7 @@ public:
             // Assuming boblib::video::Codec can be constructed from codec_str
             auto codec = boblib::video::VideoWriter::codec_from_string(codec_str);
 
-            video_writer_ = std::make_unique<boblib::video::VideoWriter>(full_path, frame_size, codec, video_fps);
+            video_writer_ = std::make_unique<boblib::video::VideoWriter>(full_path, frame_size, codec, video_fps, false);
 
             if (!video_writer_->is_open())
             {

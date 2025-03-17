@@ -67,6 +67,7 @@ inline void VideoWriter::create_video_writer()
 {
     if (using_cuda_)
     {
+        std::cout << "Using cuda" << std::endl;
         std::function<cv::cudacodec::Codec(boblib::video::Codec)> cuda_codec = [](boblib::video::Codec codec)
         {
             switch (codec)
@@ -80,7 +81,16 @@ inline void VideoWriter::create_video_writer()
             }
         };
 
-        cuda_video_writer_ptr_ = cv::cudacodec::createVideoWriter(fileName_, frame_size_, cuda_codec(codec_), fps_);
+        try
+        {
+            cuda_video_writer_ptr_ = cv::cudacodec::createVideoWriter(fileName_, frame_size_, cuda_codec(codec_), fps_);
+            std::cout << "cuda_video_writer_ptr_: " << cuda_video_writer_ptr_ << std::endl;
+        }
+        catch(const std::exception& e)
+        {
+            std::cerr << e.what() << '\n';
+        }
+        
         return;
     }
 
