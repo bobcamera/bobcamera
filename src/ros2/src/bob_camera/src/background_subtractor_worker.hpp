@@ -236,7 +236,6 @@ public:
         try
         {
             bgs_msg.header = header;
-            fill_header(bgs_msg, img);
 
             img.convertTo(gray_img, cv::COLOR_BGR2GRAY);
 
@@ -244,6 +243,8 @@ public:
             {
                 detection_mask_ptr_->resize(gray_img.size());
             }
+
+            fill_header(bgs_msg, gray_img);
 
             process_queue_ptr_->push(PublishImage(std::move(bgs_msg), std::move(gray_img)));
         }
@@ -291,9 +292,9 @@ private:
 
                     do_detection(camera_msg.header, bgs_img);
 
-                    // publish_frame(bgs_msg, bgs_img);
+                    publish_frame(camera_msg, bgs_img);
 
-                    // publish_resized_frame(bgs_msg, bgs_img);
+                    publish_resized_frame(camera_msg, bgs_img);
                 }
                 catch (const std::exception & e)
                 {
@@ -310,7 +311,7 @@ private:
                 cv_.notify_all();
             }
         }
-        node_.log_send_info("CameraWorker: Leaving publish_images");
+        node_.log_send_info("BGSWorker: process_images: Leaving publish_images");
     }
 
     inline void fill_header(sensor_msgs::msg::Image &bgs_msg, const boblib::base::Image &bgs_img) noexcept
