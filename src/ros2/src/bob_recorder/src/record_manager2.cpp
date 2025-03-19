@@ -81,47 +81,19 @@ private:
         return std::string(buffer.data());
     }
 
-    static bool create_dir(const std::string & path) 
-    {
-        if (std::filesystem::path dirPath = path; !std::filesystem::exists(dirPath)) 
-        {
-            return std::filesystem::create_directories(dirPath);
-        }
-        return true;
-    }
-
-    void create_subdirectory(const std::filesystem::path & parent, const std::string & subdirectory) const
-    {
-        std::filesystem::path subDirPath = parent / subdirectory;
-        if (std::filesystem::create_directory(subDirPath)) 
-        {
-            log_info("Subdirectory created: %s", subDirPath.c_str());
-        } 
-        else 
-        {
-            log_error("Failed to create subdirectory: %s", subDirPath.c_str());
-        }
-    }
-    
-    bool create_dated_dir(const std::string & path) 
+    bool create_recording_directories(const std::string & path) 
     {
         std::filesystem::path dirPath = path;
 
-        if (std::filesystem::exists(dirPath)) 
+        dated_directory_ = dirPath / get_current_date_as_str() / prefix_str_;
+
+        if (std::filesystem::create_directories(dated_directory_)) 
         {
-            dated_directory_ = dirPath / get_current_date_as_str();
-
-            if (std::filesystem::create_directory(dated_directory_)) 
-            {
-                log_send_info("Dated directory created: %s", dated_directory_.c_str());
-                return true;
-            } 
-
-            log_send_error("Failed to create dated directory: %s", dated_directory_.c_str());
-            return false;
+            log_send_info("Dated directory created: %s", dated_directory_.c_str());
+            return true;
         } 
 
-        log_send_info("Parent recordings directory doesn't exist: %s", dirPath.c_str());
+        log_send_error("Failed to create dated directory: %s", dated_directory_.c_str());
         return false;
     }
 
@@ -141,7 +113,6 @@ private:
                 [this](const rclcpp::Parameter &param)
                 {
                     recordings_directory_ = param.as_string();
-                    create_dir(recordings_directory_);
                 }),
             ParameterNode::ActionParam(
                 rclcpp::Parameter("recording_request_service_topic", "bob/recording/update"),
@@ -221,12 +192,12 @@ private:
 
                     if (auto current_date = get_current_date_as_str(); current_date != date_)
                     {
-                        create_dated_dir(recordings_directory_);
+                        create_recording_directories(recordings_directory_);
                         date_ = current_date;
                     }
-                    const std::string full_path = dated_directory_ + "/" + prefix_str_ + base_filename_ + ".mp4";
+                    const std::string full_path = dated_directory_ + "/" + base_filename_;
 
-                    log_send_info("Starting track recording...");
+                    log_send_info("Starting track recording into: %s", full_path.c_str());
 
                     bob_interfaces::msg::RecordingEvent event;
                     event.header = tracking_msg->header;

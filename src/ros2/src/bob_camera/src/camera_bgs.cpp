@@ -349,6 +349,7 @@ private:
                     [this](const rclcpp::Parameter &param)
                     {
                         camera_params_ptr_->set_max_queue_process_size(static_cast<size_t>(param.as_int()));
+                        bgs_params_ptr_->set_max_queue_process_size(static_cast<size_t>(param.as_int()));
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("recording_enabled", false),
@@ -368,12 +369,6 @@ private:
                     {
                         camera_params_ptr_->set_recording_seconds_save(param.as_int());
                     }),
-                ParameterNode::ActionParam(
-                    rclcpp::Parameter("recording_directory", "assets/recordings"),
-                    [this](const rclcpp::Parameter &param)
-                    {
-                        camera_params_ptr_->set_recording_directory(param.as_string());
-                    }),
             };
         add_action_parameters(params);
     }
@@ -381,6 +376,7 @@ private:
     void recording_event_callback(const bob_interfaces::msg::RecordingEvent::SharedPtr event)
     {
         camera_worker_ptr_->recording_event(*event);
+        bgs_worker_ptr_->recording_event(*event);
     }
 
     void privacy_mask_override_request(const std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Request> request, 

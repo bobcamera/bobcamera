@@ -3,9 +3,12 @@
 #########################################################################
 variables:
   resize_height: 1024
-  use_cuda: false
-  use_recording: true
   logging_type: screen
+  extra_saving_seconds: 2
+  image_compression_quality: 75
+  use_cuda: false #Leave it false as it is not working
+  use_recording: true
+  display_enabled: true
   camera1_enabled: false
   camera2_enabled: true
 
@@ -16,7 +19,6 @@ variables:
 basic_config:
   camera1_node:
     copy: base_camera_node
-    enabled: $camera1_enabled
     source_type: 'RTSP_STREAM'        # USB_CAMERA | VIDEO_FILE | RTSP_STREAM
     rtsp_uri: 'rtsp://bob:Bobuser$01@192.168.50.10:554/Streaming/Channels/101'
     camera_id: 0                      # Id of the camera in the /dev directory for USB Camera
@@ -28,7 +30,6 @@ basic_config:
 
   camera2_node:
     copy: base_camera_node
-    enabled: $camera2_enabled
     source_type: 'RTSP_STREAM'        # USB_CAMERA | VIDEO_FILE | RTSP_STREAM
     rtsp_uri: 'rtsp://bob:Bobuser$01@192.168.50.11:554/Streaming/Channels/101'
     camera_id: 0                      # Id of the camera in the /dev directory for USB Camera
@@ -40,13 +41,11 @@ basic_config:
 
   camera1_recorder_node:
     copy: base_camera_recorder_node
-    enabled: $camera1_enabled
-    prefix: ''
+    prefix: 'directional4k'
     
   camera2_recorder_node:
     copy: base_camera_recorder_node
-    enabled: $camera2_enabled
-    prefix: 'c2'
+    prefix: 'allsky'
     
   multi_frame_viewer_node:
     topics: 
@@ -107,8 +106,7 @@ advanced_config:
     mask_timer_seconds: 5
     recording_enabled: $use_recording
     recording_codec: 'avc1'
-    recording_seconds_save: 2
-    recording_directory: 'assets/recordings/'
+    recording_seconds_save: $extra_saving_seconds
     bgs_json_params: '[
                     { "name": "low",
                       "sensitivity": {
@@ -149,94 +147,76 @@ advanced_config:
                   ]'
 
   camera1_track_provider_node:
-    enabled: $camera1_enabled
     bounding_boxes_subscription_topic: 'bob/camera1/boundingboxes'
     tracker_publisher_topic: 'bob/camera1/tracker/tracking'
     resize_height: $resize_height
 
   camera2_track_provider_node:
-    enabled: $camera2_enabled
     bounding_boxes_subscription_topic: 'bob/camera2/boundingboxes'
     tracker_publisher_topic: 'bob/camera2/tracker/tracking'
     resize_height: $resize_height
 
   base_camera_recorder_node:
     enabled: $use_recording
-    codec: 'avc1'
-    seconds_save: 2
+    seconds_save: $extra_saving_seconds
     recordings_directory: 'assets/recordings/'
 
   camera1_recorder_node:
-    enabled: $camera1_enabled
     recording_request_service_topic: 'bob/recording/update/camera1'
     state_publisher_topic: 'bob/camera1/recording/state'
     event_publisher_topic: 'bob/camera1/recording/event'
-    img_topic: 'bob/camera1/original'
-    fg_img_topic: 'bob/camera1/foreground_mask'
     tracking_topic: 'bob/camera1/tracker/tracking'
     camera_info_topic: 'bob/camera1/camera_info'
 
   camera2_recorder_node:
-    enabled: $camera2_enabled
     recording_request_service_topic: 'bob/recording/update/camera2'
     state_publisher_topic: 'bob/camera2/recording/state'
     event_publisher_topic: 'bob/camera2/recording/event'
-    img_topic: 'bob/camera2/original'
-    fg_img_topic: 'bob/camera2/foreground_mask'
     tracking_topic: 'bob/camera2/tracker/tracking'
     camera_info_topic: 'bob/camera2/camera_info'
 
   base_annotated_frame_provider_node:
-    tracking_status_message: False
+    tracking_status_message: false
     resize_height: $resize_height
     visualiser_settings: '{"bbox_line_thickness": "2", "font_scale_width": "0", "font_scale_width": "0", "font_scale": "1.0", "zoom_factor": "2.0", "enable_cropped_tracks": "true", "font_colour": "{50,170,50}", "prediction_colour": "{255,0,50}"}'
 
   camera1_annotated_frame_provider_node:
     copy: base_annotated_frame_provider_node
-    enabled: $camera1_enabled
     annotated_frame_publisher_topic: 'bob/camera1/annotated'
     camera_frame_topic: 'bob/camera1/original/resized'
     tracking_topic: 'bob/camera1/tracker/tracking/resized'
 
   camera2_annotated_frame_provider_node:
     copy: base_annotated_frame_provider_node
-    enabled: $camera2_enabled
     annotated_frame_publisher_topic: 'bob/camera2/annotated'
     camera_frame_topic: 'bob/camera2/original/resized'
     tracking_topic: 'bob/camera2/tracker/tracking/resized'
 
   camera1_annotated_frame_compressor_node:
-    enabled: $camera1_enabled
     compressed_frame_subscriber_topic: 'bob/camera1/annotated/resized'
-    compression_quality: 75
+    compression_quality: $image_compression_quality
 
   camera2_annotated_frame_compressor_node:
-    enabled: $camera2_enabled
     compressed_frame_subscriber_topic: 'bob/camera2/annotated/resized'
-    compression_quality: 75
+    compression_quality: $image_compression_quality
 
   camera1_detection_masked_compressor_node:
-    enabled: $camera1_enabled
     compressed_frame_subscriber_topic: 'bob/camera1/original/resized'
-    compression_quality: 75
+    compression_quality: $image_compression_quality
 
   camera2_detection_masked_compressor_node:
-    enabled: $camera2_enabled
     compressed_frame_subscriber_topic: 'bob/camera2/original/resized'
-    compression_quality: 75
+    compression_quality: $image_compression_quality
 
   camera1_foreground_mask_compressor_node:
-    enabled: $camera1_enabled
     compressed_frame_subscriber_topic: 'bob/camera1/foreground_mask/resized'
-    compression_quality: 75
+    compression_quality: $image_compression_quality
 
   camera2_foreground_mask_compressor_node:
-    enabled: $camera2_enabled
     compressed_frame_subscriber_topic: 'bob/camera2/foreground_mask/resized'
-    compression_quality: 75
+    compression_quality: $image_compression_quality
 
   camera1_image_estimator_node:
-    enabled: $camera1_enabled
     camera_subscription_topic: 'bob/camera1/original/resized'
     cloud_estimation_publish_topic: 'bob/camera1/observer/cloud_estimation'
     day_night_publish_topic: 'bob/camera1/observer/day_night_classifier'
@@ -246,7 +226,6 @@ advanced_config:
     mask_file: 'assets/masks/camera1-detection-mask.jpg'
 
   camera2_image_estimator_node:
-    enabled: $camera2_enabled
     camera_subscription_topic: 'bob/camera2/original/resized'
     cloud_estimation_publish_topic: 'bob/camera2/observer/cloud_estimation'
     day_night_publish_topic: 'bob/camera2/observer/day_night_classifier'
@@ -256,7 +235,6 @@ advanced_config:
     mask_file: 'assets/masks/camera2-detection-mask.jpg'
 
   camera1_monitoring_status_aggregator_node:
-    enabled: $camera1_enabled
     observer_tracker_aggregation_interval: 1
     sub_detector_state_topic: 'bob/camera1/detection/detector_state'
     sub_tracking_state_topic: 'bob/camera1/tracker/tracking'
@@ -266,7 +244,6 @@ advanced_config:
     pub_aggregation_state_topic: 'bob/camera1/monitoring/status'
 
   camera2_monitoring_status_aggregator_node:
-    enabled: $camera2_enabled
     observer_tracker_aggregation_interval: 1
     sub_detector_state_topic: 'bob/camera2/detection/detector_state'
     sub_tracking_state_topic: 'bob/camera2/tracker/tracking'
@@ -276,7 +253,6 @@ advanced_config:
     pub_aggregation_state_topic: 'bob/camera2/monitoring/status'
 
   camera1_track_sensitivity_monitor_node:
-    enabled: $camera1_enabled
     monitoring_subscription_topic: 'bob/camera1/monitoring/status'
     bgs_node: 'camera1_node'
     check_interval: 10
@@ -285,7 +261,6 @@ advanced_config:
     star_mask_enabled: True    
 
   camera2_track_sensitivity_monitor_node:
-    enabled: $camera2_enabled
     monitoring_subscription_topic: 'bob/camera2/monitoring/status'
     bgs_node: 'camera2_node'
     check_interval: 10
@@ -310,15 +285,6 @@ advanced_config:
   mask_webapi_node:
     masks_folder: 'assets/masks'
 
-  lifecycle_manager_node:
-    prune_time_seconds: 5
-
-  # star_mask_node:
-  #   detection_mask_file: 'assets/masks/detection-mask.jpg'
-  #   detection_mask_backup_file: 'assets/masks/detection-mask-backup.jpg'
-  #   observer_timer_interval: 90
-  #   observer_cross_correlation_threshold: 0.5
-
 #########################################################################
 # Launch nodes configuration
 #   Here is what containers and nodes will be launched by this
@@ -329,7 +295,6 @@ advanced_config:
 #   There are standalone parameters:
 #     namespace: the namespace to run BOB
 #     rosbridge: True to enable rosbridge frontend connection, False otherwise
-#     lifecycle: True to enable lifecycle manager, False otherwise (suggested to leave it True or BOB will not work)
 #
 #   The Node Containers are executables that will run nodes in the same
 #   process, they have the advantage of using intra process communication
@@ -442,6 +407,7 @@ launch:
           remappings: []
 
     - name: Display
+      enabled: $display_enabled
       executable: component_container # Has to be single-threaded because of OpenCV display
       output: $logging_type
       nodes:
@@ -487,34 +453,33 @@ launch:
           remappings: []
         
   standalone_nodes:
-    # - package: bob_observer
-    #   executable: star_mask
-    #   name: star_mask_node
-    #   remappings:
-    #     - 'bob/observer_frame/source': '/bob/frames/allsky/original/resized'
-    #   output: screen
     - package: bob_monitor
       executable: monitoring_status_aggregator
       name: camera1_monitoring_status_aggregator_node
+      enabled: $camera1_enabled
       remappings: []
       output: $logging_type
     - package: bob_monitor
       executable: monitoring_status_aggregator
       name: camera2_monitoring_status_aggregator_node
+      enabled: $camera2_enabled
       remappings: []
       output: $logging_type
     - package: bob_monitor
       executable: onvif_service
       name: onvif_service_node
+      enabled: true
       remappings: []
       output: $logging_type
     - package: bob_webapi
       executable: info_webapi
       name: info_webapi_node
+      enabled: true
       remappings: []
       output: $logging_type
     - package: bob_webapi
       executable: mask_webapi
       name: mask_webapi_node
+      enabled: true
       remappings: []
       output: $logging_type

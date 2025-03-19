@@ -15,6 +15,7 @@
 #include "image_utils.hpp"
 #include "background_subtractor_companion.hpp"
 #include "mask_worker.hpp"
+#include "publish_image.hpp"
 #include <boblib/api/base/Image.hpp>
 
 class BackgroundSubtractorWorkerParams
@@ -31,6 +32,8 @@ public:
     BackgroundSubtractorWorkerParams() = default;
 
     // Getters
+    [[nodiscard]] size_t get_max_queue_process_size() const { return max_queue_process_size_; }
+
     [[nodiscard]] const auto& get_image_publisher() const { return image_publisher_; }
     [[nodiscard]] const auto& get_image_resized_publisher() const { return image_resized_publisher_; }
     [[nodiscard]] const auto& get_detection_publisher() const { return detection_publisher_; }
@@ -50,6 +53,8 @@ public:
     [[nodiscard]] int get_mask_timer_seconds() const { return mask_timer_seconds_; }
 
     // Setters
+    void set_max_queue_process_size(size_t size) { max_queue_process_size_ = size; }
+
     void set_image_publisher(const rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr& publisher) { image_publisher_ = publisher; }
     void set_image_resized_publisher(const rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr& publisher) { image_resized_publisher_ = publisher; }
     void set_detection_publisher(const rclcpp::Publisher<bob_interfaces::msg::DetectorBBoxArray>::SharedPtr& publisher) { detection_publisher_ = publisher; }
@@ -70,6 +75,7 @@ public:
     void set_mask_timer_seconds(int seconds) { mask_timer_seconds_ = seconds; }
 
 private:
+    size_t max_queue_process_size_{0};
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_resized_publisher_;
     rclcpp::Publisher<bob_interfaces::msg::DetectorBBoxArray>::SharedPtr detection_publisher_;
@@ -99,13 +105,25 @@ public:
             [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat& mask) { mask_timer_callback(detection_mask_result, mask); }))
     {}
 
+    ~BackgroundSubtractorWorker()
+    {
+        if (process_thread_.joinable())
+        {
+            process_thread_.join();
+        }
+    }
+
     void init()
     {
         using_cuda_ = params_.get_use_cuda() ? boblib::base::Utils::has_cuda() : false;
         detection_mask_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_);
-        bgs_img_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_);
+        // bgs_img_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_);
+
+        process_queue_ptr_ = std::make_unique<SynchronizedQueue<PublishImage>>(params_.get_max_queue_process_size());
 
         mask_worker_ptr_->init(params_.get_mask_timer_seconds(), params_.get_mask_filename());
+
+        process_thread_ = std::jthread(&BackgroundSubtractorWorker::process_images, this);
     }
 
     void restart_mask()
@@ -116,7 +134,7 @@ public:
         }
     }
 
-    void init_bgs(const std::string& bgs)
+    void init_bgs(const std::string& bgs) noexcept
     {
         ready_ = false;
 
@@ -148,12 +166,12 @@ public:
         cv_.notify_all();
     }
 
-    void restart()
+    void restart() noexcept
     {
         bgs_ptr_->restart();
     }
 
-    void init_sensitivity(const std::string& sensitivity)
+    void init_sensitivity(const std::string &sensitivity) noexcept
     {
         std::unique_lock<std::mutex> lock(mutex_);
         cv_.wait(lock, [this] { return !processing_; });
@@ -210,20 +228,15 @@ public:
         cv_.notify_all();
     }
 
-    void image_callback(const std_msgs::msg::Header& header, const boblib::base::Image & img)
+    void image_callback(const std_msgs::msg::Header &header, const boblib::base::Image &img) noexcept
     {
-        std::unique_lock lock(mutex_);
-        cv_.wait(lock, [this] { return ready_; });
-
-        processing_ = true;
-
-        boblib::base::Image blank_mask(using_cuda_);
         boblib::base::Image gray_img(using_cuda_);
         sensor_msgs::msg::Image bgs_msg;
 
         try
         {
             bgs_msg.header = header;
+            fill_header(bgs_msg, img);
 
             img.convertTo(gray_img, cv::COLOR_BGR2GRAY);
 
@@ -231,16 +244,8 @@ public:
             {
                 detection_mask_ptr_->resize(gray_img.size());
             }
-            
-            bgs_ptr_->apply(gray_img, *bgs_img_ptr_, (mask_enabled_ && params_.get_mask_enable_override()) ? *detection_mask_ptr_ : blank_mask);
 
-            fill_header(bgs_msg, *bgs_img_ptr_);
-
-            publish_frame(bgs_msg, *bgs_img_ptr_);
-
-            publish_resized_frame(bgs_msg, *bgs_img_ptr_);
-
-            do_detection(bgs_msg, *bgs_img_ptr_);
+            process_queue_ptr_->push(PublishImage(std::move(bgs_msg), std::move(gray_img)));
         }
         catch (const std::exception & e)
         {
@@ -250,13 +255,65 @@ public:
         {
             node_.log_send_error("bgs_worker: image_callback: Unknown Exception");
         }
+    }
 
-        processing_ = false;
-        cv_.notify_all();
+    void recording_event(const bob_interfaces::msg::RecordingEvent &event) noexcept
+    {
+        last_recording_event_ = event;
     }
 
 private:
-    inline void fill_header(sensor_msgs::msg::Image & bgs_msg, boblib::base::Image & bgs_img)
+    void process_images()
+    {
+        boblib::base::Image blank_mask(using_cuda_);
+        boblib::base::Image bgs_img(using_cuda_);
+        while (rclcpp::ok())
+        {
+            std::unique_lock lock(mutex_);
+            cv_.wait(lock, [this]{ return ready_; });
+
+            processing_ = true;
+
+            auto publish_image = process_queue_ptr_->pop();
+            if (publish_image.has_value())
+            {
+                try
+                {
+                    if (process_queue_ptr_->size() > 0)
+                    {
+                        node_.log_info("BGSWorker: Process Queue size: %d", process_queue_ptr_->size());
+                    }
+
+                    auto & camera_msg = publish_image.value().Image_msg;
+                    auto & gray_img = publish_image.value().Image;
+
+                    bgs_ptr_->apply(gray_img, bgs_img, (mask_enabled_ && params_.get_mask_enable_override()) ? *detection_mask_ptr_ : blank_mask);
+
+                    do_detection(camera_msg.header, bgs_img);
+
+                    // publish_frame(bgs_msg, bgs_img);
+
+                    // publish_resized_frame(bgs_msg, bgs_img);
+                }
+                catch (const std::exception & e)
+                {
+                    node_.log_send_error("BGSWorker: process_images: Exception: %s", e.what());
+                    rcutils_reset_error();
+                }
+                catch (...)
+                {
+                    node_.log_send_error("BGSWorker: process_images: Unknown exception");
+                    rcutils_reset_error();
+                }
+
+                processing_ = false;
+                cv_.notify_all();
+            }
+        }
+        node_.log_send_info("CameraWorker: Leaving publish_images");
+    }
+
+    inline void fill_header(sensor_msgs::msg::Image &bgs_msg, const boblib::base::Image &bgs_img) noexcept
     {
         bgs_msg.height = bgs_img.size().height;
         bgs_msg.width = bgs_img.size().width;
@@ -265,7 +322,7 @@ private:
         bgs_msg.step = bgs_img.size().width * bgs_img.elemSize();
     }
 
-    inline void publish_frame(sensor_msgs::msg::Image & bgs_msg, boblib::base::Image & bgs_img)
+    inline void publish_frame(sensor_msgs::msg::Image &bgs_msg, boblib::base::Image &bgs_img) noexcept
     {
         if (node_.count_subscribers(params_.get_image_publisher()->get_topic_name()) <= 0)
         {
@@ -296,14 +353,14 @@ private:
         params_.get_image_resized_publisher()->publish(*resized_frame_msg);            
     }
 
-    inline void do_detection(sensor_msgs::msg::Image & bgs_msg, boblib::base::Image & bgs_img)
+    inline void do_detection(const std_msgs::msg::Header &header, boblib::base::Image &bgs_img)
     {
         bob_interfaces::msg::DetectorState state;
         state.sensitivity = params_.get_sensitivity();
         bob_interfaces::msg::DetectorBBoxArray bbox2D_array;
-        bbox2D_array.header = bgs_msg.header;
-        bbox2D_array.image_width = bgs_img_ptr_->size().width;
-        bbox2D_array.image_height = bgs_img_ptr_->size().height;
+        bbox2D_array.header = header;
+        bbox2D_array.image_width = bgs_img.size().width;
+        bbox2D_array.image_height = bgs_img.size().height;
 
         if (median_filter_)
         {
@@ -326,7 +383,7 @@ private:
         node_.publish_if_subscriber(params_.get_detection_publisher(), bbox2D_array);
     }
 
-    inline void add_bboxes(bob_interfaces::msg::DetectorBBoxArray& bbox2D_array, const std::vector<cv::Rect>& bboxes)
+    inline void add_bboxes(bob_interfaces::msg::DetectorBBoxArray &bbox2D_array, const std::vector<cv::Rect> &bboxes) noexcept
     {
         for (const auto& bbox : bboxes)
         {
@@ -388,7 +445,7 @@ private:
     std::unique_ptr<boblib::bgs::WMVParams> wmv_params_;
     std::unique_ptr<boblib::blobs::ConnectedBlobDetectionParams> blob_params_;
 
-    std::unique_ptr<boblib::base::Image> bgs_img_ptr_;
+    // std::unique_ptr<boblib::base::Image> bgs_img_ptr_;
     std::unique_ptr<boblib::base::Image> detection_mask_ptr_;
 
     std::condition_variable cv_;
@@ -396,4 +453,9 @@ private:
     bool ready_{false};
     bool processing_{false};
     bool using_cuda_{false};
+
+    bob_interfaces::msg::RecordingEvent last_recording_event_;
+
+    std::unique_ptr<SynchronizedQueue<PublishImage>> process_queue_ptr_;
+    std::jthread process_thread_;
 };

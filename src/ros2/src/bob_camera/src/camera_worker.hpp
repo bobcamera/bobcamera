@@ -26,6 +26,7 @@
 
 #include <parameter_node.hpp>
 #include "object_simulator.hpp"
+#include "publish_image.hpp"
 
 class CameraWorkerParams
 {
@@ -82,7 +83,6 @@ public:
     [[nodiscard]] bool get_recording_enabled() const { return recording_params_.recording_enabled_; }
     [[nodiscard]] const std::string &get_recording_codec() const { return recording_params_.recording_codec_; }
     [[nodiscard]] int get_recording_seconds_save() const { return recording_params_.recording_seconds_save_; }
-    [[nodiscard]] const std::string &get_recording_directory() const { return recording_params_.recording_directory_; }
 
     // Setters
     void set_use_cuda(bool enable)
@@ -130,7 +130,6 @@ public:
     void set_recording_enabled(bool enable) { recording_params_.recording_enabled_ = enable; }
     void set_recording_codec(const std::string & codec) { recording_params_.recording_codec_ = codec; }
     void set_recording_seconds_save(int seconds) { recording_params_.recording_seconds_save_ = seconds; }
-    void set_recording_directory(const std::string &directory) { recording_params_.recording_directory_ = directory; }
 
 private:
     struct Publishers
@@ -193,7 +192,6 @@ private:
         bool recording_enabled_{false};
         std::string recording_codec_{"avc1"};
         int recording_seconds_save_{2};
-        std::string recording_directory_{"assets/recordings"};
     };
 
     bool use_cuda_{true};
@@ -373,7 +371,6 @@ public:
     void recording_event(const bob_interfaces::msg::RecordingEvent & event)
     {
         last_recording_event_ = event;
-        node_.log_info("Recording Event: %s", event.recording ? "Yes" : "No");
     }
 
 private:
@@ -591,30 +588,34 @@ private:
                         node_.log_info("Record Queue size: %d", record_queue_ptr_->size());
                     }
 
-                    if (last_recording_event_.recording && params_.get_recording_enabled())
+                    if (params_.get_recording_enabled())
                     {
-                        if (!video_recorder_ptr_->is_recording())
+                        if (last_recording_event_.recording)
                         {
-                            node_.log_info("Opening new video");
-                            if (!video_recorder_ptr_->open_new_video(last_recording_event_.recording_path, params_.get_recording_codec(), fps_, camera_img.size()))
+                            if (!video_recorder_ptr_->is_recording())
                             {
-                                node_.log_info("Could not create new video");
+                                const auto complete_filename = last_recording_event_.recording_path + +".mp4";
+                                node_.log_info("Opening new video: %s", complete_filename.c_str());
+                                if (!video_recorder_ptr_->open_new_video(complete_filename, params_.get_recording_codec(), fps_, camera_img.size()))
+                                {
+                                    node_.log_info("Could not create new video");
+                                }
+                            }
+
+                            if (video_recorder_ptr_->is_recording())
+                            {
+                                video_recorder_ptr_->write_frame(std::move(camera_img));
                             }
                         }
-
-                        if (video_recorder_ptr_->is_recording())
+                        else
                         {
-                            video_recorder_ptr_->write_frame(std::move(camera_img));
+                            if (video_recorder_ptr_->is_recording())
+                            {
+                                node_.log_info("Closing video");
+                                video_recorder_ptr_->close_video();
+                            }
+                            video_recorder_ptr_->add_to_pre_buffer(std::move(camera_img));
                         }
-                    }
-                    else
-                    {
-                        if (video_recorder_ptr_->is_recording())
-                        {
-                            node_.log_info("Closing video");
-                            video_recorder_ptr_->close_video();
-                        }
-                        video_recorder_ptr_->add_to_pre_buffer(std::move(camera_img));
                     }
                 }
                 catch (const std::exception & e)
@@ -893,16 +894,6 @@ private:
             privacy_mask_ptr_.release();
         }
     }
-
-    struct PublishImage
-    {
-        PublishImage(sensor_msgs::msg::Image && _Image_msg, boblib::base::Image && _Image)
-            : Image_msg(std::move(_Image_msg)), Image(std::move(_Image))
-        {}
-
-        sensor_msgs::msg::Image Image_msg;
-        boblib::base::Image Image;
-    };
 
     static constexpr double UNKNOWN_DEVICE_FPS = 30.0;
     static constexpr int CIRCUIT_BREAKER_MAX_RETRIES = 10;

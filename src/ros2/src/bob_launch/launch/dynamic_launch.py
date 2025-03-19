@@ -118,28 +118,31 @@ def generate_standalone_nodes(config, namespace, loglevel):
         ]
         subst_variables(config, config_node)
         parameters = get_node_parameters(config, config_node['name'])
-        logger.info(f"{TextStyle.GREEN}Standalone Node:{TextStyle.BRIGHT_GREEN} Name:{TextStyle.RESET+TextStyle.BOLD+TextStyle.BRIGHT_WHITE} {config_node['name']}{TextStyle.RESET+TextStyle.BRIGHT_GREEN}, Package: {TextStyle.RESET}{config_node['package']}{TextStyle.BRIGHT_GREEN}, Executable: {TextStyle.RESET}{config_node['executable']}")
+        node_enabled = config_node.get('enabled', True)
+
+        logger.info(f"{TextStyle.GREEN}Standalone Node:{TextStyle.BRIGHT_GREEN} Name:{TextStyle.RESET+TextStyle.BOLD+TextStyle.BRIGHT_WHITE} {config_node['name']}{TextStyle.RESET+TextStyle.BRIGHT_GREEN}, Package: {TextStyle.RESET}{config_node['package']}{TextStyle.BRIGHT_GREEN}, Executable: {TextStyle.RESET}{config_node['executable']}, {TextStyle.YELLOW}enabled: {TextStyle.RESET+TextStyle.BOLD+TextStyle.BRIGHT_WHITE}{node_enabled}{TextStyle.RESET}")
         logger.debug(f"  Parameters: {parameters}")
 
-        node = None
-        try:
-            node = Node(
-                package=config_node['package'],
-                namespace=namespace,
-                executable=config_node['executable'],
-                name=config_node['name'],
-                arguments=['--ros-args', '--log-level', loglevel],
-                parameters=[parameters],
-                remappings=remappings,
-                output=config_node.get('output', 'screen')
-            )
-        except Exception as e:
-            logger.error(f"Error creating Standalone Node: {e}")
-        
-        if node is None:
-            raise RuntimeError("Failed to create Standalone Node")
+        if (node_enabled):
+            node = None
+            try:
+                node = Node(
+                    package=config_node['package'],
+                    namespace=namespace,
+                    executable=config_node['executable'],
+                    name=config_node['name'],
+                    arguments=['--ros-args', '--log-level', loglevel],
+                    parameters=[parameters],
+                    remappings=remappings,
+                    output=config_node.get('output', 'screen')
+                )
+            except Exception as e:
+                logger.error(f"Error creating Standalone Node: {e}")
+            
+            if node is None:
+                raise RuntimeError("Failed to create Standalone Node")
 
-        nodes.append(node)
+            nodes.append(node)
     
     return nodes
 
