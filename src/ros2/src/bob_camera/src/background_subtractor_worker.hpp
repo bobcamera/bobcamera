@@ -4,19 +4,23 @@
 #include <filesystem>
 #include <mutex>
 #include <condition_variable>
+
 #include <cv_bridge/cv_bridge.hpp>
 #include <sensor_msgs/msg/image.hpp>
+
 #include <bob_interfaces/msg/detector_state.hpp>
 #include <bob_interfaces/msg/detector_b_box_array.hpp>
+
 #include <boblib/api/bgs/bgs.hpp>
 #include <boblib/api/bgs/WeightedMovingVariance/WeightedMovingVarianceUtils.hpp>
 #include <boblib/api/blobs/connectedBlobDetection.hpp>
+#include <boblib/api/base/Image.hpp>
+
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
 #include "background_subtractor_companion.hpp"
 #include "mask_worker.hpp"
 #include "publish_image.hpp"
-#include <boblib/api/base/Image.hpp>
 
 class BackgroundSubtractorWorkerParams
 {
@@ -230,13 +234,9 @@ public:
 
     void image_callback(const std_msgs::msg::Header &header, const boblib::base::Image &img) noexcept
     {
-        boblib::base::Image gray_img(using_cuda_);
-        sensor_msgs::msg::Image bgs_msg;
-
         try
         {
-            bgs_msg.header = header;
-
+            boblib::base::Image gray_img(using_cuda_);
             img.convertTo(gray_img, cv::COLOR_BGR2GRAY);
 
             if (mask_enabled_ && params_.get_mask_enable_override() && (detection_mask_ptr_->size() != gray_img.size()))
@@ -244,7 +244,8 @@ public:
                 detection_mask_ptr_->resize(gray_img.size());
             }
 
-            fill_header(bgs_msg, gray_img);
+            sensor_msgs::msg::Image bgs_msg;
+            fill_header(bgs_msg, header, gray_img);
 
             process_queue_ptr_->push(PublishImage(std::move(bgs_msg), std::move(gray_img)));
         }
@@ -314,8 +315,9 @@ private:
         node_.log_send_info("BGSWorker: process_images: Leaving publish_images");
     }
 
-    inline void fill_header(sensor_msgs::msg::Image &bgs_msg, const boblib::base::Image &bgs_img) noexcept
+    inline void fill_header(sensor_msgs::msg::Image &bgs_msg, const std_msgs::msg::Header &header, const boblib::base::Image &bgs_img) noexcept
     {
+        bgs_msg.header = header;
         bgs_msg.height = bgs_img.size().height;
         bgs_msg.width = bgs_img.size().width;
         bgs_msg.encoding = ImageUtils::type_to_encoding(bgs_img.type());
@@ -397,7 +399,7 @@ private:
         }
     }
 
-    std::unique_ptr<boblib::bgs::CoreBgs> create_bgs(BackgroundSubtractorWorkerParams::BGSType type)
+    inline std::unique_ptr<boblib::bgs::CoreBgs> create_bgs(BackgroundSubtractorWorkerParams::BGSType type)
     {
         switch (type)
         {
