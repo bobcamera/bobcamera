@@ -25,7 +25,7 @@ public:
         : max_pre_buffer_size_(pre_buffer_size)
     {
         pre_buffer_ptr_ = std::make_unique<std::deque<cv::Mat>>();
-        draw_trajectories_enabled_ = true;
+        draw_trajectories_enabled_ = false;
     }
 
     void accumulate_mask(const cv::Mat & fg_mask, const cv::Size & frame_size) 
@@ -51,7 +51,10 @@ public:
     {
         draw_trajectories();
 
-        if (!heatmap_accumulator_.empty()) 
+        std::filesystem::path p(full_path);
+        std::filesystem::create_directories(p.parent_path());
+
+        if (!heatmap_accumulator_.empty())
         {
             cv::Mat converted_heatmap;
             if (heatmap_accumulator_.channels() == 1) 

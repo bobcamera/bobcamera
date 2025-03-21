@@ -195,14 +195,14 @@ private:
                         create_recording_directories(recordings_directory_);
                         date_ = current_date;
                     }
-                    const std::string full_path = dated_directory_ + "/" + base_filename_;
 
-                    log_send_info("Starting track recording into: %s", full_path.c_str());
+                    log_send_info("Starting track recording into: %s", dated_directory_.c_str());
 
                     bob_interfaces::msg::RecordingEvent event;
                     event.header = tracking_msg->header;
                     event.recording = recording_;
-                    event.recording_path = full_path;
+                    event.recording_path = dated_directory_;
+                    event.filename = base_filename_;
                     event_publisher_->publish(event);
                 } 
                 break;
@@ -226,6 +226,7 @@ private:
                     event.header = tracking_msg->header;
                     event.recording = recording_;
                     event.recording_path = dated_directory_;
+                    event.filename = base_filename_;
                     event_publisher_->publish(event);
                 }
                 else 

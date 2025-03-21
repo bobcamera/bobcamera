@@ -28,11 +28,11 @@ public:
         bgs_params_ptr_ = std::make_unique<BackgroundSubtractorWorkerParams>();
 
         bgs_worker_ptr_ = std::make_unique<BackgroundSubtractorWorker>(*this, *bgs_params_ptr_);
-        camera_worker_ptr_ = std::make_unique<CameraWorker>(*this, *camera_params_ptr_, 
-            [this](const std_msgs::msg::Header & header, const boblib::base::Image & img)
-            {
-                bgs_worker_ptr_->image_callback(header, img);
-            });
+        camera_worker_ptr_ = std::make_unique<CameraWorker>(*this, *camera_params_ptr_,
+                                                            [this](float fps, const std_msgs::msg::Header &header, const boblib::base::Image &img)
+                                                            {
+                                                                bgs_worker_ptr_->image_callback(fps, header, img);
+                                                            });
     }
 
     ~CameraBGS() = default;
@@ -356,6 +356,7 @@ private:
                     [this](const rclcpp::Parameter &param)
                     {
                         camera_params_ptr_->set_recording_enabled(param.as_bool());
+                        bgs_params_ptr_->set_recording_enabled(param.as_bool());
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("recording_codec", "avc1"),
@@ -368,6 +369,7 @@ private:
                     [this](const rclcpp::Parameter &param)
                     {
                         camera_params_ptr_->set_recording_seconds_save(param.as_int());
+                        bgs_params_ptr_->set_recording_seconds_save(param.as_int());
                     }),
             };
         add_action_parameters(params);

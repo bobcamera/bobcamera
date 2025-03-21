@@ -213,7 +213,7 @@ class CameraWorker final
 public:
     explicit CameraWorker(ParameterNode &node,
                           CameraWorkerParams &params,
-                          const std::function<void(const std_msgs::msg::Header &, const boblib::base::Image &)> &user_callback = nullptr)
+                          const std::function<void(float fps_, const std_msgs::msg::Header &, const boblib::base::Image &)> &user_callback = nullptr)
         : node_(node),
           params_(params),
           user_callback_(user_callback)
@@ -382,8 +382,8 @@ private:
             double frame_width;
             double frame_height;
             fps_ = video_reader_ptr_->get(cv::CAP_PROP_FPS, fps) ? static_cast<float>(fps) : UNKNOWN_DEVICE_FPS;
-            int cv_camera_width = video_reader_ptr_->get(cv::CAP_PROP_FRAME_WIDTH, frame_width) ? static_cast<int>(frame_width) : 0;
-            int cv_camera_height = video_reader_ptr_->get(cv::CAP_PROP_FRAME_HEIGHT, frame_height) ? static_cast<int>(frame_height) : 0;
+            const int cv_camera_width = video_reader_ptr_->get(cv::CAP_PROP_FRAME_WIDTH, frame_width) ? static_cast<int>(frame_width) : 0;
+            const int cv_camera_height = video_reader_ptr_->get(cv::CAP_PROP_FRAME_HEIGHT, frame_height) ? static_cast<int>(frame_height) : 0;
             node_.log_send_info("Stream capture Info: %dx%d at %.2g FPS", cv_camera_width, cv_camera_height, fps_);
             loop_rate_ptr_ = std::make_unique<rclcpp::WallRate>(fps_);
 
@@ -511,7 +511,7 @@ private:
 
                     if (user_callback_)
                     {
-                        user_callback_(camera_msg.header, camera_img);
+                        user_callback_(fps_, camera_msg.header, camera_img);
                     }
 
                     publish_queue_ptr_->push(PublishImage(std::move(camera_msg), std::move(camera_img)));
@@ -594,7 +594,7 @@ private:
                         {
                             if (!video_recorder_ptr_->is_recording())
                             {
-                                const auto complete_filename = last_recording_event_.recording_path + +".mp4";
+                                const auto complete_filename = last_recording_event_.recording_path + "/" + last_recording_event_.filename + ".mp4";
                                 node_.log_info("Opening new video: %s", complete_filename.c_str());
                                 if (!video_recorder_ptr_->open_new_video(complete_filename, params_.get_recording_codec(), fps_, camera_img.size()))
                                 {
@@ -907,7 +907,7 @@ private:
 
     std::unique_ptr<MaskWorker> mask_worker_ptr_;
 
-    std::function<void(const std_msgs::msg::Header &, const boblib::base::Image &)> user_callback_;
+    std::function<void(float fps, const std_msgs::msg::Header &, const boblib::base::Image &)> user_callback_;
     
     std::unique_ptr<boblib::video::VideoReader> video_reader_ptr_;
     bob_camera::msg::CameraInfo camera_info_msg_;
