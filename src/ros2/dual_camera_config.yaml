@@ -77,6 +77,7 @@ advanced_config:
     bgs_mask_file: 'assets/masks/camera1-detection-mask.jpg'
     bgs_mask_override_service_topic: 'bob/mask/detection/override/camera1'
     camera_recording_event_subscriber_topic: 'bob/camera1/recording/event'
+    tracking_subscriber_topic: 'bob/camera1/tracker/tracking'
 
   camera2_node:
     privacy_mask_file: 'assets/masks/camera2-privacy-mask.jpg'
@@ -91,6 +92,7 @@ advanced_config:
     bgs_mask_file: 'assets/masks/camera2-detection-mask.jpg'
     bgs_mask_override_service_topic: 'bob/mask/detection/override/camera2'
     camera_recording_event_subscriber_topic: 'bob/camera2/recording/event'
+    tracking_subscriber_topic: 'bob/camera2/tracker/tracking'
 
   base_camera_node:
     resize_height: $resize_height # 0 to disable resize publish

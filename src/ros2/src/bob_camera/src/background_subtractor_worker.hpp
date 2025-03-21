@@ -9,6 +9,8 @@
 #include <boblib/api/blobs/connectedBlobDetection.hpp>
 #include <boblib/api/base/Image.hpp>
 
+#include <bob_interfaces/msg/tracking.hpp>
+
 #include "parameter_node.hpp"
 #include "background_subtractor_worker_params.hpp"
 
@@ -44,6 +46,15 @@ public:
         mask_worker_ptr_->init(params_.get_mask_timer_seconds(), params_.get_mask_filename());
 
         process_thread_ = std::jthread(&BackgroundSubtractorWorker::process_images, this);
+
+        rclcpp::QoS sub_qos_profile(4);
+        sub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
+        sub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
+        sub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
+
+        tracking_subscription_ = node_.create_subscription<bob_interfaces::msg::Tracking>(params_.get_tracking_subscriber_topic(), sub_qos_profile,
+                                                                                    [this](const bob_interfaces::msg::Tracking::SharedPtr tracking_msg)
+                                                                                    { tracking_callback(tracking_msg); });
     }
 
     void restart_mask()
@@ -184,6 +195,22 @@ public:
     }
 
 private:
+    void tracking_callback(const bob_interfaces::msg::Tracking::SharedPtr tracking_msg)
+    {
+        if (params_.get_recording_enabled() && last_recording_event_.recording)
+        {
+            for (const auto &detection : tracking_msg->detections)
+            {
+                if (detection.state == 2) // ActiveTarget
+                {
+                    const auto &bbox = detection.bbox;
+                    const double area = bbox.size_x * bbox.size_y;
+                    img_recorder_->store_trajectory_point(detection.id, cv::Point(static_cast<int>(bbox.center.position.x), static_cast<int>(bbox.center.position.y)), area);
+                }
+            }
+        }
+    }
+
     inline void create_save_heatmap(const boblib::base::Image &img)
     {
         if (params_.get_recording_enabled())
@@ -420,6 +447,7 @@ private:
     bob_interfaces::msg::RecordingEvent last_recording_event_;
 
     std::unique_ptr<SynchronizedQueue<PublishImage>> process_queue_ptr_;
+    rclcpp::Subscription<bob_interfaces::msg::Tracking>::SharedPtr tracking_subscription_;
     std::jthread process_thread_;
 
     std::unique_ptr<ImageRecorder> img_recorder_;

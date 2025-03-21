@@ -145,6 +145,12 @@ private:
                         camera_params_ptr_->set_camera_settings_client(create_client<bob_interfaces::srv::CameraSettings>(param.as_string()));
                     }),
                 ParameterNode::ActionParam(
+                    rclcpp::Parameter("tracking_subscriber_topic", "bob/tracker/tracking"),
+                    [this](const rclcpp::Parameter &param)
+                    {
+                        bgs_params_ptr_->set_tracking_subscriber_topic(param.as_string());
+                    }),
+                ParameterNode::ActionParam(
                     rclcpp::Parameter("use_cuda", true),
                     [this](const rclcpp::Parameter &param)
                     {

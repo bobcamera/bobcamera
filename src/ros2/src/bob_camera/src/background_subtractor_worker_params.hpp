@@ -36,6 +36,7 @@ public:
     [[nodiscard]] const auto &get_image_resized_publish_topic() const { return image_resized_publish_topic_; }
     [[nodiscard]] const auto &get_detection_publish_topic() const { return detection_publish_topic_; }
     [[nodiscard]] const auto &get_detection_state_publish_topic() const { return detection_state_publish_topic_; }
+    [[nodiscard]] const auto &get_tracking_subscriber_topic() const { return tracking_subscriber_topic_; }
     [[nodiscard]] bool get_use_cuda() const { return use_cuda_; }
     [[nodiscard]] BGSType get_bgs_type() const { return bgs_type_; }
     [[nodiscard]] const auto &get_sensitivity() const { return sensitivity_; }
@@ -59,6 +60,7 @@ public:
     void set_image_resized_publish_topic(const std::string &topic) { image_resized_publish_topic_ = topic; }
     void set_detection_publish_topic(const std::string &topic) { detection_publish_topic_ = topic; }
     void set_detection_state_publish_topic(const std::string &topic) { detection_state_publish_topic_ = topic; }
+    void set_tracking_subscriber_topic(const std::string &topic) { tracking_subscriber_topic_ = topic; }
     void set_use_cuda(bool enable) { use_cuda_ = enable; }
     void set_bgs_type(BGSType type) { bgs_type_ = type; }
     void set_sensitivity(const std::string &sensitivity) { sensitivity_ = sensitivity; }
@@ -82,6 +84,7 @@ private:
     std::string image_resized_publish_topic_;
     std::string detection_publish_topic_;
     std::string detection_state_publish_topic_;
+    std::string tracking_subscriber_topic_;
     bool use_cuda_{true};
     BGSType bgs_type_{BGSType::Unknown};
     std::string sensitivity_;

@@ -25,7 +25,7 @@ public:
         : max_pre_buffer_size_(pre_buffer_size)
     {
         pre_buffer_ptr_ = std::make_unique<std::deque<cv::Mat>>();
-        draw_trajectories_enabled_ = false;
+        draw_trajectories_enabled_ = true;
     }
 
     void accumulate_mask(const cv::Mat & fg_mask, const cv::Size & frame_size) 
