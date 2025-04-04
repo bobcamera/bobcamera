@@ -19,8 +19,8 @@
     <depend>bob_image_processing</depend>
     <depend>bob_tracking</depend>
     <depend>rclcpp_components</depend>
-    <depend>rclcpp_lifecycle</depend>
-    <depend>lifecycle_msgs</depend>
+
+    <build_depend>cxx_std_20</build_depend>
 
     <export>
         <build_type>ament_cmake</build_type>

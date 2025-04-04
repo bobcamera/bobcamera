@@ -17,6 +17,7 @@
 #include "mask_worker.hpp"
 #include "publish_image.hpp"
 #include "image_recorder.hpp"
+#include "json_recorder.hpp"
 
 class BackgroundSubtractorWorker
 {
@@ -166,7 +167,9 @@ public:
             if (fps != fps_)
             {
                 fps_ = fps;
-                img_recorder_ = std::make_unique<ImageRecorder>((size_t)(static_cast<int>(std::ceil(fps_)) * params_.get_recording_seconds_save()));
+                auto total_pre_frames = (size_t)(static_cast<int>(std::ceil(fps_)) * params_.get_recording_seconds_save());
+                img_recorder_ = std::make_unique<ImageRecorder>(total_pre_frames);
+                json_recorder_ = std::make_unique<JsonRecorder>(total_pre_frames);
             }
 
             boblib::base::Image gray_img(using_cuda_);
@@ -194,10 +197,41 @@ public:
         last_recording_event_ = event;
     }
 
+    void save_json()
+    {
+        // auto json_camera_info = JsonRecorder::build_json_camera_info(camera_info_msg);
+        // json_recorder_->add_to_buffer(json_camera_info, true);
+
+        auto json_full_path = last_recording_event_.recording_path + "/json/" + last_recording_event_.filename + ".json";
+        node_.log_send_info("BGSWorker: save_json: Writing JSON to: %s", json_full_path.c_str());
+        json_recorder_->write_buffer_to_file(json_full_path);
+    }
+
 private:
+
+
     void tracking_callback(const bob_interfaces::msg::Tracking::SharedPtr tracking_msg)
     {
-        if (params_.get_recording_enabled() && last_recording_event_.recording)
+        if (!params_.get_recording_enabled())
+        {
+            return;
+        }
+
+        // Start recording heatmap when recording begins
+        if (last_recording_event_.recording && !recording_json_)
+        {
+            recording_json_ = true;
+        }
+        else
+        // Save heatmap when recording ends
+        if (!last_recording_event_.recording && recording_json_)
+        {
+            recording_json_ = false;
+            save_json();
+        }
+
+        auto json_data = JsonRecorder::build_json_value(tracking_msg, false);
+        if (last_recording_event_.recording)
         {
             for (const auto &detection : tracking_msg->detections)
             {
@@ -208,27 +242,62 @@ private:
                     img_recorder_->store_trajectory_point(detection.id, cv::Point(static_cast<int>(bbox.center.position.x), static_cast<int>(bbox.center.position.y)), area);
                 }
             }
+            json_recorder_->add_to_buffer(json_data, false);
+        }
+        else
+        {
+            json_recorder_->add_to_pre_buffer(json_data, false);
         }
     }
 
-    inline void create_save_heatmap(const boblib::base::Image &img)
+    inline void create_save_heatmap(const boblib::base::Image &img) noexcept
     {
-        if (params_.get_recording_enabled())
+        if (!params_.get_recording_enabled())   
         {
-            if (last_recording_event_.recording && !recording_)
+            return;
+        }
+
+        try
+        {
+            // Start recording heatmap when recording begins
+            if (last_recording_event_.recording && !recording_heatmap_)
             {
-                recording_ = true;
+                recording_heatmap_ = true;
                 img_recorder_->update_frame_for_drawing(img.toMat());
                 return;
             }
 
-            if (!last_recording_event_.recording && recording_)
+            // Save heatmap when recording ends
+            if (!last_recording_event_.recording && recording_heatmap_)
             {
-                recording_ = false;
+                recording_heatmap_ = false;
+                
+                // Ensure the recording path and filename are valid
+                if (last_recording_event_.recording_path.empty() || last_recording_event_.filename.empty())
+                {
+                    node_.log_send_error("Cannot save heatmap: Invalid recording path or filename");
+                    return;
+                }
+                
+                // Create the full path for the heatmap
                 std::string full_path = last_recording_event_.recording_path + "/heatmaps/" + last_recording_event_.filename + ".jpg";
-                img_recorder_->write_image(full_path);
+                
+                // Write the image and reset the recorder
+                if (!img_recorder_->write_image(full_path))
+                {
+                    node_.log_send_error("Failed to write heatmap to: %s", full_path.c_str());
+                }
+                
                 img_recorder_->reset();
             }
+        }
+        catch (const std::exception& e)
+        {
+            node_.log_send_error("Error in create_save_heatmap: %s", e.what());
+        }
+        catch (...)
+        {
+            node_.log_send_error("Unknown error in create_save_heatmap");
         }
     }
 
@@ -244,6 +313,7 @@ private:
     {
         boblib::base::Image blank_mask(using_cuda_);
         boblib::base::Image bgs_img(using_cuda_);
+
         while (rclcpp::ok())
         {
             std::unique_lock lock(mutex_);
@@ -252,55 +322,70 @@ private:
             processing_ = true;
 
             auto publish_image = process_queue_ptr_->pop();
-            if (publish_image.has_value())
+            if (!publish_image.has_value())
             {
-                try
-                {
-                    if (process_queue_ptr_->size() > 0)
-                    {
-                        node_.log_info("BGSWorker: Process Queue size: %d", process_queue_ptr_->size());
-                    }
-
-                    auto & camera_msg = publish_image.value().Image_msg;
-                    auto & gray_img = publish_image.value().Image;
-
-                    if (mask_enabled_ && params_.get_mask_enable_override() && (detection_mask_ptr_->size() != gray_img.size()))
-                    {
-                        detection_mask_ptr_->resize(gray_img.size());
-                    }
-
-                    bgs_ptr_->apply(gray_img, bgs_img, (mask_enabled_ && params_.get_mask_enable_override()) ? *detection_mask_ptr_ : blank_mask);
-
-                    accumulate_mask(bgs_img);
-
-                    do_detection(camera_msg.header, bgs_img);
-
-                    publish_frame(camera_msg, bgs_img);
-
-                    publish_resized_frame(camera_msg, bgs_img);
-                }
-                catch (const std::exception & e)
-                {
-                    node_.log_send_error("BGSWorker: process_images: Exception: %s", e.what());
-                    rcutils_reset_error();
-                }
-                catch (...)
-                {
-                    node_.log_send_error("BGSWorker: process_images: Unknown exception");
-                    rcutils_reset_error();
-                }
-
                 processing_ = false;
                 cv_.notify_all();
+                continue;
             }
-        }
-        if (img_recorder_)
-        {
-            std::string full_path = last_recording_event_.recording_path + "/heatmaps/" + last_recording_event_.filename + ".jpg";
-            img_recorder_->write_image(full_path);
+
+            try
+            {
+                if (process_queue_ptr_->size() > 0)
+                {
+                    node_.log_info("BGSWorker: Process Queue size: %d", process_queue_ptr_->size());
+                }
+
+                auto& camera_msg = publish_image.value().Image_msg;
+                auto& gray_img = publish_image.value().Image;
+
+                // Resize detection mask if needed
+                if (mask_enabled_ && params_.get_mask_enable_override() && 
+                    (detection_mask_ptr_->size() != gray_img.size()))
+                {
+                    detection_mask_ptr_->resize(gray_img.size());
+                }
+
+                // Apply background subtraction
+                const auto& mask = (mask_enabled_ && params_.get_mask_enable_override()) 
+                    ? *detection_mask_ptr_ 
+                    : blank_mask;
+                bgs_ptr_->apply(gray_img, bgs_img, mask);
+
+                // Process the results
+                accumulate_mask(bgs_img);
+                do_detection(camera_msg.header, bgs_img);
+                publish_frame(camera_msg, bgs_img);
+                publish_resized_frame(camera_msg, bgs_img);
+            }
+            catch (const std::exception& e)
+            {
+                node_.log_send_error("BGSWorker: process_images: Exception: %s", e.what());
+                rcutils_reset_error();
+            }
+            catch (...)
+            {
+                node_.log_send_error("BGSWorker: process_images: Unknown exception");
+                rcutils_reset_error();
+            }
+
+            processing_ = false;
+            cv_.notify_all();
         }
 
-        node_.log_send_info("BGSWorker: process_images: Leaving publish_images");
+        // Save final heatmap if recording was active
+        if (img_recorder_)
+        {
+            std::string full_path = last_recording_event_.recording_path + 
+                "/heatmaps/" + last_recording_event_.filename + ".jpg";
+            img_recorder_->write_image(full_path);
+        }
+        if (json_recorder_)
+        {
+            save_json();
+        }
+
+        node_.log_send_info("BGSWorker: process_images: Leaving process_images");
     }
 
     inline void fill_header(sensor_msgs::msg::Image &bgs_msg, const std_msgs::msg::Header &header, const boblib::base::Image &bgs_img) noexcept
@@ -320,7 +405,7 @@ private:
             return;
         }
         const size_t totalBytes = bgs_img.total() * bgs_img.elemSize();
-        bgs_msg.data.assign(bgs_img.data(), bgs_img.data() + totalBytes);;        
+        bgs_msg.data.assign(bgs_img.data(), bgs_img.data() + totalBytes);
 
         params_.get_image_publisher()->publish(bgs_msg);
     }
@@ -346,44 +431,62 @@ private:
 
     inline void do_detection(const std_msgs::msg::Header &header, boblib::base::Image &bgs_img)
     {
+        // Initialize detector state and bounding box array messages
         bob_interfaces::msg::DetectorState state;
         state.sensitivity = params_.get_sensitivity();
+        state.max_blobs_reached = false; // Initialize to false by default
+
         bob_interfaces::msg::DetectorBBoxArray bbox2D_array;
         bbox2D_array.header = header;
         bbox2D_array.image_width = bgs_img.size().width;
         bbox2D_array.image_height = bgs_img.size().height;
 
+        // Apply median filter if enabled to reduce noise
         if (median_filter_)
         {
             bgs_img.medianBlur(3);
         }
 
+        // Perform blob detection
         std::vector<cv::Rect> bboxes;
-        auto det_result = blob_detector_ptr_->detect(bgs_img, bboxes);
-        if (det_result == boblib::blobs::DetectionResult::Success)
+        const auto det_result = blob_detector_ptr_->detect(bgs_img, bboxes);
+
+        // Handle detection results
+        switch (det_result)
         {
-            state.max_blobs_reached = false;
-            add_bboxes(bbox2D_array, bboxes);
-        }
-        else if (det_result == boblib::blobs::DetectionResult::MaxBlobsReached)
-        {
-            state.max_blobs_reached = true;
+            case boblib::blobs::DetectionResult::Success:
+                add_bboxes(bbox2D_array, bboxes);
+                break;
+            
+            case boblib::blobs::DetectionResult::MaxBlobsReached:
+                state.max_blobs_reached = true;
+                break;
+
+            case boblib::blobs::DetectionResult::NoBlobsDetected:
+                break;
+
+            default:
+                // Log unexpected detection result
+                node_.log_send_warn("Unexpected detection result: %d", static_cast<int>(det_result));
+                break;
         }
 
+        // Publish results if there are subscribers
         node_.publish_if_subscriber(params_.get_state_publisher(), state);
         node_.publish_if_subscriber(params_.get_detection_publisher(), bbox2D_array);
     }
 
     inline void add_bboxes(bob_interfaces::msg::DetectorBBoxArray &bbox2D_array, const std::vector<cv::Rect> &bboxes) noexcept
     {
+        bbox2D_array.detections.reserve(bboxes.size());
         for (const auto& bbox : bboxes)
         {
-            bob_interfaces::msg::DetectorBBox bbox_msg;
-            bbox_msg.x = bbox.x;
-            bbox_msg.y = bbox.y;
-            bbox_msg.width = bbox.width;
-            bbox_msg.height = bbox.height;
-            bbox2D_array.detections.push_back(bbox_msg);
+            bob_interfaces::msg::DetectorBBox detection;
+            detection.x = bbox.x;
+            detection.y = bbox.y; 
+            detection.width = bbox.width;
+            detection.height = bbox.height;
+            bbox2D_array.detections.push_back(detection);
         }
     }
 
@@ -451,6 +554,8 @@ private:
     std::jthread process_thread_;
 
     std::unique_ptr<ImageRecorder> img_recorder_;
-    bool recording_{false};
+    std::unique_ptr<JsonRecorder> json_recorder_;
+    bool recording_heatmap_{false};
+    bool recording_json_{false};
     float fps_{-1.0f};
 };

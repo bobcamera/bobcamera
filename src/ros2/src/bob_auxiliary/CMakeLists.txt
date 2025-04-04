@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.5)
 project(bob_auxiliary)
 
-if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 20)
-endif()
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -36,7 +36,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
     add_definitions(-Wno-missing-braces)
 ENDIF()
 
-# LifecycleServiceClient Node Library
+# Information Node Library
 add_library(information_node SHARED src/information.cpp)
 target_compile_definitions(information_node PRIVATE "COMPOSITION_BUILDING_DLL")
 target_link_libraries(information_node PUBLIC "${cpp_typesupport_target}" boblib)

@@ -439,6 +439,14 @@ private:
             }
         }
         node_.log_send_info("CameraWorker: Leaving record_images");
+
+        if (video_recorder_ptr_ &&  video_recorder_ptr_->is_recording())
+        {
+            node_.log_info("Closing video");
+            video_recorder_ptr_->close_video();
+        }
+
+        stop_capture();
     }
 
     inline void fill_header(sensor_msgs::msg::Image & camera_msg, boblib::base::Image & camera_img)
