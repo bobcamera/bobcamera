@@ -56,6 +56,10 @@ public:
         tracking_subscription_ = node_.create_subscription<bob_interfaces::msg::Tracking>(params_.get_tracking_subscriber_topic(), sub_qos_profile,
                                                                                     [this](const bob_interfaces::msg::Tracking::SharedPtr tracking_msg)
                                                                                     { tracking_callback(tracking_msg); });
+
+        camera_info_subscription_ = node_.create_subscription<bob_camera::msg::CameraInfo>(params_.get_camera_info_subscriber_topic(), sub_qos_profile,
+                                                                                           [this](const bob_camera::msg::CameraInfo::SharedPtr camera_info_msg)
+                                                                                           { camera_info_callback(camera_info_msg); });
     }
 
     void restart_mask()
@@ -197,10 +201,15 @@ public:
         last_recording_event_ = event;
     }
 
+    void camera_info_callback(const bob_camera::msg::CameraInfo::SharedPtr camera_info_msg) noexcept
+    {
+        last_camera_info_ = camera_info_msg;
+    }
+
     void save_json()
     {
-        // auto json_camera_info = JsonRecorder::build_json_camera_info(camera_info_msg);
-        // json_recorder_->add_to_buffer(json_camera_info, true);
+        auto json_camera_info = JsonRecorder::build_json_camera_info(last_camera_info_);
+        json_recorder_->add_to_buffer(json_camera_info, true);
 
         auto json_full_path = last_recording_event_.recording_path + "/json/" + last_recording_event_.filename + ".json";
         node_.log_send_info("BGSWorker: save_json: Writing JSON to: %s", json_full_path.c_str());
@@ -548,9 +557,10 @@ private:
     bool using_cuda_{false};
 
     bob_interfaces::msg::RecordingEvent last_recording_event_;
-
+    bob_camera::msg::CameraInfo::SharedPtr last_camera_info_;
     std::unique_ptr<SynchronizedQueue<PublishImage>> process_queue_ptr_;
     rclcpp::Subscription<bob_interfaces::msg::Tracking>::SharedPtr tracking_subscription_;
+    rclcpp::Subscription<bob_camera::msg::CameraInfo>::SharedPtr camera_info_subscription_;
     std::jthread process_thread_;
 
     std::unique_ptr<ImageRecorder> img_recorder_;

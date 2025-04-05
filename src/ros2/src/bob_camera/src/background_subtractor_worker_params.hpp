@@ -47,7 +47,7 @@ public:
     [[nodiscard]] int get_mask_timer_seconds() const { return mask_timer_seconds_; }
     [[nodiscard]] bool get_recording_enabled() const { return recording_enabled_; }
     [[nodiscard]] int get_recording_seconds_save() const { return recording_seconds_save_; }
-
+    [[nodiscard]] const auto &get_camera_info_subscriber_topic() const { return camera_info_subscriber_topic_; }
     // Setters
     void set_max_queue_process_size(size_t size) { max_queue_process_size_ = size; }
 
@@ -72,7 +72,7 @@ public:
     void set_mask_timer_seconds(int seconds) { mask_timer_seconds_ = seconds; }
     void set_recording_enabled(bool enable) { recording_enabled_ = enable; }
     void set_recording_seconds_save(int seconds) { recording_seconds_save_ = seconds; }
-
+    void set_camera_info_subscriber_topic(const std::string &topic) { camera_info_subscriber_topic_ = topic; }
 private:
     size_t max_queue_process_size_{0};
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
@@ -85,6 +85,7 @@ private:
     std::string detection_publish_topic_;
     std::string detection_state_publish_topic_;
     std::string tracking_subscriber_topic_;
+    std::string camera_info_subscriber_topic_;
     bool use_cuda_{true};
     BGSType bgs_type_{BGSType::Unknown};
     std::string sensitivity_;

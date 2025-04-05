@@ -88,6 +88,7 @@ private:
                     {
                         camera_params_ptr_->set_camera_info_publish_topic(param.as_string());
                         camera_params_ptr_->set_camera_info_publisher(create_publisher<bob_camera::msg::CameraInfo>(camera_params_ptr_->get_camera_info_publish_topic(), qos_profile_));
+                        bgs_params_ptr_->set_camera_info_subscriber_topic(param.as_string());
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("camera_recording_event_subscriber_topic", "bob/camera1/recording/event"),
