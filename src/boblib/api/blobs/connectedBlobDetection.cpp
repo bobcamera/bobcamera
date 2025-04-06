@@ -1,8 +1,8 @@
 #include "connectedBlobDetection.hpp"
 
 #include <opencv2/imgproc.hpp>
-#include <opencv2/cudaimgproc.hpp>
-#include <opencv2/cudaarithm.hpp>
+// #include <opencv2/cudaimgproc.hpp>
+// #include <opencv2/cudaarithm.hpp>
 
 #include <iostream>
 #include <execution>
@@ -144,16 +144,16 @@ namespace boblib::blobs
         int num_blobs(0);
 
         // Use connected component analysis to find the blobs in the image
-        if (params_.use_cuda && image.get_using_cuda())
-        {
-            cv::cuda::GpuMat gpu_labels;
-            cv::cuda::connectedComponents(image.toCudaMat(), gpu_labels, 8, CV_32S);
-            gpu_labels.download(labels);
+        // if (params_.use_cuda && image.get_using_cuda())
+        // {
+        //     cv::cuda::GpuMat gpu_labels;
+        //     cv::cuda::connectedComponents(image.toCudaMat(), gpu_labels, 8, CV_32S);
+        //     gpu_labels.download(labels);
 
-            num_blobs = run_parallel(labels, bboxes_map);
-        }
-        else
-        {
+        //     num_blobs = run_parallel(labels, bboxes_map);
+        // }
+        // else
+        // {
             num_labels = cv::connectedComponents(image.toMat(), labels, 8, CV_32S, cv::CCL_SPAGHETTI) - 1; // subtract 1 because the background is considered as label 0
             if ((num_labels > 0) && (num_labels < params_.max_labels))
             {
@@ -163,7 +163,7 @@ namespace boblib::blobs
             {
                 num_blobs = params_.max_blobs + 1;
             }
-        }
+        // }
 
         if ((num_blobs > 0) && (num_blobs <= params_.max_blobs))
         {

@@ -3,8 +3,8 @@
 #include <string>
 
 #include <opencv2/opencv.hpp>
-#include <opencv2/core/cuda.hpp>
-#include <opencv2/cudacodec.hpp>
+// #include <opencv2/core/cuda.hpp>
+// #include <opencv2/cudacodec.hpp>
 
 #include "../base/Image.hpp"
 
@@ -46,6 +46,6 @@ namespace boblib::video
         const double fps_;
         const cv::Size frame_size_;
         std::unique_ptr<cv::VideoWriter> video_writer_ptr_;
-        cv::Ptr<cv::cudacodec::VideoWriter> cuda_video_writer_ptr_;
+        // cv::Ptr<cv::cudacodec::VideoWriter> cuda_video_writer_ptr_;
     };
 }
