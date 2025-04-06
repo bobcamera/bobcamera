@@ -8,9 +8,7 @@ if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
     message(FATAL_ERROR "In-source build not supported; generation should be done in a subdir, e.g.:  ${CMAKE_SOURCE_DIR}/build")
 endif ()
 
-#include(CheckLanguage)
 include(FrameworkUtils)
-#include(CheckFunctionExists)
 
 project(boblib CXX)
 set(CMAKE_CXX_STANDARD 20)
@@ -39,6 +37,7 @@ message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 option(USE_LINK_TIME_OPTIM "Enable link time optimization" ON)
 option(USE_FAST_MATH "Enable fast math optimization" OFF)
 option(USE_OPENMP "Enable OpenMP in internal implementations" ON)
+option(USE_CUDA "Enable CUDA support" OFF)
 
 set(BOBLIB_PYTHON_SUPPORT OFF)
 set(BOBLIB_APPS_COMPILE ON)

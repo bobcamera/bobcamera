@@ -4,8 +4,10 @@
 #include <string>
 
 #include <opencv2/opencv.hpp>
-// #include <opencv2/core/cuda.hpp>
-// #include <opencv2/cudacodec.hpp>
+#ifdef HAVE_CUDA
+#include <opencv2/core/cuda.hpp>
+#include <opencv2/cudacodec.hpp>
+#endif
 
 #include "../base/Image.hpp"
 
@@ -42,6 +44,8 @@ namespace boblib::video
         const std::string camera_uri_;
         const std::vector<int> & params_;
         std::unique_ptr<cv::VideoCapture> video_capture_ptr_;
-        // cv::Ptr<cv::cudacodec::VideoReader> cuda_video_reader_ptr_;
+#ifdef HAVE_CUDA
+        std::unique_ptr<cv::cudacodec::VideoReader> cuda_video_reader_ptr_;
+#endif
     };
 }

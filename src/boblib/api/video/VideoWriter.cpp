@@ -16,13 +16,15 @@ VideoWriter::~VideoWriter()
 
 void VideoWriter::write(const cv::Mat &image)
 {
-    // if (using_cuda_)
-    // {
-    //     cv::cuda::GpuMat gpu_frame;
-    //     gpu_frame.upload(image);
-    //     cuda_video_writer_ptr_->write(gpu_frame);
-    // }
-    // else
+#ifdef HAVE_CUDA
+    if (using_cuda_)
+    {
+        cv::cuda::GpuMat gpu_frame;
+        gpu_frame.upload(image);
+        cuda_video_writer_ptr_->write(gpu_frame);
+    }
+    else
+#endif
     {
         video_writer_ptr_->write(image);
     }
@@ -30,24 +32,27 @@ void VideoWriter::write(const cv::Mat &image)
 
 void VideoWriter::write(const boblib::base::Image & image)
 {
-    // if (using_cuda_)
-    // {
-    //     cuda_video_writer_ptr_->write(image.toCudaMat());
-    // }
-    // else
+#ifdef HAVE_CUDA
+    if (using_cuda_)
+    {
+        cuda_video_writer_ptr_->write(image.toCudaMat());
+    }
+    else
+#endif
     {
         video_writer_ptr_->write(image.toMat());
     }
-
 }
 
 void VideoWriter::release()
 {
-    // if (using_cuda_)
-    // {
-    //     cuda_video_writer_ptr_->release();
-    // }
-    // else
+#ifdef HAVE_CUDA
+    if (using_cuda_)
+    {
+        cuda_video_writer_ptr_->release();
+    }
+    else
+#endif
     {
         video_writer_ptr_->release();
     }
@@ -65,35 +70,37 @@ bool VideoWriter::using_cuda() const
 
 inline void VideoWriter::create_video_writer()
 {
-    // if (using_cuda_)
-    // {
-    //     std::cout << "Using cuda" << std::endl;
-    //     std::function<cv::cudacodec::Codec(boblib::video::Codec)> cuda_codec = [](boblib::video::Codec codec)
-    //     {
-    //         switch (codec)
-    //         {
-    //         case boblib::video::Codec::H264:
-    //             return cv::cudacodec::Codec::H264;
-    //         case boblib::video::Codec::HEVC:
-    //             return cv::cudacodec::Codec::HEVC;
-    //         default:
-    //             return cv::cudacodec::Codec::H264;
-    //         }
-    //     };
+#ifdef HAVE_CUDA
+    if (using_cuda_)
+    {
+        std::cout << "Using cuda" << std::endl;
+        std::function<cv::cudacodec::Codec(boblib::video::Codec)> cuda_codec = [](boblib::video::Codec codec)
+        {
+            switch (codec)
+            {
+            case boblib::video::Codec::H264:
+                return cv::cudacodec::Codec::H264;
+            case boblib::video::Codec::HEVC:
+                return cv::cudacodec::Codec::HEVC;
+            default:
+                return cv::cudacodec::Codec::H264;
+            }
+        };
 
-    //     try
-    //     {
-    //         cuda_video_writer_ptr_ = cv::cudacodec::createVideoWriter(fileName_, frame_size_, cuda_codec(codec_), fps_);
-    //         std::cout << "cuda_video_writer_ptr_: " << cuda_video_writer_ptr_ << std::endl;
-    //     }
-    //     catch(const std::exception& e)
-    //     {
-    //         std::cerr << e.what() << '\n';
-    //     }
+        try
+        {
+            cuda_video_writer_ptr_ = cv::cudacodec::createVideoWriter(fileName_, frame_size_, cuda_codec(codec_), fps_);
+            std::cout << "cuda_video_writer_ptr_: " << cuda_video_writer_ptr_ << std::endl;
+        }
+        catch(const std::exception& e)
+        {
+            std::cerr << e.what() << '\n';
+        }
         
-    //     return;
-    // }
-
+        return;
+    }
+#endif
+    
     std::function<int(boblib::video::Codec)> fourcc = [](boblib::video::Codec codec)
     {
         switch (codec)

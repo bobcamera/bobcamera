@@ -27,33 +27,36 @@ VideoReader::~VideoReader()
 
 void VideoReader::release()
 {
-    // if (using_cuda_)
-    // {
-    //     cuda_video_reader_ptr_.reset();
-    // }
-    // else
-    // {
+#ifdef HAVE_CUDA
+    if (using_cuda_)
+    {
+        cuda_video_reader_ptr_.reset();
+    }
+    else
+#endif
+    {
         video_capture_ptr_->release();
-    // }
+    }
 }
 
 bool VideoReader::read(boblib::base::Image & image)
 {
     try
     {
-        // if (using_cuda_)
-        // {
-        //     if (!cuda_video_reader_ptr_->nextFrame(image.toCudaMat())) 
-        //     {
-        //         return false;
-        //     }
-        //     if (!image.get_using_cuda())
-        //     {
-        //         image.download();
-        //     }
-        //     return true;
-        // }
-
+#ifdef HAVE_CUDA
+        if (using_cuda_)
+        {
+            if (!cuda_video_reader_ptr_->nextFrame(image.toCudaMat())) 
+            {
+                return false;
+            }
+            if (!image.get_using_cuda())
+            {
+                image.download();
+            }
+            return true;
+        }
+#endif
         auto success = video_capture_ptr_->read(image.toMat());
         if (success)
         {
@@ -80,10 +83,12 @@ bool VideoReader::set(int parameter_id, double value)
 
 bool VideoReader::get(int parameter_id, double & value) const
 {
-    // if (using_cuda_)
-    // {
-    //     return cuda_video_reader_ptr_->get(parameter_id, value);
-    // }
+#ifdef HAVE_CUDA
+    if (using_cuda_)
+    {
+        return cuda_video_reader_ptr_->get(parameter_id, value);
+    }
+#endif
     value = video_capture_ptr_->get(parameter_id);
     return true;
 }
@@ -106,18 +111,21 @@ inline void VideoReader::create_video_capture()
     if (is_usb_)
     {
         video_capture_ptr_ = std::make_unique<cv::VideoCapture>(usb_camera_id_, cv::CAP_ANY, params_.empty() ? default_params_normal : params_);
-        // cuda_video_reader_ptr_.reset();
+#ifdef HAVE_CUDA
+        cuda_video_reader_ptr_.reset();
+#endif
         return;
     }
 
-    // if (using_cuda_)
-    // {
-    //     cuda_video_reader_ptr_ = cv::cudacodec::createVideoReader(camera_uri_, params_.empty() ? default_params_cuda : params_);
-    //     cuda_video_reader_ptr_->set(cv::cudacodec::ColorFormat::BGR);
-    //     video_capture_ptr_.reset();
-    //     return;
-    // }
-
-    // cuda_video_reader_ptr_.reset();
+#ifdef HAVE_CUDA
+    if (using_cuda_)
+    {
+        cuda_video_reader_ptr_ = cv::cudacodec::createVideoReader(camera_uri_, params_.empty() ? default_params_cuda : params_);
+        cuda_video_reader_ptr_->set(cv::cudacodec::ColorFormat::BGR);
+        video_capture_ptr_.reset();
+        return;
+    }
+    cuda_video_reader_ptr_.reset();
+#endif
     video_capture_ptr_ = std::make_unique<cv::VideoCapture>(camera_uri_, cv::CAP_ANY, params_.empty() ? default_params_normal : params_);
 }
