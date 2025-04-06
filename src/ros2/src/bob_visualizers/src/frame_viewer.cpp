@@ -10,36 +10,34 @@
 
 #include <sensor_msgs/msg/image.hpp>
 
-#include "parameter_lifecycle_node.hpp"
+#include "parameter_node.hpp"
 #include "image_utils.hpp"
 
 #include <visibility_control.h>
 
 class FrameViewer
-    : public ParameterLifeCycleNode
+    : public ParameterNode
 {
 public:
     COMPOSITION_PUBLIC
     explicit FrameViewer(const rclcpp::NodeOptions & options) 
-        : ParameterLifeCycleNode("frame_viewer_node", options)
+        : ParameterNode("frame_viewer_node", options)
         , sub_qos_profile_(4)
     {
     }
 
-    CallbackReturn on_configure(const rclcpp_lifecycle::State &)
+    void on_configure()
     {
         log_info("Configuring");
 
         init();
-
-        return CallbackReturn::SUCCESS;
     }
 
 private:
     void declare_node_parameters()
     {
-        std::vector<ParameterLifeCycleNode::ActionParam> params = {
-            ParameterLifeCycleNode::ActionParam(
+        std::vector<ParameterNode::ActionParam> params = {
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("topics", std::vector<std::string>({"bob/frames/allsky/original", "bob/frames/foreground_mask"})), 
                 [this](const rclcpp::Parameter& param) {topics_ = param.as_string_array();}
             ),
@@ -65,6 +63,7 @@ private:
 
     void check_topics_callback()
     {
+        static int retries = 0;
         timer_->cancel();
         std::string specific_topic_name = topics_[current_topic_];
         auto topics_and_types = get_topic_names_and_types();
@@ -93,8 +92,14 @@ private:
                 timer_->reset();
             }
             return;
-        } 
-        log_warn("Topic '%s' not found", specific_topic_name.c_str());
+        }
+        log_warn("Topic '%s' not found, retries: %d", specific_topic_name.c_str(), retries);
+        if (++retries > 3)
+        {
+            retries = 0;
+            current_topic_ = ++current_topic_ >= (int)topics_.size() ? 0 : current_topic_;
+            log_info("Switch Topic to '%s' not found because number of retries", topics_[current_topic_].c_str());
+        }
         timer_->reset();
     }
 

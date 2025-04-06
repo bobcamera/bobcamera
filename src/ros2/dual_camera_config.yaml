@@ -1,4 +1,18 @@
 #########################################################################
+# Variables to use in nodes
+#########################################################################
+variables:
+  resize_height: 1024
+  logging_type: screen
+  extra_saving_seconds: 2
+  image_compression_quality: 75
+  use_cuda: false #Leave it false as it is not working
+  use_recording: true
+  display_enabled: true
+  camera1_enabled: false
+  camera2_enabled: true
+
+#########################################################################
 # Basic configuration for nodes
 #   This is the basic configuration, where most of the users need to worry
 #########################################################################
@@ -6,30 +20,32 @@ basic_config:
   camera1_node:
     copy: base_camera_node
     source_type: 'RTSP_STREAM'        # USB_CAMERA | VIDEO_FILE | RTSP_STREAM
-    rtsp_uri: 'rtsp://bob:Bobuser$01@192.168.68.54:554/Streaming/Channels/101'
+    rtsp_uri: 'rtsp://bob:Bobuser$01@192.168.50.10:554/Streaming/Channels/101'
     camera_id: 0                      # Id of the camera in the /dev directory for USB Camera
     usb_camera_resolution: [640, 480] # Resolution for USB Camera [WIDTH, HEIGHT]
     videos:                           # List of videos to display in sequence if source_type is VIDEO_FILE
       - '/workspaces/bobcamera/media/fisheye_videos/mike-drone.mp4'
       - '/workspaces/bobcamera/media/fisheye_videos/mikeg-30min.mp4'
+    max_queue_process_size: 100       # Limits the number of images that can be in a queue for processing so not to use too much memory
 
   camera2_node:
     copy: base_camera_node
     source_type: 'RTSP_STREAM'        # USB_CAMERA | VIDEO_FILE | RTSP_STREAM
-    rtsp_uri: 'rtsp://bob:Bobuser$01@192.168.68.63:554/Streaming/Channels/101'
+    rtsp_uri: 'rtsp://bob:Bobuser$01@192.168.50.11:554/Streaming/Channels/101'
     camera_id: 0                      # Id of the camera in the /dev directory for USB Camera
     usb_camera_resolution: [640, 480] # Resolution for USB Camera [WIDTH, HEIGHT]
     videos:                           # List of videos to display in sequence if source_type is VIDEO_FILE
       - '/workspaces/bobcamera/media/fisheye_videos/mike-drone.mp4'
       - '/workspaces/bobcamera/media/fisheye_videos/mikeg-30min.mp4'
+    max_queue_process_size: 100       # Limits the number of images that can be in a queue for processing so not to use too much memory
 
   camera1_recorder_node:
     copy: base_camera_recorder_node
-    prefix: ''
+    prefix: 'directional4k'
     
   camera2_recorder_node:
     copy: base_camera_recorder_node
-    prefix: 'c2'
+    prefix: 'allsky'
     
   multi_frame_viewer_node:
     topics: 
@@ -40,12 +56,6 @@ basic_config:
       - '/bob/camera1/foreground_mask/resized/compressed'
       - '/bob/camera2/foreground_mask/resized/compressed'
 
-
-#########################################################################
-# Variables to use in nodes
-#########################################################################
-variables:
-  resize_height: 960
 
 #########################################################################
 # Advanced configuration for nodes
@@ -66,6 +76,8 @@ advanced_config:
     bgs_detection_state_topic: 'bob/camera1/detection/detector_state'
     bgs_mask_file: 'assets/masks/camera1-detection-mask.jpg'
     bgs_mask_override_service_topic: 'bob/mask/detection/override/camera1'
+    camera_recording_event_subscriber_topic: 'bob/camera1/recording/event'
+    tracking_subscriber_topic: 'bob/camera1/tracker/tracking'
 
   camera2_node:
     privacy_mask_file: 'assets/masks/camera2-privacy-mask.jpg'
@@ -79,6 +91,8 @@ advanced_config:
     bgs_detection_state_topic: 'bob/camera2/detection/detector_state'
     bgs_mask_file: 'assets/masks/camera2-detection-mask.jpg'
     bgs_mask_override_service_topic: 'bob/mask/detection/override/camera2'
+    camera_recording_event_subscriber_topic: 'bob/camera2/recording/event'
+    tracking_subscriber_topic: 'bob/camera2/tracker/tracking'
 
   base_camera_node:
     resize_height: $resize_height # 0 to disable resize publish
@@ -90,8 +104,11 @@ advanced_config:
     onvif_port: 0
     onvif_user: ''
     onvif_password: ''
-    use_cuda: false
+    use_cuda: $use_cuda
     mask_timer_seconds: 5
+    recording_enabled: $use_recording
+    recording_codec: 'avc1'
+    recording_seconds_save: $extra_saving_seconds
     bgs_json_params: '[
                     { "name": "low",
                       "sensitivity": {
@@ -142,30 +159,28 @@ advanced_config:
     resize_height: $resize_height
 
   base_camera_recorder_node:
-    codec: 'avc1'
-    seconds_save: 2
-    recordings_directory: 'assets/recordings'
+    enabled: $use_recording
+    seconds_save: $extra_saving_seconds
+    recordings_directory: 'assets/recordings/'
 
   camera1_recorder_node:
     recording_request_service_topic: 'bob/recording/update/camera1'
     state_publisher_topic: 'bob/camera1/recording/state'
-    img_topic: 'bob/camera1/original'
-    fg_img_topic: 'bob/camera1/foreground_mask'
+    event_publisher_topic: 'bob/camera1/recording/event'
     tracking_topic: 'bob/camera1/tracker/tracking'
     camera_info_topic: 'bob/camera1/camera_info'
 
   camera2_recorder_node:
     recording_request_service_topic: 'bob/recording/update/camera2'
     state_publisher_topic: 'bob/camera2/recording/state'
-    img_topic: 'bob/camera2/original'
-    fg_img_topic: 'bob/camera2/foreground_mask'
+    event_publisher_topic: 'bob/camera2/recording/event'
     tracking_topic: 'bob/camera2/tracker/tracking'
     camera_info_topic: 'bob/camera2/camera_info'
 
   base_annotated_frame_provider_node:
-    tracking_status_message: False
+    tracking_status_message: false
     resize_height: $resize_height
-    visualiser_settings: '{"bbox_line_thickness": "1", "font_scale_width": "0", "font_scale_width": "0", "font_scale": "1.0", "zoom_factor": "2.0", "enable_cropped_tracks": "true", "font_colour": "{50,170,50}", "prediction_colour": "{255,0,50}"}'
+    visualiser_settings: '{"bbox_line_thickness": "2", "font_scale_width": "0", "font_scale_width": "0", "font_scale": "1.0", "zoom_factor": "2.0", "enable_cropped_tracks": "true", "font_colour": "{50,170,50}", "prediction_colour": "{255,0,50}"}'
 
   camera1_annotated_frame_provider_node:
     copy: base_annotated_frame_provider_node
@@ -181,27 +196,27 @@ advanced_config:
 
   camera1_annotated_frame_compressor_node:
     compressed_frame_subscriber_topic: 'bob/camera1/annotated/resized'
-    compression_quality: 75
+    compression_quality: $image_compression_quality
 
   camera2_annotated_frame_compressor_node:
     compressed_frame_subscriber_topic: 'bob/camera2/annotated/resized'
-    compression_quality: 75
+    compression_quality: $image_compression_quality
 
   camera1_detection_masked_compressor_node:
     compressed_frame_subscriber_topic: 'bob/camera1/original/resized'
-    compression_quality: 75
+    compression_quality: $image_compression_quality
 
   camera2_detection_masked_compressor_node:
     compressed_frame_subscriber_topic: 'bob/camera2/original/resized'
-    compression_quality: 75
+    compression_quality: $image_compression_quality
 
   camera1_foreground_mask_compressor_node:
     compressed_frame_subscriber_topic: 'bob/camera1/foreground_mask/resized'
-    compression_quality: 75
+    compression_quality: $image_compression_quality
 
   camera2_foreground_mask_compressor_node:
     compressed_frame_subscriber_topic: 'bob/camera2/foreground_mask/resized'
-    compression_quality: 75
+    compression_quality: $image_compression_quality
 
   camera1_image_estimator_node:
     camera_subscription_topic: 'bob/camera1/original/resized'
@@ -256,9 +271,11 @@ advanced_config:
     star_mask_enabled: True    
 
   camera1_recorder_monitoring_node:
+    enabled: $use_recording
     check_interval: 5
 
   camera2_recorder_monitoring_node:
+    enabled: $use_recording
     check_interval: 5
 
   onvif_service_node:
@@ -270,15 +287,6 @@ advanced_config:
   mask_webapi_node:
     masks_folder: 'assets/masks'
 
-  lifecycle_manager_node:
-    prune_time_seconds: 5
-
-  # star_mask_node:
-  #   detection_mask_file: 'assets/masks/detection-mask.jpg'
-  #   detection_mask_backup_file: 'assets/masks/detection-mask-backup.jpg'
-  #   observer_timer_interval: 90
-  #   observer_cross_correlation_threshold: 0.5
-
 #########################################################################
 # Launch nodes configuration
 #   Here is what containers and nodes will be launched by this
@@ -289,7 +297,6 @@ advanced_config:
 #   There are standalone parameters:
 #     namespace: the namespace to run BOB
 #     rosbridge: True to enable rosbridge frontend connection, False otherwise
-#     lifecycle: True to enable lifecycle manager, False otherwise (suggested to leave it True or BOB will not work)
 #
 #   The Node Containers are executables that will run nodes in the same
 #   process, they have the advantage of using intra process communication
@@ -331,12 +338,12 @@ advanced_config:
 launch:
   namespace: ''
   rosbridge: True
-  lifecycle: True
 
   node_containers:
     - name: Kernel_Camera1
+      enabled: $camera1_enabled
       executable: component_container_mt
-      output: both 
+      output: $logging_type
       nodes:
         - package: bob_camera
           plugin: CameraBGS
@@ -346,10 +353,10 @@ launch:
           plugin: TrackProvider
           name: camera1_track_provider_node
           remappings: []
-        # - package: bob_recorder
-        #   plugin: RecordManager
-        #   name: camera1_recorder_node
-        #   remappings: []
+        - package: bob_recorder
+          plugin: RecordManager
+          name: camera1_recorder_node
+          remappings: []
         - package: bob_image_processing
           plugin: AnnotatedFrameProvider
           name: camera1_annotated_frame_provider_node
@@ -368,8 +375,9 @@ launch:
           remappings: []
 
     - name: Kernel_Camera2
+      enabled: $camera2_enabled
       executable: component_container_mt
-      output: both 
+      output: $logging_type
       nodes:
         - package: bob_camera
           plugin: CameraBGS
@@ -379,10 +387,10 @@ launch:
           plugin: TrackProvider
           name: camera2_track_provider_node
           remappings: []
-        # - package: bob_recorder
-        #   plugin: RecordManager
-        #   name: camera2_recorder_node
-        #   remappings: []
+        - package: bob_recorder
+          plugin: RecordManager
+          name: camera2_recorder_node
+          remappings: []
         - package: bob_image_processing
           plugin: AnnotatedFrameProvider
           name: camera2_annotated_frame_provider_node
@@ -401,8 +409,9 @@ launch:
           remappings: []
 
     - name: Display
+      enabled: $display_enabled
       executable: component_container # Has to be single-threaded because of OpenCV display
-      output: both
+      output: $logging_type
       nodes:
         - package: bob_visualizers
           plugin: FrameViewer
@@ -410,68 +419,69 @@ launch:
           remappings: []
 
     - name: Monitor_Camera1
+      enabled: $camera1_enabled
       executable: component_container_mt
-      output: both
+      output: $logging_type
       nodes:
         - package: bob_image_processing
           plugin: TrackSensitivityMonitor
           name: camera1_track_sensitivity_monitor_node
           remappings: []
-        # - package: bob_recorder
-        #   plugin: RecordingMonitor
-        #   name: camera1_recorder_monitoring_node
-        #   remappings: []
+        - package: bob_recorder
+          plugin: RecordingMonitor
+          name: camera1_recorder_monitoring_node
+          remappings: []
         - package: bob_observer
           plugin: ImageEstimator
           name: camera1_image_estimator_node
           remappings: []
         
     - name: Monitor_Camera2
+      enabled: $camera2_enabled
       executable: component_container_mt
-      output: both
+      output: $logging_type
       nodes:
         - package: bob_image_processing
           plugin: TrackSensitivityMonitor
           name: camera2_track_sensitivity_monitor_node
           remappings: []
-        # - package: bob_recorder
-        #   plugin: RecordingMonitor
-        #   name: camera2_recorder_monitoring_node
-        #   remappings: []
+        - package: bob_recorder
+          plugin: RecordingMonitor
+          name: camera2_recorder_monitoring_node
+          remappings: []
         - package: bob_observer
           plugin: ImageEstimator
           name: camera2_image_estimator_node
           remappings: []
         
   standalone_nodes:
-    # - package: bob_observer
-    #   executable: star_mask
-    #   name: star_mask_node
-    #   remappings:
-    #     - 'bob/observer_frame/source': '/bob/frames/allsky/original/resized'
-    #   output: screen
     - package: bob_monitor
       executable: monitoring_status_aggregator
       name: camera1_monitoring_status_aggregator_node
+      enabled: $camera1_enabled
       remappings: []
-      output: screen
+      output: $logging_type
     - package: bob_monitor
       executable: monitoring_status_aggregator
       name: camera2_monitoring_status_aggregator_node
+      enabled: $camera2_enabled
       remappings: []
-      output: screen
+      output: $logging_type
     - package: bob_monitor
       executable: onvif_service
       name: onvif_service_node
+      enabled: true
       remappings: []
-      output: screen
+      output: $logging_type
     - package: bob_webapi
       executable: info_webapi
       name: info_webapi_node
+      enabled: true
       remappings: []
-      output: screen
+      output: $logging_type
     - package: bob_webapi
       executable: mask_webapi
       name: mask_webapi_node
+      enabled: true
       remappings: []
-      output: screen
+      output: $logging_type

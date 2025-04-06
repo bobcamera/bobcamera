@@ -1,7 +1,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
 
-#include "parameter_lifecycle_node.hpp"
+#include "parameter_node.hpp"
 
 #include <visibility_control.h>
 
@@ -9,18 +9,24 @@
 #include "bob_interfaces/msg/monitoring_status.hpp"
 
 class RecordingMonitor
-    : public ParameterLifeCycleNode
+    : public ParameterNode
 {
 public:
     COMPOSITION_PUBLIC
     explicit RecordingMonitor(const rclcpp::NodeOptions & options)
-        : ParameterLifeCycleNode("recording_monitor_node", options)
+        : ParameterNode("recording_monitor_node", options)
         , pub_qos_profile_(10)
         , sub_qos_profile_(10)
     {
-        init();
     }
     
+    void on_configure() override
+    {
+        log_info("Configuring");
+
+        init();
+    }
+
 private:
     void init()
     {
@@ -49,8 +55,8 @@ private:
 
     void declare_node_parameters()
     {
-        std::vector<ParameterLifeCycleNode::ActionParam> params = {
-            ParameterLifeCycleNode::ActionParam(
+        std::vector<ParameterNode::ActionParam> params = {
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("check_interval", 5), 
                 [this](const rclcpp::Parameter& param) { check_interval_ = param.as_int(); }
             ),

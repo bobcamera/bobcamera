@@ -2,7 +2,7 @@
 #include <rclcpp_components/register_node_macro.hpp>
 #include <rclcpp/experimental/executors/events_executor/events_executor.hpp>
 
-#include "parameter_lifecycle_node.hpp"
+#include "parameter_node.hpp"
 
 #include <visibility_control.h>
 
@@ -11,24 +11,22 @@
 #include "bob_interfaces/msg/monitoring_status.hpp"
 
 class TrackSensitivityMonitor
-    : public ParameterLifeCycleNode
+    : public ParameterNode
 {
 public:
     COMPOSITION_PUBLIC
     explicit TrackSensitivityMonitor(const rclcpp::NodeOptions & options)
-        : ParameterLifeCycleNode("track_sensitivity_monitor_node", options)
+        : ParameterNode("track_sensitivity_monitor_node", options)
         , pub_qos_profile_(4)
         , sub_qos_profile_(4)
     {
     }
 
-    CallbackReturn on_configure(const rclcpp_lifecycle::State &)
+    void on_configure()
     {
         log_info("Configuring");
 
         init();
-
-        return CallbackReturn::SUCCESS;
     }
 
 private:
@@ -59,8 +57,8 @@ private:
 
     void declare_node_parameters()
     {
-        std::vector<ParameterLifeCycleNode::ActionParam> params = {
-            ParameterLifeCycleNode::ActionParam(
+        std::vector<ParameterNode::ActionParam> params = {
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("monitoring_subscription_topic", "bob/monitoring/status"),
                 [this](const rclcpp::Parameter& param)
                 {
@@ -68,14 +66,14 @@ private:
                             [this](const bob_interfaces::msg::MonitoringStatus::SharedPtr status_msg){status_callback(status_msg);});
                 }
             ),
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("bgs_node", "rtsp_camera_node"),
                 [this](const rclcpp::Parameter& param)
                 {
                     sensitivity_param_client_ = std::make_shared<rclcpp::AsyncParametersClient>(this, param.as_string());
                 }
             ),
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("sensitivity", "medium_c"),
                 [this](const rclcpp::Parameter& param)
                 {
@@ -83,11 +81,11 @@ private:
                     proposed_sensitivity_ = param.as_string();
                 }
             ),
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("check_interval", 30),
                 [this](const rclcpp::Parameter& param) { check_interval_ = param.as_int(); }
             ),
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("sensitivity_increase_count_threshold", 5),
                 [this](const rclcpp::Parameter& param)
                 {
@@ -95,7 +93,7 @@ private:
                     sensitivity_increase_check_counter_ = 0;
                 }
             ),
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("star_mask_enabled", true),
                 [this](const rclcpp::Parameter& param) { star_mask_enabled_ = param.as_bool(); }
             ),

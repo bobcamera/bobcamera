@@ -3,6 +3,10 @@ project(bob_interfaces)
 
 include_directories(/usr/local/lib/python3.10/dist-packages/numpy/core/include)
 
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
@@ -30,6 +34,7 @@ find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/RecordingState.msg"
+  "msg/RecordingEvent.msg"
   "msg/DetectorBBox.msg"
   "msg/DetectorBBoxArray.msg"
   "msg/DetectorState.msg"

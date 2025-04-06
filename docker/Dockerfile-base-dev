@@ -1,20 +1,21 @@
 
-#docker buildx build --progress=plain --push --platform linux/amd64 -f ./docker/Dockerfile-base-dev . -t bobcamera/bob-base-cuda:1.5.8 -t bobcamera/bob-base-cuda:latest --target base-cuda
+#docker buildx build --progress=plain --push --platform linux/amd64 -f ./docker/Dockerfile-base-dev . -t bobcamera/bob-base-cuda:1.5.9 -t bobcamera/bob-base-cuda:latest --target base-cuda
+#docker buildx build --progress=plain --push --platform linux/amd64,linux/arm64 -f ./docker/Dockerfile-base-dev . -t bobcamera/bob-base:1.5.9 -t bobcamera/bob-base:latest --target base
 
-#FROM ubuntu:noble
-FROM nvidia/cuda:12.5.1-devel-ubuntu24.04 AS base-cuda
+FROM ubuntu:noble as base
+#FROM nvidia/cuda:12.5.1-devel-ubuntu24.04 AS base-cuda
 
 # setup environment
-ENV LANG C.UTF-8
-ENV LC_ALL C.UTF-8
-ENV ROS_DISTRO jazzy
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+ENV ROS_DISTRO=jazzy
 
 # setup timezone and install packages
 RUN echo 'Etc/UTC' > /etc/timezone \
     && ln -s /usr/share/zoneinfo/Etc/UTC /etc/localtime \
-    && apt-get update &&  apt-get upgrade \
+    && apt-get update &&  apt-get upgrade -y \
     && apt-get install -q -y --no-install-recommends tzdata dirmngr gnupg2 \
-    rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
 
 # setup keys and setup sources.list
 RUN set -eux; \
@@ -39,14 +40,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # bootstrap rosdep and setup colcon mixin and metadata
-RUN rosdep init && \
-  rosdep update --rosdistro $ROS_DISTRO \
-  && colcon mixin add default \
-      https://raw.githubusercontent.com/colcon/colcon-mixin-repository/master/index.yaml && \
-    colcon mixin update && \
-    colcon metadata add default \
-      https://raw.githubusercontent.com/colcon/colcon-metadata-repository/master/index.yaml && \
-    colcon metadata update
+RUN rosdep init \
+    && rosdep update --rosdistro $ROS_DISTRO \
+    && colcon mixin add default \
+      https://raw.githubusercontent.com/colcon/colcon-mixin-repository/master/index.yaml \
+    && colcon mixin update \
+    && colcon metadata add default \
+      https://raw.githubusercontent.com/colcon/colcon-metadata-repository/master/index.yaml \
+    && colcon metadata update
 
 # install ros2 packages
 RUN apt-get update && apt-get install -y --no-install-recommends \

@@ -51,7 +51,10 @@ public:
     {
         draw_trajectories();
 
-        if (!heatmap_accumulator_.empty()) 
+        std::filesystem::path p(full_path);
+        std::filesystem::create_directories(p.parent_path());
+
+        if (!heatmap_accumulator_.empty())
         {
             cv::Mat converted_heatmap;
             if (heatmap_accumulator_.channels() == 1) 

@@ -11,39 +11,37 @@
 #include <sensor_msgs/msg/image.hpp>
 #include <bob_interfaces/msg/detector_b_box_array.hpp>
 
-#include "parameter_lifecycle_node.hpp"
+#include "parameter_node.hpp"
 #include "image_utils.hpp"
 
 #include <visibility_control.h>
 
 class FrameViewerBlobs
-    : public ParameterLifeCycleNode
+    : public ParameterNode
 {
 public:
     COMPOSITION_PUBLIC
     explicit FrameViewerBlobs(const rclcpp::NodeOptions &options)
-        : ParameterLifeCycleNode("frame_viewer_blobs_node", options), sub_qos_profile_(4)
+        : ParameterNode("frame_viewer_blobs_node", options), sub_qos_profile_(4)
     {
     }
 
-    CallbackReturn on_configure(const rclcpp_lifecycle::State &)
+    void on_configure()
     {
         log_info("Configuring");
 
         init();
-
-        return CallbackReturn::SUCCESS;
     }
 
 private:
     void declare_node_parameters()
     {
-        std::vector<ParameterLifeCycleNode::ActionParam> params = {
-            ParameterLifeCycleNode::ActionParam(
+        std::vector<ParameterNode::ActionParam> params = {
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("topics", std::vector<std::string>({"bob/frames/allsky/original", "bob/frames/foreground_mask"})),
                 [this](const rclcpp::Parameter &param)
                 { topics_ = param.as_string_array(); }),
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("blob_topic", "bob/detection/allsky/boundingboxes"),
                 [this](const rclcpp::Parameter &param)
                 { blob_topic_ = param.as_string(); }),
@@ -82,8 +80,8 @@ private:
             {
                 sub_image_ptr_.reset();
                 time_synchronizer_.reset();
-                sub_image_compressed_ptr_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::CompressedImage, rclcpp_lifecycle::LifecycleNode>>(shared_from_this(), topics_[current_topic_], sub_qos_profile_.get_rmw_qos_profile());
-                sub_bbox_ptr_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::DetectorBBoxArray, rclcpp_lifecycle::LifecycleNode>>(shared_from_this(), blob_topic_, sub_qos_profile_.get_rmw_qos_profile());
+                sub_image_compressed_ptr_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::CompressedImage>>(shared_from_this(), topics_[current_topic_], sub_qos_profile_.get_rmw_qos_profile());
+                sub_bbox_ptr_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::DetectorBBoxArray>>(shared_from_this(), blob_topic_, sub_qos_profile_.get_rmw_qos_profile());
 
                 time_synchronizer_compressed_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::CompressedImage, bob_interfaces::msg::DetectorBBoxArray>>(*sub_image_compressed_ptr_, *sub_bbox_ptr_, 10);
                 time_synchronizer_compressed_->registerCallback(&FrameViewerBlobs::image_callback_compressed, this);
@@ -92,8 +90,8 @@ private:
             {
                 sub_image_compressed_ptr_.reset();
                 time_synchronizer_compressed_.reset();
-                sub_image_ptr_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image, rclcpp_lifecycle::LifecycleNode>>(shared_from_this(), topics_[current_topic_], sub_qos_profile_.get_rmw_qos_profile());
-                sub_bbox_ptr_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::DetectorBBoxArray, rclcpp_lifecycle::LifecycleNode>>(shared_from_this(), blob_topic_, sub_qos_profile_.get_rmw_qos_profile());
+                sub_image_ptr_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(shared_from_this(), topics_[current_topic_], sub_qos_profile_.get_rmw_qos_profile());
+                sub_bbox_ptr_ = std::make_shared<message_filters::Subscriber<bob_interfaces::msg::DetectorBBoxArray>>(shared_from_this(), blob_topic_, sub_qos_profile_.get_rmw_qos_profile());
 
                 time_synchronizer_ = std::make_shared<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::DetectorBBoxArray>>(*sub_image_ptr_, *sub_bbox_ptr_, 10);
                 time_synchronizer_->registerCallback(&FrameViewerBlobs::image_callback, this);
@@ -204,9 +202,9 @@ private:
 
     rclcpp::QoS sub_qos_profile_;
     rclcpp::TimerBase::SharedPtr timer_;
-    std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image, rclcpp_lifecycle::LifecycleNode>> sub_image_ptr_;
-    std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::CompressedImage, rclcpp_lifecycle::LifecycleNode>> sub_image_compressed_ptr_;
-    std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::DetectorBBoxArray, rclcpp_lifecycle::LifecycleNode>> sub_bbox_ptr_;
+    std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> sub_image_ptr_;
+    std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::CompressedImage>> sub_image_compressed_ptr_;
+    std::shared_ptr<message_filters::Subscriber<bob_interfaces::msg::DetectorBBoxArray>> sub_bbox_ptr_;
     std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::Image, bob_interfaces::msg::DetectorBBoxArray>> time_synchronizer_;
     std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::CompressedImage, bob_interfaces::msg::DetectorBBoxArray>> time_synchronizer_compressed_;
     std::vector<std::string> topics_;

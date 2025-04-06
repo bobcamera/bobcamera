@@ -21,7 +21,7 @@
 		"--security-opt=apparmor:unconfined",
 		//"--device=/dev/video0:/dev/video0",
 		"--volume=/dev:/dev",
-		"--volume=/tmp/.X11-unix:/tmp/.X11-unix",
+		"--volume=/tmp/.X11-unix:/tmp/.X11-unix"
 	],
 	"containerEnv": {
 		"DISPLAY": "${localEnv:DISPLAY}",

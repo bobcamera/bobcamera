@@ -45,7 +45,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends wget tar \
 ###################################################################
 # MWG: This docker stage is used to build the ros2 dev environment
 ###################################################################
-FROM bobcamera/bob-opencv:1.5.8 AS bob-ros2-dev
+FROM bobcamera/bob-opencv:1.5.9 AS bob-ros2-dev
 ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.12/:/usr/local/lib/python3.12/dist-packages/
 ENV PATH=$PATH:/root/.local/bin
 ENV DEBIAN_FRONTEND=noninteractive
@@ -153,27 +153,27 @@ COPY --from=bob-ros2-build /workspaces/bobcamera/src/ros2/launch* /workspaces/bo
 COPY --from=bob-ros2-build /workspaces/bobcamera/src/ros2/dual_camera_config.yaml /workspaces/bobcamera/src/ros2/
 COPY --from=bob-ros2-build /opt/ros2_ws/install/ /opt/ros2_ws/install/
 
-# Copying and configuring the CUDA stub to make Bob work
-COPY --from=bob-ros2-build /usr/local/cuda/targets/x86_64-linux/lib/stubs/* /usr/local/cuda/targets/x86_64-linux/lib/
-COPY --from=bob-ros2-build /usr/lib/wsl/lib/libcuda.so /usr/local/cuda/targets/x86_64-linux/lib/
-#COPY --from=bob-ros2-build /usr/lib/wsl/lib/libdxcore.so /usr/local/cuda/targets/x86_64-linux/lib/
-#COPY --from=bob-ros2-build /usr/lib/wsl/lib/libnvcuvid.so /usr/local/cuda/targets/x86_64-linux/lib/
-#COPY --from=bob-ros2-build /usr/lib/wsl/lib/libnvidia-encode.so /usr/local/cuda/targets/x86_64-linux/lib/
-RUN ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppc.so /usr/local/cuda/targets/x86_64-linux/lib/libnppc.so.12 \
-    && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppicc.so /usr/local/cuda/targets/x86_64-linux/lib/libnppicc.so.12 \
-    && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libcuda.so /usr/local/cuda/targets/x86_64-linux/lib/libcuda.so.1 \
-    && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnvcuvid.so /usr/local/cuda/targets/x86_64-linux/lib/libnvcuvid.so.1 \
-    && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnvidia-encode.so /usr/local/cuda/targets/x86_64-linux/lib/libnvidia-encode.so.1 \
-    && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppig.so /usr/local/cuda/targets/x86_64-linux/lib/libnppig.so.12 \
-    && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppial.so /usr/local/cuda/targets/x86_64-linux/lib/libnppial.so.12 \
-    && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppidei.so /usr/local/cuda/targets/x86_64-linux/lib/libnppidei.so.12 \
-    && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppist.so /usr/local/cuda/targets/x86_64-linux/lib/libnppist.so.12 \
-    && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppitc.so /usr/local/cuda/targets/x86_64-linux/lib/libnppitc.so.12 \
-    && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppif.so /usr/local/cuda/targets/x86_64-linux/lib/libnppif.so.12 \
-    && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libcublas.so /usr/local/cuda/targets/x86_64-linux/lib/libcublas.so.12 \
-    && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libcufft.so /usr/local/cuda/targets/x86_64-linux/lib/libcufft.so.11 \
-    && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppim.so /usr/local/cuda/targets/x86_64-linux/lib/libnppim.so.12 \
-    && sh -c 'echo "/usr/local/cuda/targets/x86_64-linux/lib" >> /etc/ld.so.conf.d/cuda_stub.conf' && ldconfig
+# # Copying and configuring the CUDA stub to make Bob work
+# COPY --from=bob-ros2-build /usr/local/cuda/targets/x86_64-linux/lib/stubs/* /usr/local/cuda/targets/x86_64-linux/lib/
+# COPY --from=bob-ros2-build /usr/lib/wsl/lib/libcuda.so /usr/local/cuda/targets/x86_64-linux/lib/
+# #COPY --from=bob-ros2-build /usr/lib/wsl/lib/libdxcore.so /usr/local/cuda/targets/x86_64-linux/lib/
+# #COPY --from=bob-ros2-build /usr/lib/wsl/lib/libnvcuvid.so /usr/local/cuda/targets/x86_64-linux/lib/
+# #COPY --from=bob-ros2-build /usr/lib/wsl/lib/libnvidia-encode.so /usr/local/cuda/targets/x86_64-linux/lib/
+# RUN ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppc.so /usr/local/cuda/targets/x86_64-linux/lib/libnppc.so.12 \
+#     && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppicc.so /usr/local/cuda/targets/x86_64-linux/lib/libnppicc.so.12 \
+#     && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libcuda.so /usr/local/cuda/targets/x86_64-linux/lib/libcuda.so.1 \
+#     && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnvcuvid.so /usr/local/cuda/targets/x86_64-linux/lib/libnvcuvid.so.1 \
+#     && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnvidia-encode.so /usr/local/cuda/targets/x86_64-linux/lib/libnvidia-encode.so.1 \
+#     && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppig.so /usr/local/cuda/targets/x86_64-linux/lib/libnppig.so.12 \
+#     && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppial.so /usr/local/cuda/targets/x86_64-linux/lib/libnppial.so.12 \
+#     && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppidei.so /usr/local/cuda/targets/x86_64-linux/lib/libnppidei.so.12 \
+#     && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppist.so /usr/local/cuda/targets/x86_64-linux/lib/libnppist.so.12 \
+#     && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppitc.so /usr/local/cuda/targets/x86_64-linux/lib/libnppitc.so.12 \
+#     && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppif.so /usr/local/cuda/targets/x86_64-linux/lib/libnppif.so.12 \
+#     && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libcublas.so /usr/local/cuda/targets/x86_64-linux/lib/libcublas.so.12 \
+#     && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libcufft.so /usr/local/cuda/targets/x86_64-linux/lib/libcufft.so.11 \
+#     && ln -s /usr/local/cuda/targets/x86_64-linux/lib/libnppim.so /usr/local/cuda/targets/x86_64-linux/lib/libnppim.so.12 \
+#     && sh -c 'echo "/usr/local/cuda/targets/x86_64-linux/lib" >> /etc/ld.so.conf.d/cuda_stub.conf' && ldconfig
 
 # install dependencies
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \

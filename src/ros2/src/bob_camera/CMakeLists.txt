@@ -3,9 +3,9 @@ cmake_minimum_required(VERSION 3.5)
 # Package definition
 project(bob_camera)
 
-if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 20)
-endif()
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_compile_options(-Wall -Wextra -Wpedantic)
@@ -28,8 +28,6 @@ find_package(boblib REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(bob_interfaces REQUIRED)
 find_package(jsoncpp REQUIRED)
-find_package(rclcpp_lifecycle REQUIRED)
-find_package(lifecycle_msgs REQUIRED)
 
 include_directories(${OpenCV_INCLUDE_DIRS})
 include_directories("../bob_shared/include")
@@ -68,11 +66,9 @@ ament_target_dependencies(camera_bgs_node PUBLIC
     cv_bridge
     rcl_interfaces 
     rclcpp_components
-    rclcpp_lifecycle
     OpenCV
     Boost
-    bob_interfaces
-    lifecycle_msgs)
+    bob_interfaces)
 rclcpp_components_register_nodes(camera_bgs_node "CameraBGS")
 install(TARGETS camera_bgs_node DESTINATION lib)
 
