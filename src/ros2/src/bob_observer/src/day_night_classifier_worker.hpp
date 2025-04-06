@@ -7,7 +7,7 @@
 class DayNightClassifierWorker
 {
 public:
-    explicit DayNightClassifierWorker(ParameterLifeCycleNode & node)
+    explicit DayNightClassifierWorker(ParameterNode & node)
         : node_(node)
     {
     }
@@ -67,7 +67,7 @@ public:
     }    
 
 private:
-    ParameterLifeCycleNode & node_;
+    ParameterNode &node_;
     bool mask_enabled_;
     cv::Mat detection_mask_;
 };

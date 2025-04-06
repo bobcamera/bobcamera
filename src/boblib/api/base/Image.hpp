@@ -4,30 +4,36 @@
 #include <string>
 
 #include <opencv2/opencv.hpp>
-#include <opencv2/core/cuda.hpp>
-#include <opencv2/cudacodec.hpp>
-#include <opencv2/cudafilters.hpp>
+// #include <opencv2/core/cuda.hpp>
+// #include <opencv2/cudacodec.hpp>
+// #include <opencv2/cudafilters.hpp>
 
 #include "Utils.hpp"
 
 namespace boblib::base
 {
-    class Image
+    class Image final
     {
     public:
-        Image(bool use_cuda = true);
+        Image(bool use_cuda = true) noexcept;
 
-        Image(const Image & img);
+        Image(const Image & img) noexcept;
+
+        Image(Image&& img) noexcept;
 
         ~Image();
 
-        int channels() const;
+        void reset() noexcept;
+
+        Image & operator=(const Image & img);
+
+        Image & operator=(Image && img) noexcept;
+
+        int channels() const noexcept;
 
         Image clone() const;
 
-        Image & create(int rows, int cols, int type);
-
-        Image & create(int rows, int cols, int type, void* data);
+        Image & create(int rows, int cols, int type, void * data = nullptr);
 
         Image & create(cv::Size size, int type);
 
@@ -75,21 +81,21 @@ namespace boblib::base
 
         const cv::Mat & toMat() const;
 
-        const cv::cuda::GpuMat & toCudaMat() const;
+        //const cv::cuda::GpuMat & toCudaMat() const;
 
         cv::Mat & toMat();
 
-        cv::cuda::GpuMat & toCudaMat();
+        //cv::cuda::GpuMat & toCudaMat();
 
     private:
         void mask(cv::Mat & mask);
-        void mask_cuda(cv::cuda::GpuMat & mask_);
+        //void mask_cuda(cv::cuda::GpuMat & mask_);
 
         bool using_cuda_;
-        mutable std::unique_ptr<cv::cuda::GpuMat> gpu_mat_ptr_;
+        // mutable std::unique_ptr<cv::cuda::GpuMat> gpu_mat_ptr_;
         mutable std::unique_ptr<cv::Mat> mat_ptr_;
 
-        cv::Ptr<cv::cuda::Filter> box_filter_;
+        // cv::Ptr<cv::cuda::Filter> box_filter_;
         int box_filter_size_{-1};
     };
 }

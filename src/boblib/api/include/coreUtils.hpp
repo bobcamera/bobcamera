@@ -118,9 +118,4 @@ namespace boblib
 
         std::unique_ptr<uint8_t[]> data_ptr;
     };
-
-    inline size_t calc_available_threads()
-    {
-        return (size_t)std::max(1U, std::thread::hardware_concurrency());
-    }
 }

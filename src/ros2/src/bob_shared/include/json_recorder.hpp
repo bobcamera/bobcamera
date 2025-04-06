@@ -47,6 +47,7 @@ public:
     {
         if (!json_buffer_.empty()) 
         {
+            std::filesystem::create_directories(std::filesystem::path(filename).parent_path());
             std::ofstream file(filename, std::ios::app);
 
             if (!file.is_open()) 

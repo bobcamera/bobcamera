@@ -9,7 +9,7 @@
 #include <bob_interfaces/msg/observer_cloud_estimation.hpp>
 #include <bob_interfaces/msg/observer_day_night.hpp>
 
-#include <parameter_lifecycle_node.hpp>
+#include <parameter_node.hpp>
 #include <image_utils.hpp>
 #include <day_night.hpp>
 #include <mask_worker.hpp>
@@ -20,45 +20,43 @@
 #include <visibility_control.h>
 
 class ImageEstimator
-    : public ParameterLifeCycleNode
+    : public ParameterNode
 {
 public:
     COMPOSITION_PUBLIC
     explicit ImageEstimator(const rclcpp::NodeOptions & options) 
-        : ParameterLifeCycleNode("cloud_estimator_node", options)
+        : ParameterNode("cloud_estimator_node", options)
         , sub_qos_profile_(4)
         , pub_qos_profile_(4)
     {
     }
 
-    CallbackReturn on_configure(const rclcpp_lifecycle::State &)
+    void on_configure()
     {
         log_info("Configuring");
 
         init();
-
-        return CallbackReturn::SUCCESS;
     }
 
 private:
     void declare_node_parameters()
     {
-        std::vector<ParameterLifeCycleNode::ActionParam> params = {
-            ParameterLifeCycleNode::ActionParam(
+        std::vector<ParameterNode::ActionParam> params = {
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("cloud_estimation_publish_topic", "bob/observer/cloud_estimation"), 
                 [this](const rclcpp::Parameter& param) 
                 {
                     pub_cloud_data_ = create_publisher<bob_interfaces::msg::ObserverCloudEstimation>(param.as_string(), pub_qos_profile_);
                 }
             ),
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("day_night_publish_topic", "bob/observer/day_night_classifier"), 
                 [this](const rclcpp::Parameter& param) 
                 {
                     pub_day_night_data_ = create_publisher<bob_interfaces::msg::ObserverDayNight>(param.as_string(), pub_qos_profile_);
                 }
             ),
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("camera_subscription_topic", "bob/observer_frame/source"), 
                 [this](const rclcpp::Parameter& param) 
                 {
@@ -66,21 +64,21 @@ private:
                                     [this](const sensor_msgs::msg::Image::SharedPtr img){camera_callback(img);});
                 }
             ),
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("observer_timer_interval", 30), 
                 [this](const rclcpp::Parameter& param) 
                 {
                     timer_interval_ = static_cast<int>(param.as_int());
                 }
             ),
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("observer_day_night_brightness_threshold", 95), 
                 [this](const rclcpp::Parameter& param) 
                 {
                     observer_day_night_brightness_threshold_ = static_cast<int>(param.as_int());
                 }
             ),
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("mask_timer_seconds", 5), 
                 [this](const rclcpp::Parameter& param) 
                 {
@@ -88,7 +86,7 @@ private:
                     mask_worker_ptr_->init(mask_timer_seconds_, mask_filename_);
                 }
             ),
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("mask_file", "mask.pgm"), 
                 [this](const rclcpp::Parameter& param) 
                 {

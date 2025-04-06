@@ -17,7 +17,7 @@ namespace boblib::bgs
         /// Detects the number of available threads to use
         static const size_t DETECT_NUMBER_OF_THREADS{0};
 
-        CoreBgs(bool use_cuda, size_t _numProcessesParallel = DETECT_NUMBER_OF_THREADS);
+        CoreBgs(bool use_cuda = false, size_t _numProcessesParallel = DETECT_NUMBER_OF_THREADS);
 
         virtual ~CoreBgs() {}
 

@@ -3,8 +3,8 @@
 #include <iostream>
 #include <execution>
 
-#include <opencv2/cudaarithm.hpp>
-#include <cuda_runtime.h>
+// #include <opencv2/cudaarithm.hpp>
+// #include <cuda_runtime.h>
 
 namespace boblib::bgs
 {
@@ -72,7 +72,7 @@ namespace boblib::bgs
 
     void Vibe::process(const boblib::base::Image &_image, boblib::base::Image &_fg_mask, const boblib::base::Image &_detect_mask, int _num_process)
     {
-        if (false && using_cuda_)
+        if (using_cuda_)
         {
             process_cuda(_image, _fg_mask, _detect_mask);
         }
@@ -295,9 +295,9 @@ namespace boblib::bgs
         // }
     }
 
-    __global__ void vibeKernel(const uchar *d_image, uchar *d_fg_mask, const uchar *d_detect_mask, uchar **d_bg_img_samples,
-                               int img_width, int img_height, int n_color_dist_threshold, int bg_samples,
-                               int required_bg_samples, int and_learning_rate, bool has_detect_mask, uint32_t *rand_states);
+    // __global__ void vibeKernel(const uchar *d_image, uchar *d_fg_mask, const uchar *d_detect_mask, uchar **d_bg_img_samples,
+    //                            int img_width, int img_height, int n_color_dist_threshold, int bg_samples,
+    //                            int required_bg_samples, int and_learning_rate, bool has_detect_mask, uint32_t *rand_states);
 
     void Vibe::process_cuda(const boblib::base::Image &_image, boblib::base::Image &_fg_mask, const boblib::base::Image &_detect_mask)
     {

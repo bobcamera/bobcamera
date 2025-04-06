@@ -12,7 +12,7 @@
 
 #include <boblib/api/utils/profiler.hpp>
 
-#include "parameter_lifecycle_node.hpp"
+#include "parameter_node.hpp"
 #include "image_utils.hpp"
 
 #include <visibility_control.h>
@@ -20,24 +20,22 @@
 #include <rclcpp/experimental/executors/events_executor/events_executor.hpp>
 
 class FrameCompressor
-    : public ParameterLifeCycleNode
+    : public ParameterNode
 {
 public:
     COMPOSITION_PUBLIC
     explicit FrameCompressor(const rclcpp::NodeOptions & options) 
-        : ParameterLifeCycleNode("frame_compressor_node", options)
+        : ParameterNode("frame_compressor_node", options)
         , sub_qos_profile_(2)
         , pub_qos_profile_(5)
     {
     }
 
-    CallbackReturn on_configure(const rclcpp_lifecycle::State &)
+    void on_configure()
     {
         log_info("Configuring");
 
         init();
-
-        return CallbackReturn::SUCCESS;
     }
 
 private:
@@ -58,8 +56,8 @@ private:
 
     void declare_node_parameters()
     {
-        std::vector<ParameterLifeCycleNode::ActionParam> params = {
-            ParameterLifeCycleNode::ActionParam(
+        std::vector<ParameterNode::ActionParam> params = {
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("compressed_frame_subscriber_topic", "bob/compressor/source"), 
                 [this](const rclcpp::Parameter& param) 
                 {
@@ -69,7 +67,7 @@ private:
                     log_debug("Creating topic %s", pub_compressed_frame_->get_topic_name());
                 }
             ),
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("compression_quality", 75), 
                 [this](const rclcpp::Parameter& param) 
                 {

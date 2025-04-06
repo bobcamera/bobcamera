@@ -14,11 +14,12 @@
     <depend>vision_msgs</depend>
     <depend>cv_bridge</depend>
     <depend>rcl_interfaces</depend>
-    <depend>rclcpp_lifecycle</depend>
     <depend>bob_camera</depend>
     <depend>message_filters</depend>
     <depend>rclcpp_components</depend>
     <depend>bob_interfaces</depend>
+
+    <build_depend>cxx_std_20</build_depend>
 
     <export>
         <build_type>ament_cmake</build_type>

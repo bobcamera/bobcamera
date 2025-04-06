@@ -8,7 +8,7 @@
 
 #include <sensor_msgs/msg/image.hpp>
 
-#include "parameter_lifecycle_node.hpp"
+#include "parameter_node.hpp"
 #include "image_utils.hpp"
 
 #include <visibility_control.h>
@@ -16,24 +16,22 @@
 #include <rclcpp/experimental/executors/events_executor/events_executor.hpp>
 
 class FrameResizer
-    : public ParameterLifeCycleNode
+    : public ParameterNode
 {
 public:
     COMPOSITION_PUBLIC
     explicit FrameResizer(const rclcpp::NodeOptions & options) 
-        : ParameterLifeCycleNode("frame_resizer_node", options)
+        : ParameterNode("frame_resizer_node", options)
         , pub_qos_profile_(10)
         , sub_qos_profile_(10)
     {
     }
 
-    CallbackReturn on_configure(const rclcpp_lifecycle::State &)
+    void on_configure()
     {
         log_info("Configuring");
 
         init();
-
-        return CallbackReturn::SUCCESS;
     }
 
 private:
@@ -54,8 +52,8 @@ private:
 
     void declare_node_parameters()
     {
-        std::vector<ParameterLifeCycleNode::ActionParam> params = {
-            ParameterLifeCycleNode::ActionParam(
+        std::vector<ParameterNode::ActionParam> params = {
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("resized_frame_subscriber_topic", "bob/resizer/source"), 
                 [this](const rclcpp::Parameter& param) 
                 {
@@ -65,7 +63,7 @@ private:
                     log_debug("Creating topic %s", pub_resized_frame_->get_topic_name());
                 }
             ),
-            ParameterLifeCycleNode::ActionParam(
+            ParameterNode::ActionParam(
                 rclcpp::Parameter("resize_height", 960), 
                 [this](const rclcpp::Parameter& param) {resize_height_ = param.as_int();}
             ),
