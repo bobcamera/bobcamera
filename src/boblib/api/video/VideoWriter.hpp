@@ -49,7 +49,7 @@ namespace boblib::video
         const double fps_;
         const cv::Size frame_size_;
 #ifdef HAVE_CUDA
-        std::unique_ptr<cv::cudacodec::VideoWriter> cuda_video_writer_ptr_;
+        cv::Ptr<cv::cudacodec::VideoWriter> cuda_video_writer_ptr_;
 #endif
         std::unique_ptr<cv::VideoWriter> video_writer_ptr_;
     };

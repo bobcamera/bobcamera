@@ -45,7 +45,7 @@ namespace boblib::video
         const std::vector<int> & params_;
         std::unique_ptr<cv::VideoCapture> video_capture_ptr_;
 #ifdef HAVE_CUDA
-        std::unique_ptr<cv::cudacodec::VideoReader> cuda_video_reader_ptr_;
+        cv::Ptr<cv::cudacodec::VideoReader> cuda_video_reader_ptr_;
 #endif
     };
 }

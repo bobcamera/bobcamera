@@ -8,10 +8,6 @@
 #include <opencv2/core/cuda.hpp>
 #include <opencv2/cudacodec.hpp>
 #include <opencv2/cudafilters.hpp>
-#else
-// namespace cv::cuda {
-//     class GpuMat {};
-// }
 #endif
 
 #include "Utils.hpp"

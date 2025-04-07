@@ -25,14 +25,10 @@ file(GLOB_RECURSE LIB_SOURCES_CU "*.cu")
 
 add_library(boblib STATIC ${LIB_SOURCES_CPP} ${LIB_SOURCES_CU})
 
-# Explicitly set the HAVE_CUDA definition on the target
-if (HAVE_CUDA)
-    #target_compile_definitions(boblib PRIVATE HAVE_CUDA)
-endif()
-
 target_link_libraries(boblib PRIVATE "${OpenCV_LIBS}" qhyccd)
 
-if (HAVE_CUDA)
+if (CUDA_FOUND)
+    target_compile_definitions(boblib PRIVATE HAVE_CUDA)
     set_target_properties(boblib PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON
         CUDA_STANDARD 20
