@@ -9,6 +9,8 @@
 #include <parameter_node.hpp>
 #include <image_utils.hpp>
 #include <visibility_control.h>
+#include <boblib/api/utils/PubSub.hpp>
+
 #include "camera_worker.hpp"
 #include "background_subtractor_worker.hpp"
 
@@ -424,6 +426,7 @@ private:
     std::unique_ptr<CameraWorker> camera_worker_ptr_;
     std::unique_ptr<BackgroundSubtractorWorkerParams> bgs_params_ptr_;
     std::unique_ptr<BackgroundSubtractorWorker> bgs_worker_ptr_;
+    boblib::utils::PubSub<std::string> pubsub{100};
 
     rclcpp::Service<bob_interfaces::srv::MaskOverrideRequest>::SharedPtr privacy_mask_override_service_;
     rclcpp::Service<bob_interfaces::srv::MaskOverrideRequest>::SharedPtr bgs_mask_override_service_;
