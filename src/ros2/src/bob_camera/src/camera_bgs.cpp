@@ -9,7 +9,7 @@
 #include <parameter_node.hpp>
 #include <image_utils.hpp>
 #include <visibility_control.h>
-#include <boblib/api/utils/PubSub.hpp>
+#include <boblib/api/utils/pubsub/TopicManager.hpp>
 
 #include "camera_worker.hpp"
 #include "background_subtractor_worker.hpp"
@@ -50,6 +50,8 @@ private:
     void init()
     {
         declare_node_parameters();
+
+        topic_manager_->create_topic<sensor_msgs::msg::Image>(camera_params_ptr_->get_image_publish_topic());
 
         bgs_worker_ptr_->init();
         camera_worker_ptr_->init();
@@ -354,9 +356,10 @@ private:
                         camera_params_ptr_->set_limit_fps(param.as_bool());
                     }),
                 ParameterNode::ActionParam(
-                    rclcpp::Parameter("max_queue_process_size", 0),
+                    rclcpp::Parameter("max_queue_process_size", 100),
                     [this](const rclcpp::Parameter &param)
                     {
+                        topic_manager_ = std::make_unique<boblib::utils::pubsub::TopicManager>(param.as_int());
                         camera_params_ptr_->set_max_queue_process_size(static_cast<size_t>(param.as_int()));
                         bgs_params_ptr_->set_max_queue_process_size(static_cast<size_t>(param.as_int()));
                     }),
@@ -426,7 +429,7 @@ private:
     std::unique_ptr<CameraWorker> camera_worker_ptr_;
     std::unique_ptr<BackgroundSubtractorWorkerParams> bgs_params_ptr_;
     std::unique_ptr<BackgroundSubtractorWorker> bgs_worker_ptr_;
-    boblib::utils::PubSub<std::string> pubsub{100};
+    std::unique_ptr<boblib::utils::pubsub::TopicManager> topic_manager_;
 
     rclcpp::Service<bob_interfaces::srv::MaskOverrideRequest>::SharedPtr privacy_mask_override_service_;
     rclcpp::Service<bob_interfaces::srv::MaskOverrideRequest>::SharedPtr bgs_mask_override_service_;
