@@ -78,6 +78,7 @@
         "cfenv": "cpp",
         "cinttypes": "cpp",
         "valarray": "cpp",
-        "ranges": "cpp"
+        "ranges": "cpp",
+        "any": "cpp"
     }
 }

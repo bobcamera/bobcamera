@@ -29,8 +29,11 @@ public:
         camera_params_ptr_ = std::make_unique<CameraWorkerParams>();
         bgs_params_ptr_ = std::make_unique<BackgroundSubtractorWorkerParams>();
 
+        topic_manager_ = std::make_unique<boblib::utils::pubsub::TopicManager>(100);
+
         bgs_worker_ptr_ = std::make_unique<BackgroundSubtractorWorker>(*this, *bgs_params_ptr_);
         camera_worker_ptr_ = std::make_unique<CameraWorker>(*this, *camera_params_ptr_,
+                                                            *topic_manager_,
                                                             [this](float fps, const std_msgs::msg::Header &header, const boblib::base::Image &img)
                                                             {
                                                                 bgs_worker_ptr_->image_callback(fps, header, img);
@@ -51,7 +54,11 @@ private:
     {
         declare_node_parameters();
 
-        topic_manager_->create_topic<sensor_msgs::msg::Image>(camera_params_ptr_->get_image_publish_topic());
+        topic_manager_->subscribe<boblib::base::Image>(camera_params_ptr_->get_image_publish_topic(),
+                                                       [this](const boblib::base::Image &msg)
+                                                       {
+                                                           std::cout << "Image received" << std::endl;
+                                                       });
 
         bgs_worker_ptr_->init();
         camera_worker_ptr_->init();
@@ -359,7 +366,7 @@ private:
                     rclcpp::Parameter("max_queue_process_size", 100),
                     [this](const rclcpp::Parameter &param)
                     {
-                        topic_manager_ = std::make_unique<boblib::utils::pubsub::TopicManager>(param.as_int());
+                        //topic_manager_-> = std::make_unique<boblib::utils::pubsub::TopicManager>(param.as_int());
                         camera_params_ptr_->set_max_queue_process_size(static_cast<size_t>(param.as_int()));
                         bgs_params_ptr_->set_max_queue_process_size(static_cast<size_t>(param.as_int()));
                     }),

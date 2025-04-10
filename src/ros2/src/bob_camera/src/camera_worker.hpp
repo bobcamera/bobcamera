@@ -5,6 +5,7 @@
 
 #include <boblib/api/video/VideoReader.hpp>
 #include <boblib/api/base/SynchronizedQueue.hpp>
+#include <boblib/api/utils/pubsub/TopicReference.hpp>
 
 #include <mask_worker.hpp>
 #include <circuit_breaker.hpp>
@@ -21,10 +22,12 @@ class CameraWorker final
 public:
     explicit CameraWorker(ParameterNode &node,
                           CameraWorkerParams &params,
+                          boblib::utils::pubsub::TopicManager &topic_manager,
                           const std::function<void(float fps_, const std_msgs::msg::Header &, const boblib::base::Image &)> &user_callback = nullptr)
         : node_(node),
           params_(params),
-          user_callback_(user_callback)
+          user_callback_(user_callback),
+          topic_manager_(topic_manager)          
     {
         mask_worker_ptr_ = std::make_unique<MaskWorker>(node_, 
             [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat & mask)
@@ -52,6 +55,8 @@ public:
             camera_info_msg_.frame_height = 0;
             camera_info_msg_.frame_width = 0;
             camera_info_msg_.fps = 0;
+
+            image_pubsub_ptr_ = topic_manager_.get_topic<boblib::base::Image>(params_.get_image_publish_topic());
 
             using_cuda_ = params_.get_use_cuda() ? boblib::base::Utils::has_cuda() : false;
             privacy_mask_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_);
@@ -273,6 +278,8 @@ private:
                 }
 
                 apply_mask(camera_img);
+
+                image_pubsub_ptr_->publish(camera_img);
 
                 // Pushing the image to the processing queue
                 image_queue_ptr_->push(std::move(camera_img));
@@ -759,4 +766,7 @@ private:
 
     bob_interfaces::msg::RecordingEvent last_recording_event_;
     std::unique_ptr<VideoRecorder> video_recorder_ptr_;
+
+    boblib::utils::pubsub::TopicManager &topic_manager_;
+    std::shared_ptr<boblib::utils::pubsub::PubSub<boblib::base::Image>> image_pubsub_ptr_;
 };

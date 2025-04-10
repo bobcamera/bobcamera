@@ -18,10 +18,6 @@
 
 namespace boblib::utils::pubsub
 {
-    // Forward declarations
-    class TopicManager;
-    class ISubscriber;
-
     // Define concepts for message types
     template <typename T>
     concept CopyableOrMovable = std::is_copy_constructible_v<T> || std::is_move_constructible_v<T>;
@@ -172,40 +168,153 @@ namespace boblib::utils::pubsub
         static constexpr std::chrono::milliseconds DEFAULT_TIMEOUT{5};
         std::chrono::milliseconds timeout;
 
-        void dispatch_loop();
+        void dispatch_loop()
+        {
+            // Local cache of callbacks to avoid repeated allocations
+            std::vector<SubscriberCallback> callbacks;
+            callbacks.reserve(INITIAL_SUBSCRIBER_CAPACITY);
+
+            while (running.load(std::memory_order_acquire))
+            {
+                bool processed = false;
+
+                // Try to process messages
+                auto message = queue.pop();
+                if (message)
+                {
+                    processed = true;
+
+                    // Only lock if we have subscribers
+                    if (cached_subscriber_count.load(std::memory_order_relaxed) > 0)
+                    {
+                        // Copy subscribers list to avoid holding lock during callbacks
+                        callbacks.clear();
+                        {
+                            std::lock_guard<std::mutex> lock(subscribers_mutex);
+                            callbacks.reserve(subscribers.size());
+                            for (const auto &[_, callback] : subscribers)
+                            {
+                                callbacks.push_back(callback);
+                            }
+                        }
+
+                        // Notify all subscribers
+                        for (const auto &callback : callbacks)
+                        {
+                            callback(*message);
+                        }
+                    }
+                }
+
+                // If nothing was processed, wait for notification of new data
+                if (!processed)
+                {
+                    std::unique_lock<std::mutex> lock(cv_mutex);
+                    cv.wait_for(lock, timeout, [this]
+                                { return !running.load(std::memory_order_acquire) ||
+                                         queue.head.load(std::memory_order_acquire) !=
+                                             queue.tail.load(std::memory_order_acquire); });
+                }
+            }
+        }
 
     public:
-        explicit PubSub(size_t queue_size, std::chrono::milliseconds timeout = DEFAULT_TIMEOUT);
-        ~PubSub();
+        explicit PubSub(size_t queue_size, std::chrono::milliseconds timeout_value = DEFAULT_TIMEOUT)
+            : queue(queue_size), timeout(timeout_value)
+        {
+            // Pre-allocate subscriber vector
+            subscribers.reserve(INITIAL_SUBSCRIBER_CAPACITY);
+            dispatch_thread = std::thread(&PubSub::dispatch_loop, this);
+        }
+        
+        ~PubSub()
+        {
+            running.store(false, std::memory_order_release);
+            cv.notify_all();
+            if (dispatch_thread.joinable())
+            {
+                dispatch_thread.join();
+            }
+        }
 
         // Publish a message to the queue
-        bool publish(T message);
+        bool publish(T message)
+        {
+            auto result = queue.push(std::move(message));
+            if (result)
+            {
+                cv.notify_one();
+            }
+            return result;
+        }
 
         // Subscribe to messages with a callback
-        SubscriberID subscribe(SubscriberCallback callback);
+        SubscriberID subscribe(SubscriberCallback callback)
+        {
+            std::lock_guard<std::mutex> lock(subscribers_mutex);
+            SubscriberID id = next_id.fetch_add(1, std::memory_order_relaxed);
+            subscribers.emplace_back(id, std::move(callback));
+            cached_subscriber_count.store(subscribers.size(), std::memory_order_release);
+            return id;
+        }
 
         // Unsubscribe using the ID returned from subscribe
-        bool unsubscribe(SubscriberID id);
+        bool unsubscribe(SubscriberID id)
+        {
+            std::lock_guard<std::mutex> lock(subscribers_mutex);
+            auto it = std::find_if(subscribers.begin(), subscribers.end(),
+                                   [id](const auto &pair)
+                                   { return pair.first == id; });
+            if (it != subscribers.end())
+            {
+                subscribers.erase(it);
+                cached_subscriber_count.store(subscribers.size(), std::memory_order_release);
+                return true;
+            }
+            return false;
+        }
 
         // Get the number of subscribers
-        size_t subscriber_count() const;
+        size_t subscriber_count() const
+        {
+            // Use cached count for better performance
+            return cached_subscriber_count.load(std::memory_order_relaxed);
+        }
 
         // Check if queue is full
-        bool is_queue_full() const;
+        bool is_queue_full() const
+        {
+            const size_t head = queue.head.load(std::memory_order_relaxed);
+            const size_t next_head = (head + 1) % queue.capacity;
+            return next_head == queue.tail.load(std::memory_order_acquire);
+        }
 
         // Get current queue size
-        size_t queue_size() const;
+        size_t queue_size() const
+        {
+            const size_t head = queue.head.load(std::memory_order_relaxed);
+            const size_t tail = queue.tail.load(std::memory_order_relaxed);
+
+            if (head >= tail)
+            {
+                return head - tail;
+            }
+            else
+            {
+                return queue.capacity - tail + head;
+            }
+        }
 
         // Get queue capacity
-        size_t queue_capacity() const;
-        
-        // Method to configure the timeout
-        void set_timeout(std::chrono::milliseconds new_timeout);
-    };
+        size_t queue_capacity() const
+        {
+            return queue.capacity;
+        }
 
-    // Forward declaration for the base subscriber interface
-    class ISubscriber {
-    public:
-        virtual ~ISubscriber() = default;
+        // Method to configure the timeout
+        void set_timeout(std::chrono::milliseconds new_timeout)
+        {
+            timeout = new_timeout;
+        }
     };
 }
