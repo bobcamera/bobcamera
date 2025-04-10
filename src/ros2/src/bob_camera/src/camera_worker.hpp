@@ -279,6 +279,7 @@ private:
 
                 apply_mask(camera_img);
 
+                // New PubSub to replace below
                 image_pubsub_ptr_->publish(camera_img);
 
                 // Pushing the image to the processing queue

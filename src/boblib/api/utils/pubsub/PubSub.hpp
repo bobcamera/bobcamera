@@ -248,6 +248,16 @@ namespace boblib::utils::pubsub
             return result;
         }
 
+        bool publish(T &&message)
+        {
+            auto result = queue.push(std::move(message));
+            if (result)
+            {
+                cv.notify_one();
+            }
+            return result;
+        }
+
         // Subscribe to messages with a callback
         SubscriberID subscribe(SubscriberCallback callback)
         {
