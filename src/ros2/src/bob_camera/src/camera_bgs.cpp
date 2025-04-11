@@ -54,11 +54,11 @@ private:
     {
         declare_node_parameters();
 
-        topic_manager_->subscribe<boblib::base::Image>(camera_params_ptr_->get_image_publish_topic(),
-                                                       [this](const boblib::base::Image &msg)
-                                                       {
-                                                           std::cout << "Image received" << std::endl;
-                                                       });
+        // topic_manager_->subscribe<boblib::base::Image>(camera_params_ptr_->get_image_publish_topic(),
+        //                                                [this](const boblib::base::Image &msg)
+        //                                                {
+        //                                                    std::cout << "Image received" << std::endl;
+        //                                                });
 
         bgs_worker_ptr_->init();
         camera_worker_ptr_->init();

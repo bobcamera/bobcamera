@@ -57,6 +57,8 @@ public:
             camera_info_msg_.fps = 0;
 
             image_pubsub_ptr_ = topic_manager_.get_topic<boblib::base::Image>(params_.get_image_publish_topic());
+            image_pubsub_ptr_->subscribe([this](const boblib::base::Image &image) {process_image(image);});
+            image_pubsub_ptr_->subscribe([this](const boblib::base::Image &image) {record_image(image);});
 
             using_cuda_ = params_.get_use_cuda() ? boblib::base::Utils::has_cuda() : false;
             privacy_mask_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_);
@@ -266,7 +268,7 @@ private:
 
             try
             {
-                // This block will acquire the image apply the simulation and then the Privacy mask
+                // This block will acquire the image apply the simulation and then the privacy mask
                 if (!acquire_image(camera_img))
                 {
                     continue;
@@ -279,11 +281,7 @@ private:
 
                 apply_mask(camera_img);
 
-                // New PubSub to replace below
-                image_pubsub_ptr_->publish(camera_img);
-
-                // Pushing the image to the processing queue
-                image_queue_ptr_->push(std::move(camera_img));
+                image_pubsub_ptr_->publish(std::move(camera_img));
 
                 // Only limiting fps if it is video and the limit_fps param is set
                 if (params_.get_limit_fps() && (params_.get_source_type() == CameraWorkerParams::SourceType::VIDEO_FILE))
@@ -304,47 +302,46 @@ private:
         }
         node_.log_send_info("CameraWorker: Leaving capture_loop");
 
+        if (video_recorder_ptr_ && video_recorder_ptr_->is_recording())
+        {
+            node_.log_info("Closing video");
+            video_recorder_ptr_->close_video();
+        }
+
+        stop_capture();
+
         boblib::base::Utils::reset_cuda();
     }
 
-    void process_images()
+    void process_image(const boblib::base::Image & camera_img)
     {
-        sensor_msgs::msg::Image camera_msg;
-
-        while (rclcpp::ok())
+        try
         {
-            boblib::base::Image camera_img(using_cuda_);
-            if (image_queue_ptr_->pop_move(camera_img))
+            sensor_msgs::msg::Image camera_msg;
+            if (image_pubsub_ptr_->queue_size() > 1)
             {
-                try
-                {
-                    if (image_queue_ptr_->size() > 0)
-                    {
-                        node_.log_info("Process Queue size: %d", image_queue_ptr_->size());
-                    }
-
-                    fill_header(camera_msg, camera_img);
-
-                    if (user_callback_)
-                    {
-                        user_callback_(fps_, camera_msg.header, camera_img);
-                    }
-
-                    publish_queue_ptr_->push(PublishImage(std::move(camera_msg), std::move(camera_img)));
-                }
-                catch (const std::exception & e)
-                {
-                    node_.log_send_error("CameraWorker: process_images: Exception: %s", e.what());
-                    rcutils_reset_error();
-                }
-                catch (...)
-                {
-                    node_.log_send_error("CameraWorker: process_images: Unknown exception");
-                    rcutils_reset_error();
-                }
+                node_.log_info("Process Queue size: %d", image_pubsub_ptr_->queue_size() - 1);
             }
+
+            fill_header(camera_msg, camera_img);
+
+            if (user_callback_)
+            {
+                user_callback_(fps_, camera_msg.header, camera_img);
+            }
+
+            publish_queue_ptr_->push(PublishImage(std::move(camera_msg), std::move(camera_img)));
         }
-        node_.log_send_info("CameraWorker: Leaving process_images");
+        catch (const std::exception &e)
+        {
+            node_.log_send_error("CameraWorker: process_images: Exception: %s", e.what());
+            rcutils_reset_error();
+        }
+        catch (...)
+        {
+            node_.log_send_error("CameraWorker: process_images: Unknown exception");
+            rcutils_reset_error();
+        }
     }
 
     void publish_images()
@@ -371,9 +368,6 @@ private:
                     publish_image_info(camera_msg, camera_img);
 
                     publish_camera_info(camera_msg.header, camera_img);
-
-                    // Pushing the image to the saving queue
-                    record_queue_ptr_->push(std::move(camera_img));
                 }
                 catch (const std::exception & e)
                 {
@@ -390,74 +384,58 @@ private:
         node_.log_send_info("CameraWorker: Leaving publish_images");
     }
 
-    void record_images()
+    void record_image(const boblib::base::Image & camera_img)
     {
-        while (rclcpp::ok())
+        try
         {
-            boblib::base::Image camera_img(using_cuda_);
-            if (record_queue_ptr_->pop_move(camera_img))
+            if (record_queue_ptr_->size() > 0)
             {
-                try
+                node_.log_info("Record Queue size: %d", record_queue_ptr_->size());
+            }
+
+            if (params_.get_recording_enabled())
+            {
+                if (last_recording_event_.recording)
                 {
-                    if (record_queue_ptr_->size() > 0)
+                    if (!video_recorder_ptr_->is_recording())
                     {
-                        node_.log_info("Record Queue size: %d", record_queue_ptr_->size());
-                    }
-
-                    if (params_.get_recording_enabled())
-                    {
-                        if (last_recording_event_.recording)
+                        const auto complete_filename = last_recording_event_.recording_path + "/" + last_recording_event_.filename + ".mp4";
+                        node_.log_info("Opening new video: %s", complete_filename.c_str());
+                        if (!video_recorder_ptr_->open_new_video(complete_filename, params_.get_recording_codec(), fps_, camera_img.size()))
                         {
-                            if (!video_recorder_ptr_->is_recording())
-                            {
-                                const auto complete_filename = last_recording_event_.recording_path + "/" + last_recording_event_.filename + ".mp4";
-                                node_.log_info("Opening new video: %s", complete_filename.c_str());
-                                if (!video_recorder_ptr_->open_new_video(complete_filename, params_.get_recording_codec(), fps_, camera_img.size()))
-                                {
-                                    node_.log_info("Could not create new video");
-                                }
-                            }
-
-                            if (video_recorder_ptr_->is_recording())
-                            {
-                                video_recorder_ptr_->write_frame(std::move(camera_img));
-                            }
-                        }
-                        else
-                        {
-                            if (video_recorder_ptr_->is_recording())
-                            {
-                                node_.log_info("Closing video");
-                                video_recorder_ptr_->close_video();
-                            }
-                            video_recorder_ptr_->add_to_pre_buffer(std::move(camera_img));
+                            node_.log_info("Could not create new video");
                         }
                     }
+
+                    if (video_recorder_ptr_->is_recording())
+                    {
+                        video_recorder_ptr_->write_frame(std::move(camera_img));
+                    }
                 }
-                catch (const std::exception & e)
+                else
                 {
-                    node_.log_send_error("CameraWorker: process_images: Exception: %s", e.what());
-                    rcutils_reset_error();
-                }
-                catch (...)
-                {
-                    node_.log_send_error("CameraWorker: process_images: Unknown exception");
-                    rcutils_reset_error();
+                    if (video_recorder_ptr_->is_recording())
+                    {
+                        node_.log_info("Closing video");
+                        video_recorder_ptr_->close_video();
+                    }
+                    video_recorder_ptr_->add_to_pre_buffer(std::move(camera_img));
                 }
             }
         }
-        node_.log_send_info("CameraWorker: Leaving record_images");
-
-        if (video_recorder_ptr_ &&  video_recorder_ptr_->is_recording())
+        catch (const std::exception &e)
         {
-            node_.log_info("Closing video");
-            video_recorder_ptr_->close_video();
+            node_.log_send_error("CameraWorker: process_images: Exception: %s", e.what());
+            rcutils_reset_error();
         }
-
-        stop_capture();
+        catch (...)
+        {
+            node_.log_send_error("CameraWorker: process_images: Unknown exception");
+            rcutils_reset_error();
+        }
     }
 
-    inline void fill_header(sensor_msgs::msg::Image & camera_msg, boblib::base::Image & camera_img)
+    inline void fill_header(sensor_msgs::msg::Image & camera_msg, const boblib::base::Image & camera_img)
     {
         camera_msg.header.stamp = node_.now();
         camera_msg.header.frame_id = ParameterNode::generate_uuid();
@@ -478,7 +456,7 @@ private:
         img.apply_mask(*privacy_mask_ptr_);
     }
 
-    inline void publish_frame(sensor_msgs::msg::Image & camera_msg, boblib::base::Image & camera_img)
+    inline void publish_frame(sensor_msgs::msg::Image & camera_msg, const boblib::base::Image & camera_img)
     {
         if (node_.count_subscribers(params_.get_image_publisher()->get_topic_name()) <= 0)
         {
@@ -513,10 +491,8 @@ private:
     void start_capture()
     {
         run_ = true;
-        processing_thread_ = std::jthread(&CameraWorker::process_images, this);
         capture_thread_ = std::jthread(&CameraWorker::capture_loop, this);
         publish_thread_ = std::jthread(&CameraWorker::publish_images, this);
-        record_thread_ = std::jthread(&CameraWorker::record_images, this);
     }
 
     void stop_capture()
@@ -527,17 +503,9 @@ private:
         {
             capture_thread_.join();
         }
-        if (processing_thread_.joinable())
-        {
-            processing_thread_.join();
-        }
         if (publish_thread_.joinable())
         {
             publish_thread_.join();
-        }
-        if (record_thread_.joinable())
-        {
-            record_thread_.join();
         }
     }
 
@@ -724,7 +692,7 @@ private:
     static constexpr int CIRCUIT_BREAKER_INITIAL_TIMEOUT = 10;
     static constexpr int CIRCUIT_BREAKER_MAX_TIMEOUT = 10;
     static constexpr int CIRCUIT_BREAKER_SLEEP_MS = 1000;
-    static constexpr int INITIALIZED_SLEEP_MS = 200;
+    static constexpr int INITIALIZED_SLEEP_MS = 10;
 
     ParameterNode &node_;
     CameraWorkerParams & params_;
@@ -738,9 +706,7 @@ private:
 
     bool run_{false};
     std::jthread capture_thread_;
-    std::jthread processing_thread_;
     std::jthread publish_thread_;
-    std::jthread record_thread_;
 
     uint32_t current_video_idx_{0};
     

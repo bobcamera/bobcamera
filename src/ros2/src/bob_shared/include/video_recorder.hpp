@@ -32,7 +32,7 @@ public:
     VideoRecorder(VideoRecorder &&) = default;
     VideoRecorder &operator=(VideoRecorder &&) = default;
 
-    void add_to_pre_buffer(cv::Mat && img) noexcept
+    void add_to_pre_buffer(const cv::Mat && img) noexcept
     {
         if (pre_buffer_mat_.size() >= max_pre_buffer_size_)
         {
@@ -41,7 +41,7 @@ public:
         pre_buffer_mat_.push_back(std::move(img));
     }
 
-    void add_to_pre_buffer(boblib::base::Image && img) noexcept
+    void add_to_pre_buffer(const boblib::base::Image && img) noexcept
     {
         if (pre_buffer_image_.size() >= max_pre_buffer_size_)
         {
