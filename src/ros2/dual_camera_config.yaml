@@ -9,8 +9,8 @@ variables:
   use_cuda: false #Leave it false as it is not working
   use_recording: true
   display_enabled: true
-  camera1_enabled: false
-  camera2_enabled: true
+  camera1_enabled: true
+  camera2_enabled: false
 
 #########################################################################
 # Basic configuration for nodes

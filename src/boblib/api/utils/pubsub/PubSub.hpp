@@ -15,6 +15,8 @@
 #include <chrono>
 #include <unordered_map>
 #include <typeindex>
+#include <array>
+#include <pthread.h>
 
 namespace boblib::utils::pubsub
 {
@@ -30,8 +32,10 @@ namespace boblib::utils::pubsub
         // Structure representing a single slot in our circular buffer
         struct Slot
         {
-            std::atomic<bool> occupied{false};
-            alignas(64) std::aligned_storage_t<sizeof(T), alignof(T)> storage; // Raw storage instead of T directly
+            alignas(64) std::atomic<bool> occupied{false};
+            alignas(64) std::aligned_storage_t<sizeof(T), alignof(T)> storage;
+            alignas(64) std::atomic<bool> being_processed{false};
+            char padding[64 - (sizeof(std::atomic<bool>) * 2 + sizeof(std::aligned_storage_t<sizeof(T), alignof(T)>)) % 64];
 
             Slot() = default;
             Slot(const Slot &) = delete;            // Prevent copying
@@ -39,7 +43,7 @@ namespace boblib::utils::pubsub
             Slot(Slot &&) = delete;                 // Prevent moving
             Slot &operator=(Slot &&) = delete;
 
-            ~Slot()
+            ~Slot() noexcept
             {
                 if (occupied.load(std::memory_order_relaxed))
                 {
@@ -47,100 +51,105 @@ namespace boblib::utils::pubsub
                 }
             }
 
-            T &get()
+            T &get() noexcept
             {
                 return *reinterpret_cast<T *>(&storage);
             }
 
-            const T &get() const
+            const T &get() const noexcept
             {
                 return *reinterpret_cast<const T *>(&storage);
             }
 
             template <typename... Args>
-            void construct(Args &&...args)
+            void construct(Args &&...args) noexcept(noexcept(T(std::forward<Args>(args)...)))
             {
                 new (&storage) T(std::forward<Args>(args)...);
+            }
+
+            // New method to mark slot as being processed
+            bool try_acquire_processing() noexcept
+            {
+                bool expected = false;
+                return being_processed.compare_exchange_strong(expected, true,
+                                                               std::memory_order_acquire, std::memory_order_relaxed);
+            }
+
+            // New method to release processing flag
+            void release_processing() noexcept
+            {
+                being_processed.store(false, std::memory_order_release);
             }
         };
 
         // Circular buffer with atomic indices
         struct CircularBuffer
         {
-            std::unique_ptr<Slot[]> buffer;
-            std::atomic<size_t> head{0}; // Position to write to
-            std::atomic<size_t> tail{0}; // Position to read from
-            size_t capacity;
+            alignas(64) std::unique_ptr<Slot[]> buffer;
+            alignas(64) std::atomic<size_t> head{0};
+            alignas(64) std::atomic<size_t> tail{0};
+            alignas(64) size_t capacity;
+            char padding[64 - (sizeof(std::atomic<size_t>) * 2 + sizeof(size_t)) % 64];
 
             explicit CircularBuffer(size_t size) : capacity(size)
             {
                 buffer = std::make_unique<Slot[]>(size);
             }
 
-            bool push(T &&item)
+            // Optimized push that avoids unnecessary copies
+            bool push(T &&item) noexcept(noexcept(std::declval<Slot>().construct(std::move(item))))
             {
-                // Use relaxed ordering for local reads
                 const size_t current_head = head.load(std::memory_order_relaxed);
                 const size_t next_head = (current_head + 1) % capacity;
 
-                // Use acquire to ensure we see the latest tail value
                 if (next_head == tail.load(std::memory_order_acquire))
                 {
                     return false;
                 }
 
-                // Place the item at the current head position
-                if constexpr (std::is_move_constructible_v<T>)
-                {
-                    buffer[current_head].construct(std::move(item));
-                }
-                else
-                {
-                    buffer[current_head].construct(item);
-                }
-
-                // Use release to ensure the item is fully constructed before it's visible
+                buffer[current_head].construct(std::move(item));
                 buffer[current_head].occupied.store(true, std::memory_order_release);
-
-                // Update head
                 head.store(next_head, std::memory_order_release);
                 return true;
             }
 
-            std::optional<T> pop()
+            // New method for zero-copy access to the next message
+            template <typename F>
+            bool process_next(F &&processor) noexcept(noexcept(processor(std::declval<T&>())))
             {
-                // Use relaxed ordering for local reads
                 const size_t current_tail = tail.load(std::memory_order_relaxed);
 
-                // Use acquire to ensure we see the latest head value
                 if (current_tail == head.load(std::memory_order_acquire))
                 {
-                    return std::nullopt;
+                    return false;
                 }
 
-                // Use acquire to ensure we see the latest occupied value
-                if (!buffer[current_tail].occupied.load(std::memory_order_acquire))
+                Slot &slot = buffer[current_tail];
+
+                if (!slot.occupied.load(std::memory_order_acquire))
                 {
-                    return std::nullopt;
+                    return false;
                 }
 
-                // Get the item
-                T result;
-                if constexpr (std::is_move_constructible_v<T>)
+                if (!slot.try_acquire_processing())
                 {
-                    result = std::move(buffer[current_tail].get());
-                }
-                else
-                {
-                    result = buffer[current_tail].get();
+                    return false;
                 }
 
-                buffer[current_tail].get().~T();
-                
-                // Use release to ensure the slot is marked as unoccupied before updating tail
-                buffer[current_tail].occupied.store(false, std::memory_order_release);
-                tail.store((current_tail + 1) % capacity, std::memory_order_release);
-                return result;
+                try
+                {
+                    processor(slot.get());
+                    slot.get().~T();
+                    slot.occupied.store(false, std::memory_order_release);
+                    slot.release_processing();
+                    tail.store((current_tail + 1) % capacity, std::memory_order_release);
+                    return true;
+                }
+                catch (...)
+                {
+                    slot.release_processing();
+                    throw;
+                }
             }
         };
 
@@ -149,85 +158,92 @@ namespace boblib::utils::pubsub
 
         CircularBuffer queue;
         
-        // Pre-allocate subscriber vector to avoid reallocations
-        static constexpr size_t INITIAL_SUBSCRIBER_CAPACITY = 8;
-        std::vector<std::pair<SubscriberID, SubscriberCallback>> subscribers;
-        std::mutex subscribers_mutex;
-        
-        // Cache the subscriber count to avoid locking when possible
-        std::atomic<size_t> cached_subscriber_count{0};
+        // Fixed-size array for subscribers
+        static constexpr size_t MAX_SUBSCRIBERS = 4;
+        alignas(64) std::array<SubscriberCallback, MAX_SUBSCRIBERS> subscribers;
+        alignas(64) std::atomic<size_t> active_subscriber_count{0};
+        alignas(64) std::atomic<bool> running{true};
+        alignas(64) std::thread dispatch_thread;
+        alignas(64) std::condition_variable cv;
+        alignas(64) std::mutex cv_mutex;
 
-        std::atomic<bool> running{true};
-        std::thread dispatch_thread;
-        std::condition_variable cv;
-        std::mutex cv_mutex;
-
-        std::atomic<SubscriberID> next_id{0};
-        
         // Configurable timeout for condition variable
         static constexpr std::chrono::milliseconds DEFAULT_TIMEOUT{5};
         std::chrono::milliseconds timeout;
 
-        void dispatch_loop()
+        void dispatch_loop() noexcept
         {
-            // Local cache of callbacks to avoid repeated allocations
-            std::vector<SubscriberCallback> callbacks;
-            callbacks.reserve(INITIAL_SUBSCRIBER_CAPACITY);
+            const size_t count = active_subscriber_count.load(std::memory_order_relaxed);
+            
+            // Pre-allocate message processing lambda to avoid allocations in hot path
+            auto process_message = [this, count](const T& message) noexcept {
+                for (size_t i = 0; i < count; ++i) {
+                    subscribers[i](message);
+                }
+            };
+
+            // Spin for a short time before sleeping
+            constexpr int SPIN_COUNT = 1000;
+            int spin_attempts = 0;
 
             while (running.load(std::memory_order_acquire))
             {
                 bool processed = false;
 
-                // Try to process messages
-                auto message = queue.pop();
-                if (message)
+                if (count > 0)
                 {
-                    processed = true;
-
-                    // Only lock if we have subscribers
-                    if (cached_subscriber_count.load(std::memory_order_relaxed) > 0)
-                    {
-                        // Copy subscribers list to avoid holding lock during callbacks
-                        callbacks.clear();
-                        {
-                            std::lock_guard<std::mutex> lock(subscribers_mutex);
-                            callbacks.reserve(subscribers.size());
-                            for (const auto &[_, callback] : subscribers)
-                            {
-                                callbacks.push_back(callback);
-                            }
-                        }
-
-                        // Notify all subscribers
-                        for (const auto &callback : callbacks)
-                        {
-                            callback(*message);
-                        }
-                    }
+                    processed = queue.process_next(process_message);
+                }
+                else
+                {
+                    processed = queue.process_next([](const T&) noexcept {});
                 }
 
-                // If nothing was processed, wait for notification of new data
                 if (!processed)
                 {
+                    if (spin_attempts < SPIN_COUNT)
+                    {
+                        spin_attempts++;
+                        std::this_thread::yield();
+                        continue;
+                    }
+
+                    spin_attempts = 0;
                     std::unique_lock<std::mutex> lock(cv_mutex);
-                    cv.wait_for(lock, timeout, [this]
-                                { return !running.load(std::memory_order_acquire) ||
-                                         queue.head.load(std::memory_order_acquire) !=
-                                             queue.tail.load(std::memory_order_acquire); });
+                    cv.wait_for(lock, timeout, [this]() noexcept {
+                        return !running.load(std::memory_order_acquire) ||
+                               queue.head.load(std::memory_order_acquire) !=
+                               queue.tail.load(std::memory_order_acquire);
+                    });
                 }
             }
         }
 
     public:
-        explicit PubSub(size_t queue_size, std::chrono::milliseconds timeout_value = DEFAULT_TIMEOUT)
+        explicit PubSub(size_t queue_size, 
+                       std::chrono::milliseconds timeout_value = DEFAULT_TIMEOUT,
+                       int cpu_core = -1) noexcept
             : queue(queue_size), timeout(timeout_value)
         {
-            // Pre-allocate subscriber vector
-            subscribers.reserve(INITIAL_SUBSCRIBER_CAPACITY);
             dispatch_thread = std::thread(&PubSub::dispatch_loop, this);
+            
+            // Set thread affinity if specified
+            if (cpu_core >= 0)
+            {
+#ifdef __linux__
+                cpu_set_t cpuset;
+                CPU_ZERO(&cpuset);
+                CPU_SET(cpu_core, &cpuset);
+                pthread_setaffinity_np(dispatch_thread.native_handle(), 
+                                     sizeof(cpu_set_t), &cpuset);
+#elif defined(_WIN32)
+                SetThreadAffinityMask(dispatch_thread.native_handle(), 
+                                    static_cast<DWORD_PTR>(1) << cpu_core);
+#endif
+            }
         }
         
-        ~PubSub()
+        ~PubSub() noexcept
         {
             running.store(false, std::memory_order_release);
             cv.notify_all();
@@ -235,20 +251,12 @@ namespace boblib::utils::pubsub
             {
                 dispatch_thread.join();
             }
+            // Clear any remaining messages
+            while (queue.process_next([](const T&){})) {}
         }
 
         // Publish a message to the queue
-        bool publish(T message)
-        {
-            auto result = queue.push(std::move(message));
-            if (result)
-            {
-                cv.notify_one();
-            }
-            return result;
-        }
-
-        bool publish(T &&message)
+        bool publish(T &&message) noexcept(noexcept(queue.push(std::move(message))))
         {
             auto result = queue.push(std::move(message));
             if (result)
@@ -259,40 +267,21 @@ namespace boblib::utils::pubsub
         }
 
         // Subscribe to messages with a callback
-        SubscriberID subscribe(SubscriberCallback callback)
+        bool subscribe(SubscriberCallback callback) noexcept
         {
-            std::lock_guard<std::mutex> lock(subscribers_mutex);
-            SubscriberID id = next_id.fetch_add(1, std::memory_order_relaxed);
-            subscribers.emplace_back(id, std::move(callback));
-            cached_subscriber_count.store(subscribers.size(), std::memory_order_release);
-            return id;
-        }
-
-        // Unsubscribe using the ID returned from subscribe
-        bool unsubscribe(SubscriberID id)
-        {
-            std::lock_guard<std::mutex> lock(subscribers_mutex);
-            auto it = std::find_if(subscribers.begin(), subscribers.end(),
-                                   [id](const auto &pair)
-                                   { return pair.first == id; });
-            if (it != subscribers.end())
+            const size_t count = active_subscriber_count.load(std::memory_order_relaxed);
+            if (count >= MAX_SUBSCRIBERS)
             {
-                subscribers.erase(it);
-                cached_subscriber_count.store(subscribers.size(), std::memory_order_release);
-                return true;
+                return false;
             }
-            return false;
-        }
-
-        // Get the number of subscribers
-        size_t subscriber_count() const
-        {
-            // Use cached count for better performance
-            return cached_subscriber_count.load(std::memory_order_relaxed);
+            
+            subscribers[count] = std::move(callback);
+            active_subscriber_count.store(count + 1, std::memory_order_release);
+            return true;
         }
 
         // Check if queue is full
-        bool is_queue_full() const
+        bool is_queue_full() const noexcept
         {
             const size_t head = queue.head.load(std::memory_order_relaxed);
             const size_t next_head = (head + 1) % queue.capacity;
@@ -300,7 +289,7 @@ namespace boblib::utils::pubsub
         }
 
         // Get current queue size
-        size_t queue_size() const
+        size_t queue_size() const noexcept
         {
             const size_t head = queue.head.load(std::memory_order_relaxed);
             const size_t tail = queue.tail.load(std::memory_order_relaxed);
@@ -316,13 +305,25 @@ namespace boblib::utils::pubsub
         }
 
         // Get queue capacity
-        size_t queue_capacity() const
+        size_t queue_capacity() const noexcept
         {
             return queue.capacity;
         }
 
+        // Check if the queue is empty
+        bool empty() const noexcept
+        {
+            return queue_size() == 0;
+        }
+
+        // Get the number of active subscribers
+        size_t subscriber_count() const noexcept
+        {
+            return active_subscriber_count.load(std::memory_order_relaxed);
+        }
+
         // Method to configure the timeout
-        void set_timeout(std::chrono::milliseconds new_timeout)
+        void set_timeout(std::chrono::milliseconds new_timeout) noexcept
         {
             timeout = new_timeout;
         }

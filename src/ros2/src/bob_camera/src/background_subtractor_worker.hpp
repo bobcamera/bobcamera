@@ -179,12 +179,12 @@ public:
             boblib::base::Image gray_img(using_cuda_);
             img.convertTo(gray_img, cv::COLOR_BGR2GRAY);
 
-            sensor_msgs::msg::Image bgs_msg;
-            fill_header(bgs_msg, header, gray_img);
+            // sensor_msgs::msg::Image bgs_msg;
+            // fill_header(bgs_msg, header, gray_img);
 
             create_save_heatmap(img);
 
-            process_queue_ptr_->push(PublishImage(std::move(bgs_msg), std::move(gray_img)));
+            process_queue_ptr_->push(PublishImage(header, std::move(gray_img)));
         }
         catch (const std::exception &e)
         {
@@ -345,7 +345,7 @@ private:
                     node_.log_info("BGSWorker: Process Queue size: %d", process_queue_ptr_->size());
                 }
 
-                auto& camera_msg = publish_image.value().Image_msg;
+                auto& header = publish_image.value().Header;
                 auto& gray_img = publish_image.value().Image;
 
                 // Resize detection mask if needed
@@ -363,9 +363,9 @@ private:
 
                 // Process the results
                 accumulate_mask(bgs_img);
-                do_detection(camera_msg.header, bgs_img);
-                publish_frame(camera_msg, bgs_img);
-                publish_resized_frame(camera_msg, bgs_img);
+                do_detection(header, bgs_img);
+                publish_frame(header, bgs_img);
+                publish_resized_frame(header, bgs_img);
             }
             catch (const std::exception& e)
             {
@@ -407,19 +407,20 @@ private:
         bgs_msg.step = bgs_img.size().width * bgs_img.elemSize();
     }
 
-    inline void publish_frame(sensor_msgs::msg::Image &bgs_msg, boblib::base::Image &bgs_img) noexcept
+    inline void publish_frame(const std_msgs::msg::Header &header, boblib::base::Image &bgs_img) noexcept
     {
         if (node_.count_subscribers(params_.get_image_publisher()->get_topic_name()) <= 0)
         {
             return;
         }
+        auto bgs_msg = PublishImage::fill_imagemsg_header(header, bgs_img);
         const size_t totalBytes = bgs_img.total() * bgs_img.elemSize();
         bgs_msg.data.assign(bgs_img.data(), bgs_img.data() + totalBytes);
 
         params_.get_image_publisher()->publish(bgs_msg);
     }
 
-    inline void publish_resized_frame(sensor_msgs::msg::Image & bgs_msg, const boblib::base::Image & bgs_img) const
+    inline void publish_resized_frame(const std_msgs::msg::Header &header, const boblib::base::Image & bgs_img) const
     {
         if (!params_.get_image_resized_publisher()
             || (params_.get_resize_height() <= 0)
@@ -434,7 +435,7 @@ private:
             bgs_img.resizeTo(resized_img, cv::Size(frame_width, params_.get_resize_height()));
         }
 
-        auto resized_frame_msg = cv_bridge::CvImage(bgs_msg.header, bgs_msg.encoding, resized_img.toMat()).toImageMsg();
+        auto resized_frame_msg = cv_bridge::CvImage(header, ImageUtils::type_to_encoding(resized_img.type()), resized_img.toMat()).toImageMsg();
         params_.get_image_resized_publisher()->publish(*resized_frame_msg);            
     }
 
