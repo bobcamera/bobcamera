@@ -31,10 +31,7 @@ namespace boblib::utils::pubsub
         std::shared_ptr<PubSub<T>> pubsub;
 
     public:
-        explicit TypedTopic(size_t queue_size, std::chrono::milliseconds timeout)
-            : pubsub(std::make_shared<PubSub<T>>(queue_size, timeout)) {}
-
-        std::shared_ptr<PubSub<T>> get_pubsub() const { return pubsub; }
+        explicit TypedTopic(std::shared_ptr<PubSub<T>> p) : pubsub(std::move(p)) {}
 
         size_t subscriber_count() const override { return pubsub->subscriber_count(); }
         size_t queue_size() const override { return pubsub->queue_size(); }
@@ -50,12 +47,12 @@ namespace boblib::utils::pubsub
         // Struct to hold topic data
         struct TopicData
         {
-            std::shared_ptr<TopicBase> topic;
+            std::unique_ptr<TopicBase> topic;
             std::type_index type_id;
-            size_t ref_count;
+            std::shared_ptr<void> pubsub;  // Store the PubSub instance directly
 
-            TopicData(std::shared_ptr<TopicBase> t, std::type_index id)
-                : topic(std::move(t)), type_id(id), ref_count(0) {}
+            TopicData(std::unique_ptr<TopicBase> t, std::type_index id, std::shared_ptr<void> p)
+                : topic(std::move(t)), type_id(id), pubsub(std::move(p)) {}
         };
 
         // Map from topic name to topic data
@@ -71,7 +68,7 @@ namespace boblib::utils::pubsub
     public:
         // Constructor with default values
         explicit TopicManager(
-            size_t queue_size = 1024,
+            size_t queue_size = 100,
             std::chrono::milliseconds timeout = std::chrono::milliseconds(5))
             : default_queue_size(queue_size), default_timeout(timeout) {}
 
@@ -85,12 +82,15 @@ namespace boblib::utils::pubsub
 
             if (it == topics.end())
             {
+                std::cout << "Creating new topic: " << topic_name << std::endl;
                 // Create a new topic if it doesn't exist
-                auto typed_topic = std::make_shared<TypedTopic<T>>(default_queue_size, default_timeout);
-                auto [new_it, inserted] = topics.emplace(
+                auto pubsub = std::make_shared<PubSub<T>>(default_queue_size, default_timeout);
+                auto typed_topic = std::make_unique<TypedTopic<T>>(pubsub);
+                auto [new_it, _] = topics.emplace(
                     topic_name,
-                    TopicData(typed_topic, typeid(T)));
+                    TopicData(std::move(typed_topic), typeid(T), pubsub));
                 it = new_it;
+                return pubsub;
             }
             else if (it->second.type_id != typeid(T))
             {
@@ -98,52 +98,9 @@ namespace boblib::utils::pubsub
                 throw std::runtime_error("Topic '" + topic_name + "' exists with a different message type");
             }
 
-            // Increment reference count
-            it->second.ref_count++;
-            // Downcast to the correct type
-            auto typed_topic = std::static_pointer_cast<TypedTopic<T>>(it->second.topic);
-            return typed_topic->get_pubsub();
-        }
-
-        // Release a topic (decrement reference count and remove if zero)
-        void release_topic(const std::string &topic_name)
-        {
-            std::unique_lock lock(topics_mutex);
-            auto it = topics.find(topic_name);
-            if (it != topics.end())
-            {
-                if (--it->second.ref_count == 0)
-                {
-                    // Remove topic if no more references
-                    topics.erase(it);
-                }
-            }
-        }
-
-        // Publish a message to a specific topic
-        template <typename T>
-            requires CopyableOrMovable<T>
-        bool publish(const std::string &topic_name, T message)
-        {
-            std::shared_ptr<PubSub<T>> pubsub;
-            {
-                std::shared_lock lock(topics_mutex);
-                auto it = topics.find(topic_name);
-                
-                if (it == topics.end() || it->second.type_id != typeid(T))
-                {
-                    // Topic doesn't exist or has wrong type, create/get it
-                    lock.unlock();
-                    pubsub = get_topic<T>(topic_name);
-                }
-                else
-                {
-                    // Topic exists with correct type
-                    auto typed_topic = std::static_pointer_cast<TypedTopic<T>>(it->second.topic);
-                    pubsub = typed_topic->get_pubsub();
-                }
-            }
-            return pubsub->publish(std::move(message));
+            std::cout << "Returning existing topic: " << topic_name << std::endl;
+            // Return the stored PubSub instance
+            return std::static_pointer_cast<PubSub<T>>(it->second.pubsub);
         }
 
         // Subscribe to a specific topic
@@ -168,6 +125,32 @@ namespace boblib::utils::pubsub
                 return typed_topic->get_pubsub()->unsubscribe(subscriber_id);
             }
             return false;
+        }
+
+        // Publish a message to a specific topic
+        template <typename T>
+            requires CopyableOrMovable<T>
+        bool publish(const std::string &topic_name, T message)
+        {
+            std::shared_ptr<PubSub<T>> pubsub;
+            {
+                std::shared_lock lock(topics_mutex);
+                auto it = topics.find(topic_name);
+
+                if (it == topics.end() || it->second.type_id != typeid(T))
+                {
+                    // Topic doesn't exist or has wrong type, create/get it
+                    lock.unlock();
+                    pubsub = get_topic<T>(topic_name);
+                }
+                else
+                {
+                    // Topic exists with correct type
+                    auto typed_topic = std::static_pointer_cast<TypedTopic<T>>(it->second.topic);
+                    pubsub = typed_topic->get_pubsub();
+                }
+            }
+            return pubsub->publish(std::move(message));
         }
 
         // Check if a topic exists

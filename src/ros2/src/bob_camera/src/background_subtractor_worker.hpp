@@ -8,7 +8,7 @@
 #include <boblib/api/bgs/WeightedMovingVariance/WeightedMovingVarianceUtils.hpp>
 #include <boblib/api/blobs/connectedBlobDetection.hpp>
 #include <boblib/api/base/Image.hpp>
-
+#include <boblib/api/utils/pubsub/TopicManager.hpp>
 #include <bob_interfaces/msg/tracking.hpp>
 
 #include "parameter_node.hpp"
@@ -22,12 +22,17 @@
 class BackgroundSubtractorWorker
 {
 public:
-    BackgroundSubtractorWorker(ParameterNode& node, BackgroundSubtractorWorkerParams& params)
+    BackgroundSubtractorWorker(ParameterNode &node
+                                , BackgroundSubtractorWorkerParams &params
+                                , boblib::utils::pubsub::TopicManager &topic_manager)
         : node_(node)
         , params_(params)
-        , mask_worker_ptr_(std::make_unique<MaskWorker>(node_, 
-            [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat& mask) { mask_timer_callback(detection_mask_result, mask); }))
-    {}
+        , topic_manager_(topic_manager)
+    {
+        mask_worker_ptr_ = std::make_unique<MaskWorker>(node_,
+                                                      [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat &mask)
+                                                      { mask_timer_callback(detection_mask_result, mask); });
+    }
 
     ~BackgroundSubtractorWorker()
     {
@@ -47,6 +52,11 @@ public:
         mask_worker_ptr_->init(params_.get_mask_timer_seconds(), params_.get_mask_filename());
 
         process_thread_ = std::jthread(&BackgroundSubtractorWorker::process_images, this);
+
+        publish_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.get_camera_image_subscriber_topic() + "_publish");
+        std::cout << "########## publish_pubsub_ptr_->references: " << publish_pubsub_ptr_.use_count() << std::endl;
+        publish_pubsub_ptr_->subscribe([this](const PublishImage &publish_image_param)
+                                       { publish_image_callback(publish_image_param); });
 
         rclcpp::QoS sub_qos_profile(4);
         sub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
@@ -164,6 +174,11 @@ public:
         cv_.notify_all();
     }
 
+    void publish_image_callback(const PublishImage &publish_image)
+    {
+        image_callback(20.0f, publish_image.Header, publish_image.Image);
+    }
+
     void image_callback(float fps, const std_msgs::msg::Header &header, const boblib::base::Image &img) noexcept
     {
         try
@@ -178,9 +193,6 @@ public:
 
             boblib::base::Image gray_img(using_cuda_);
             img.convertTo(gray_img, cv::COLOR_BGR2GRAY);
-
-            // sensor_msgs::msg::Image bgs_msg;
-            // fill_header(bgs_msg, header, gray_img);
 
             create_save_heatmap(img);
 
@@ -217,7 +229,6 @@ public:
     }
 
 private:
-
 
     void tracking_callback(const bob_interfaces::msg::Tracking::SharedPtr tracking_msg)
     {
@@ -569,4 +580,7 @@ private:
     bool recording_heatmap_{false};
     bool recording_json_{false};
     float fps_{-1.0f};
+
+    boblib::utils::pubsub::TopicManager & topic_manager_;
+    std::shared_ptr<boblib::utils::pubsub::PubSub<PublishImage>> publish_pubsub_ptr_;
 };

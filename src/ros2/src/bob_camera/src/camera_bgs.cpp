@@ -31,7 +31,7 @@ public:
 
         topic_manager_ = std::make_unique<boblib::utils::pubsub::TopicManager>(100);
 
-        bgs_worker_ptr_ = std::make_unique<BackgroundSubtractorWorker>(*this, *bgs_params_ptr_);
+        bgs_worker_ptr_ = std::make_unique<BackgroundSubtractorWorker>(*this, *bgs_params_ptr_, *topic_manager_);
         camera_worker_ptr_ = std::make_unique<CameraWorker>(*this, *camera_params_ptr_,
                                                             *topic_manager_,
                                                             [this](float fps, const std_msgs::msg::Header &header, const boblib::base::Image &img)
@@ -53,12 +53,6 @@ private:
     void init()
     {
         declare_node_parameters();
-
-        // topic_manager_->subscribe<boblib::base::Image>(camera_params_ptr_->get_image_publish_topic(),
-        //                                                [this](const boblib::base::Image &msg)
-        //                                                {
-        //                                                    std::cout << "Image received" << std::endl;
-        //                                                });
 
         bgs_worker_ptr_->init();
         camera_worker_ptr_->init();
@@ -85,6 +79,7 @@ private:
                         camera_params_ptr_->set_image_publish_topic(param.as_string());
                         camera_params_ptr_->set_image_resized_publish_topic(camera_params_ptr_->get_image_publish_topic() + "/resized");
                         camera_params_ptr_->set_image_publisher(create_publisher<sensor_msgs::msg::Image>(camera_params_ptr_->get_image_publish_topic(), qos_profile_));
+                        bgs_params_ptr_->set_camera_image_subscriber_topic(param.as_string());
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("image_info_publish_topic", "bob/camera/all_sky/image_info"),

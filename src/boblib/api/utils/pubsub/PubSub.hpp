@@ -16,7 +16,6 @@
 #include <unordered_map>
 #include <typeindex>
 #include <array>
-#include <pthread.h>
 
 namespace boblib::utils::pubsub
 {
@@ -45,7 +44,7 @@ namespace boblib::utils::pubsub
 
             ~Slot() noexcept
             {
-                if (occupied.load(std::memory_order_relaxed))
+                if (occupied.load(std::memory_order_acquire))
                 {
                     get().~T(); // Call destructor if needed
                 }
@@ -99,7 +98,7 @@ namespace boblib::utils::pubsub
             // Optimized push that avoids unnecessary copies
             bool push(T &&item) noexcept(noexcept(std::declval<Slot>().construct(std::move(item))))
             {
-                const size_t current_head = head.load(std::memory_order_relaxed);
+                const size_t current_head = head.load(std::memory_order_acquire);
                 const size_t next_head = (current_head + 1) % capacity;
 
                 if (next_head == tail.load(std::memory_order_acquire))
@@ -108,6 +107,7 @@ namespace boblib::utils::pubsub
                 }
 
                 buffer[current_head].construct(std::move(item));
+                std::atomic_thread_fence(std::memory_order_release);
                 buffer[current_head].occupied.store(true, std::memory_order_release);
                 head.store(next_head, std::memory_order_release);
                 return true;
@@ -117,7 +117,7 @@ namespace boblib::utils::pubsub
             template <typename F>
             bool process_next(F &&processor) noexcept(noexcept(processor(std::declval<T&>())))
             {
-                const size_t current_tail = tail.load(std::memory_order_relaxed);
+                const size_t current_tail = tail.load(std::memory_order_acquire);
 
                 if (current_tail == head.load(std::memory_order_acquire))
                 {
@@ -166,22 +166,17 @@ namespace boblib::utils::pubsub
         alignas(64) std::thread dispatch_thread;
         alignas(64) std::condition_variable cv;
         alignas(64) std::mutex cv_mutex;
-
+        
+        // Add a shared mutex for thread-safe subscriber access
+        alignas(64) std::shared_mutex subscribers_mutex;
+        
         // Configurable timeout for condition variable
         static constexpr std::chrono::milliseconds DEFAULT_TIMEOUT{5};
         std::chrono::milliseconds timeout;
 
         void dispatch_loop() noexcept
         {
-            const size_t count = active_subscriber_count.load(std::memory_order_relaxed);
-            
-            // Pre-allocate message processing lambda to avoid allocations in hot path
-            auto process_message = [this, count](const T& message) noexcept {
-                for (size_t i = 0; i < count; ++i) {
-                    subscribers[i](message);
-                }
-            };
-
+            // Remove the constant load of subscriber count
             // Spin for a short time before sleeping
             constexpr int SPIN_COUNT = 1000;
             int spin_attempts = 0;
@@ -189,10 +184,19 @@ namespace boblib::utils::pubsub
             while (running.load(std::memory_order_acquire))
             {
                 bool processed = false;
-
+                // Get current count inside the loop to pick up new subscribers
+                const size_t count = active_subscriber_count.load(std::memory_order_acquire);
+                
                 if (count > 0)
                 {
-                    processed = queue.process_next(process_message);
+                    // Create the lambda inside the loop using the current count
+                    processed = queue.process_next([this, count](const T& message) noexcept {
+                        // Acquire a shared lock when accessing subscribers
+                        std::shared_lock<std::shared_mutex> lock(subscribers_mutex);
+                        for (size_t i = 0; i < count; ++i) {
+                            subscribers[i](message);
+                        }
+                    });
                 }
                 else
                 {
@@ -221,30 +225,16 @@ namespace boblib::utils::pubsub
 
     public:
         explicit PubSub(size_t queue_size, 
-                       std::chrono::milliseconds timeout_value = DEFAULT_TIMEOUT,
-                       int cpu_core = -1) noexcept
+                       std::chrono::milliseconds timeout_value = DEFAULT_TIMEOUT) noexcept
             : queue(queue_size), timeout(timeout_value)
         {
+            // Always create a dispatch thread for each instance
             dispatch_thread = std::thread(&PubSub::dispatch_loop, this);
-            
-            // Set thread affinity if specified
-            if (cpu_core >= 0)
-            {
-#ifdef __linux__
-                cpu_set_t cpuset;
-                CPU_ZERO(&cpuset);
-                CPU_SET(cpu_core, &cpuset);
-                pthread_setaffinity_np(dispatch_thread.native_handle(), 
-                                     sizeof(cpu_set_t), &cpuset);
-#elif defined(_WIN32)
-                SetThreadAffinityMask(dispatch_thread.native_handle(), 
-                                    static_cast<DWORD_PTR>(1) << cpu_core);
-#endif
-            }
         }
         
         ~PubSub() noexcept
         {
+            // Always shut down the dispatch thread for this instance
             running.store(false, std::memory_order_release);
             cv.notify_all();
             if (dispatch_thread.joinable())
@@ -269,21 +259,25 @@ namespace boblib::utils::pubsub
         // Subscribe to messages with a callback
         bool subscribe(SubscriberCallback callback) noexcept
         {
-            const size_t count = active_subscriber_count.load(std::memory_order_relaxed);
-            if (count >= MAX_SUBSCRIBERS)
+            // Use atomic fetch_add to safely get the current index and increment atomically
+            const size_t index = active_subscriber_count.fetch_add(1, std::memory_order_acq_rel);
+            if (index >= MAX_SUBSCRIBERS)
             {
+                // Roll back the increment if we exceeded capacity
+                active_subscriber_count.fetch_sub(1, std::memory_order_acq_rel);
                 return false;
             }
             
-            subscribers[count] = std::move(callback);
-            active_subscriber_count.store(count + 1, std::memory_order_release);
+            // Acquire an exclusive lock when modifying subscribers
+            std::unique_lock<std::shared_mutex> lock(subscribers_mutex);
+            subscribers[index] = std::move(callback);
             return true;
         }
 
         // Check if queue is full
         bool is_queue_full() const noexcept
         {
-            const size_t head = queue.head.load(std::memory_order_relaxed);
+            const size_t head = queue.head.load(std::memory_order_acquire);
             const size_t next_head = (head + 1) % queue.capacity;
             return next_head == queue.tail.load(std::memory_order_acquire);
         }
@@ -291,8 +285,8 @@ namespace boblib::utils::pubsub
         // Get current queue size
         size_t queue_size() const noexcept
         {
-            const size_t head = queue.head.load(std::memory_order_relaxed);
-            const size_t tail = queue.tail.load(std::memory_order_relaxed);
+            const size_t head = queue.head.load(std::memory_order_acquire);
+            const size_t tail = queue.tail.load(std::memory_order_acquire);
 
             if (head >= tail)
             {
@@ -319,7 +313,7 @@ namespace boblib::utils::pubsub
         // Get the number of active subscribers
         size_t subscriber_count() const noexcept
         {
-            return active_subscriber_count.load(std::memory_order_relaxed);
+            return active_subscriber_count.load(std::memory_order_acquire);
         }
 
         // Method to configure the timeout
