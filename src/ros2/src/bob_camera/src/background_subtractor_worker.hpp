@@ -176,11 +176,9 @@ public:
 
     void publish_image_callback(const PublishImage &publish_image)
     {
-        image_callback(20.0f, publish_image.Header, publish_image.Image);
-    }
+        // TODO: Remove this
+        float fps = 20.0f;
 
-    void image_callback(float fps, const std_msgs::msg::Header &header, const boblib::base::Image &img) noexcept
-    {
         try
         {
             if (fps != fps_)
@@ -192,11 +190,11 @@ public:
             }
 
             boblib::base::Image gray_img(using_cuda_);
-            img.convertTo(gray_img, cv::COLOR_BGR2GRAY);
+            publish_image.Image.convertTo(gray_img, cv::COLOR_BGR2GRAY);
 
-            create_save_heatmap(img);
+            create_save_heatmap(publish_image.Image);
 
-            process_queue_ptr_->push(PublishImage(header, std::move(gray_img)));
+            process_queue_ptr_->push(PublishImage(publish_image.Header, std::move(gray_img)));
         }
         catch (const std::exception &e)
         {
@@ -325,7 +323,7 @@ private:
     {
         if (params_.get_recording_enabled() && last_recording_event_.recording)
         {
-            img_recorder_->accumulate_mask(gray_img.toMat(), gray_img.size());
+            img_recorder_->accumulate_mask(gray_img.toMat());
         }
     }
 
@@ -381,6 +379,7 @@ private:
             catch (const std::exception& e)
             {
                 node_.log_send_error("BGSWorker: process_images: Exception: %s", e.what());
+                node_.log_send_error("BGSWorker: process_images: %d x %d x %d", publish_image.value().Image.size().width, publish_image.value().Image.size().height, publish_image.value().Image.channels());
                 rcutils_reset_error();
             }
             catch (...)

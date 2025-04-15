@@ -28,14 +28,17 @@ public:
         draw_trajectories_enabled_ = true;
     }
 
-    void accumulate_mask(const cv::Mat & fg_mask, const cv::Size & frame_size) 
+    void accumulate_mask(const cv::Mat & fg_mask) 
     {
-        if (heatmap_accumulator_.empty()) 
+        if (heatmap_accumulator_.empty() ||
+            heatmap_accumulator_.size() != fg_mask.size() ||
+            heatmap_accumulator_.type() != fg_mask.type() ||
+            heatmap_accumulator_.channels() != fg_mask.channels())
         {
-            heatmap_accumulator_ = cv::Mat::zeros(frame_size, fg_mask.type());
+            heatmap_accumulator_ = cv::Mat::zeros(fg_mask.size(), fg_mask.type());
         }
 
-        cv::Mat shifted_fg_mask = cv::Mat::zeros(frame_size, fg_mask.type());
+        cv::Mat shifted_fg_mask = cv::Mat::zeros(fg_mask.size(), fg_mask.type());
 
         fg_mask.copyTo(shifted_fg_mask);
         cv::add(heatmap_accumulator_, shifted_fg_mask, heatmap_accumulator_);
@@ -88,7 +91,7 @@ public:
     {
         for (const auto& img : *pre_buffer_ptr_) 
         {
-            accumulate_mask(img, img.size());
+            accumulate_mask(img);
         }
         pre_buffer_ptr_->clear();
     }

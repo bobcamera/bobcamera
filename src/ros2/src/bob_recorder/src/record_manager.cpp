@@ -310,7 +310,7 @@ private:
                 json_data = JsonRecorder::build_json_value(tracking_msg, true);
                 json_recorder_->add_to_buffer(json_data, false);
                 video_recorder_->write_frame(img);
-                img_recorder_->accumulate_mask(fg_img, img.size());
+                img_recorder_->accumulate_mask(fg_img);
 
                 for (const auto & detection : tracking_msg->detections)
                 {
@@ -352,7 +352,7 @@ private:
                     json_data = JsonRecorder::build_json_value(tracking_msg, false);
                     json_recorder_->add_to_buffer(json_data, false);
                     video_recorder_->write_frame(img);
-                    img_recorder_->accumulate_mask(fg_img, img.size());
+                    img_recorder_->accumulate_mask(fg_img);
 
                     --current_end_frame_;
                     if (tracking_msg->state.trackable > 0) 

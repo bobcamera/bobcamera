@@ -22,11 +22,9 @@ class CameraWorker final
 public:
     explicit CameraWorker(ParameterNode &node,
                           CameraWorkerParams &params,
-                          boblib::utils::pubsub::TopicManager &topic_manager,
-                          const std::function<void(float fps_, const std_msgs::msg::Header &, const boblib::base::Image &)> &user_callback = nullptr)
+                          boblib::utils::pubsub::TopicManager &topic_manager)
         : node_(node),
           params_(params),
-          user_callback_(user_callback),
           topic_manager_(topic_manager)
     {
         mask_worker_ptr_ = std::make_unique<MaskWorker>(node_,
@@ -327,11 +325,6 @@ private:
             std_msgs::msg::Header header;
             header.stamp = node_.now();
             header.frame_id = ParameterNode::generate_uuid();
-
-            if (user_callback_)
-            {
-                user_callback_(fps_, header, camera_img);
-            }
 
             publish_pubsub_ptr_->publish(PublishImage(header, std::move(camera_img)));
         }
@@ -666,8 +659,6 @@ private:
     CameraWorkerParams &params_;
 
     std::unique_ptr<MaskWorker> mask_worker_ptr_;
-
-    std::function<void(float fps, const std_msgs::msg::Header &, const boblib::base::Image &)> user_callback_;
 
     std::unique_ptr<boblib::video::VideoReader> video_reader_ptr_;
     bob_camera::msg::CameraInfo camera_info_msg_;

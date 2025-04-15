@@ -32,12 +32,7 @@ public:
         topic_manager_ = std::make_unique<boblib::utils::pubsub::TopicManager>(100);
 
         bgs_worker_ptr_ = std::make_unique<BackgroundSubtractorWorker>(*this, *bgs_params_ptr_, *topic_manager_);
-        camera_worker_ptr_ = std::make_unique<CameraWorker>(*this, *camera_params_ptr_,
-                                                            *topic_manager_,
-                                                            [this](float fps, const std_msgs::msg::Header &header, const boblib::base::Image &img)
-                                                            {
-                                                                bgs_worker_ptr_->image_callback(fps, header, img);
-                                                            });
+        camera_worker_ptr_ = std::make_unique<CameraWorker>(*this, *camera_params_ptr_, *topic_manager_);
     }
 
     ~CameraBGS() = default;
