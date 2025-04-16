@@ -5,7 +5,7 @@
 
 #include <boblib/api/video/VideoReader.hpp>
 #include <boblib/api/base/SynchronizedQueue.hpp>
-#include <boblib/api/utils/pubsub/TopicReference.hpp>
+#include <boblib/api/utils/pubsub/TopicManager.hpp>
 
 #include <mask_worker.hpp>
 #include <circuit_breaker.hpp>
@@ -57,8 +57,6 @@ public:
             image_pubsub_ptr_ = topic_manager_.get_topic<boblib::base::Image>(params_.get_image_publish_topic());
             image_pubsub_ptr_->subscribe([this](const boblib::base::Image &image)
                                          { process_image(image); });
-            image_pubsub_ptr_->subscribe([this](const boblib::base::Image &image)
-                                         { record_image(image); });
 
             publish_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.get_image_publish_topic() + "_publish");
             publish_pubsub_ptr_->subscribe([this](const PublishImage &publish_image_param)
@@ -202,8 +200,6 @@ private:
             node_.log_send_info("Stream capture Info: %dx%d at %.2g FPS", cv_camera_width, cv_camera_height, fps_);
             loop_rate_ptr_ = std::make_unique<rclcpp::WallRate>(fps_);
 
-            video_recorder_ptr_ = std::make_unique<VideoRecorder>(static_cast<int>(std::ceil(fps_)) * params_.get_recording_seconds_save());
-
             create_camera_info_msg();
         }
         else
@@ -302,11 +298,11 @@ private:
         }
         node_.log_send_info("CameraWorker: Leaving capture_loop");
 
-        if (video_recorder_ptr_ && video_recorder_ptr_->is_recording())
-        {
-            node_.log_info("Closing video");
-            video_recorder_ptr_->close_video();
-        }
+        // if (video_recorder_ptr_ && video_recorder_ptr_->is_recording())
+        // {
+        //     node_.log_info("Closing video");
+        //     video_recorder_ptr_->close_video();
+        // }
 
         stop_capture();
 
@@ -365,52 +361,6 @@ private:
         catch (...)
         {
             node_.log_send_error("CameraWorker: publish_images: Unknown exception");
-            rcutils_reset_error();
-        }
-    }
-
-    void record_image(const boblib::base::Image &camera_img)
-    {
-        try
-        {
-            if (params_.get_recording_enabled())
-            {
-                if (last_recording_event_.recording)
-                {
-                    if (!video_recorder_ptr_->is_recording())
-                    {
-                        const auto complete_filename = last_recording_event_.recording_path + "/" + last_recording_event_.filename + ".mp4";
-                        node_.log_info("Opening new video: %s", complete_filename.c_str());
-                        if (!video_recorder_ptr_->open_new_video(complete_filename, params_.get_recording_codec(), fps_, camera_img.size()))
-                        {
-                            node_.log_info("Could not create new video");
-                        }
-                    }
-
-                    if (video_recorder_ptr_->is_recording())
-                    {
-                        video_recorder_ptr_->write_frame(std::move(camera_img));
-                    }
-                }
-                else
-                {
-                    if (video_recorder_ptr_->is_recording())
-                    {
-                        node_.log_info("Closing video");
-                        video_recorder_ptr_->close_video();
-                    }
-                    video_recorder_ptr_->add_to_pre_buffer(std::move(camera_img));
-                }
-            }
-        }
-        catch (const std::exception &e)
-        {
-            node_.log_send_error("CameraWorker: process_images: Exception: %s", e.what());
-            rcutils_reset_error();
-        }
-        catch (...)
-        {
-            node_.log_send_error("CameraWorker: process_images: Unknown exception");
             rcutils_reset_error();
         }
     }
@@ -687,7 +637,6 @@ private:
     bool using_cuda_{false};
 
     bob_interfaces::msg::RecordingEvent last_recording_event_;
-    std::unique_ptr<VideoRecorder> video_recorder_ptr_;
 
     boblib::utils::pubsub::TopicManager &topic_manager_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<boblib::base::Image>> image_pubsub_ptr_;
