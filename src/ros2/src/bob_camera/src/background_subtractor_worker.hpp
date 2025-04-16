@@ -116,6 +116,11 @@ public:
 
     void restart() noexcept
     {
+        if (!bgs_ptr_)
+        {
+            node_.log_send_error("BGSWorker: restart: bgs_ptr_ is not initialized");
+            return;
+        }
         bgs_ptr_->restart();
     }
 
@@ -183,10 +188,21 @@ public:
     void camera_info_callback(const bob_camera::msg::CameraInfo::SharedPtr camera_info_msg) noexcept
     {
         last_camera_info_ = camera_info_msg;
+        if (last_camera_info_->fps != fps_)
+        {
+            fps_ = last_camera_info_->fps;
+            auto total_pre_frames = (size_t)(static_cast<int>(std::ceil(fps_)) * params_.get_recording_seconds_save());
+            img_recorder_ = std::make_unique<ImageRecorder>(total_pre_frames);
+            json_recorder_ = std::make_unique<JsonRecorder>(total_pre_frames);
+        }
     }
 
     void save_json()
     {
+        if (json_recorder_ == nullptr)
+        {
+            return;
+        }
         auto json_camera_info = JsonRecorder::build_json_camera_info(last_camera_info_);
         json_recorder_->add_to_buffer(json_camera_info, true);
 
@@ -197,19 +213,8 @@ public:
 
     void publish_image_callback(const PublishImage &publish_image) noexcept
     {
-        // TODO: Remove this
-        float fps = 20.0f;
-
         try
         {
-            if (fps != fps_)
-            {
-                fps_ = fps;
-                auto total_pre_frames = (size_t)(static_cast<int>(std::ceil(fps_)) * params_.get_recording_seconds_save());
-                img_recorder_ = std::make_unique<ImageRecorder>(total_pre_frames);
-                json_recorder_ = std::make_unique<JsonRecorder>(total_pre_frames);
-            }
-
             boblib::base::Image gray_img(using_cuda_);
             publish_image.Image.convertTo(gray_img, cv::COLOR_BGR2GRAY);
 
@@ -285,7 +290,7 @@ private:
 
     void tracking_callback(const bob_interfaces::msg::Tracking::SharedPtr tracking_msg)
     {
-        if (!params_.get_recording_enabled())
+        if (!params_.get_recording_enabled() || img_recorder_ == nullptr || json_recorder_ == nullptr)
         {
             return;
         }
@@ -325,7 +330,7 @@ private:
 
     inline void create_save_heatmap(const boblib::base::Image &img) noexcept
     {
-        if (!params_.get_recording_enabled())
+        if (!params_.get_recording_enabled() || img_recorder_ == nullptr)
         {
             return;
         }
@@ -376,7 +381,7 @@ private:
 
     inline void accumulate_mask(const boblib::base::Image &gray_img)
     {
-        if (params_.get_recording_enabled() && last_recording_event_.recording)
+        if (params_.get_recording_enabled() && last_recording_event_.recording && img_recorder_ != nullptr)
         {
             img_recorder_->accumulate_mask(gray_img.toMat());
         }
@@ -515,7 +520,7 @@ private:
         {
             node_.log_send_info("Detection Mask Disabled.");
             mask_enabled_ = false;
-            detection_mask_ptr_.release();
+            detection_mask_ptr_->release();
         }
     }
 
