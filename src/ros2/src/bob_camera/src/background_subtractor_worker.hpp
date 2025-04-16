@@ -22,16 +22,12 @@
 class BackgroundSubtractorWorker
 {
 public:
-    BackgroundSubtractorWorker(ParameterNode &node
-                                , BackgroundSubtractorWorkerParams &params
-                                , boblib::utils::pubsub::TopicManager &topic_manager)
-        : node_(node)
-        , params_(params)
-        , topic_manager_(topic_manager)
+    BackgroundSubtractorWorker(ParameterNode &node, BackgroundSubtractorWorkerParams &params, boblib::utils::pubsub::TopicManager &topic_manager)
+        : node_(node), params_(params), topic_manager_(topic_manager)
     {
         mask_worker_ptr_ = std::make_unique<MaskWorker>(node_,
-                                                      [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat &mask)
-                                                      { mask_timer_callback(detection_mask_result, mask); });
+                                                        [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat &mask)
+                                                        { mask_timer_callback(detection_mask_result, mask); });
     }
 
     ~BackgroundSubtractorWorker()
@@ -45,18 +41,21 @@ public:
     void init()
     {
         using_cuda_ = params_.get_use_cuda() ? boblib::base::Utils::has_cuda() : false;
+        blank_mask_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_);
         detection_mask_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_);
 
         process_queue_ptr_ = std::make_unique<SynchronizedQueue<PublishImage>>(params_.get_max_queue_process_size());
 
         mask_worker_ptr_->init(params_.get_mask_timer_seconds(), params_.get_mask_filename());
 
-        process_thread_ = std::jthread(&BackgroundSubtractorWorker::process_images, this);
+        //process_thread_ = std::jthread(&BackgroundSubtractorWorker::process_images, this);
 
         publish_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.get_camera_image_subscriber_topic() + "_publish");
-        std::cout << "########## publish_pubsub_ptr_->references: " << publish_pubsub_ptr_.use_count() << std::endl;
         publish_pubsub_ptr_->subscribe([this](const PublishImage &publish_image_param)
                                        { publish_image_callback(publish_image_param); });
+        process_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.get_camera_image_subscriber_topic() + "_process");
+        process_pubsub_ptr_->subscribe([this](const PublishImage &process_image_param)
+                                       { process_image(process_image_param); });
 
         rclcpp::QoS sub_qos_profile(4);
         sub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
@@ -64,8 +63,8 @@ public:
         sub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
 
         tracking_subscription_ = node_.create_subscription<bob_interfaces::msg::Tracking>(params_.get_tracking_subscriber_topic(), sub_qos_profile,
-                                                                                    [this](const bob_interfaces::msg::Tracking::SharedPtr tracking_msg)
-                                                                                    { tracking_callback(tracking_msg); });
+                                                                                          [this](const bob_interfaces::msg::Tracking::SharedPtr tracking_msg)
+                                                                                          { tracking_callback(tracking_msg); });
 
         camera_info_subscription_ = node_.create_subscription<bob_camera::msg::CameraInfo>(params_.get_camera_info_subscriber_topic(), sub_qos_profile,
                                                                                            [this](const bob_camera::msg::CameraInfo::SharedPtr camera_info_msg)
@@ -80,7 +79,7 @@ public:
         }
     }
 
-    void init_bgs(const std::string& bgs) noexcept
+    void init_bgs(const std::string &bgs) noexcept
     {
         ready_ = false;
 
@@ -99,7 +98,7 @@ public:
                 bgs_ptr_ = create_bgs(params_.get_bgs_type());
             }
         }
-        catch (const std::exception& e)
+        catch (const std::exception &e)
         {
             node_.log_send_error("init_bgs: Exception: %s", e.what());
         }
@@ -120,7 +119,8 @@ public:
     void init_sensitivity(const std::string &sensitivity) noexcept
     {
         std::unique_lock<std::mutex> lock(mutex_);
-        cv_.wait(lock, [this] { return !processing_; });
+        cv_.wait(lock, [this]
+                 { return !processing_; });
 
         try
         {
@@ -144,25 +144,23 @@ public:
             ready_ = false;
             params_.set_sensitivity(sensitivity);
 
-            const auto& config = params_.get_sensitivity_collection().get_configs().at(sensitivity);
+            const auto &config = params_.get_sensitivity_collection().get_configs().at(sensitivity);
 
             wmv_params_ = std::make_unique<boblib::bgs::WMVParams>(
-                config.sensitivity.wmv_enable_weight, config.sensitivity.wmv_enable_threshold, config.sensitivity.wmv_threshold, 
+                config.sensitivity.wmv_enable_weight, config.sensitivity.wmv_enable_threshold, config.sensitivity.wmv_threshold,
                 config.sensitivity.wmv_weight1, config.sensitivity.wmv_weight2, config.sensitivity.wmv_weight3);
             vibe_params_ = std::make_unique<boblib::bgs::VibeParams>(
-                config.sensitivity.vibe_threshold, config.sensitivity.vibe_bg_samples, config.sensitivity.vibe_required_bg_samples, 
+                config.sensitivity.vibe_threshold, config.sensitivity.vibe_bg_samples, config.sensitivity.vibe_required_bg_samples,
                 config.sensitivity.vibe_learning_rate);
-
             bgs_ptr_ = create_bgs(params_.get_bgs_type());
-
             blob_params_ = std::make_unique<boblib::blobs::ConnectedBlobDetectionParams>(false,
-                config.sensitivity.blob_size_threshold, config.sensitivity.blob_area_threshold, config.sensitivity.blob_min_distance, 
-                config.sensitivity.blob_max_blobs);
+                                                                                         config.sensitivity.blob_size_threshold, config.sensitivity.blob_area_threshold, config.sensitivity.blob_min_distance,
+                                                                                         config.sensitivity.blob_max_blobs);
             blob_detector_ptr_ = std::make_unique<boblib::blobs::ConnectedBlobDetection>(*blob_params_);
 
             median_filter_ = config.sensitivity.median_filter;
         }
-        catch (const std::exception& e)
+        catch (const std::exception &e)
         {
             node_.log_send_error("init_sensitivity: Exception: %s", e.what());
         }
@@ -172,38 +170,6 @@ public:
         }
         ready_ = true;
         cv_.notify_all();
-    }
-
-    void publish_image_callback(const PublishImage &publish_image)
-    {
-        // TODO: Remove this
-        float fps = 20.0f;
-
-        try
-        {
-            if (fps != fps_)
-            {
-                fps_ = fps;
-                auto total_pre_frames = (size_t)(static_cast<int>(std::ceil(fps_)) * params_.get_recording_seconds_save());
-                img_recorder_ = std::make_unique<ImageRecorder>(total_pre_frames);
-                json_recorder_ = std::make_unique<JsonRecorder>(total_pre_frames);
-            }
-
-            boblib::base::Image gray_img(using_cuda_);
-            publish_image.Image.convertTo(gray_img, cv::COLOR_BGR2GRAY);
-
-            create_save_heatmap(publish_image.Image);
-
-            process_queue_ptr_->push(PublishImage(publish_image.Header, std::move(gray_img)));
-        }
-        catch (const std::exception &e)
-        {
-            node_.log_send_error("bgs_worker: image_callback: exception: %s", e.what());
-        }
-        catch (...)
-        {
-            node_.log_send_error("bgs_worker: image_callback: Unknown Exception");
-        }
     }
 
     void recording_event(const bob_interfaces::msg::RecordingEvent &event) noexcept
@@ -226,7 +192,93 @@ public:
         json_recorder_->write_buffer_to_file(json_full_path);
     }
 
+    void publish_image_callback(const PublishImage &publish_image) noexcept
+    {
+        // TODO: Remove this
+        float fps = 20.0f;
+
+        try
+        {
+            if (fps != fps_)
+            {
+                fps_ = fps;
+                auto total_pre_frames = (size_t)(static_cast<int>(std::ceil(fps_)) * params_.get_recording_seconds_save());
+                img_recorder_ = std::make_unique<ImageRecorder>(total_pre_frames);
+                json_recorder_ = std::make_unique<JsonRecorder>(total_pre_frames);
+            }
+
+            boblib::base::Image gray_img(using_cuda_);
+            publish_image.Image.convertTo(gray_img, cv::COLOR_BGR2GRAY);
+
+            create_save_heatmap(publish_image.Image);
+
+            process_pubsub_ptr_->publish(PublishImage(publish_image.Header, std::move(gray_img)));
+        }
+        catch (const std::exception &e)
+        {
+            node_.log_send_error("bgs_worker: image_callback: exception: %s", e.what());
+        }
+        catch (...)
+        {
+            node_.log_send_error("bgs_worker: image_callback: Unknown Exception");
+        }
+    }
+
 private:
+    void process_image(const PublishImage &publish_image) noexcept
+    {
+        std::unique_lock lock(mutex_);
+        cv_.wait(lock, [this]
+                 { return ready_; });
+
+        processing_ = true;
+
+        try
+        {
+            auto &header = publish_image.Header;
+            auto &gray_img = publish_image.Image;
+
+            if (!bgs_ptr_)
+            {
+                node_.log_send_error("BGSWorker: process_image: bgs_ptr_ is not initialized");
+                processing_ = false;
+                cv_.notify_all();
+                return;
+            }
+
+            // Resize detection mask if needed
+            if (mask_enabled_ && params_.get_mask_enable_override() &&
+                (detection_mask_ptr_->size() != gray_img.size()))
+            {
+                detection_mask_ptr_->resize(gray_img.size());
+            }
+
+            // Apply background subtraction
+            const auto &mask = (mask_enabled_ && params_.get_mask_enable_override())
+                                   ? *detection_mask_ptr_
+                                   : *blank_mask_ptr_;
+            boblib::base::Image bgs_img(using_cuda_);
+            bgs_ptr_->apply(gray_img, bgs_img, mask);
+
+            // Process the results
+            accumulate_mask(bgs_img);
+            do_detection(header, bgs_img);
+            publish_frame(header, bgs_img);
+            publish_resized_frame(header, bgs_img);
+        }
+        catch (const std::exception &e)
+        {
+            node_.log_send_error("BGSWorker: process_images: Exception: %s", e.what());
+            rcutils_reset_error();
+        }
+        catch (...)
+        {
+            node_.log_send_error("BGSWorker: process_images: Unknown exception");
+            rcutils_reset_error();
+        }
+        processing_ = false;
+        cv_.notify_all();
+    }
 
     void tracking_callback(const bob_interfaces::msg::Tracking::SharedPtr tracking_msg)
     {
@@ -241,12 +293,12 @@ private:
             recording_json_ = true;
         }
         else
-        // Save heatmap when recording ends
-        if (!last_recording_event_.recording && recording_json_)
-        {
-            recording_json_ = false;
-            save_json();
-        }
+            // Save heatmap when recording ends
+            if (!last_recording_event_.recording && recording_json_)
+            {
+                recording_json_ = false;
+                save_json();
+            }
 
         auto json_data = JsonRecorder::build_json_value(tracking_msg, false);
         if (last_recording_event_.recording)
@@ -270,7 +322,7 @@ private:
 
     inline void create_save_heatmap(const boblib::base::Image &img) noexcept
     {
-        if (!params_.get_recording_enabled())   
+        if (!params_.get_recording_enabled())
         {
             return;
         }
@@ -289,27 +341,27 @@ private:
             if (!last_recording_event_.recording && recording_heatmap_)
             {
                 recording_heatmap_ = false;
-                
+
                 // Ensure the recording path and filename are valid
                 if (last_recording_event_.recording_path.empty() || last_recording_event_.filename.empty())
                 {
                     node_.log_send_error("Cannot save heatmap: Invalid recording path or filename");
                     return;
                 }
-                
+
                 // Create the full path for the heatmap
                 std::string full_path = last_recording_event_.recording_path + "/heatmaps/" + last_recording_event_.filename + ".jpg";
-                
+
                 // Write the image and reset the recorder
                 if (!img_recorder_->write_image(full_path))
                 {
                     node_.log_send_error("Failed to write heatmap to: %s", full_path.c_str());
                 }
-                
+
                 img_recorder_->reset();
             }
         }
-        catch (const std::exception& e)
+        catch (const std::exception &e)
         {
             node_.log_send_error("Error in create_save_heatmap: %s", e.what());
         }
@@ -335,7 +387,8 @@ private:
         while (rclcpp::ok())
         {
             std::unique_lock lock(mutex_);
-            cv_.wait(lock, [this]{ return ready_; });
+            cv_.wait(lock, [this]
+                     { return ready_; });
 
             processing_ = true;
 
@@ -354,20 +407,29 @@ private:
                     node_.log_info("BGSWorker: Process Queue size: %d", process_queue_ptr_->size());
                 }
 
-                auto& header = publish_image.value().Header;
-                auto& gray_img = publish_image.value().Image;
+                auto &header = publish_image.value().Header;
+                auto &gray_img = publish_image.value().Image;
+
+                // Check if bgs_ptr_ is initialized
+                if (!bgs_ptr_)
+                {
+                    node_.log_send_error("BGSWorker: process_images: bgs_ptr_ is not initialized");
+                    processing_ = false;
+                    cv_.notify_all();
+                    continue;
+                }
 
                 // Resize detection mask if needed
-                if (mask_enabled_ && params_.get_mask_enable_override() && 
+                if (mask_enabled_ && params_.get_mask_enable_override() &&
                     (detection_mask_ptr_->size() != gray_img.size()))
                 {
                     detection_mask_ptr_->resize(gray_img.size());
                 }
 
                 // Apply background subtraction
-                const auto& mask = (mask_enabled_ && params_.get_mask_enable_override()) 
-                    ? *detection_mask_ptr_ 
-                    : blank_mask;
+                const auto &mask = (mask_enabled_ && params_.get_mask_enable_override())
+                                       ? *detection_mask_ptr_
+                                       : blank_mask;
                 bgs_ptr_->apply(gray_img, bgs_img, mask);
 
                 // Process the results
@@ -376,7 +438,7 @@ private:
                 publish_frame(header, bgs_img);
                 publish_resized_frame(header, bgs_img);
             }
-            catch (const std::exception& e)
+            catch (const std::exception &e)
             {
                 node_.log_send_error("BGSWorker: process_images: Exception: %s", e.what());
                 node_.log_send_error("BGSWorker: process_images: %d x %d x %d", publish_image.value().Image.size().width, publish_image.value().Image.size().height, publish_image.value().Image.channels());
@@ -395,8 +457,8 @@ private:
         // Save final heatmap if recording was active
         if (img_recorder_)
         {
-            std::string full_path = last_recording_event_.recording_path + 
-                "/heatmaps/" + last_recording_event_.filename + ".jpg";
+            std::string full_path = last_recording_event_.recording_path +
+                                    "/heatmaps/" + last_recording_event_.filename + ".jpg";
             img_recorder_->write_image(full_path);
         }
         if (json_recorder_)
@@ -430,11 +492,9 @@ private:
         params_.get_image_publisher()->publish(bgs_msg);
     }
 
-    inline void publish_resized_frame(const std_msgs::msg::Header &header, const boblib::base::Image & bgs_img) const
+    inline void publish_resized_frame(const std_msgs::msg::Header &header, const boblib::base::Image &bgs_img) const
     {
-        if (!params_.get_image_resized_publisher()
-            || (params_.get_resize_height() <= 0)
-            || (node_.count_subscribers(params_.get_image_resized_publisher()->get_topic_name()) <= 0))
+        if (!params_.get_image_resized_publisher() || (params_.get_resize_height() <= 0) || (node_.count_subscribers(params_.get_image_resized_publisher()->get_topic_name()) <= 0))
         {
             return;
         }
@@ -446,7 +506,7 @@ private:
         }
 
         auto resized_frame_msg = cv_bridge::CvImage(header, ImageUtils::type_to_encoding(resized_img.type()), resized_img.toMat()).toImageMsg();
-        params_.get_image_resized_publisher()->publish(*resized_frame_msg);            
+        params_.get_image_resized_publisher()->publish(*resized_frame_msg);
     }
 
     inline void do_detection(const std_msgs::msg::Header &header, boblib::base::Image &bgs_img)
@@ -474,21 +534,21 @@ private:
         // Handle detection results
         switch (det_result)
         {
-            case boblib::blobs::DetectionResult::Success:
-                add_bboxes(bbox2D_array, bboxes);
-                break;
-            
-            case boblib::blobs::DetectionResult::MaxBlobsReached:
-                state.max_blobs_reached = true;
-                break;
+        case boblib::blobs::DetectionResult::Success:
+            add_bboxes(bbox2D_array, bboxes);
+            break;
 
-            case boblib::blobs::DetectionResult::NoBlobsDetected:
-                break;
+        case boblib::blobs::DetectionResult::MaxBlobsReached:
+            state.max_blobs_reached = true;
+            break;
 
-            default:
-                // Log unexpected detection result
-                node_.log_send_warn("Unexpected detection result: %d", static_cast<int>(det_result));
-                break;
+        case boblib::blobs::DetectionResult::NoBlobsDetected:
+            break;
+
+        default:
+            // Log unexpected detection result
+            node_.log_send_warn("Unexpected detection result: %d", static_cast<int>(det_result));
+            break;
         }
 
         // Publish results if there are subscribers
@@ -499,11 +559,11 @@ private:
     inline void add_bboxes(bob_interfaces::msg::DetectorBBoxArray &bbox2D_array, const std::vector<cv::Rect> &bboxes) noexcept
     {
         bbox2D_array.detections.reserve(bboxes.size());
-        for (const auto& bbox : bboxes)
+        for (const auto &bbox : bboxes)
         {
             bob_interfaces::msg::DetectorBBox detection;
             detection.x = bbox.x;
-            detection.y = bbox.y; 
+            detection.y = bbox.y;
             detection.width = bbox.width;
             detection.height = bbox.height;
             bbox2D_array.detections.push_back(detection);
@@ -523,7 +583,7 @@ private:
         }
     }
 
-    void mask_timer_callback(MaskWorker::MaskCheckType detection_mask_result, const cv::Mat& mask)
+    void mask_timer_callback(MaskWorker::MaskCheckType detection_mask_result, const cv::Mat &mask)
     {
         if (detection_mask_result == MaskWorker::MaskCheckType::Enable)
         {
@@ -546,8 +606,8 @@ private:
         }
     }
 
-    ParameterNode& node_;
-    BackgroundSubtractorWorkerParams& params_;
+    ParameterNode &node_;
+    BackgroundSubtractorWorkerParams &params_;
 
     std::unique_ptr<MaskWorker> mask_worker_ptr_;
 
@@ -580,6 +640,8 @@ private:
     bool recording_json_{false};
     float fps_{-1.0f};
 
-    boblib::utils::pubsub::TopicManager & topic_manager_;
+    std::unique_ptr<boblib::base::Image> blank_mask_ptr_;
+    boblib::utils::pubsub::TopicManager &topic_manager_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<PublishImage>> publish_pubsub_ptr_;
+    std::shared_ptr<boblib::utils::pubsub::PubSub<PublishImage>> process_pubsub_ptr_;
 };

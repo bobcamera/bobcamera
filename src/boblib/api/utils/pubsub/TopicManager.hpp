@@ -82,7 +82,6 @@ namespace boblib::utils::pubsub
 
             if (it == topics.end())
             {
-                std::cout << "Creating new topic: " << topic_name << std::endl;
                 // Create a new topic if it doesn't exist
                 auto pubsub = std::make_shared<PubSub<T>>(default_queue_size, default_timeout);
                 auto typed_topic = std::make_unique<TypedTopic<T>>(pubsub);
@@ -98,7 +97,6 @@ namespace boblib::utils::pubsub
                 throw std::runtime_error("Topic '" + topic_name + "' exists with a different message type");
             }
 
-            std::cout << "Returning existing topic: " << topic_name << std::endl;
             // Return the stored PubSub instance
             return std::static_pointer_cast<PubSub<T>>(it->second.pubsub);
         }

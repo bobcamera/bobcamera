@@ -4,17 +4,13 @@
 #include <functional>
 #include <memory>
 #include <thread>
-#include <vector>
 #include <optional>
-#include <iostream>
 #include <type_traits>
 #include <concepts>
 #include <mutex>
 #include <shared_mutex>
 #include <condition_variable>
 #include <chrono>
-#include <unordered_map>
-#include <typeindex>
 #include <array>
 
 namespace boblib::utils::pubsub
@@ -23,18 +19,20 @@ namespace boblib::utils::pubsub
     template <typename T>
     concept CopyableOrMovable = std::is_copy_constructible_v<T> || std::is_move_constructible_v<T>;
 
-    template <typename T>
+    template <typename T, size_t MaxSubscribers = 4>
         requires CopyableOrMovable<T>
     class PubSub
     {
     private:
+        static constexpr size_t CacheLineSize = 64;
+
         // Structure representing a single slot in our circular buffer
         struct Slot
         {
-            alignas(64) std::atomic<bool> occupied{false};
-            alignas(64) std::aligned_storage_t<sizeof(T), alignof(T)> storage;
-            alignas(64) std::atomic<bool> being_processed{false};
-            char padding[64 - (sizeof(std::atomic<bool>) * 2 + sizeof(std::aligned_storage_t<sizeof(T), alignof(T)>)) % 64];
+            alignas(CacheLineSize) std::atomic<bool> occupied{false};
+            alignas(CacheLineSize) std::aligned_storage_t<sizeof(T), alignof(T)> storage;
+            alignas(CacheLineSize) std::atomic<bool> being_processed{false};
+            char padding[CacheLineSize - (sizeof(std::atomic<bool>) * 2 + sizeof(std::aligned_storage_t<sizeof(T), alignof(T)>)) % CacheLineSize];
 
             Slot() = default;
             Slot(const Slot &) = delete;            // Prevent copying
@@ -84,11 +82,11 @@ namespace boblib::utils::pubsub
         // Circular buffer with atomic indices
         struct CircularBuffer
         {
-            alignas(64) std::unique_ptr<Slot[]> buffer;
-            alignas(64) std::atomic<size_t> head{0};
-            alignas(64) std::atomic<size_t> tail{0};
-            alignas(64) size_t capacity;
-            char padding[64 - (sizeof(std::atomic<size_t>) * 2 + sizeof(size_t)) % 64];
+            alignas(CacheLineSize) std::unique_ptr<Slot[]> buffer;
+            alignas(CacheLineSize) std::atomic<size_t> head{0};
+            alignas(CacheLineSize) std::atomic<size_t> tail{0};
+            alignas(CacheLineSize) size_t capacity;
+            char padding[CacheLineSize - (sizeof(std::atomic<size_t>) * 2 + sizeof(size_t)) % CacheLineSize];
 
             explicit CircularBuffer(size_t size) : capacity(size)
             {
@@ -100,6 +98,9 @@ namespace boblib::utils::pubsub
             {
                 const size_t current_head = head.load(std::memory_order_acquire);
                 const size_t next_head = (current_head + 1) % capacity;
+
+                // Prefetch the next slot to improve cache locality
+                __builtin_prefetch(&buffer[current_head], 1, 3); // Write with high temporal locality
 
                 if (next_head == tail.load(std::memory_order_acquire))
                 {
@@ -115,7 +116,7 @@ namespace boblib::utils::pubsub
 
             // New method for zero-copy access to the next message
             template <typename F>
-            bool process_next(F &&processor) noexcept(noexcept(processor(std::declval<T&>())))
+            bool process_next(F &&processor) noexcept(noexcept(processor(std::declval<T &>())))
             {
                 const size_t current_tail = tail.load(std::memory_order_acquire);
 
@@ -154,84 +155,87 @@ namespace boblib::utils::pubsub
         };
 
         using SubscriberCallback = std::function<void(const T &)>;
-        using SubscriberID = size_t;
+        using SubscriberID = size_t; // Represents the index in the subscribers array
 
         CircularBuffer queue;
-        
+
         // Fixed-size array for subscribers
-        static constexpr size_t MAX_SUBSCRIBERS = 4;
-        alignas(64) std::array<SubscriberCallback, MAX_SUBSCRIBERS> subscribers;
-        alignas(64) std::atomic<size_t> active_subscriber_count{0};
-        alignas(64) std::atomic<bool> running{true};
-        alignas(64) std::thread dispatch_thread;
-        alignas(64) std::condition_variable cv;
-        alignas(64) std::mutex cv_mutex;
-        
+        alignas(CacheLineSize) std::array<SubscriberCallback, MaxSubscribers> subscribers;
+        alignas(CacheLineSize) std::atomic<size_t> active_subscriber_count{0};
+        alignas(CacheLineSize) std::atomic<bool> running{true};
+        alignas(CacheLineSize) std::thread dispatch_thread;
+        alignas(CacheLineSize) std::condition_variable cv;
+        alignas(CacheLineSize) std::mutex cv_mutex;
+
         // Add a shared mutex for thread-safe subscriber access
-        alignas(64) std::shared_mutex subscribers_mutex;
-        
+        alignas(CacheLineSize) std::shared_mutex subscribers_mutex;
+
         // Configurable timeout for condition variable
         static constexpr std::chrono::milliseconds DEFAULT_TIMEOUT{5};
         std::chrono::milliseconds timeout;
 
         void dispatch_loop() noexcept
         {
-            // Remove the constant load of subscriber count
-            // Spin for a short time before sleeping
-            constexpr int SPIN_COUNT = 1000;
-            int spin_attempts = 0;
+            // Remove fixed spin count in favor of exponential backoff
+            std::chrono::microseconds backoff_time{1};
+            constexpr std::chrono::microseconds max_backoff{1000}; // 1ms max
 
             while (running.load(std::memory_order_acquire))
             {
                 bool processed = false;
                 // Get current count inside the loop to pick up new subscribers
                 const size_t count = active_subscriber_count.load(std::memory_order_acquire);
-                
+
                 if (count > 0)
                 {
                     // Create the lambda inside the loop using the current count
-                    processed = queue.process_next([this, count](const T& message) noexcept {
-                        // Acquire a shared lock when accessing subscribers
-                        std::shared_lock<std::shared_mutex> lock(subscribers_mutex);
-                        for (size_t i = 0; i < count; ++i) {
-                            subscribers[i](message);
-                        }
-                    });
+                    processed = queue.process_next([this, count](const T &message) noexcept
+                                                   {
+                            //static_assert(noexcept(processor(std::declval<T&>())), "Processor function must be noexcept for real-time operation");
+                            std::shared_lock<std::shared_mutex> lock(subscribers_mutex);
+                            for (size_t i = 0; i < count; ++i) 
+                            {
+                                subscribers[i](message);
+                            } });
                 }
                 else
                 {
-                    processed = queue.process_next([](const T&) noexcept {});
+                    // Still process (and discard) the message if there are no subscribers to keep the queue moving.
+                    processed = queue.process_next([](const T &) noexcept {});
                 }
 
                 if (!processed)
                 {
-                    if (spin_attempts < SPIN_COUNT)
+                    if (backoff_time < max_backoff)
                     {
-                        spin_attempts++;
-                        std::this_thread::yield();
-                        continue;
+                        std::this_thread::sleep_for(backoff_time);
+                        backoff_time = std::min(backoff_time * 2, max_backoff);
                     }
-
-                    spin_attempts = 0;
-                    std::unique_lock<std::mutex> lock(cv_mutex);
-                    cv.wait_for(lock, timeout, [this]() noexcept {
-                        return !running.load(std::memory_order_acquire) ||
-                               queue.head.load(std::memory_order_acquire) !=
-                               queue.tail.load(std::memory_order_acquire);
-                    });
+                    else
+                    {
+                        // Reset backoff when we've reached maximum and need to wait longer
+                        backoff_time = std::chrono::microseconds{1};
+                        std::unique_lock<std::mutex> lock(cv_mutex);
+                        cv.wait_for(lock, timeout);
+                    }
+                }
+                else
+                {
+                    // Reset backoff time when we successfully processed something
+                    backoff_time = std::chrono::microseconds{1};
                 }
             }
         }
 
     public:
-        explicit PubSub(size_t queue_size, 
-                       std::chrono::milliseconds timeout_value = DEFAULT_TIMEOUT) noexcept
+        explicit PubSub(size_t queue_size,
+                        std::chrono::milliseconds timeout_value = DEFAULT_TIMEOUT) noexcept
             : queue(queue_size), timeout(timeout_value)
         {
             // Always create a dispatch thread for each instance
             dispatch_thread = std::thread(&PubSub::dispatch_loop, this);
         }
-        
+
         ~PubSub() noexcept
         {
             // Always shut down the dispatch thread for this instance
@@ -242,7 +246,9 @@ namespace boblib::utils::pubsub
                 dispatch_thread.join();
             }
             // Clear any remaining messages
-            while (queue.process_next([](const T&){})) {}
+            while (queue.process_next([](const T &) {}))
+            {
+            }
         }
 
         // Publish a message to the queue
@@ -257,20 +263,52 @@ namespace boblib::utils::pubsub
         }
 
         // Subscribe to messages with a callback
-        bool subscribe(SubscriberCallback callback) noexcept
+        // Returns an optional SubscriberID (the index) on success
+        std::optional<SubscriberID> subscribe(SubscriberCallback callback) noexcept
         {
-            // Use atomic fetch_add to safely get the current index and increment atomically
-            const size_t index = active_subscriber_count.fetch_add(1, std::memory_order_acq_rel);
-            if (index >= MAX_SUBSCRIBERS)
-            {
-                // Roll back the increment if we exceeded capacity
-                active_subscriber_count.fetch_sub(1, std::memory_order_acq_rel);
-                return false;
-            }
-            
-            // Acquire an exclusive lock when modifying subscribers
             std::unique_lock<std::shared_mutex> lock(subscribers_mutex);
-            subscribers[index] = std::move(callback);
+
+            // Since we have a lock, use simple counter logic
+            size_t current_count = active_subscriber_count.load(std::memory_order_relaxed);
+            if (current_count >= MaxSubscribers)
+            {
+                return std::nullopt;
+            }
+
+            subscribers[current_count] = std::move(callback);
+            active_subscriber_count.store(current_count + 1, std::memory_order_relaxed);
+            return current_count;
+        }
+
+        // Unsubscribe using the ID obtained from subscribe
+        bool unsubscribe(SubscriberID id) noexcept
+        {
+            // Acquire an exclusive lock to modify the subscribers array and count
+            std::unique_lock<std::shared_mutex> lock(subscribers_mutex);
+
+            size_t current_count = active_subscriber_count.load(std::memory_order_acquire);
+
+            // Validate the ID: must be within the bounds of currently active subscribers
+            if (id >= current_count)
+            {
+                return false; // Invalid ID or ID points beyond the last active subscriber
+            }
+
+            // Find the index of the last *actual* subscriber
+            size_t last_active_index = current_count - 1;
+
+            // If the ID to remove is not the last one, swap it with the last one
+            if (id < last_active_index)
+            {
+                subscribers[id] = std::move(subscribers[last_active_index]);
+            }
+
+            // Clear the (now unused) last slot
+            subscribers[last_active_index] = nullptr; // Or {}
+
+            // Atomically decrement the count
+            active_subscriber_count.fetch_sub(1, std::memory_order_release);
+
             return true;
         }
 

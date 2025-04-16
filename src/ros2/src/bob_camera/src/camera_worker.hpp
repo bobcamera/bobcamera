@@ -61,7 +61,7 @@ public:
                                          { record_image(image); });
 
             publish_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.get_image_publish_topic() + "_publish");
-            auto sub_success = publish_pubsub_ptr_->subscribe([this](const PublishImage &publish_image_param)
+            publish_pubsub_ptr_->subscribe([this](const PublishImage &publish_image_param)
                                            { publish_image(publish_image_param); });
 
             using_cuda_ = params_.get_use_cuda() ? boblib::base::Utils::has_cuda() : false;

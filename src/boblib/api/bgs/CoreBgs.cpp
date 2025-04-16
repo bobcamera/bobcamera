@@ -39,8 +39,11 @@ namespace boblib::bgs
         {
             prepare_parallel(_image);
             initialize(_image);
-            _fgmask.create(_image.size(), CV_8UC1);
             m_initialized = true;
+        }
+        if (_fgmask.empty())
+        {
+            _fgmask.create(_image.size(), CV_8UC1);
         }
 
         if (m_num_processes_parallel == 1)

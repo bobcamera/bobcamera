@@ -10,7 +10,7 @@ struct PublishImage
     {
     }
 
-    std_msgs::msg::Header Header;
+    const std_msgs::msg::Header Header;
     const boblib::base::Image Image;
 
     static sensor_msgs::msg::Image fill_imagemsg_header(const std_msgs::msg::Header &header, const boblib::base::Image &camera_img)
