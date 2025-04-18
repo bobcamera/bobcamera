@@ -1,0 +1,66 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Attach to ROS2 node",
+            "type": "cppdbg",
+            "request": "attach",
+            "preLaunchTask": "start and wait ROS2 launch",
+            "processId": "${command:pickProcess}",
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "setupCommands": [
+                {
+                    "description": "enable pretty-printing",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "Auto‑Attach to Kernel_Camera1",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/attach_camera_debug.sh",
+            "cwd": "${workspaceFolder}",
+            "args": [],
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "setupCommands": [
+                {
+                    "description": "enable pretty-printing",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "set disassembly flavor intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "Debug Kernel_Camera1",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "/opt/ros/jazzy/lib/rclcpp_components/component_container_mt",
+            "cwd": "${workspaceFolder}",
+            "args": [
+                "--ros-args",
+                "--log-level", "INFO",
+                "--ros-args",
+                "-r", "__node:=Kernel_Camera1",
+                "-r", "__ns:=/"
+            ],
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "setupCommands": [
+                {
+                    "description": "enable pretty-printing",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        }
+    ]
+}

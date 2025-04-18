@@ -9,8 +9,6 @@
 
 #include <mask_worker.hpp>
 #include <circuit_breaker.hpp>
-#include <video_recorder.hpp>
-
 #include <parameter_node.hpp>
 
 #include "camera_worker_params.hpp"
@@ -34,8 +32,9 @@ public:
                                                         });
     }
 
-    ~CameraWorker()
+    ~CameraWorker() noexcept
     {
+        node_.log_info("CameraWorker destructor");
         stop_capture();
     }
 
@@ -53,15 +52,6 @@ public:
             camera_info_msg_.frame_height = 0;
             camera_info_msg_.frame_width = 0;
             camera_info_msg_.fps = 0;
-
-            image_pubsub_ptr_ = topic_manager_.get_topic<boblib::base::Image>(params_.get_image_publish_topic());
-            image_pubsub_ptr_->subscribe([this](const boblib::base::Image &image)
-                                         { process_image(image); });
-
-            publish_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.get_image_publish_topic() + "_publish");
-            publish_pubsub_ptr_->subscribe([this](const PublishImage &publish_image_param)
-                                           { publish_image(publish_image_param); });
-
             using_cuda_ = params_.get_use_cuda() ? boblib::base::Utils::has_cuda() : false;
             privacy_mask_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_);
 
@@ -71,6 +61,14 @@ public:
             {
                 object_simulator_ptr_ = std::make_unique<ObjectSimulator>(params_.get_simulator_num_objects());
             }
+
+            publish_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.get_image_publish_topic() + "_publish");
+            publish_pubsub_ptr_->subscribe(+[](const PublishImage &publish_image_param, void *ctx) noexcept
+                                        {
+                                            auto* self = static_cast<CameraWorker*>(ctx);
+                                            self->publish_image(publish_image_param); 
+                                        },
+                                        this);
 
             mask_worker_ptr_->init(params_.get_mask_timer_seconds(), params_.get_mask_filename());
 
@@ -181,11 +179,6 @@ public:
         return false;
     }
 
-    void recording_event(const bob_interfaces::msg::RecordingEvent &event)
-    {
-        last_recording_event_ = event;
-    }
-
 private:
     void update_capture_info()
     {
@@ -252,8 +245,6 @@ private:
 
     void capture_loop()
     {
-        boblib::base::Image camera_img(using_cuda_);
-
         while (run_ && rclcpp::ok())
         {
             if (!is_initialized())
@@ -264,20 +255,26 @@ private:
 
             try
             {
+                auto camera_img_ptr = std::make_shared<boblib::base::Image>(using_cuda_);
+
                 // This block will acquire the image apply the simulation and then the privacy mask
-                if (!acquire_image(camera_img))
+                if (!acquire_image(*camera_img_ptr))
                 {
                     continue;
                 }
 
                 if (params_.get_simulator_enable())
                 {
-                    object_simulator_ptr_->move(camera_img);
+                    object_simulator_ptr_->move(*camera_img_ptr);
                 }
 
-                apply_mask(camera_img);
+                apply_mask(*camera_img_ptr);
 
-                image_pubsub_ptr_->publish(std::move(camera_img));
+                auto header_ptr = std::make_shared<std_msgs::msg::Header>();
+                header_ptr->stamp = node_.now();
+                header_ptr->frame_id = ParameterNode::generate_uuid();
+
+                publish_pubsub_ptr_->publish(std::move(PublishImage(std::move(header_ptr), std::move(camera_img_ptr))));
 
                 // Only limiting fps if it is video and the limit_fps param is set
                 if (params_.get_limit_fps() && (params_.get_source_type() == CameraWorkerParams::SourceType::VIDEO_FILE))
@@ -298,42 +295,9 @@ private:
         }
         node_.log_send_info("CameraWorker: Leaving capture_loop");
 
-        // if (video_recorder_ptr_ && video_recorder_ptr_->is_recording())
-        // {
-        //     node_.log_info("Closing video");
-        //     video_recorder_ptr_->close_video();
-        // }
-
         stop_capture();
 
         boblib::base::Utils::reset_cuda();
-    }
-
-    void process_image(const boblib::base::Image &camera_img)
-    {
-        try
-        {
-            if (image_pubsub_ptr_->queue_size() > 1)
-            {
-                node_.log_info("Process Queue size: %d", image_pubsub_ptr_->queue_size() - 1);
-            }
-
-            std_msgs::msg::Header header;
-            header.stamp = node_.now();
-            header.frame_id = ParameterNode::generate_uuid();
-
-            publish_pubsub_ptr_->publish(PublishImage(header, std::move(camera_img)));
-        }
-        catch (const std::exception &e)
-        {
-            node_.log_send_error("CameraWorker: process_images: Exception: %s", e.what());
-            rcutils_reset_error();
-        }
-        catch (...)
-        {
-            node_.log_send_error("CameraWorker: process_images: Unknown exception");
-            rcutils_reset_error();
-        }
     }
 
     void publish_image(const PublishImage &publish_image)
@@ -345,13 +309,13 @@ private:
                 node_.log_info("Publish Queue size: %d", publish_pubsub_ptr_->queue_size() - 1);
             }
 
-            publish_frame(publish_image.Header, publish_image.Image);
+            publish_frame(*publish_image.headerPtr, *publish_image.imagePtr);
 
-            publish_resized_frame(publish_image.Header, publish_image.Image);
+            publish_resized_frame(*publish_image.headerPtr, *publish_image.imagePtr);
 
-            publish_image_info(publish_image.Header, publish_image.Image);
+            publish_image_info(*publish_image.headerPtr, *publish_image.imagePtr);
 
-            publish_camera_info(publish_image.Header, publish_image.Image);
+            publish_camera_info(*publish_image.headerPtr, *publish_image.imagePtr);
         }
         catch (const std::exception &e)
         {
@@ -405,13 +369,13 @@ private:
         params_.get_image_resized_publisher()->publish(*resized_frame_msg);
     }
 
-    void start_capture()
+    void start_capture() noexcept
     {
         run_ = true;
         capture_thread_ = std::jthread(&CameraWorker::capture_loop, this);
     }
 
-    void stop_capture()
+    void stop_capture() noexcept
     {
         run_ = false;
 
@@ -509,7 +473,7 @@ private:
         }
 
         camera_info_msg_.header = header;
-        camera_info_msg_.fps = static_cast<float>(fps_);
+        camera_info_msg_.fps = fps_;
         camera_info_msg_.frame_width = camera_img.size().width;
         camera_info_msg_.frame_height = camera_img.size().height;
         camera_info_msg_.is_color = camera_img.channels() >= 3;
@@ -615,7 +579,6 @@ private:
 
     bool run_{false};
     std::jthread capture_thread_;
-    std::jthread publish_thread_;
 
     uint32_t current_video_idx_{0};
 
@@ -636,9 +599,6 @@ private:
 
     bool using_cuda_{false};
 
-    bob_interfaces::msg::RecordingEvent last_recording_event_;
-
     boblib::utils::pubsub::TopicManager &topic_manager_;
-    std::shared_ptr<boblib::utils::pubsub::PubSub<boblib::base::Image>> image_pubsub_ptr_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<PublishImage>> publish_pubsub_ptr_;
 };

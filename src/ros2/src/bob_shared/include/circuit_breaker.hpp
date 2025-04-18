@@ -12,7 +12,8 @@ public:
           initial_reset_timeout_(initial_reset_timeout),
           max_reset_timeout_(max_reset_timeout),
           current_reset_timeout_(initial_reset_timeout) 
-    {}
+    {
+    }
 
     bool allow_request() 
     {

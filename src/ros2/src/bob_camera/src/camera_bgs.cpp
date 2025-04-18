@@ -156,7 +156,7 @@ private:
                     rclcpp::Parameter("tracking_subscriber_topic", "bob/tracker/tracking"),
                     [this](const rclcpp::Parameter &param)
                     {
-                        bgs_params_ptr_->set_tracking_subscriber_topic(param.as_string());
+                        camera_save_params_ptr_->set_tracking_subscriber_topic(param.as_string());
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("use_cuda", true),
@@ -396,8 +396,6 @@ private:
 
     void recording_event_callback(const bob_interfaces::msg::RecordingEvent::SharedPtr event)
     {
-        camera_worker_ptr_->recording_event(*event);
-        bgs_worker_ptr_->recording_event(*event);
         camera_save_worker_ptr_->recording_event(*event);
     }
 

@@ -23,7 +23,9 @@ class BackgroundSubtractorWorker
 {
 public:
     BackgroundSubtractorWorker(ParameterNode &node, BackgroundSubtractorWorkerParams &params, boblib::utils::pubsub::TopicManager &topic_manager)
-        : node_(node), params_(params), topic_manager_(topic_manager)
+        : node_(node)
+        , params_(params)
+        , topic_manager_(topic_manager)
     {
         mask_worker_ptr_ = std::make_unique<MaskWorker>(node_,
                                                         [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat &mask)
@@ -32,17 +34,7 @@ public:
 
     ~BackgroundSubtractorWorker()
     {
-        // Save final heatmap if recording was active
-        if (img_recorder_)
-        {
-            std::string full_path = last_recording_event_.recording_path +
-                                    "/heatmaps/" + last_recording_event_.filename + ".jpg";
-            img_recorder_->write_image(full_path);
-        }
-        if (json_recorder_)
-        {
-            save_json();
-        }
+        node_.log_info("BackgroundSubtractorWorker destructor");
     }
 
     void init()
@@ -54,24 +46,17 @@ public:
         mask_worker_ptr_->init(params_.get_mask_timer_seconds(), params_.get_mask_filename());
 
         publish_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.get_camera_image_subscriber_topic() + "_publish");
-        publish_pubsub_ptr_->subscribe([this](const PublishImage &publish_image_param)
-                                       { publish_image_callback(publish_image_param); });
+        publish_pubsub_ptr_->subscribe(+[](const PublishImage &publish_image_param, void *context)
+                                       {
+                                           auto *self = static_cast<BackgroundSubtractorWorker *>(context);
+                                           self->publish_image_callback(publish_image_param);
+                                       }, this);
         process_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.get_camera_image_subscriber_topic() + "_process");
-        process_pubsub_ptr_->subscribe([this](const PublishImage &process_image_param)
-                                       { process_image(process_image_param); });
-
-        rclcpp::QoS sub_qos_profile(4);
-        sub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
-        sub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
-        sub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
-
-        tracking_subscription_ = node_.create_subscription<bob_interfaces::msg::Tracking>(params_.get_tracking_subscriber_topic(), sub_qos_profile,
-                                                                                          [this](const bob_interfaces::msg::Tracking::SharedPtr tracking_msg)
-                                                                                          { tracking_callback(tracking_msg); });
-
-        camera_info_subscription_ = node_.create_subscription<bob_camera::msg::CameraInfo>(params_.get_camera_info_subscriber_topic(), sub_qos_profile,
-                                                                                           [this](const bob_camera::msg::CameraInfo::SharedPtr camera_info_msg)
-                                                                                           { camera_info_callback(camera_info_msg); });
+        process_pubsub_ptr_->subscribe(+[](const PublishImage &process_image_param, void *context)
+                                       {
+                                           auto *self = static_cast<BackgroundSubtractorWorker *>(context);
+                                           self->process_image(process_image_param);
+                                       }, this);
     }
 
     void restart_mask()
@@ -180,47 +165,14 @@ public:
         cv_.notify_all();
     }
 
-    void recording_event(const bob_interfaces::msg::RecordingEvent &event) noexcept
-    {
-        last_recording_event_ = event;
-    }
-
-    void camera_info_callback(const bob_camera::msg::CameraInfo::SharedPtr camera_info_msg) noexcept
-    {
-        last_camera_info_ = camera_info_msg;
-        if (last_camera_info_->fps != fps_)
-        {
-            fps_ = last_camera_info_->fps;
-            auto total_pre_frames = (size_t)(static_cast<int>(std::ceil(fps_)) * params_.get_recording_seconds_save());
-            img_recorder_ = std::make_unique<ImageRecorder>(total_pre_frames);
-            json_recorder_ = std::make_unique<JsonRecorder>(total_pre_frames);
-        }
-    }
-
-    void save_json()
-    {
-        if (json_recorder_ == nullptr)
-        {
-            return;
-        }
-        auto json_camera_info = JsonRecorder::build_json_camera_info(last_camera_info_);
-        json_recorder_->add_to_buffer(json_camera_info, true);
-
-        auto json_full_path = last_recording_event_.recording_path + "/json/" + last_recording_event_.filename + ".json";
-        node_.log_send_info("BGSWorker: save_json: Writing JSON to: %s", json_full_path.c_str());
-        json_recorder_->write_buffer_to_file(json_full_path);
-    }
-
     void publish_image_callback(const PublishImage &publish_image) noexcept
     {
         try
         {
-            boblib::base::Image gray_img(using_cuda_);
-            publish_image.Image.convertTo(gray_img, cv::COLOR_BGR2GRAY);
+            auto gray_img_ptr = std::make_shared<boblib::base::Image>(using_cuda_);
+            publish_image.imagePtr->convertTo(*gray_img_ptr, cv::COLOR_BGR2GRAY);
 
-            create_save_heatmap(publish_image.Image);
-
-            process_pubsub_ptr_->publish(PublishImage(publish_image.Header, std::move(gray_img)));
+            process_pubsub_ptr_->publish(std::move(PublishImage(publish_image.headerPtr, std::move(gray_img_ptr))));
         }
         catch (const std::exception &e)
         {
@@ -243,8 +195,8 @@ private:
 
         try
         {
-            auto &header = publish_image.Header;
-            auto &gray_img = publish_image.Image;
+            auto &header = *publish_image.headerPtr;
+            auto &gray_img = *publish_image.imagePtr;
 
             if (!bgs_ptr_)
             {
@@ -269,7 +221,7 @@ private:
             bgs_ptr_->apply(gray_img, bgs_img, mask);
 
             // Process the results
-            accumulate_mask(bgs_img);
+            //accumulate_mask(bgs_img);
             do_detection(header, bgs_img);
             publish_frame(header, bgs_img);
             publish_resized_frame(header, bgs_img);
@@ -286,105 +238,6 @@ private:
         }
         processing_ = false;
         cv_.notify_all();
-    }
-
-    void tracking_callback(const bob_interfaces::msg::Tracking::SharedPtr tracking_msg)
-    {
-        if (!params_.get_recording_enabled() || img_recorder_ == nullptr || json_recorder_ == nullptr)
-        {
-            return;
-        }
-
-        // Start recording heatmap when recording begins
-        if (last_recording_event_.recording && !recording_json_)
-        {
-            recording_json_ = true;
-        }
-        else
-            // Save heatmap when recording ends
-            if (!last_recording_event_.recording && recording_json_)
-            {
-                recording_json_ = false;
-                save_json();
-            }
-
-        auto json_data = JsonRecorder::build_json_value(tracking_msg, false);
-        if (last_recording_event_.recording)
-        {
-            for (const auto &detection : tracking_msg->detections)
-            {
-                if (detection.state == 2) // ActiveTarget
-                {
-                    const auto &bbox = detection.bbox;
-                    const double area = bbox.size_x * bbox.size_y;
-                    img_recorder_->store_trajectory_point(detection.id, cv::Point(static_cast<int>(bbox.center.position.x), static_cast<int>(bbox.center.position.y)), area);
-                }
-            }
-            json_recorder_->add_to_buffer(json_data, false);
-        }
-        else
-        {
-            json_recorder_->add_to_pre_buffer(json_data, false);
-        }
-    }
-
-    inline void create_save_heatmap(const boblib::base::Image &img) noexcept
-    {
-        if (!params_.get_recording_enabled() || img_recorder_ == nullptr)
-        {
-            return;
-        }
-
-        try
-        {
-            // Start recording heatmap when recording begins
-            if (last_recording_event_.recording && !recording_heatmap_)
-            {
-                recording_heatmap_ = true;
-                img_recorder_->update_frame_for_drawing(img.toMat());
-                return;
-            }
-
-            // Save heatmap when recording ends
-            if (!last_recording_event_.recording && recording_heatmap_)
-            {
-                recording_heatmap_ = false;
-
-                // Ensure the recording path and filename are valid
-                if (last_recording_event_.recording_path.empty() || last_recording_event_.filename.empty())
-                {
-                    node_.log_send_error("Cannot save heatmap: Invalid recording path or filename");
-                    return;
-                }
-
-                // Create the full path for the heatmap
-                std::string full_path = last_recording_event_.recording_path + "/heatmaps/" + last_recording_event_.filename + ".jpg";
-
-                // Write the image and reset the recorder
-                if (!img_recorder_->write_image(full_path))
-                {
-                    node_.log_send_error("Failed to write heatmap to: %s", full_path.c_str());
-                }
-
-                img_recorder_->reset();
-            }
-        }
-        catch (const std::exception &e)
-        {
-            node_.log_send_error("Error in create_save_heatmap: %s", e.what());
-        }
-        catch (...)
-        {
-            node_.log_send_error("Unknown error in create_save_heatmap");
-        }
-    }
-
-    inline void accumulate_mask(const boblib::base::Image &gray_img)
-    {
-        if (params_.get_recording_enabled() && last_recording_event_.recording && img_recorder_ != nullptr)
-        {
-            img_recorder_->accumulate_mask(gray_img.toMat());
-        }
     }
 
     inline void fill_header(sensor_msgs::msg::Image &bgs_msg, const std_msgs::msg::Header &header, const boblib::base::Image &bgs_img) noexcept
@@ -544,17 +397,6 @@ private:
     bool ready_{false};
     bool processing_{false};
     bool using_cuda_{false};
-
-    bob_interfaces::msg::RecordingEvent last_recording_event_;
-    bob_camera::msg::CameraInfo::SharedPtr last_camera_info_;
-    rclcpp::Subscription<bob_interfaces::msg::Tracking>::SharedPtr tracking_subscription_;
-    rclcpp::Subscription<bob_camera::msg::CameraInfo>::SharedPtr camera_info_subscription_;
-
-    std::unique_ptr<ImageRecorder> img_recorder_;
-    std::unique_ptr<JsonRecorder> json_recorder_;
-    bool recording_heatmap_{false};
-    bool recording_json_{false};
-    float fps_{-1.0f};
 
     std::unique_ptr<boblib::base::Image> blank_mask_ptr_;
     boblib::utils::pubsub::TopicManager &topic_manager_;

@@ -8,6 +8,13 @@ target_link_libraries(boblib_bgs_test PUBLIC "${OpenCV_LIBS}" boblib)
 set_target_properties(boblib_bgs_test PROPERTIES FOLDER "apps")
 install(TARGETS boblib_bgs_test RUNTIME DESTINATION "bin" COMPONENT "apps")
 
+# boblib bgs test
+add_executable(demo_pubsub "src/demo_pubsub.cpp")
+target_include_directories(demo_pubsub PUBLIC "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/api/include>")
+target_link_libraries(demo_pubsub PUBLIC "${OpenCV_LIBS}" boblib)
+set_target_properties(demo_pubsub PROPERTIES FOLDER "apps")
+install(TARGETS demo_pubsub RUNTIME DESTINATION "bin" COMPONENT "apps")
+
 # boblib hikvision test
 # add_executable(boblib_hik_test "src/demo_hik.cpp")
 # target_include_directories(boblib_hik_test PUBLIC "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/api/include>")

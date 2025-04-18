@@ -202,7 +202,7 @@ advanced_config:
     compressed_frame_subscriber_topic: 'bob/camera2/annotated/resized'
     compression_quality: $image_compression_quality
 
-  camera1_detection_masked_compressor_node:
+  camera1_original_compressor_node:
     compressed_frame_subscriber_topic: 'bob/camera1/original/resized'
     compression_quality: $image_compression_quality
 
@@ -367,7 +367,7 @@ launch:
           remappings: []
         - package: bob_image_processing
           plugin: FrameCompressor
-          name: camera1_detection_masked_compressor_node
+          name: camera1_original_compressor_node
           remappings: []
         - package: bob_image_processing
           plugin: FrameCompressor
