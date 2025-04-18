@@ -66,11 +66,7 @@ public:
                                                                                            { camera_info_callback(camera_info_msg); });
 
         image_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.get_image_publish_topic() + "_publish");
-        image_pubsub_ptr_->subscribe(+[](const PublishImage &image, void *context)
-                                { 
-                                    auto *self = static_cast<CameraSaveWorker *>(context);
-                                    self->record_image(image); 
-                                }, this);
+        image_pubsub_ptr_->subscribe<CameraSaveWorker, &CameraSaveWorker::record_image>(this);
     }
 
     void recording_event(const bob_interfaces::msg::RecordingEvent &event) noexcept

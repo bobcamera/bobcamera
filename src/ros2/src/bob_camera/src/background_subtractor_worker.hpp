@@ -45,18 +45,11 @@ public:
 
         mask_worker_ptr_->init(params_.get_mask_timer_seconds(), params_.get_mask_filename());
 
-        publish_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.get_camera_image_subscriber_topic() + "_publish");
-        publish_pubsub_ptr_->subscribe(+[](const PublishImage &publish_image_param, void *context)
-                                       {
-                                           auto *self = static_cast<BackgroundSubtractorWorker *>(context);
-                                           self->publish_image_callback(publish_image_param);
-                                       }, this);
+        camera_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.get_camera_image_subscriber_topic() + "_publish");
+        camera_pubsub_ptr_->subscribe<BackgroundSubtractorWorker, &BackgroundSubtractorWorker::camera_image_callback>(this);
+
         process_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.get_camera_image_subscriber_topic() + "_process");
-        process_pubsub_ptr_->subscribe(+[](const PublishImage &process_image_param, void *context)
-                                       {
-                                           auto *self = static_cast<BackgroundSubtractorWorker *>(context);
-                                           self->process_image(process_image_param);
-                                       }, this);
+        process_pubsub_ptr_->subscribe<BackgroundSubtractorWorker, &BackgroundSubtractorWorker::process_image>(this);
     }
 
     void restart_mask()
@@ -186,41 +179,16 @@ public:
         cv_ready_.notify_all();
     }
 
-    void publish_image_callback(const PublishImage &publish_image) noexcept
-    {
-        try
-        {
-            auto gray_img_ptr = std::make_shared<boblib::base::Image>(using_cuda_);
-            publish_image.imagePtr->convertTo(*gray_img_ptr, cv::COLOR_BGR2GRAY);
-
-            process_pubsub_ptr_->publish(std::move(PublishImage(publish_image.headerPtr, std::move(gray_img_ptr))));
-        }
-        catch (const std::exception &e)
-        {
-            node_.log_send_error("bgs_worker: image_callback: exception: %s", e.what());
-            rcutils_reset_error();
-        }
-        catch (...)
-        {
-            node_.log_send_error("bgs_worker: image_callback: Unknown Exception");
-            rcutils_reset_error();
-        }
-    }
-
-private:
-    void process_image(const PublishImage &publish_image) noexcept
+    void camera_image_callback(const PublishImage &publish_image) noexcept
     {
         std::unique_lock lock(mutex_);
         cv_ready_.wait(lock, [this]
-                          { return ready_; });
+                       { return ready_; });
 
         processing_ = true;
 
         try
         {
-            auto &header = *publish_image.headerPtr;
-            auto &gray_img = *publish_image.imagePtr;
-
             if (!bgs_ptr_)
             {
                 node_.log_send_error("BGSWorker: process_image: bgs_ptr_ is not initialized");
@@ -228,6 +196,9 @@ private:
                 cv_processing_.notify_all();
                 return;
             }
+
+            boblib::base::Image gray_img(using_cuda_);
+            publish_image.imagePtr->convertTo(gray_img, cv::COLOR_BGR2GRAY);
 
             // Resize detection mask if needed
             if (mask_enabled_ && params_.get_mask_enable_override() &&
@@ -240,8 +211,33 @@ private:
             const auto &mask = (mask_enabled_ && params_.get_mask_enable_override())
                                    ? *detection_mask_ptr_
                                    : *blank_mask_ptr_;
-            boblib::base::Image bgs_img(using_cuda_);
-            bgs_ptr_->apply(gray_img, bgs_img, mask);
+            auto bgs_img_ptr = std::make_shared<boblib::base::Image>(using_cuda_);
+            bgs_ptr_->apply(gray_img, *bgs_img_ptr, mask);
+
+            process_pubsub_ptr_->publish(std::move(PublishImage(publish_image.headerPtr, std::move(bgs_img_ptr))));
+        }
+        catch (const std::exception &e)
+        {
+            node_.log_send_error("bgs_worker: image_callback: exception: %s", e.what());
+            rcutils_reset_error();
+        }
+        catch (...)
+        {
+            node_.log_send_error("bgs_worker: image_callback: Unknown Exception");
+            rcutils_reset_error();
+        }
+
+        processing_ = false;
+        cv_processing_.notify_all();
+    }
+
+private:
+    void process_image(const PublishImage &publish_image) noexcept
+    {
+        try
+        {
+            auto &header = *publish_image.headerPtr;
+            auto &bgs_img = *publish_image.imagePtr;
 
             // Process the results
             //accumulate_mask(bgs_img);
@@ -259,18 +255,6 @@ private:
             node_.log_send_error("BGSWorker: process_images: Unknown exception");
             rcutils_reset_error();
         }
-        processing_ = false;
-        cv_processing_.notify_all();
-    }
-
-    inline void fill_header(sensor_msgs::msg::Image &bgs_msg, const std_msgs::msg::Header &header, const boblib::base::Image &bgs_img) noexcept
-    {
-        bgs_msg.header = header;
-        bgs_msg.height = bgs_img.size().height;
-        bgs_msg.width = bgs_img.size().width;
-        bgs_msg.encoding = ImageUtils::type_to_encoding(bgs_img.type());
-        bgs_msg.is_bigendian = (rcpputils::endian::native == rcpputils::endian::big);
-        bgs_msg.step = bgs_img.size().width * bgs_img.elemSize();
     }
 
     inline void publish_frame(const std_msgs::msg::Header &header, boblib::base::Image &bgs_img) noexcept
@@ -425,6 +409,6 @@ private:
 
     std::unique_ptr<boblib::base::Image> blank_mask_ptr_;
     boblib::utils::pubsub::TopicManager &topic_manager_;
-    std::shared_ptr<boblib::utils::pubsub::PubSub<PublishImage>> publish_pubsub_ptr_;
+    std::shared_ptr<boblib::utils::pubsub::PubSub<PublishImage>> camera_pubsub_ptr_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<PublishImage>> process_pubsub_ptr_;
 };

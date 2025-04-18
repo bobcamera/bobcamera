@@ -16,6 +16,16 @@
 namespace boblib::utils::pubsub
 {
     // ------------------------------------------------------------------ helpers
+    // Helper template to wrap a member method into a C-style callback without manual casting
+    template <typename T, typename Msg, void (T::*Method)(const Msg &) noexcept>
+    struct MemberCallback
+    {
+        static void callback(const Msg &msg, void *ctx) noexcept
+        {
+            (static_cast<T *>(ctx)->*Method)(msg);
+        }
+    };
+
     template <typename T>
     concept CopyableOrMovable = std::movable<T>;
 
@@ -167,6 +177,12 @@ namespace boblib::utils::pubsub
         bool publish(T &&msg) noexcept
         {
             return queue.push(std::move(msg));
+        }
+
+        template <typename U, void (U::*Method)(const T &) noexcept>
+        void subscribe(U *instance) noexcept
+        {
+            subscribe(&MemberCallback<U, T, Method>::callback, instance);
         }
 
         // ---------------------------- subscribe

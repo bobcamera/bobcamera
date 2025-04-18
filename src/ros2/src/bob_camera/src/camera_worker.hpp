@@ -63,12 +63,7 @@ public:
             }
 
             publish_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.get_image_publish_topic() + "_publish");
-            publish_pubsub_ptr_->subscribe(+[](const PublishImage &publish_image_param, void *ctx) noexcept
-                                        {
-                                            auto* self = static_cast<CameraWorker*>(ctx);
-                                            self->publish_image(publish_image_param); 
-                                        },
-                                        this);
+            publish_pubsub_ptr_->subscribe<CameraWorker, &CameraWorker::publish_image>(this);
 
             mask_worker_ptr_->init(params_.get_mask_timer_seconds(), params_.get_mask_filename());
 
@@ -300,7 +295,7 @@ private:
         boblib::base::Utils::reset_cuda();
     }
 
-    void publish_image(const PublishImage &publish_image)
+    void publish_image(const PublishImage &publish_image) noexcept
     {
         try
         {
