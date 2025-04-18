@@ -274,7 +274,7 @@ private:
                 header_ptr->stamp = node_.now();
                 header_ptr->frame_id = ParameterNode::generate_uuid();
 
-                publish_pubsub_ptr_->publish(std::move(PublishImage(std::move(header_ptr), std::move(camera_img_ptr))));
+                publish_pubsub_ptr_->publish(PublishImage(std::move(header_ptr), std::move(camera_img_ptr)));
 
                 // Only limiting fps if it is video and the limit_fps param is set
                 if (params_.get_limit_fps() && (params_.get_source_type() == CameraWorkerParams::SourceType::VIDEO_FILE))

@@ -69,7 +69,10 @@ public:
 
     void init_bgs(const std::string &bgs) noexcept
     {
-        ready_ = false;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            ready_ = false;
+        }
 
         try
         {
@@ -89,14 +92,26 @@ public:
         catch (const std::exception &e)
         {
             node_.log_send_error("init_bgs: Exception: %s", e.what());
+            rcutils_reset_error();
         }
         catch (...)
         {
             node_.log_send_error("init_bgs: Unknown exception");
+            rcutils_reset_error();
         }
 
-        ready_ = true;
-        cv_.notify_all();
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            if (bgs_ptr_)
+            {
+                ready_ = true;
+            }
+            else
+            {
+                node_.log_send_error("init_bgs: Failed to initialize background subtractor; bgs_ptr_ is null");
+            }
+            cv_ready_.notify_all();
+        }
     }
 
     void restart() noexcept
@@ -112,25 +127,28 @@ public:
     void init_sensitivity(const std::string &sensitivity) noexcept
     {
         std::unique_lock<std::mutex> lock(mutex_);
-        cv_.wait(lock, [this]
-                 { return !processing_; });
+        cv_processing_.wait(lock, [this]
+                              { return !processing_; });
 
         try
         {
             if (sensitivity.empty())
             {
                 node_.log_debug("Ignoring sensitivity change request, EMPTY VALUE");
+                cv_processing_.notify_all();
                 return;
             }
             if (params_.get_sensitivity() == sensitivity)
             {
                 node_.log_info("Ignoring sensitivity change request, NO CHANGE");
+                cv_processing_.notify_all();
                 return;
             }
 
             if (!params_.get_sensitivity_collection().get_configs().contains(sensitivity))
             {
                 node_.log_error("Unknown config specified: %s", sensitivity.c_str());
+                cv_processing_.notify_all();
                 return;
             }
 
@@ -156,13 +174,16 @@ public:
         catch (const std::exception &e)
         {
             node_.log_send_error("init_sensitivity: Exception: %s", e.what());
+            rcutils_reset_error();
         }
         catch (...)
         {
             node_.log_send_error("init_sensitivity: Unknown exception");
+            rcutils_reset_error();
         }
+
         ready_ = true;
-        cv_.notify_all();
+        cv_ready_.notify_all();
     }
 
     void publish_image_callback(const PublishImage &publish_image) noexcept
@@ -177,10 +198,12 @@ public:
         catch (const std::exception &e)
         {
             node_.log_send_error("bgs_worker: image_callback: exception: %s", e.what());
+            rcutils_reset_error();
         }
         catch (...)
         {
             node_.log_send_error("bgs_worker: image_callback: Unknown Exception");
+            rcutils_reset_error();
         }
     }
 
@@ -188,8 +211,8 @@ private:
     void process_image(const PublishImage &publish_image) noexcept
     {
         std::unique_lock lock(mutex_);
-        cv_.wait(lock, [this]
-                 { return ready_; });
+        cv_ready_.wait(lock, [this]
+                          { return ready_; });
 
         processing_ = true;
 
@@ -202,7 +225,7 @@ private:
             {
                 node_.log_send_error("BGSWorker: process_image: bgs_ptr_ is not initialized");
                 processing_ = false;
-                cv_.notify_all();
+                cv_processing_.notify_all();
                 return;
             }
 
@@ -237,7 +260,7 @@ private:
             rcutils_reset_error();
         }
         processing_ = false;
-        cv_.notify_all();
+        cv_processing_.notify_all();
     }
 
     inline void fill_header(sensor_msgs::msg::Image &bgs_msg, const std_msgs::msg::Header &header, const boblib::base::Image &bgs_img) noexcept
@@ -356,6 +379,7 @@ private:
 
     void mask_timer_callback(MaskWorker::MaskCheckType detection_mask_result, const cv::Mat &mask)
     {
+        std::lock_guard<std::mutex> lock(mutex_);
         if (detection_mask_result == MaskWorker::MaskCheckType::Enable)
         {
             if (!mask_enabled_)
@@ -392,7 +416,8 @@ private:
 
     std::unique_ptr<boblib::base::Image> detection_mask_ptr_;
 
-    std::condition_variable cv_;
+    std::condition_variable cv_ready_;
+    std::condition_variable cv_processing_;
     std::mutex mutex_;
     bool ready_{false};
     bool processing_{false};

@@ -102,9 +102,10 @@ private:
                     [this](const rclcpp::Parameter &param)
                     {
                         camera_params_ptr_->set_recording_event_subscriber_topic(param.as_string());
-                        camera_params_ptr_->set_recording_event_subscriber(create_subscription<bob_interfaces::msg::RecordingEvent>(param.as_string(), qos_profile_,
-                                                                                                                                    [this](const bob_interfaces::msg::RecordingEvent::SharedPtr event)
-                                                                                                                                    { recording_event_callback(event); }));
+                        camera_params_ptr_->set_recording_event_subscriber(
+                            create_subscription<bob_interfaces::msg::RecordingEvent>(param.as_string(), qos_profile_,
+                                                                                     [this](const bob_interfaces::msg::RecordingEvent::SharedPtr event)
+                                                                                     { camera_save_worker_ptr_->recording_event(*event); }));
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("bgs_publish_topic", "bob/frames/foreground_mask"),
@@ -392,11 +393,6 @@ private:
                     }),
             };
         add_action_parameters(params);
-    }
-
-    void recording_event_callback(const bob_interfaces::msg::RecordingEvent::SharedPtr event)
-    {
-        camera_save_worker_ptr_->recording_event(*event);
     }
 
     void privacy_mask_override_request(const std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Request> request, 

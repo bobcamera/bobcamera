@@ -1,14 +1,16 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 #include <memory>
 #include <unordered_map>
 #include <mutex>
 #include <typeindex>
-#include <any>
-#include <functional>
 #include <shared_mutex>
+#include <functional>
+
 #include "PubSub.hpp"
+
 namespace boblib::utils::pubsub
 {
     // Base class for type-erased topic storage
@@ -36,6 +38,21 @@ namespace boblib::utils::pubsub
         size_t queue_capacity() const override { return pubsub->queue_capacity(); }
     };
 
+    // transparent hasher that can take either std::string or std::string_view
+    struct TransparentStringHash
+    {
+        using is_transparent = void; // enables heterogeneous lookup
+
+        size_t operator()(std::string_view sv) const noexcept
+        {
+            return std::hash<std::string_view>{}(sv);
+        }
+        size_t operator()(const std::string &s) const noexcept
+        {
+            return std::hash<std::string_view>{}(s);
+        }
+    };
+
     // TopicManager class to manage multiple topics with different message types
     class TopicManager
     {
@@ -48,11 +65,18 @@ namespace boblib::utils::pubsub
             std::shared_ptr<void> pubsub;  // Store the PubSub instance directly
 
             TopicData(std::unique_ptr<TopicBase> t, std::type_index id, std::shared_ptr<void> p)
-                : topic(std::move(t)), type_id(id), pubsub(std::move(p)) {}
+                : topic(std::move(t)), type_id(id), pubsub(std::move(p)) 
+            {}
         };
 
         // Map from topic name to topic data
-        std::unordered_map<std::string, TopicData> topics;
+        std::unordered_map<
+            std::string,
+            TopicData,
+            TransparentStringHash, // heterogeneous hash
+            std::equal_to<>        // transparent equals
+            >
+            topics;
 
         // Mutex to protect the topics map
         mutable std::shared_mutex topics_mutex;
@@ -61,15 +85,20 @@ namespace boblib::utils::pubsub
         size_t default_queue_size;
 
     public:
+        TopicManager(const TopicManager &) = delete;
+        TopicManager &operator=(const TopicManager &) = delete;
+        TopicManager(TopicManager &&) = default;
+        TopicManager &operator=(TopicManager &&) = default;
+
         // Constructor with default values
-        explicit TopicManager(
-            size_t queue_size = 100)
-            : default_queue_size(queue_size) {}
+        explicit TopicManager(size_t queue_size = 100)
+            : default_queue_size(queue_size) 
+        {}
 
         // Get or create a PubSub instance for a topic with specific type
         template <typename T>
             requires CopyableOrMovable<T>
-        std::shared_ptr<PubSub<T>> get_topic(const std::string &topic_name)
+        std::shared_ptr<PubSub<T>> get_topic(std::string_view topic_name)
         {
             std::unique_lock lock(topics_mutex);
             auto it = topics.find(topic_name);
@@ -88,7 +117,7 @@ namespace boblib::utils::pubsub
             else if (it->second.type_id != typeid(T))
             {
                 // Topic exists but with a different type
-                throw std::runtime_error("Topic '" + topic_name + "' exists with a different message type");
+                throw std::runtime_error("Topic '" + std::string(topic_name) + "' exists with a different message type");
             }
 
             // Return the stored PubSub instance
@@ -96,31 +125,10 @@ namespace boblib::utils::pubsub
         }
 
         // Check if a topic exists
-        bool topic_exists(const std::string &topic_name) const
+        bool topic_exists(std::string_view topic_name) const
         {
             std::shared_lock lock(topics_mutex);
             return topics.find(topic_name) != topics.end();
-        }
-
-        // Check if a topic exists with a specific type
-        template <typename T>
-        bool topic_exists_with_type(const std::string &topic_name) const
-        {
-            std::shared_lock lock(topics_mutex);
-            auto it = topics.find(topic_name);
-            return it != topics.end() && it->second.type_id == typeid(T);
-        }
-
-        // Get the number of subscribers for a topic
-        size_t subscriber_count(const std::string &topic_name) const
-        {
-            std::shared_lock lock(topics_mutex);
-            auto it = topics.find(topic_name);
-            if (it != topics.end())
-            {
-                return it->second.topic->subscriber_count();
-            }
-            return 0;
         }
 
         // Get the current number of topics
@@ -130,41 +138,24 @@ namespace boblib::utils::pubsub
             return topics.size();
         }
 
-        // Get queue size for a specific topic
-        size_t queue_size(const std::string &topic_name) const
+        template <typename F>
+        size_t with_topic(std::string_view name, F fn) const
         {
             std::shared_lock lock(topics_mutex);
-            auto it = topics.find(topic_name);
-            if (it != topics.end())
+            if (auto it = topics.find(std::string(name)); it != topics.end())
             {
-                return it->second.topic->queue_size();
+                return std::invoke(fn, *it->second.topic);
             }
             return 0;
         }
+
+        // Get the number of subscribers for a topic
+        size_t subscriber_count(std::string_view n) const { return with_topic(n, &TopicBase::subscriber_count); }
+
+        // Get queue size for a specific topic
+        size_t queue_size(std::string_view n) const { return with_topic(n, &TopicBase::queue_size); }
 
         // Get queue capacity for a specific topic
-        size_t queue_capacity(const std::string &topic_name) const
-        {
-            std::shared_lock lock(topics_mutex);
-            auto it = topics.find(topic_name);
-            if (it != topics.end())
-            {
-                return it->second.topic->queue_capacity();
-            }
-            return 0;
-        }
-
-        // Get the type_index for a topic
-        std::optional<std::type_index> get_topic_type(const std::string &topic_name) const
-        {
-            std::shared_lock lock(topics_mutex);
-            auto it = topics.find(topic_name);
-            if (it != topics.end())
-            {
-                return it->second.type_id;
-            }
-            return std::nullopt;
-        }
+        size_t queue_capacity(std::string_view n) const { return with_topic(n, &TopicBase::queue_capacity); }
     };
-
 } // namespace boblib::utils::pubsub
