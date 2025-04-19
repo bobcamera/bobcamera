@@ -31,7 +31,7 @@ std::atomic<int> g_frames_processed{0};
 std::atomic<std::int64_t> g_sum_latency_us{0};
 std::atomic<int> g_latency_samples{0};
 
-void frameCallback(const sensor_msgs::msg::Image::UniquePtr &msg)
+void frameCallback(const sensor_msgs::msg::Image::SharedPtr msg)
 {
     // compute message timestamp in microseconds
     int64_t msg_time_us = static_cast<int64_t>(msg->header.stamp.sec) * 1000000
@@ -54,9 +54,9 @@ int main(int argc, const char **argv)
         "image_raw", 10, frameCallback);
     std::thread ros_spin_thread([&]() { rclcpp::spin(ros_node); });
 
-    /* ----------- 1. open camera & capture 60 frames -------------- */
-    std::string rtsp =
-        "rtsp://bob:Bobuser$01@192.168.50.10:554/Streaming/Channels/101";
+    // ----------- 1. open camera & capture X frames --------------
+    constexpr int BUF = 64;
+    std::string rtsp = "rtsp://bob:Bobuser$01@192.168.50.10:554/Streaming/Channels/101";
     if (argc > 1)
     {
         rtsp = argv[1];
@@ -73,9 +73,7 @@ int main(int argc, const char **argv)
         return -1;
     }
 
-    constexpr int BUF = 64;
-    alignas(64) std::array<cv::Mat, BUF> buffer;
-    std::array<std::shared_ptr<cv::Mat>, BUF> ptrs;
+    alignas(64) std::array<std::shared_ptr<sensor_msgs::msg::Image>, BUF> msgs;
     for (int i = 0; i < BUF; ++i)
     {
         cv::Mat f;
@@ -85,31 +83,27 @@ int main(int argc, const char **argv)
                       << i << " frames.\n";
             return -1;
         }
-        buffer[i] = f.clone();
+        std_msgs::msg::Header hdr;
+        hdr.frame_id = "camera";
+        msgs[i] = cv_bridge::CvImage(hdr, "bgr8", f).toImageMsg();
     }
     cap.release(); // camera no longer needed
     std::cout << "Buffered " << BUF << " frames – starting stress run ...\n";
 
-    /* ----------- 3. run as fast as possible ---------------------- */
+    // ----------- Run as fast as possible ---------------------- 
     const auto start_time = SteadyClock::now();
     auto last_stats = start_time;
 
     for (int frameCount = 0; rclcpp::ok(); ++frameCount)
     {
-        const cv::Mat &src = buffer[frameCount & (BUF - 1)];
+        auto & cv_msg = msgs[frameCount & (BUF - 1)];
 
-        // ---- also publish to ROS2 ----
-        std_msgs::msg::Header hdr;
-        hdr.frame_id = "camera";
-        // stamp with system clock
-        auto cv_msg = cv_bridge::CvImage(hdr, "bgr8", src).toImageMsg();
         auto tp = SystemClock::now().time_since_epoch();
         cv_msg->header.stamp.sec = std::chrono::duration_cast<std::chrono::seconds>(tp).count();
         cv_msg->header.stamp.nanosec = std::chrono::duration_cast<std::chrono::nanoseconds>(tp).count() % 1000000000;
         ros_pub->publish(*cv_msg);
         ++g_frames_published;
 
-        /* print stats every 2 s – no sleeps anywhere -------------- */
         const auto now = SteadyClock::now();
         if (now - last_stats >= std::chrono::seconds(5))
         {

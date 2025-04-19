@@ -166,18 +166,20 @@ namespace boblib::utils::pubsub
         ~PubSub() noexcept
         {
             // std::jthread’s destructor will request stop and join for us
-            while (queue.pop([](const T &) noexcept {})) {}
+            while (queue.pop([](const T &) noexcept {}))
+            {
+            }
         }
 
         // ---------------------------- publish
         [[gnu::always_inline]]
-        bool publish(T &&msg) noexcept
+        bool publish(T && msg) noexcept
         {
             return queue.push(std::move(msg));
         }
 
         template <typename U, void (U::*Method)(const T &) noexcept>
-        void subscribe(U *instance) noexcept
+        void subscribe(U * instance) noexcept
         {
             subscribe(&MemberCallback<U, T, Method>::callback, instance);
         }

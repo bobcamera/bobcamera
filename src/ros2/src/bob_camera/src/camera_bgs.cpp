@@ -367,35 +367,21 @@ private:
                         camera_params_ptr_->set_limit_fps(param.as_bool());
                     }),
                 ParameterNode::ActionParam(
-                    rclcpp::Parameter("max_queue_process_size", 100),
-                    [this](const rclcpp::Parameter &param)
-                    {
-                        //topic_manager_-> = std::make_unique<boblib::utils::pubsub::TopicManager>(param.as_int());
-                        camera_params_ptr_->set_max_queue_process_size(static_cast<size_t>(param.as_int()));
-                        camera_save_params_ptr_->set_max_queue_process_size(static_cast<size_t>(param.as_int()));
-                        bgs_params_ptr_->set_max_queue_process_size(static_cast<size_t>(param.as_int()));
-                    }),
-                ParameterNode::ActionParam(
                     rclcpp::Parameter("recording_enabled", false),
                     [this](const rclcpp::Parameter &param)
                     {
-                        camera_params_ptr_->set_recording_enabled(param.as_bool());
                         camera_save_params_ptr_->set_recording_enabled(param.as_bool());
-                        bgs_params_ptr_->set_recording_enabled(param.as_bool());
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("recording_codec", "avc1"),
                     [this](const rclcpp::Parameter &param)
                     {
-                        camera_params_ptr_->set_recording_codec(param.as_string());
                         camera_save_params_ptr_->set_recording_codec(param.as_string());
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("recording_seconds_save", 2),
                     [this](const rclcpp::Parameter &param)
                     {
-                        camera_params_ptr_->set_recording_seconds_save(param.as_int());
-                        bgs_params_ptr_->set_recording_seconds_save(param.as_int());
                         camera_save_params_ptr_->set_recording_seconds_save(param.as_int());
                     }),
             };

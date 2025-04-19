@@ -25,8 +25,6 @@ public:
     BackgroundSubtractorWorkerParams() = default;
 
     // Getters
-    [[nodiscard]] size_t get_max_queue_process_size() const { return max_queue_process_size_; }
-
     [[nodiscard]] const auto &get_image_publisher() const { return image_publisher_; }
     [[nodiscard]] const auto &get_image_resized_publisher() const { return image_resized_publisher_; }
     [[nodiscard]] const auto &get_detection_publisher() const { return detection_publisher_; }
@@ -45,13 +43,10 @@ public:
     [[nodiscard]] const auto &get_mask_filename() const { return mask_filename_; }
     [[nodiscard]] int get_resize_height() const { return resize_height_; }
     [[nodiscard]] int get_mask_timer_seconds() const { return mask_timer_seconds_; }
-    [[nodiscard]] bool get_recording_enabled() const { return recording_enabled_; }
-    [[nodiscard]] int get_recording_seconds_save() const { return recording_seconds_save_; }
     [[nodiscard]] const auto &get_camera_info_subscriber_topic() const { return camera_info_subscriber_topic_; }
     [[nodiscard]] const auto &get_camera_image_subscriber_topic() const { return camera_image_subscriber_topic_; }
-    // Setters
-    void set_max_queue_process_size(size_t size) { max_queue_process_size_ = size; }
 
+    // Setters
     void set_image_publisher(const rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr &publisher) { image_publisher_ = publisher; }
     void set_image_resized_publisher(const rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr &publisher) { image_resized_publisher_ = publisher; }
     void set_detection_publisher(const rclcpp::Publisher<bob_interfaces::msg::DetectorBBoxArray>::SharedPtr &publisher) { detection_publisher_ = publisher; }
@@ -71,12 +66,10 @@ public:
     void set_mask_filename(const std::string &filename) { mask_filename_ = filename; }
     void set_resize_height(int height) { resize_height_ = height; }
     void set_mask_timer_seconds(int seconds) { mask_timer_seconds_ = seconds; }
-    void set_recording_enabled(bool enable) { recording_enabled_ = enable; }
-    void set_recording_seconds_save(int seconds) { recording_seconds_save_ = seconds; }
     void set_camera_info_subscriber_topic(const std::string &topic) { camera_info_subscriber_topic_ = topic; }
     void set_camera_image_subscriber_topic(const std::string &topic) { camera_image_subscriber_topic_ = topic; }
+
 private:
-    size_t max_queue_process_size_{0};
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_resized_publisher_;
     rclcpp::Publisher<bob_interfaces::msg::DetectorBBoxArray>::SharedPtr detection_publisher_;
@@ -97,6 +90,4 @@ private:
     std::string mask_filename_;
     int resize_height_{};
     int mask_timer_seconds_{};
-    bool recording_enabled_{false};
-    int recording_seconds_save_{2};
 };

@@ -13,7 +13,7 @@
 using Clock = std::chrono::steady_clock;
 using MicroSecs = std::chrono::microseconds;
 
-/* ---------- PubSub message --------------------------------------- */
+// ---------- PubSub message ---------------------------------------
 struct FrameMessage
 {
     std::shared_ptr<cv::Mat> framePtr;
@@ -31,7 +31,7 @@ struct FrameMessage
     FrameMessage &operator=(const FrameMessage &) = delete;
 };
 
-/* ---------- global stats ----------------------------------------- */
+// ---------- global stats -----------------------------------------
 std::atomic<int> g_frames_published{0};
 std::atomic<int> g_frames_processed{0};
 std::atomic<std::int64_t> g_sum_latency_us{0};
@@ -49,9 +49,8 @@ void frameCallback(const FrameMessage &msg, void *)
 
 int main(int argc, const char **argv)
 {
-    /* ----------- 1. open camera & capture 60 frames -------------- */
-    std::string rtsp =
-        "rtsp://bob:Bobuser$01@192.168.50.10:554/Streaming/Channels/101";
+    // ----------- Open camera & capture 60 frames --------------
+    std::string rtsp = "rtsp://bob:Bobuser$01@192.168.50.10:554/Streaming/Channels/101";
     if (argc > 1)
     {
         rtsp = argv[1];
@@ -69,8 +68,7 @@ int main(int argc, const char **argv)
     }
 
     constexpr int BUF = 64;
-    alignas(64) std::array<cv::Mat, BUF> buffer;
-    std::array<std::shared_ptr<cv::Mat>, BUF> ptrs;
+    alignas(64) std::array<std::shared_ptr<cv::Mat>, BUF> ptrs;
     for (int i = 0; i < BUF; ++i)
     {
         cv::Mat f;
@@ -80,12 +78,12 @@ int main(int argc, const char **argv)
                       << i << " frames.\n";
             return -1;
         }
-        buffer[i] = f.clone();
+        ptrs[i] = std::make_shared<cv::Mat>(f.clone());
     }
     cap.release(); // camera no longer needed
     std::cout << "Buffered " << BUF << " frames – starting stress run ...\n";
 
-    /* ----------- 2. set up PubSub -------------------------------- */
+    // ----------- Set up PubSub --------------------------------
     boblib::utils::pubsub::PubSub<FrameMessage, 8> pubsub(128);
     if (!pubsub.subscribe(frameCallback, nullptr))
     {
@@ -93,14 +91,13 @@ int main(int argc, const char **argv)
         return -1;
     }
 
-    /* ----------- 3. run as fast as possible ---------------------- */
+    // ----------- Run as fast as possible ----------------------
     const auto start_time = Clock::now();
     auto last_stats = start_time;
 
     for (int frameCount = 0; /* forever */; ++frameCount)
     {
-        const cv::Mat &src = buffer[frameCount & (BUF - 1)];
-        auto imgPtr = std::make_shared<cv::Mat>(src.clone());
+        auto imgPtr = ptrs[frameCount & (BUF - 1)];
 
         const auto ts_us = std::chrono::duration_cast<MicroSecs>(
                                Clock::now().time_since_epoch())
@@ -111,7 +108,6 @@ int main(int argc, const char **argv)
             ++g_frames_published;
         }
 
-        /* print stats every 2 s – no sleeps anywhere -------------- */
         const auto now = Clock::now();
         if (now - last_stats >= std::chrono::seconds(5))
         {

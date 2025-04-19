@@ -27,7 +27,6 @@ public:
 
     // Getters
     [[nodiscard]] bool get_use_cuda() const { return use_cuda_; }
-    [[nodiscard]] size_t get_max_queue_process_size() const { return max_queue_process_size_; }
 
     [[nodiscard]] const auto &get_image_publisher() const { return publishers_.image_publisher_; }
     [[nodiscard]] const auto &get_image_resized_publisher() const { return publishers_.image_resized_publisher_; }
@@ -63,16 +62,8 @@ public:
     [[nodiscard]] int get_simulator_num_objects() const { return simulator_params_.simulator_num_objects_; }
     [[nodiscard]] bool get_simulator_enable() const { return simulator_params_.simulator_enable_; }
 
-    [[nodiscard]] bool get_recording_enabled() const { return recording_params_.recording_enabled_; }
-    [[nodiscard]] const std::string &get_recording_codec() const { return recording_params_.recording_codec_; }
-    [[nodiscard]] int get_recording_seconds_save() const { return recording_params_.recording_seconds_save_; }
-
     // Setters
-    void set_use_cuda(bool enable)
-    {
-        use_cuda_ = enable;
-    }
-    void set_max_queue_process_size(size_t size) { max_queue_process_size_ = size; }
+    void set_use_cuda(bool enable) { use_cuda_ = enable; }
 
     void set_image_publisher(const rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr &publisher) { publishers_.image_publisher_ = publisher; }
     void set_image_resized_publisher(const rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr &publisher) { publishers_.image_resized_publisher_ = publisher; }
@@ -107,12 +98,6 @@ public:
 
     void set_simulator_num_objects(int num_objects) { simulator_params_.simulator_num_objects_ = num_objects; }
     void set_simulator_enable(bool enable) { simulator_params_.simulator_enable_ = enable; }
-
-    void set_pre_recording_seconds(int seconds) { recording_params_.recording_seconds_save_ = seconds; }
-
-    void set_recording_enabled(bool enable) { recording_params_.recording_enabled_ = enable; }
-    void set_recording_codec(const std::string &codec) { recording_params_.recording_codec_ = codec; }
-    void set_recording_seconds_save(int seconds) { recording_params_.recording_seconds_save_ = seconds; }
 
 private:
     struct Publishers
@@ -170,22 +155,13 @@ private:
         int simulator_num_objects_{0};
     };
 
-    struct RecordingParams
-    {
-        bool recording_enabled_{false};
-        std::string recording_codec_{"avc1"};
-        int recording_seconds_save_{2};
-    };
-
     bool use_cuda_{true};
-    size_t max_queue_process_size_{0};
 
     CameraParams camera_params_;
     OnvifParams onvif_params_;
     TopicsParams topics_params_;
     MaskParams mask_params_;
     SimulatorParams simulator_params_;
-    RecordingParams recording_params_;
 
     Publishers publishers_;
     Clients clients_;
