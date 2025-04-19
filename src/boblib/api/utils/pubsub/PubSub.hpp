@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <algorithm>
 #include <iostream>
+#include <stop_token>
 #include <immintrin.h> // for _mm_pause
 
 namespace boblib::utils::pubsub
@@ -128,14 +129,13 @@ namespace boblib::utils::pubsub
         std::array<Handler, MaxSubscribers> subscribers{};
         std::atomic<std::size_t> active_cnt{0};
 
-        std::atomic<bool> running{true};
-        std::thread dispatch_thread;
+        std::jthread dispatch_thread;
 
         // ---------------------------- dispatch loop
-        void dispatch_loop() noexcept
+        void dispatch_loop(std::stop_token stop) noexcept
         {
             constexpr int kSpin = 64;
-            while (running.load(std::memory_order_relaxed))
+            while (!stop.stop_requested())
             {
                 bool progressed = queue.pop(
                         [this](const T &msg) noexcept
@@ -159,17 +159,14 @@ namespace boblib::utils::pubsub
         explicit PubSub(std::size_t queue_size = 128)
             : queue(queue_size)
         {
-            dispatch_thread = std::thread(&PubSub::dispatch_loop, this);
+            dispatch_thread = std::jthread([this](std::stop_token st) noexcept
+                { dispatch_loop(st); });
         }
 
         ~PubSub() noexcept
         {
-            running.store(false, std::memory_order_relaxed);
-            if (dispatch_thread.joinable())
-                dispatch_thread.join();
-            while (queue.pop([](const T &) noexcept {}))
-            {
-            }
+            // std::jthread’s destructor will request stop and join for us
+            while (queue.pop([](const T &) noexcept {})) {}
         }
 
         // ---------------------------- publish

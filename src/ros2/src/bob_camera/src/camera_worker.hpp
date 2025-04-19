@@ -364,7 +364,7 @@ private:
     void start_capture() noexcept
     {
         run_ = true;
-        capture_thread_ = std::jthread(&CameraWorker::capture_loop, this);
+        capture_thread_ = std::thread(&CameraWorker::capture_loop, this);
     }
 
     void stop_capture() noexcept
@@ -570,7 +570,7 @@ private:
     bob_camera::msg::CameraInfo camera_info_msg_;
 
     bool run_{false};
-    std::jthread capture_thread_;
+    std::thread capture_thread_;
 
     uint32_t current_video_idx_{0};
 
