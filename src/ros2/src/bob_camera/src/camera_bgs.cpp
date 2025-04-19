@@ -38,7 +38,14 @@ public:
         camera_worker_ptr_ = std::make_unique<CameraWorker>(*this, *camera_params_ptr_, *topic_manager_);
     }
 
-    ~CameraBGS() = default;
+    // Ensure child workers are destroyed when node is shut down
+    ~CameraBGS() override
+    {
+        log_info("CameraBGS destructor");
+        camera_save_worker_ptr_.reset();
+        bgs_worker_ptr_.reset();
+        camera_worker_ptr_.reset();
+    }
 
     void on_configure()
     {

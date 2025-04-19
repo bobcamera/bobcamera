@@ -4,16 +4,32 @@
 # boblib bgs test
 add_executable(boblib_bgs_test "src/demo_bgs.cpp")
 target_include_directories(boblib_bgs_test PUBLIC "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/api/include>")
-target_link_libraries(boblib_bgs_test PUBLIC "${OpenCV_LIBS}" boblib)
+target_link_libraries(boblib_bgs_test PRIVATE "${OpenCV_LIBS}" boblib)
 set_target_properties(boblib_bgs_test PROPERTIES FOLDER "apps")
 install(TARGETS boblib_bgs_test RUNTIME DESTINATION "bin" COMPONENT "apps")
 
 # boblib bgs test
-add_executable(demo_pubsub "src/demo_pubsub.cpp")
-target_include_directories(demo_pubsub PUBLIC "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/api/include>")
-target_link_libraries(demo_pubsub PUBLIC "${OpenCV_LIBS}" boblib)
-set_target_properties(demo_pubsub PROPERTIES FOLDER "apps")
-install(TARGETS demo_pubsub RUNTIME DESTINATION "bin" COMPONENT "apps")
+add_executable(bench_bob_pubsub "src/bench_bob_pubsub.cpp")
+target_include_directories(bench_bob_pubsub PUBLIC "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/api/include>")
+target_link_libraries(bench_bob_pubsub PRIVATE "${OpenCV_LIBS}" boblib)
+set_target_properties(bench_bob_pubsub PROPERTIES FOLDER "apps")
+install(TARGETS bench_bob_pubsub RUNTIME DESTINATION "bin" COMPONENT "apps")
+
+# boblib bgs test
+find_package(rclcpp REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(cv_bridge REQUIRED)
+
+add_executable(bench_ros_pubsub "src/bench_ros_pubsub.cpp")
+target_include_directories(bench_ros_pubsub PUBLIC "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/api/include>")
+target_link_libraries(bench_ros_pubsub PRIVATE boblib "${OpenCV_LIBS}" rclcpp::rclcpp cv_bridge::cv_bridge)
+set_target_properties(bench_ros_pubsub PROPERTIES FOLDER "apps")
+# turn off interprocedural optimization (LTO) for this target
+set_target_properties(bench_ros_pubsub PROPERTIES INTERPROCEDURAL_OPTIMIZATION OFF)
+install(TARGETS bench_ros_pubsub RUNTIME DESTINATION "bin" COMPONENT "apps")
+
+# to get the shared library dependencies
+#ldd bench_ros_pubsub   | awk '/=>/ { print $3 }'
 
 # boblib hikvision test
 # add_executable(boblib_hik_test "src/demo_hik.cpp")

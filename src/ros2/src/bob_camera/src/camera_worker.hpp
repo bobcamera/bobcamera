@@ -4,7 +4,6 @@
 #include <thread>
 
 #include <boblib/api/video/VideoReader.hpp>
-#include <boblib/api/base/SynchronizedQueue.hpp>
 #include <boblib/api/utils/pubsub/TopicManager.hpp>
 
 #include <mask_worker.hpp>
@@ -289,8 +288,6 @@ private:
             }
         }
         node_.log_send_info("CameraWorker: Leaving capture_loop");
-
-        stop_capture();
 
         boblib::base::Utils::reset_cuda();
     }

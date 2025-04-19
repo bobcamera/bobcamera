@@ -67,6 +67,9 @@ public:
 
         image_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.get_image_publish_topic() + "_publish");
         image_pubsub_ptr_->subscribe<CameraSaveWorker, &CameraSaveWorker::record_image>(this);
+
+        bgs_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.get_image_publish_topic() + "_process");
+        bgs_pubsub_ptr_->subscribe<CameraSaveWorker, &CameraSaveWorker::bgs_image_callback>(this);
     }
 
     void recording_event(const bob_interfaces::msg::RecordingEvent &event) noexcept
@@ -81,8 +84,8 @@ public:
         {
             fps_ = last_camera_info_->fps;
             auto total_pre_frames = (size_t)(static_cast<int>(std::ceil(fps_)) * params_.get_recording_seconds_save());
-            //img_recorder_ = std::make_unique<ImageRecorder>(total_pre_frames);
-            //json_recorder_ = std::make_unique<JsonRecorder>(total_pre_frames);
+            img_recorder_ = std::make_unique<ImageRecorder>(total_pre_frames);
+            json_recorder_ = std::make_unique<JsonRecorder>(total_pre_frames);
             video_recorder_ptr_ = std::make_unique<VideoRecorder>(total_pre_frames);
         }
     }
@@ -98,8 +101,26 @@ private:
         json_recorder_->add_to_buffer(json_camera_info, true);
 
         auto json_full_path = last_recording_event_.recording_path + "/json/" + last_recording_event_.filename + ".json";
-        node_.log_send_info("BGSWorker: save_json: Writing JSON to: %s", json_full_path.c_str());
+        node_.log_send_info("CameraSaveWorker: save_json: Writing JSON to: %s", json_full_path.c_str());
         json_recorder_->write_buffer_to_file(json_full_path);
+    }
+
+    void bgs_image_callback(const PublishImage &camera_publish) noexcept
+    {
+        try
+        {
+            accumulate_mask(*camera_publish.imagePtr);
+        }
+        catch (const std::exception &e)
+        {
+            node_.log_send_error("CameraSaveWorker: process_images: Exception: %s", e.what());
+            rcutils_reset_error();
+        }
+        catch (...)
+        {
+            node_.log_send_error("CameraSaveWorker: process_images: Unknown exception");
+            rcutils_reset_error();
+        }
     }
 
     void record_image(const PublishImage &camera_publish) noexcept
@@ -148,12 +169,12 @@ private:
         }
         catch (const std::exception &e)
         {
-            node_.log_send_error("CameraWorker: process_images: Exception: %s", e.what());
+            node_.log_send_error("CameraSaveWorker: process_images: Exception: %s", e.what());
             rcutils_reset_error();
         }
         catch (...)
         {
-            node_.log_send_error("CameraWorker: process_images: Unknown exception");
+            node_.log_send_error("CameraSaveWorker: process_images: Unknown exception");
             rcutils_reset_error();
         }
     }
@@ -231,7 +252,7 @@ private:
                 // Ensure the recording path and filename are valid
                 if (last_recording_event_.recording_path.empty() || last_recording_event_.filename.empty())
                 {
-                    node_.log_send_error("Cannot save heatmap: Invalid recording path or filename");
+                    node_.log_send_error("CameraSaveWorker: Cannot save heatmap: Invalid recording path or filename");
                     return;
                 }
 
@@ -241,7 +262,7 @@ private:
                 // Write the image and reset the recorder
                 if (!img_recorder_->write_image(full_path))
                 {
-                    node_.log_send_error("Failed to write heatmap to: %s", full_path.c_str());
+                    node_.log_send_error("CameraSaveWorker: Failed to write heatmap to: %s", full_path.c_str());
                 }
 
                 img_recorder_->reset();
@@ -249,16 +270,16 @@ private:
         }
         catch (const std::exception &e)
         {
-            node_.log_send_error("Error in create_save_heatmap: %s", e.what());
+            node_.log_send_error("CameraSaveWorker: Error in create_save_heatmap: %s", e.what());
         }
         catch (...)
         {
-            node_.log_send_error("Unknown error in create_save_heatmap");
+            node_.log_send_error("CameraSaveWorker: Unknown error in create_save_heatmap");
         }
     }
 
-    ParameterNode & node_;
-    CameraSaveWorkerParams & params_;
+    ParameterNode &node_;
+    CameraSaveWorkerParams &params_;
     boblib::utils::pubsub::TopicManager &topic_manager_;
 
     bob_camera::msg::CameraInfo::SharedPtr last_camera_info_;
@@ -272,6 +293,7 @@ private:
     float fps_{-1.0f};
 
     std::shared_ptr<boblib::utils::pubsub::PubSub<PublishImage>> image_pubsub_ptr_;
+    std::shared_ptr<boblib::utils::pubsub::PubSub<PublishImage>> bgs_pubsub_ptr_;
 
     bob_interfaces::msg::RecordingEvent last_recording_event_;
     std::unique_ptr<VideoRecorder> video_recorder_ptr_;

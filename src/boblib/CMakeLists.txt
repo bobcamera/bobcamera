@@ -39,7 +39,6 @@ option(USE_FAST_MATH "Enable fast math optimization" OFF)
 option(USE_OPENMP "Enable OpenMP in internal implementations" ON)
 option(USE_CUDA "Enable CUDA support" OFF)
 
-set(BOBLIB_PYTHON_SUPPORT OFF)
 set(BOBLIB_APPS_COMPILE ON)
 
 find_package(OpenCV 4.0 REQUIRED)
@@ -90,59 +89,13 @@ if (USE_LINK_TIME_OPTIM)
     endif ()
 endif ()
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  set(CMAKE_SHARED_LINKER_FLAGS  "${CMAKE_SHARED_LINKER_FLAGS}  -Wl,--as-needed")
+  set(CMAKE_EXE_LINKER_FLAGS     "${CMAKE_EXE_LINKER_FLAGS}     -Wl,--as-needed")
+endif()
+
 add_subdirectory(api)
 if (BOBLIB_APPS_COMPILE)
     add_subdirectory(apps)
 endif ()
 
-if (BOBLIB_PYTHON_SUPPORT)
-    message(STATUS "Building Python bindings lib")
-    if (NOT DEFINED BOBLIB_PYTHON_VERSION)
-        set(BOBLIB_PYTHON_VERSION 3)
-    endif ()
-    set(PYBIND11_LTO_CXX_FLAGS "")
-    set(PYBIND11_PYTHON_VERSION ${BOBLIB_PYTHON_VERSION})
-
-    add_subdirectory(modules/pybind11)
-    message(STATUS "")
-    message(STATUS "Python library status:")
-    message(STATUS "    executable: ${PYTHON_EXECUTABLE}")
-    message(STATUS "    library: ${PYTHON_LIBRARY}")
-    message(STATUS "    include path: ${PYTHON_INCLUDE_DIRS}")
-
-    if (NOT NUMPY_INCLUDE_DIR)
-        exec_program ("${PYTHON_EXECUTABLE}"
-            ARGS "-c \"import numpy; print(numpy.get_include())\""
-            OUTPUT_VARIABLE NUMPY_INCLUDE_DIR
-            RETURN_VALUE NUMPY_NOT_FOUND)
-    endif ()
-    message(STATUS "NUMPY_INCLUDE_DIR: ${NUMPY_INCLUDE_DIR}\n")
-
-    file(GLOB_RECURSE boblib_python_src wrapper/python/*.cpp)
-    file(GLOB_RECURSE boblib_python_inc wrapper/python/*.h)
-  
-    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/modules/pybind11/include)
-    include_directories(${PYTHON_INCLUDE_DIRS})
-    include_directories(${NUMPY_INCLUDE_DIR})
-
-    pybind11_add_module(boblib_python ${boblib_python_src} ${boblib_python_inc})
-    target_link_libraries(boblib_python PRIVATE boblib ${OpenCV_LIBS} ${PYTHON_LIBRARY} pybind11::module)
-    set_target_properties(boblib_python PROPERTIES SUFFIX "${PYTHON_MODULE_EXTENSION}")
-    target_compile_definitions(boblib_python PRIVATE BOBLIB_PYTHON_SUPPORT=1)
-    set_property(TARGET boblib_python PROPERTY OUTPUT_NAME "pyboblib")
-
-    if (UNIX)
-        execute_process(
-            COMMAND "${PYTHON_EXECUTABLE}" -c "if True:
-                from distutils import sysconfig as sc
-                print(sc.get_python_lib(prefix='', plat_specific=True))"
-            OUTPUT_VARIABLE PYTHON_SITE
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-        )
-
-        message(STATUS "")
-        message(STATUS "The boblib library python package will be installed at: ${PYTHON_SITE}\n")
-
-        install(TARGETS boblib_python DESTINATION ${PYTHON_SITE})
-    endif ()
-endif ()
