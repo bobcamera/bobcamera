@@ -14,6 +14,7 @@
 #include "camera_worker.hpp"
 #include "camera_save_worker.hpp"
 #include "background_subtractor_worker.hpp"
+#include "track_provider_worker.hpp"
 
 class CameraBGS : public ParameterNode
 {
@@ -30,11 +31,13 @@ public:
         camera_params_ptr_ = std::make_unique<CameraWorkerParams>();
         camera_save_params_ptr_ = std::make_unique<CameraSaveWorkerParams>();
         bgs_params_ptr_ = std::make_unique<BackgroundSubtractorWorkerParams>();
+        track_provider_worker_params_ptr_ = std::make_unique<TrackProviderWorkerParams>();
 
         topic_manager_ = std::make_unique<boblib::utils::pubsub::TopicManager>(100);
 
         bgs_worker_ptr_ = std::make_unique<BackgroundSubtractorWorker>(*this, *bgs_params_ptr_, *topic_manager_);
         camera_save_worker_ptr_ = std::make_unique<CameraSaveWorker>(*this, *camera_save_params_ptr_, *topic_manager_);
+        track_provider_worker_ptr_ = std::make_unique<TrackProviderWorker>(*this, *track_provider_worker_params_ptr_, *topic_manager_);
         camera_worker_ptr_ = std::make_unique<CameraWorker>(*this, *camera_params_ptr_, *topic_manager_);
     }
 
@@ -42,9 +45,6 @@ public:
     ~CameraBGS() override
     {
         log_info("CameraBGS destructor");
-        camera_save_worker_ptr_.reset();
-        bgs_worker_ptr_.reset();
-        camera_worker_ptr_.reset();
     }
 
     void on_configure()
@@ -57,10 +57,12 @@ public:
 private:
     void init()
     {
+        log_info("CameraBGS init");
         declare_node_parameters();
 
         bgs_worker_ptr_->init();
         camera_save_worker_ptr_->init();
+        track_provider_worker_ptr_->init();
         camera_worker_ptr_->init();
     }
 
@@ -128,6 +130,7 @@ private:
                     {
                         bgs_params_ptr_->set_detection_publish_topic(param.as_string());
                         bgs_params_ptr_->set_detection_publisher(create_publisher<bob_interfaces::msg::DetectorBBoxArray>(bgs_params_ptr_->get_detection_publish_topic(), qos_profile_));
+                        track_provider_worker_params_ptr_->set_bounding_boxes_subscription_topic(param.as_string());
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("bgs_detection_state_topic", "bob/detection/detector_state"),
@@ -161,9 +164,10 @@ private:
                         camera_params_ptr_->set_camera_settings_client(create_client<bob_interfaces::srv::CameraSettings>(param.as_string()));
                     }),
                 ParameterNode::ActionParam(
-                    rclcpp::Parameter("tracking_subscriber_topic", "bob/tracker/tracking"),
+                    rclcpp::Parameter("tracker_publisher_topic", "bob/tracker/tracking"),
                     [this](const rclcpp::Parameter &param)
                     {
+                        track_provider_worker_params_ptr_->set_tracking_publisher_topic(param.as_string());
                         camera_save_params_ptr_->set_tracking_subscriber_topic(param.as_string());
                     }),
                 ParameterNode::ActionParam(
@@ -348,6 +352,7 @@ private:
                     {
                         camera_params_ptr_->set_resize_height(static_cast<int>(param.as_int()));
                         bgs_params_ptr_->set_resize_height(static_cast<int>(param.as_int()));
+                        track_provider_worker_params_ptr_->set_resize_height(static_cast<int>(param.as_int()));
                         if (camera_params_ptr_->get_resize_height() > 0)
                         {
                             camera_params_ptr_->set_image_resized_publisher(create_publisher<sensor_msgs::msg::Image>(camera_params_ptr_->get_image_resized_publish_topic(), qos_profile_));
@@ -420,12 +425,15 @@ private:
 
     rclcpp::QoS qos_profile_; 
 
-    std::unique_ptr<CameraWorkerParams> camera_params_ptr_;
     std::unique_ptr<CameraWorker> camera_worker_ptr_;
-    std::unique_ptr<BackgroundSubtractorWorkerParams> bgs_params_ptr_;
     std::unique_ptr<BackgroundSubtractorWorker> bgs_worker_ptr_;
-    std::unique_ptr<CameraSaveWorkerParams> camera_save_params_ptr_;
     std::unique_ptr<CameraSaveWorker> camera_save_worker_ptr_;
+    std::unique_ptr<TrackProviderWorker> track_provider_worker_ptr_;
+
+    std::unique_ptr<CameraWorkerParams> camera_params_ptr_;
+    std::unique_ptr<BackgroundSubtractorWorkerParams> bgs_params_ptr_;
+    std::unique_ptr<CameraSaveWorkerParams> camera_save_params_ptr_;
+    std::unique_ptr<TrackProviderWorkerParams> track_provider_worker_params_ptr_;
 
     std::unique_ptr<boblib::utils::pubsub::TopicManager> topic_manager_;
 

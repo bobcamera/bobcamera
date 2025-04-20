@@ -56,7 +56,9 @@ rosidl_get_typesupport_target(cpp_typesupport_target ${PROJECT_NAME} "rosidl_typ
 # End package definition
 
 # Camera BGS Node
-add_library(camera_bgs_node SHARED src/camera_bgs.cpp)
+add_library(camera_bgs_node SHARED 
+    src/camera_bgs.cpp
+    src/sort/kalman_filter.cpp src/sort/sort_tracker.cpp src/sort/track.cpp)
 target_compile_definitions(camera_bgs_node PRIVATE "COMPOSITION_BUILDING_DLL")
 target_link_libraries(camera_bgs_node PUBLIC jsoncpp boblib "${cpp_typesupport_target}")
 ament_target_dependencies(camera_bgs_node PUBLIC

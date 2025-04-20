@@ -50,6 +50,8 @@ public:
 
         process_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.get_camera_image_subscriber_topic() + "_process");
         process_pubsub_ptr_->subscribe<BackgroundSubtractorWorker, &BackgroundSubtractorWorker::process_image>(this);
+
+        detector_pubsub_ptr_ = topic_manager_.get_topic<bob_interfaces::msg::DetectorBBoxArray>(params_.get_detection_publish_topic());
     }
 
     void restart_mask()
@@ -214,7 +216,7 @@ public:
             auto bgs_img_ptr = std::make_shared<boblib::base::Image>(using_cuda_);
             bgs_ptr_->apply(gray_img, *bgs_img_ptr, mask);
 
-            process_pubsub_ptr_->publish(std::move(PublishImage(publish_image.headerPtr, std::move(bgs_img_ptr))));
+            process_pubsub_ptr_->publish(PublishImage(publish_image.headerPtr, std::move(bgs_img_ptr)));
         }
         catch (const std::exception &e)
         {
@@ -332,6 +334,8 @@ private:
         // Publish results if there are subscribers
         node_.publish_if_subscriber(params_.get_state_publisher(), state);
         node_.publish_if_subscriber(params_.get_detection_publisher(), bbox2D_array);
+
+        detector_pubsub_ptr_->publish(std::move(bbox2D_array));
     }
 
     inline void add_bboxes(bob_interfaces::msg::DetectorBBoxArray &bbox2D_array, const std::vector<cv::Rect> &bboxes) noexcept
@@ -411,4 +415,5 @@ private:
     boblib::utils::pubsub::TopicManager &topic_manager_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<PublishImage>> camera_pubsub_ptr_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<PublishImage>> process_pubsub_ptr_;
+    std::shared_ptr<boblib::utils::pubsub::PubSub<bob_interfaces::msg::DetectorBBoxArray>> detector_pubsub_ptr_;
 };

@@ -10,7 +10,7 @@ variables:
   use_recording: true
   display_enabled: true
   camera1_enabled: true
-  camera2_enabled: false
+  camera2_enabled: true
 
 #########################################################################
 # Basic configuration for nodes
@@ -75,7 +75,7 @@ advanced_config:
     bgs_mask_file: 'assets/masks/camera1-detection-mask.jpg'
     bgs_mask_override_service_topic: 'bob/mask/detection/override/camera1'
     camera_recording_event_subscriber_topic: 'bob/camera1/recording/event'
-    tracking_subscriber_topic: 'bob/camera1/tracker/tracking'
+    tracker_publisher_topic: 'bob/camera1/tracker/tracking'
 
   camera2_node:
     privacy_mask_file: 'assets/masks/camera2-privacy-mask.jpg'
@@ -90,7 +90,7 @@ advanced_config:
     bgs_mask_file: 'assets/masks/camera2-detection-mask.jpg'
     bgs_mask_override_service_topic: 'bob/mask/detection/override/camera2'
     camera_recording_event_subscriber_topic: 'bob/camera2/recording/event'
-    tracking_subscriber_topic: 'bob/camera2/tracker/tracking'
+    tracker_publisher_topic: 'bob/camera2/tracker/tracking'
 
   base_camera_node:
     resize_height: $resize_height # 0 to disable resize publish
@@ -145,16 +145,6 @@ advanced_config:
                         "blob": {"sizeThreshold": 4, "areaThreshold": 16, "minDistance": 16, "maxBlobs": 25}, 
                         "median_filter": true}}
                   ]'
-
-  camera1_track_provider_node:
-    bounding_boxes_subscription_topic: 'bob/camera1/boundingboxes'
-    tracker_publisher_topic: 'bob/camera1/tracker/tracking'
-    resize_height: $resize_height
-
-  camera2_track_provider_node:
-    bounding_boxes_subscription_topic: 'bob/camera2/boundingboxes'
-    tracker_publisher_topic: 'bob/camera2/tracker/tracking'
-    resize_height: $resize_height
 
   base_camera_recorder_node:
     enabled: $use_recording
@@ -347,10 +337,6 @@ launch:
           plugin: CameraBGS
           name: camera1_node
           remappings: []
-        - package: bob_tracking
-          plugin: TrackProvider
-          name: camera1_track_provider_node
-          remappings: []
         - package: bob_recorder
           plugin: RecordManager
           name: camera1_recorder_node
@@ -380,10 +366,6 @@ launch:
         - package: bob_camera
           plugin: CameraBGS
           name: camera2_node
-          remappings: []
-        - package: bob_tracking
-          plugin: TrackProvider
-          name: camera2_track_provider_node
           remappings: []
         - package: bob_recorder
           plugin: RecordManager
