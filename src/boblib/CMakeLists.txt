@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
 
-list(APPEND CMAKE_MODULE_PATH
-    "${CMAKE_SOURCE_DIR}/cmake/"
-    "${CMAKE_SOURCE_DIR}/cmake/Modules/")
-
 if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
     message(FATAL_ERROR "In-source build not supported; generation should be done in a subdir, e.g.:  ${CMAKE_SOURCE_DIR}/build")
 endif ()
+
+list(APPEND CMAKE_MODULE_PATH
+    "${CMAKE_SOURCE_DIR}/cmake/"
+    "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
 include(FrameworkUtils)
 
@@ -22,6 +22,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}"
 set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib:$ORIGIN/")
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE PATH "Install path prefix (optional)")
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -66,11 +67,11 @@ if (NOT WIN32)
     add_definitions(-Wextra)
     add_definitions(-Wfatal-errors)
     add_definitions(-Wshadow)
-    #add_definitions(-Werror)
-    #add_definitions(-pedantic-errors)
-    #add_definitions(-Wno-missing-braces)
+    add_definitions(-Werror)
+    add_definitions(-pedantic-errors)
+    add_definitions(-Wno-missing-braces)
     if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        # add_definitions(-Ofast)
+        add_definitions(-Ofast)
         find_package(TBB REQUIRED)  # for <execution> stdlib
     endif ()
 endif()

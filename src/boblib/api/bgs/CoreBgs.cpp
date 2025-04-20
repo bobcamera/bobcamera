@@ -9,10 +9,9 @@
 namespace boblib::bgs
 {
     CoreBgs::CoreBgs(bool use_cuda, size_t _numProcessesParallel)
-        // : using_cuda_(use_cuda ? boblib::base::Utils::has_cuda() : false)
-        : using_cuda_(false) // Forcing false for now since it is not done
-        , m_num_processes_parallel{_numProcessesParallel}
-        , m_initialized{false}
+        : using_cuda_(use_cuda && false ? boblib::base::Utils::has_cuda() : false) // Forcing false for now since it is not done
+          ,
+          m_num_processes_parallel{_numProcessesParallel}, m_initialized{false}
     {
         if (_numProcessesParallel == DETECT_NUMBER_OF_THREADS)
         {

@@ -224,11 +224,13 @@ int Image::type() const
 
 void Image::apply_mask(Image & _mask)
 {
+#ifdef HAVE_CUDA
     if (using_cuda_)
     {
         mask_cuda(*_mask.gpu_mat_ptr_);
         return;
     }
+#endif
 
     mask(*_mask.mat_ptr_);
 }
@@ -420,9 +422,9 @@ void Image::mask(cv::Mat & mask)
     cv::bitwise_and(*mat_ptr_, mask, *mat_ptr_);
 }
 
-void Image::mask_cuda(cv::cuda::GpuMat & mask)
-{
 #ifdef HAVE_CUDA
+void Image::mask_cuda(cv::cuda::GpuMat &mask)
+{
     if (gpu_mat_ptr_->size() != mask.size())
     {
         cv::cuda::resize(mask, mask, gpu_mat_ptr_->size());
@@ -434,8 +436,8 @@ void Image::mask_cuda(cv::cuda::GpuMat & mask)
     }
 
     cv::cuda::bitwise_and(*gpu_mat_ptr_, mask, *gpu_mat_ptr_);
-#endif
 }
+#endif
 
 bool Image::get_using_cuda() const
 {

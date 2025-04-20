@@ -91,12 +91,14 @@ namespace boblib::base
 
     private:
         void mask(cv::Mat & mask);
-        void mask_cuda(cv::cuda::GpuMat & mask_);
 
         bool using_cuda_;
         mutable std::unique_ptr<cv::cuda::GpuMat> gpu_mat_ptr_;
         mutable std::unique_ptr<cv::Mat> mat_ptr_;
+
 #ifdef HAVE_CUDA
+        void mask_cuda(cv::cuda::GpuMat &mask_);
+        
         cv::Ptr<cv::cuda::Filter> box_filter_;
 #endif
         int box_filter_size_{-1};
