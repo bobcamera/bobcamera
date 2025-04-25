@@ -48,10 +48,24 @@ int main(int argc, const char **argv)
 {
     // ---- init ROS2 ----
     rclcpp::init(argc, argv);
-    auto ros_node = rclcpp::Node::make_shared("demo_pubsub");
-    auto ros_pub = ros_node->create_publisher<sensor_msgs::msg::Image>("image_raw", 10);
+    // create ROS2 node with intra-process communication enabled for zero-copy transport
+    auto node_opts = rclcpp::NodeOptions().use_intra_process_comms(true);
+    auto ros_node = rclcpp::Node::make_shared("demo_pubsub", node_opts);
+
+    rclcpp::QoS qos_profile(10);
+    qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
+    qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
+    qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
+
+    // configure publisher to enable intra-process communication
+    rclcpp::PublisherOptions pub_opts;
+    pub_opts.use_intra_process_comm = rclcpp::IntraProcessSetting::Enable;
+    auto ros_pub = ros_node->create_publisher<sensor_msgs::msg::Image>("image_raw", qos_profile, pub_opts);
+    // configure subscriber for intra-process communication
+    rclcpp::SubscriptionOptions sub_opts;
+    sub_opts.use_intra_process_comm = rclcpp::IntraProcessSetting::Enable;
     auto ros_sub = ros_node->create_subscription<sensor_msgs::msg::Image>(
-        "image_raw", 10, frameCallback);
+        "image_raw", qos_profile, frameCallback, sub_opts);
     std::thread ros_spin_thread([&]() { rclcpp::spin(ros_node); });
 
     // ----------- 1. open camera & capture X frames --------------
@@ -101,6 +115,7 @@ int main(int argc, const char **argv)
         auto tp = SystemClock::now().time_since_epoch();
         cv_msg->header.stamp.sec = std::chrono::duration_cast<std::chrono::seconds>(tp).count();
         cv_msg->header.stamp.nanosec = std::chrono::duration_cast<std::chrono::nanoseconds>(tp).count() % 1000000000;
+        // publish using shared_ptr to leverage zero-copy intra-process
         ros_pub->publish(*cv_msg);
         ++g_frames_published;
 

@@ -32,10 +32,13 @@ struct FrameMessage
 };
 
 // ---------- global stats -----------------------------------------
-std::atomic<int> g_frames_published{0};
-std::atomic<int> g_frames_processed{0};
-std::atomic<std::int64_t> g_sum_latency_us{0};
-std::atomic<int> g_latency_samples{0};
+static std::atomic<int> g_frames_published{0};
+static std::atomic<int> g_frames_processed{0};
+static std::atomic<std::int64_t> g_sum_latency_us{0};
+static std::atomic<int> g_latency_samples{0};
+static std::atomic<int> g_frames_processed_cb2{0};
+static std::atomic<std::int64_t> g_sum_latency_us_cb2{0};
+static std::atomic<int> g_latency_samples_cb2{0};
 
 void frameCallback(const std::shared_ptr<FrameMessage> &msg, void *)
 {
@@ -47,14 +50,14 @@ void frameCallback(const std::shared_ptr<FrameMessage> &msg, void *)
     ++g_frames_processed;
 }
 
-void frameCallback2(const std::shared_ptr<FrameMessage> &, void *)
+void frameCallback2(const std::shared_ptr<FrameMessage> &msg, void *)
 {
-    // const auto now_us = std::chrono::duration_cast<MicroSecs>(
-    //                         Clock::now().time_since_epoch())
-    //                         .count();
-    // g_sum_latency_us += (now_us - msg.timestamp_us);
-    // ++g_latency_samples;
-    // ++g_frames_processed;
+    const auto now_us = std::chrono::duration_cast<MicroSecs>(
+                        Clock::now().time_since_epoch())
+                        .count();
+    g_sum_latency_us_cb2 += (now_us - msg->timestamp_us);
+    ++g_latency_samples_cb2;
+    ++g_frames_processed_cb2;
 }
 
 int main(int argc, const char **argv)
@@ -128,14 +131,18 @@ int main(int argc, const char **argv)
         {
             double secs = std::chrono::duration<double>(now - last_stats).count();
             int pubs = g_frames_published.exchange(0);
-            int procs = g_frames_processed.exchange(0);
-            int samples = g_latency_samples.exchange(0);
-            double avg_us = samples ? (g_sum_latency_us.exchange(0) / static_cast<double>(samples))
-                                    : 0.0;
+            int procs1 = g_frames_processed.exchange(0);
+            int samples1 = g_latency_samples.exchange(0);
+            double avg_us1 = samples1 ? (g_sum_latency_us.exchange(0) / static_cast<double>(samples1)) : 0.0;
+            int procs2 = g_frames_processed_cb2.exchange(0);
+            int samples2 = g_latency_samples_cb2.exchange(0);
+            double avg_us2 = samples2 ? (g_sum_latency_us_cb2.exchange(0) / static_cast<double>(samples2)) : 0.0;
 
             std::cout << pubs / secs << " pub/s   "
-                      << procs / secs << " proc/s   "
-                      << "avg latency " << avg_us << " µs   "
+                      << procs1 / secs << " cb1 proc/s   "
+                      << procs2 / secs << " cb2 proc/s   "
+                      << "avg lat1 " << avg_us1 << " µs   "
+                      << "avg lat2 " << avg_us2 << " µs   "
                       << "queue " << pubsub.queue_size() << '\n';
 
             last_stats = now;
