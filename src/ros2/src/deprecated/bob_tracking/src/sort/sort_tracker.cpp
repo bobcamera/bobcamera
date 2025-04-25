@@ -9,20 +9,6 @@ SORT::Tracker::Tracker(rclcpp::Logger logger)
 {
 }
 
-// float SORT::Tracker::CalculateIou(const cv::Rect& rect1, const cv::Rect& rect2) 
-// {
-//     int xA = std::max(rect1.x, rect2.x);
-//     int yA = std::max(rect1.y, rect2.y);
-//     int xB = std::min(rect1.x + rect1.width, rect2.x + rect2.width);
-//     int yB = std::min(rect1.y + rect1.height, rect2.y + rect2.height);
-
-//     int interArea = std::max(0, xB - xA) * std::max(0, yB - yA);
-//     int boxAArea = rect1.width * rect1.height;
-//     int boxBArea = rect2.width * rect2.height;
-
-//     return (float)interArea / (boxAArea + boxBArea - interArea);
-// }
-
 float SORT::Tracker::CalculateIou(const cv::Rect & rect1, const cv::Rect & rect2) 
 {
     const int right1 = rect1.x + rect1.width;
@@ -46,28 +32,6 @@ float SORT::Tracker::CalculateIou(const cv::Rect & rect1, const cv::Rect & rect2
     return (float)interArea / (boxAArea + boxBArea - interArea);
 }
 
-// Distance IOU.  Could also try Generalized IOU
-// float SORT::Tracker::CalculateDiou(const cv::Rect& rect1, const cv::Rect& rect2) 
-// {
-//     float iou = CalculateIou(rect1, rect2);
-
-//     // Calculate the center distance
-//     float centerDistance = std::pow((rect1.x + rect1.width / 2.0f) - (rect2.x + rect2.width / 2.0f), 2) +
-//                            std::pow((rect1.y + rect1.height / 2.0f) - (rect2.y + rect2.height / 2.0f), 2);
-
-//     // Calculate the diagonal of the smallest enclosing box
-//     int enclose_x1 = std::min(rect1.x, rect2.x);
-//     int enclose_y1 = std::min(rect1.y, rect2.y);
-//     int enclose_x2 = std::max(rect1.x + rect1.width, rect2.x + rect2.width);
-//     int enclose_y2 = std::max(rect1.y + rect1.height, rect2.y + rect2.height);
-//     float encloseDiagonal = std::pow(enclose_x2 - enclose_x1, 2) + std::pow(enclose_y2 - enclose_y1, 2);
-
-//     // Calculate DIoU
-//     float diou = iou - (centerDistance / encloseDiagonal);
-
-//     return diou;
-// }
-
 float SORT::Tracker::CalculateDiou(const cv::Rect & rect1, const cv::Rect & rect2) 
 {
     const float iou = CalculateIou(rect1, rect2);
@@ -90,36 +54,6 @@ float SORT::Tracker::CalculateDiou(const cv::Rect & rect1, const cv::Rect & rect
     // Calculate DIoU
     return iou - (centerDistance / encloseDiagonal);
 }
-
-// void SORT::Tracker::HungarianMatching(const std::vector<std::vector<float>>& iou_matrix,
-//                                 size_t nrows, size_t ncols,
-//                                 std::vector<std::vector<float>>& association) 
-// {
-//     Matrix<float> matrix(nrows, ncols);
-//     // Initialize matrix with IOU values
-//     for (size_t i = 0 ; i < nrows ; i++) {
-//         for (size_t j = 0 ; j < ncols ; j++) {
-//             // Multiply by -1 to find max cost
-//             if (iou_matrix[i][j] != 0) {
-//                 matrix(i, j) = -iou_matrix[i][j];
-//             }
-//             else {
-//                 // TODO: figure out why we have to assign value to get correct result
-//                 matrix(i, j) = 1.0f;
-//             }
-//         }
-//     }
-
-//     // Apply Kuhn-Munkres algorithm to matrix.
-//     Munkres<float> m;
-//     m.solve(matrix);
-
-//     for (size_t i = 0 ; i < nrows ; i++) {
-//         for (size_t j = 0 ; j < ncols ; j++) {
-//             association[i][j] = matrix(i, j);
-//         }
-//     }
-// }
 
 void SORT::Tracker::HungarianMatching(const std::vector<std::vector<float>>& iou_matrix,
                                       size_t nrows, size_t ncols,

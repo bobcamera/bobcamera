@@ -37,14 +37,24 @@ std::atomic<int> g_frames_processed{0};
 std::atomic<std::int64_t> g_sum_latency_us{0};
 std::atomic<int> g_latency_samples{0};
 
-void frameCallback(const FrameMessage &msg, void *)
+void frameCallback(const std::shared_ptr<FrameMessage> &msg, void *)
 {
     const auto now_us = std::chrono::duration_cast<MicroSecs>(
                             Clock::now().time_since_epoch())
                             .count();
-    g_sum_latency_us += (now_us - msg.timestamp_us);
+    g_sum_latency_us += (now_us - msg->timestamp_us);
     ++g_latency_samples;
     ++g_frames_processed;
+}
+
+void frameCallback2(const std::shared_ptr<FrameMessage> &, void *)
+{
+    // const auto now_us = std::chrono::duration_cast<MicroSecs>(
+    //                         Clock::now().time_since_epoch())
+    //                         .count();
+    // g_sum_latency_us += (now_us - msg.timestamp_us);
+    // ++g_latency_samples;
+    // ++g_frames_processed;
 }
 
 int main(int argc, const char **argv)
@@ -90,6 +100,11 @@ int main(int argc, const char **argv)
         std::cerr << "Failed to subscribe\n";
         return -1;
     }
+    if (!pubsub.subscribe(frameCallback2, nullptr))
+    {
+        std::cerr << "Failed to subscribe\n";
+        return -1;
+    }
 
     // ----------- Run as fast as possible ----------------------
     const auto start_time = Clock::now();
@@ -103,7 +118,7 @@ int main(int argc, const char **argv)
                                Clock::now().time_since_epoch())
                                .count();
 
-        if (pubsub.publish(FrameMessage(std::move(imgPtr), frameCount, ts_us)))
+        if (pubsub.publish(std::move(FrameMessage(std::move(imgPtr), frameCount, ts_us))))
         {
             ++g_frames_published;
         }

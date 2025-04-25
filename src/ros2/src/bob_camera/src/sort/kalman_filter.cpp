@@ -51,9 +51,9 @@ std::tuple<double, double, double> SORT::KalmanFilter::covarianceEllipse(const E
     Eigen::MatrixXd U = svd.matrixU();
     Eigen::VectorXd s = svd.singularValues();
 
-    double orientation = atan2(U(1, 0), U(0, 0));
-    double width = deviations * sqrt(s(0));
-    double height = deviations * sqrt(s(1));
+    const double orientation = atan2(U(1, 0), U(0, 0));
+    const double width = deviations * sqrt(s(0));
+    const double height = deviations * sqrt(s(1));
 
     return {width, height, orientation};
 }
@@ -63,16 +63,6 @@ void SORT::KalmanFilter::Predict()
     Coast();
     x_ = x_predict_;
     P_ = P_predict_;
-
-    // double deviations = 1.0;
-    // auto newEllipse = covarianceEllipse(P_predict_, deviations);
-
-    // // Apply smoothing to the ellipse parameters
-    // constexpr double smoothingFactor = 0.95;  // Adjust this value based on your requirements
-
-    // std::get<0>(ellipse_) = smoothingFactor * std::get<0>(ellipse_) + (1.0 - smoothingFactor) * std::get<0>(newEllipse);
-    // std::get<1>(ellipse_) = smoothingFactor * std::get<1>(ellipse_) + (1.0 - smoothingFactor) * std::get<1>(newEllipse);
-    // std::get<2>(ellipse_) = smoothingFactor * std::get<2>(ellipse_) + (1.0 - smoothingFactor) * std::get<2>(newEllipse);
 }
 
 Eigen::VectorXd SORT::KalmanFilter::PredictionToObservation(const Eigen::VectorXd &state) 
@@ -82,11 +72,12 @@ Eigen::VectorXd SORT::KalmanFilter::PredictionToObservation(const Eigen::VectorX
 
 void SORT::KalmanFilter::Update(const Eigen::VectorXd & z) 
 {
-    Eigen::VectorXd z_predict = PredictionToObservation(x_predict_); // Predicted observation based on prior state
-    Eigen::VectorXd y = z - z_predict; // Innovation: Difference between observed and predicted measurements
-    Eigen::MatrixXd Ht = H_.transpose(); // Transposed observation matrix
-    Eigen::MatrixXd S = H_ * P_predict_ * Ht + R_; // Innovation covariance
-    NIS_ = y.transpose() * S.inverse() * y; // Normalized Innovation Squared: Measures consistency of filter
+    const Eigen::VectorXd z_predict = PredictionToObservation(x_predict_); // Predicted observation based on prior state
+    const Eigen::VectorXd y = z - z_predict;                         // Innovation: Difference between observed and predicted measurements
+    const Eigen::MatrixXd Ht = H_.transpose();           // Transposed observation matrix
+    const Eigen::MatrixXd S = H_ * P_predict_ * Ht + R_; // Innovation covariance
+    const Eigen::MatrixXd S_inv = S.inverse();     // Calculate inverse once
+    NIS_ = y.transpose() * S_inv * y;              // Normalized Innovation Squared: Measures consistency of filter
 
     // Basic adaptive filtering
     if (NIS_ > eps_max_)
@@ -100,37 +91,15 @@ void SORT::KalmanFilter::Update(const Eigen::VectorXd & z)
         count_ -= 1;
     }
 
-    /* 
-    P_predict provides confidence in prediction. Smaller values mean higher confidence.
-    Discrepancies between actual error (y) and P_predict may point to inaccuracies in filter's model or noise settings.
-    */
-    /*
-    std::cout << "\nP_predict (Predicted Error Covariance):\n" << P_predict_ << std::endl;
-    std::cout << "\nZ (Actual Observation):\n" << z << std::endl;
-    std::cout << "\nZ_pred (Predicted Observation):\n" << z_predict << std::endl;
-    std::cout << "\ny (Innovation):\n" << y << std::endl;
-    std::cout << "\nS (Innovation Covariance):\n" << S << std::endl;
-    std::cout << "\nNIS (Normalized Innovation Squared): " << NIS_ << std::endl;
-    std::cout << "=================================\n" << std::endl << std::endl;
-    */
-
     // Compute Kalman gain
-    Eigen::MatrixXd K = P_predict_ * Ht * S.inverse();
+    Eigen::MatrixXd K = P_predict_ * Ht * S_inv;
 
     // Update state estimation based on Kalman gain and innovation
     x_ = x_predict_ + K * y;
 
     Eigen::MatrixXd I = Eigen::MatrixXd::Identity(num_states_, num_states_);
-    // Joseph form
-    // P_ = (I - K * H_) * P_predict_ * (I - K * H_).transpose() + K * R_ * K.transpose();
-    // Update error covariance using Joseph form (commented) or Optimal gain
+    // Update error covariance using Optimal gain
     P_ = (I - K * H_) * P_predict_;
-
-    // Calculate the log-likelihood of the measurement
-    // float log_likelihood = CalculateLogLikelihood(y, S);
-
-    // Output or store the log-likelihood value for further analysis or adaptive filtering
-    // std::cout << "Log-Likelihood: " << log_likelihood << std::endl;
 }
 
 // Quantifies how probable a given measurement (or observation) is, given the predicted state and the associated uncertainties

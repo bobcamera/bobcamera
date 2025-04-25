@@ -57,6 +57,10 @@ public:
         sub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
         sub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
 
+        recording_event_subscriber_ = node_.create_subscription<bob_interfaces::msg::RecordingEvent>(params_.get_recording_event_subscriber_topic(), sub_qos_profile,
+                                                                                     [this](const bob_interfaces::msg::RecordingEvent::SharedPtr event)
+                                                                                     { recording_event(*event); });
+
         tracking_subscription_ = node_.create_subscription<bob_interfaces::msg::Tracking>(params_.get_tracking_subscriber_topic(), sub_qos_profile,
                                                                                           [this](const bob_interfaces::msg::Tracking::SharedPtr tracking_msg)
                                                                                           { tracking_callback(tracking_msg); });
@@ -105,11 +109,11 @@ private:
         json_recorder_->write_buffer_to_file(json_full_path);
     }
 
-    void bgs_image_callback(const PublishImage &camera_publish) noexcept
+    void bgs_image_callback(const std::shared_ptr<PublishImage> &camera_publish) noexcept
     {
         try
         {
-            accumulate_mask(*camera_publish.imagePtr);
+            accumulate_mask(*camera_publish->imagePtr);
         }
         catch (const std::exception &e)
         {
@@ -123,7 +127,7 @@ private:
         }
     }
 
-    void record_image(const PublishImage &camera_publish) noexcept
+    void record_image(const std::shared_ptr<PublishImage> &camera_publish) noexcept
     {
         try
         {
@@ -131,7 +135,7 @@ private:
             {
                 return;
             }
-            auto &camera_img = *camera_publish.imagePtr;
+            auto &camera_img = *camera_publish->imagePtr;
 
             create_save_heatmap(camera_img);
 
@@ -154,7 +158,7 @@ private:
 
                 if (video_recorder_ptr_->is_recording())
                 {
-                    video_recorder_ptr_->write_frame(std::move(camera_img));
+                    video_recorder_ptr_->write_frame(camera_img);
                 }
             }
             else
@@ -164,7 +168,7 @@ private:
                     node_.log_info("Closing video");
                     video_recorder_ptr_->close_video();
                 }
-                video_recorder_ptr_->add_to_pre_buffer(std::move(camera_img));
+                video_recorder_ptr_->add_to_pre_buffer(camera_img);
             }
         }
         catch (const std::exception &e)
@@ -284,6 +288,7 @@ private:
 
     bob_camera::msg::CameraInfo::SharedPtr last_camera_info_;
 
+    rclcpp::Subscription<bob_interfaces::msg::RecordingEvent>::SharedPtr recording_event_subscriber_;
     rclcpp::Subscription<bob_interfaces::msg::Tracking>::SharedPtr tracking_subscription_;
     rclcpp::Subscription<bob_camera::msg::CameraInfo>::SharedPtr camera_info_subscription_;
     std::unique_ptr<ImageRecorder> img_recorder_;

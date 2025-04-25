@@ -1,74 +1,36 @@
 #include "include/sort_tracker.h"
+#include <ranges>
 
 SORT::Tracker::Tracker(rclcpp::Logger logger)
-    : logger_(logger)
-    , total_trackers_started_(0)
-    , total_trackers_finished_(0)
-    , max_coast_cycles_(50)
-    , tracker_max_active_trackers_(100)
+    : logger_(logger), total_trackers_started_(0), total_trackers_finished_(0), max_coast_cycles_(50), tracker_max_active_trackers_(100)
 {
 }
 
-// float SORT::Tracker::CalculateIou(const cv::Rect& rect1, const cv::Rect& rect2) 
-// {
-//     int xA = std::max(rect1.x, rect2.x);
-//     int yA = std::max(rect1.y, rect2.y);
-//     int xB = std::min(rect1.x + rect1.width, rect2.x + rect2.width);
-//     int yB = std::min(rect1.y + rect1.height, rect2.y + rect2.height);
-
-//     int interArea = std::max(0, xB - xA) * std::max(0, yB - yA);
-//     int boxAArea = rect1.width * rect1.height;
-//     int boxBArea = rect2.width * rect2.height;
-
-//     return (float)interArea / (boxAArea + boxBArea - interArea);
-// }
-
-float SORT::Tracker::CalculateIou(const cv::Rect & rect1, const cv::Rect & rect2) 
+[[nodiscard]] constexpr float SORT::Tracker::CalculateIou(const cv::Rect &rect1, const cv::Rect &rect2)
 {
     const int right1 = rect1.x + rect1.width;
     const int right2 = rect2.x + rect2.width;
     const int bottom1 = rect1.y + rect1.height;
     const int bottom2 = rect2.y + rect2.height;
 
-    const int xA = rect1.x > rect2.x ? rect1.x : rect2.x;
-    const int yA = rect1.y > rect2.y ? rect1.y : rect2.y;
-    const int xB = right1 < right2 ? right1 : right2;
-    const int yB = bottom1 < bottom2 ? bottom1 : bottom2;
+    const int xA = std::max(rect1.x, rect2.x);
+    const int yA = std::max(rect1.y, rect2.y);
+    const int xB = std::min(right1, right2);
+    const int yB = std::min(bottom1, bottom2);
 
     const int interWidth = xB - xA;
     const int interHeight = yB - yA;
-    if (interWidth < 0 || interHeight < 0) return 0.0f; // No overlap
+    if (interWidth < 0 || interHeight < 0)
+        return 0.0f; // No overlap
 
     const int interArea = interWidth * interHeight;
     const int boxAArea = rect1.width * rect1.height;
     const int boxBArea = rect2.width * rect2.height;
 
-    return (float)interArea / (boxAArea + boxBArea - interArea);
+    return static_cast<float>(interArea) / (boxAArea + boxBArea - interArea);
 }
 
-// Distance IOU.  Could also try Generalized IOU
-// float SORT::Tracker::CalculateDiou(const cv::Rect& rect1, const cv::Rect& rect2) 
-// {
-//     float iou = CalculateIou(rect1, rect2);
-
-//     // Calculate the center distance
-//     float centerDistance = std::pow((rect1.x + rect1.width / 2.0f) - (rect2.x + rect2.width / 2.0f), 2) +
-//                            std::pow((rect1.y + rect1.height / 2.0f) - (rect2.y + rect2.height / 2.0f), 2);
-
-//     // Calculate the diagonal of the smallest enclosing box
-//     int enclose_x1 = std::min(rect1.x, rect2.x);
-//     int enclose_y1 = std::min(rect1.y, rect2.y);
-//     int enclose_x2 = std::max(rect1.x + rect1.width, rect2.x + rect2.width);
-//     int enclose_y2 = std::max(rect1.y + rect1.height, rect2.y + rect2.height);
-//     float encloseDiagonal = std::pow(enclose_x2 - enclose_x1, 2) + std::pow(enclose_y2 - enclose_y1, 2);
-
-//     // Calculate DIoU
-//     float diou = iou - (centerDistance / encloseDiagonal);
-
-//     return diou;
-// }
-
-float SORT::Tracker::CalculateDiou(const cv::Rect & rect1, const cv::Rect & rect2) 
+[[nodiscard]] float SORT::Tracker::CalculateDiou(const cv::Rect &rect1, const cv::Rect &rect2)
 {
     const float iou = CalculateIou(rect1, rect2);
 
@@ -84,51 +46,23 @@ float SORT::Tracker::CalculateDiou(const cv::Rect & rect1, const cv::Rect & rect
     const int enclose_y1 = std::min(rect1.y, rect2.y);
     const int enclose_x2 = std::max(rect1.x + rect1.width, rect2.x + rect2.width);
     const int enclose_y2 = std::max(rect1.y + rect1.height, rect2.y + rect2.height);
-    float encloseDiagonal = (enclose_x2 - enclose_x1) * (enclose_x2 - enclose_x1) + 
+    float encloseDiagonal = (enclose_x2 - enclose_x1) * (enclose_x2 - enclose_x1) +
                             (enclose_y2 - enclose_y1) * (enclose_y2 - enclose_y1);
 
     // Calculate DIoU
     return iou - (centerDistance / encloseDiagonal);
 }
 
-// void SORT::Tracker::HungarianMatching(const std::vector<std::vector<float>>& iou_matrix,
-//                                 size_t nrows, size_t ncols,
-//                                 std::vector<std::vector<float>>& association) 
-// {
-//     Matrix<float> matrix(nrows, ncols);
-//     // Initialize matrix with IOU values
-//     for (size_t i = 0 ; i < nrows ; i++) {
-//         for (size_t j = 0 ; j < ncols ; j++) {
-//             // Multiply by -1 to find max cost
-//             if (iou_matrix[i][j] != 0) {
-//                 matrix(i, j) = -iou_matrix[i][j];
-//             }
-//             else {
-//                 // TODO: figure out why we have to assign value to get correct result
-//                 matrix(i, j) = 1.0f;
-//             }
-//         }
-//     }
-
-//     // Apply Kuhn-Munkres algorithm to matrix.
-//     Munkres<float> m;
-//     m.solve(matrix);
-
-//     for (size_t i = 0 ; i < nrows ; i++) {
-//         for (size_t j = 0 ; j < ncols ; j++) {
-//             association[i][j] = matrix(i, j);
-//         }
-//     }
-// }
-
-void SORT::Tracker::HungarianMatching(const std::vector<std::vector<float>>& iou_matrix,
+void SORT::Tracker::HungarianMatching(const std::vector<std::vector<float>> &iou_matrix,
                                       size_t nrows, size_t ncols,
-                                      std::vector<std::vector<float>>& association) 
+                                      std::vector<std::vector<float>> &association)
 {
     Matrix<float> matrix(nrows, ncols);
     // Initialize matrix with IOU values
-    for (size_t i = 0; i < nrows; ++i) {
-        for (size_t j = 0; j < ncols; ++j) {
+    for (size_t i = 0; i < nrows; ++i)
+    {
+        for (size_t j = 0; j < ncols; ++j)
+        {
             // Inverting IOU value directly, using ternary operator to handle zeros
             matrix(i, j) = iou_matrix[i][j] != 0 ? -iou_matrix[i][j] : 1.0f;
         }
@@ -139,25 +73,28 @@ void SORT::Tracker::HungarianMatching(const std::vector<std::vector<float>>& iou
     m.solve(matrix);
 
     // Resize the association matrix only if necessary
-    if (association.size() != nrows || (nrows > 0 && association[0].size() != ncols)) {
+    if (association.size() != nrows || (nrows > 0 && association[0].size() != ncols))
+    {
         association.resize(nrows, std::vector<float>(ncols));
     }
 
-    for (size_t i = 0 ; i < nrows ; ++i) {
-        for (size_t j = 0 ; j < ncols ; ++j) {
+    for (size_t i = 0; i < nrows; ++i)
+    {
+        for (size_t j = 0; j < ncols; ++j)
+        {
             association[i][j] = matrix(i, j);
         }
     }
 }
 
-void SORT::Tracker::AssociateDetectionsToTrackers(const std::vector<cv::Rect>& detection,
-                                            const std::map<int, Track>& tracks,
-                                            std::map<int, cv::Rect>& matched,
-                                            std::vector<cv::Rect>& unmatched_det,
-                                            float iou_threshold) 
+void SORT::Tracker::AssociateDetectionsToTrackers(const std::vector<cv::Rect> &detection,
+                                                  const std::map<int, Track> &tracks,
+                                                  std::map<int, cv::Rect> &matched,
+                                                  std::vector<cv::Rect> &unmatched_det,
+                                                  float iou_threshold)
 {
     // Set all detection as unmatched if no tracks existing
-    if (tracks.empty()) 
+    if (tracks.empty())
     {
         unmatched_det.reserve(detection.size());
         unmatched_det.insert(unmatched_det.end(), detection.begin(), detection.end());
@@ -169,10 +106,10 @@ void SORT::Tracker::AssociateDetectionsToTrackers(const std::vector<cv::Rect>& d
     std::vector<std::vector<float>> association(detection.size(), std::vector<float>(tracks.size()));
 
     // row - detection, column - tracks
-    for (size_t i = 0; i < detection.size(); ++i) 
+    for (size_t i = 0; i < detection.size(); ++i)
     {
         size_t j = 0;
-        for (const auto& trk : tracks) 
+        for (const auto &trk : tracks)
         {
             iou_matrix[i][j] = CalculateDiou(detection[i], trk.second.get_bbox());
             ++j;
@@ -182,16 +119,16 @@ void SORT::Tracker::AssociateDetectionsToTrackers(const std::vector<cv::Rect>& d
     // Find association
     HungarianMatching(iou_matrix, detection.size(), tracks.size(), association);
 
-    for (size_t i = 0; i < detection.size(); ++i) 
+    for (size_t i = 0; i < detection.size(); ++i)
     {
         bool matched_flag = false;
         size_t j = 0;
-        for (const auto& trk : tracks) 
+        for (const auto &trk : tracks)
         {
-            if (association[i][j] == 0) 
+            if (association[i][j] == 0)
             {
                 // Filter out matched with low IOU
-                if (iou_matrix[i][j] >= iou_threshold) 
+                if (iou_matrix[i][j] >= iou_threshold)
                 {
                     matched[trk.first] = detection[i];
                     matched_flag = true;
@@ -202,27 +139,21 @@ void SORT::Tracker::AssociateDetectionsToTrackers(const std::vector<cv::Rect>& d
             ++j;
         }
         // if detection cannot match with any tracks
-        if (!matched_flag) 
+        if (!matched_flag)
         {
             unmatched_det.push_back(detection[i]);
         }
     }
 }
 
-void SORT::Tracker::update_trackers(const std::vector<cv::Rect> & detections)
+void SORT::Tracker::update_trackers(const std::vector<cv::Rect> &detections)
 {
     /*** Predict internal tracks from previous frame ***/
-    std::vector<std::thread> predict_threads;
-    for (auto &track : tracks_) 
+    std::vector<std::jthread> predict_threads;
+    for (auto &track : tracks_)
     {
-        predict_threads.emplace_back([&track]() 
-        { 
-            track.second.predict(); 
-        });
-    }
-    for (auto &t : predict_threads) 
-    {
-        t.join();
+        predict_threads.emplace_back([&track]()
+                                     { track.second.predict(); });
     }
 
     // Hash-map between track ID and associated detection bounding box
@@ -230,34 +161,28 @@ void SORT::Tracker::update_trackers(const std::vector<cv::Rect> & detections)
 
     // vector of unassociated detections
     std::vector<cv::Rect> unmatched_det;
-    if (!detections.empty()) 
+    if (!detections.empty())
     {
         AssociateDetectionsToTrackers(detections, tracks_, matched, unmatched_det);
     }
 
     // Update phase with threading
-    std::vector<std::thread> update_threads;
-    for (const auto &match : matched) 
+    std::vector<std::jthread> update_threads;
+    for (const auto &match : matched)
     {
         const auto &ID = match.first;
-        update_threads.emplace_back([this, &ID, &match]() 
-        { 
-            tracks_[ID].update(match.second); 
-        });
-    }
-    for (auto &t : update_threads) 
-    {
-        t.join();
+        update_threads.emplace_back([this, &ID, &match]()
+                                    { tracks_[ID].update(match.second); });
     }
 
     /*** Create new tracks for unmatched detections ***/
-    for (const auto &det : unmatched_det) 
+    for (const auto &det : unmatched_det)
     {
-        if (tracks_.size() < tracker_max_active_trackers_) 
+        if (tracks_.size() < tracker_max_active_trackers_)
         {
             Track tracker(logger_);
             tracker.init(det);
-            total_trackers_started_++; 
+            total_trackers_started_++;
             tracker.set_id(total_trackers_started_);
             tracks_[total_trackers_started_] = tracker;
         }
@@ -269,38 +194,40 @@ void SORT::Tracker::update_trackers(const std::vector<cv::Rect> & detections)
     }
 
     /*** Delete lose tracked tracks ***/
-    for (auto it = tracks_.begin(); it != tracks_.end();) 
+    for (auto it = tracks_.begin(); it != tracks_.end();)
     {
-        if (it->second.get_coast_cycles() > max_coast_cycles_) 
+        if (it->second.get_coast_cycles() > max_coast_cycles_)
         {
             it = tracks_.erase(it);
-            total_trackers_finished_++; 
-        } 
-        else 
+            total_trackers_finished_++;
+        }
+        else
         {
             ++it;
         }
     }
 }
 
-const std::vector<Track> SORT::Tracker::get_active_trackers() const 
+const std::vector<Track> SORT::Tracker::get_active_trackers() const
 {
     std::vector<Track> activeTracks;
-    for (const auto &pair : tracks_) 
-    {
-        if (pair.second.is_active()) 
-        {  
-            activeTracks.push_back(pair.second);
+    activeTracks.reserve(tracks_.size()); // Pre-allocate for better performance
+
+    for (const auto &[id, track] : tracks_)
+    { // C++17 structured binding
+        if (track.is_active())
+        {
+            activeTracks.push_back(track);
         }
     }
     return activeTracks;
 }
 
-const std::vector<Track> SORT::Tracker::get_live_trackers() const
+[[nodiscard]] const std::vector<Track> SORT::Tracker::get_live_trackers() const
 {
     std::vector<Track> live_trackers;
-    
-    for (const auto& pair : tracks_) 
+
+    for (const auto &pair : tracks_)
     {
         live_trackers.push_back(pair.second);
     }
@@ -308,28 +235,28 @@ const std::vector<Track> SORT::Tracker::get_live_trackers() const
     return live_trackers;
 }
 
-std::map<int, Track> SORT::Tracker::GetTracks() const 
+[[nodiscard]] std::map<int, Track> SORT::Tracker::GetTracks() const
 {
     return tracks_;
 }
 
-size_t SORT::Tracker::get_total_trackable_trackers() const
+[[nodiscard]] size_t SORT::Tracker::get_total_trackable_trackers() const
 {
-    return std::count_if(tracks_.begin(), tracks_.end(), [](const std::pair<int, Track> &pair)
-                  { return pair.second.is_tracking(); });
+    return std::ranges::count_if(tracks_, [](const auto &pair)
+                                 { return pair.second.is_tracking(); });
 }
 
-size_t SORT::Tracker::get_total_live_trackers() const
+[[nodiscard]] size_t SORT::Tracker::get_total_live_trackers() const
 {
     return get_active_trackers().size();
 }
 
-int SORT::Tracker::get_total_trackers_started() const
+[[nodiscard]] int SORT::Tracker::get_total_trackers_started() const
 {
     return total_trackers_started_;
 }
 
-int SORT::Tracker::get_total_trackers_finished() const
+[[nodiscard]] int SORT::Tracker::get_total_trackers_finished() const
 {
     return total_trackers_finished_;
 }

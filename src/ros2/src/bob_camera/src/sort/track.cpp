@@ -1,24 +1,26 @@
 #include "include/track.h"
 
-Track::Track() 
+Track::Track()
     : kf_(8, 4),
-    tracking_state_(ProvisionaryTarget),
-    track_stationary_threshold_(50),
-    stationary_track_counter_(0),
-    coast_cycles_(0),
-    hit_streak_(0),
-    min_hits_(2),
-    logger_(rclcpp::get_logger("track_logger"))  
+      tracking_state_(ProvisionaryTarget),
+      track_stationary_threshold_(50),
+      stationary_track_counter_(0),
+      coast_cycles_(0),
+      hit_streak_(0),
+      id_(0),
+      min_hits_(2),
+      logger_(rclcpp::get_logger("track_logger"))
 {
 }
 
-Track::Track(rclcpp::Logger logger) 
+Track::Track(rclcpp::Logger logger)
     : kf_(8, 4),
       tracking_state_(ProvisionaryTarget),
       track_stationary_threshold_(25),
       stationary_track_counter_(0),
       coast_cycles_(0),
       hit_streak_(0),
+      id_(0),
       min_hits_(2),
       logger_(logger)
 {
@@ -181,35 +183,19 @@ Eigen::VectorXd Track::convert_bbox_to_observation(const cv::Rect & bbox) const
  * @param state
  * @return
  */
-cv::Rect Track::convert_state_to_bbox(const Eigen::VectorXd &state) const 
+[[nodiscard]] cv::Rect Track::convert_state_to_bbox(const Eigen::VectorXd &state)
 {
     // state - center_x, center_y, width, height, v_cx, v_cy, v_width, v_height
-    auto width = std::max(0, static_cast<int>(state[2]));
-    auto height = std::max(0, static_cast<int>(state[3]));
-    auto tl_x = static_cast<int>(state[0] - width / 2.0);
-    auto tl_y = static_cast<int>(state[1] - height / 2.0);
-    cv::Rect rect(cv::Point(tl_x, tl_y), cv::Size(width, height));
-    return rect;
-}
-
-bool Track::is_active() const 
-{
-    return tracking_state_ == ActiveTarget;
-}
-
-TrackingStateEnum Track::get_tracking_state() const 
-{
-    return tracking_state_;
+    const auto width = std::max(0, static_cast<int>(state[2]));
+    const auto height = std::max(0, static_cast<int>(state[3]));
+    const auto tl_x = static_cast<int>(state[0] - width * 0.5);
+    const auto tl_y = static_cast<int>(state[1] - height * 0.5);
+    return {cv::Point(tl_x, tl_y), cv::Size(width, height)};
 }
 
 bool Track::is_tracking() const
 {
     return tracking_state_ == TrackingStateEnum::ActiveTarget;
-}
-
-int Track::get_id() const
-{
-    return id_;
 }
 
 void Track::set_id(int x) 

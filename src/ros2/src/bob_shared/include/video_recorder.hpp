@@ -43,13 +43,13 @@ public:
         pre_buffer_mat_.push_back(std::move(img));
     }
 
-    void add_to_pre_buffer(const boblib::base::Image && img) noexcept
+    void add_to_pre_buffer(const boblib::base::Image & img) noexcept
     {
         if (pre_buffer_image_.size() >= max_pre_buffer_size_)
         {
             pre_buffer_image_.pop_front();
         }
-        pre_buffer_image_.push_back(std::move(img));
+        pre_buffer_image_.push_back(img);
     }
 
     [[nodiscard]] bool open_new_video(const std::string &full_path,

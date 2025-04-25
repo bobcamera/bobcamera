@@ -48,20 +48,20 @@ public:
     }
 
 private:
-    void callback(const bob_interfaces::msg::DetectorBBoxArray &bounding_boxes_msg) noexcept
+    void callback(const std::shared_ptr<bob_interfaces::msg::DetectorBBoxArray> &bounding_boxes_msg) noexcept
     {
         try
         {
             std::vector<cv::Rect> bboxes;
-            bboxes.reserve(bounding_boxes_msg.detections.size());
-            for (const auto &bbox2D : bounding_boxes_msg.detections)
+            bboxes.reserve(bounding_boxes_msg->detections.size());
+            for (const auto &bbox2D : bounding_boxes_msg->detections)
             {
                 bboxes.emplace_back(bbox2D.x, bbox2D.y, bbox2D.width, bbox2D.height);
             }
 
             video_tracker_.update_trackers(bboxes);
 
-            publish_tracking(bounding_boxes_msg.header, bounding_boxes_msg.image_height);
+            publish_tracking(bounding_boxes_msg->header, bounding_boxes_msg->image_height);
         }
         catch (const std::exception &cve)
         {

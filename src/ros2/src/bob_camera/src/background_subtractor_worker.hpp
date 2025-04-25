@@ -181,16 +181,15 @@ public:
         cv_ready_.notify_all();
     }
 
-    void camera_image_callback(const PublishImage &publish_image) noexcept
+    void camera_image_callback(const std::shared_ptr<PublishImage> &publish_image) noexcept
     {
-        std::unique_lock lock(mutex_);
-        cv_ready_.wait(lock, [this]
-                       { return ready_; });
-
-        processing_ = true;
-
         try
         {
+            if (camera_pubsub_ptr_->queue_size() > 1)
+            {
+                node_.log_info("Publish Queue size: %d", camera_pubsub_ptr_->queue_size() - 1);
+            }
+
             if (!bgs_ptr_)
             {
                 node_.log_send_error("BGSWorker: process_image: bgs_ptr_ is not initialized");
@@ -200,7 +199,7 @@ public:
             }
 
             boblib::base::Image gray_img(using_cuda_);
-            publish_image.imagePtr->convertTo(gray_img, cv::COLOR_BGR2GRAY);
+            publish_image->imagePtr->convertColorTo(gray_img, cv::COLOR_BGR2GRAY);
 
             // Resize detection mask if needed
             if (mask_enabled_ && params_.get_mask_enable_override() &&
@@ -213,10 +212,19 @@ public:
             const auto &mask = (mask_enabled_ && params_.get_mask_enable_override())
                                    ? *detection_mask_ptr_
                                    : *blank_mask_ptr_;
-            auto bgs_img_ptr = std::make_shared<boblib::base::Image>(using_cuda_);
-            bgs_ptr_->apply(gray_img, *bgs_img_ptr, mask);
 
-            process_pubsub_ptr_->publish(PublishImage(publish_image.headerPtr, std::move(bgs_img_ptr)));
+            auto bgs_img_ptr = std::make_shared<boblib::base::Image>(using_cuda_);
+
+            std::unique_lock lock(mutex_);
+            cv_ready_.wait(lock, [this]
+                           { return ready_; });
+            processing_ = true;
+            bgs_ptr_->apply(gray_img, *bgs_img_ptr, mask);
+            //gray_img.copyTo(*bgs_img_ptr);
+            processing_ = false;
+            cv_processing_.notify_all();
+
+            process_pubsub_ptr_->publish(PublishImage(publish_image->headerPtr, std::move(bgs_img_ptr)));
         }
         catch (const std::exception &e)
         {
@@ -228,21 +236,22 @@ public:
             node_.log_send_error("bgs_worker: image_callback: Unknown Exception");
             rcutils_reset_error();
         }
-
-        processing_ = false;
-        cv_processing_.notify_all();
     }
 
 private:
-    void process_image(const PublishImage &publish_image) noexcept
+    void process_image(const std::shared_ptr<PublishImage> &publish_image) noexcept
     {
         try
         {
-            auto &header = *publish_image.headerPtr;
-            auto &bgs_img = *publish_image.imagePtr;
+            if (process_pubsub_ptr_->queue_size() > 1)
+            {
+                node_.log_info("Process Queue size: %d", process_pubsub_ptr_->queue_size() - 1);
+            }
+
+            auto &header = *publish_image->headerPtr;
+            auto &bgs_img = *publish_image->imagePtr;
 
             // Process the results
-            //accumulate_mask(bgs_img);
             do_detection(header, bgs_img);
             publish_frame(header, bgs_img);
             publish_resized_frame(header, bgs_img);

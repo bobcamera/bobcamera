@@ -1,23 +1,19 @@
 #pragma once
 
 #include <atomic>
-#include <functional>
 #include <memory>
 #include <thread>
+#include <stop_token>
 #include <optional>
 #include <type_traits>
 #include <concepts>
 #include <array>
 #include <cstddef>
-#include <algorithm>
-#include <iostream>
-#include <stop_token>
 #include <immintrin.h> // for _mm_pause
 
 namespace boblib::utils::pubsub
 {
     // ------------------------------------------------------------------ helpers
-    // Helper template to wrap a member method into a C-style callback without manual casting
     template <typename T, typename Msg, void (T::*Method)(const Msg &) noexcept>
     struct MemberCallback
     {
@@ -41,10 +37,13 @@ namespace boblib::utils::pubsub
     }
 
     // ------------------------------------------------------------------ PubSub
-    template <typename T, std::size_t MaxSubscribers = 5>
-        requires CopyableOrMovable<T>
+    template <typename M, std::size_t MaxSubscribers = 5>
+        requires CopyableOrMovable<M>
     class PubSub
     {
+        // internally we always queue/copy shared_ptr<M>
+        using T = std::shared_ptr<M>;
+
         static_assert(std::is_nothrow_destructible_v<T>, "T must be noexcept‑destructible");
 
     private:
@@ -72,85 +71,124 @@ namespace boblib::utils::pubsub
                   buffer(std::make_unique<Slot[]>(capacity)),
                   mask(capacity - 1)
             {
-                // initialise sequence numbers
                 for (std::size_t i = 0; i < capacity; ++i)
                     buffer[i].seq.store(i, std::memory_order_relaxed);
             }
 
-            // publish ------------------------------------------------------
             bool push(T &&item) noexcept
             {
-                const std::size_t head_idx = head.v.load(std::memory_order_relaxed);
+                const auto head_idx = head.v.load(std::memory_order_relaxed);
                 Slot &s = buffer[head_idx & mask];
-
-                if (s.seq.load(std::memory_order_acquire) != head_idx) // queue full
-                    return false;
-
+                if (s.seq.load(std::memory_order_acquire) != head_idx)
+                    return false; // full
                 new (&s.storage) T(std::move(item));
                 s.seq.store(head_idx + 1, std::memory_order_release);
                 head.v.store(head_idx + 1, std::memory_order_relaxed);
                 return true;
             }
 
-            // consume ------------------------------------------------------
-            template <typename F>
-            bool pop(F &&proc) noexcept
+            // <<< new: copy‑push overload for copyable T (eg shared_ptr<Msg>) >>>
+            bool push(const T &item) noexcept
             {
-                const std::size_t tail_idx = tail.v.load(std::memory_order_relaxed);
-                Slot &s = buffer[tail_idx & mask];
-
-                if (s.seq.load(std::memory_order_acquire) != tail_idx + 1)
-                    return false; // empty
-
-                proc(s.get());
-                s.get().~T();
-                s.seq.store(tail_idx + capacity, std::memory_order_release);
-                tail.v.store(tail_idx + 1, std::memory_order_relaxed);
+                const auto head_idx = head.v.load(std::memory_order_relaxed);
+                Slot &s = buffer[head_idx & mask];
+                if (s.seq.load(std::memory_order_acquire) != head_idx)
+                    return false; // full
+                new (&s.storage) T(item);
+                s.seq.store(head_idx + 1, std::memory_order_release);
+                head.v.store(head_idx + 1, std::memory_order_relaxed);
                 return true;
             }
 
-            // data ---------------------------------------------------------
+            std::optional<T> try_pop_item() noexcept
+            {
+                const auto tail_idx = tail.v.load(std::memory_order_relaxed);
+                Slot &s = buffer[tail_idx & mask];
+                if (s.seq.load(std::memory_order_acquire) != tail_idx + 1)
+                    return std::nullopt; // empty
+                T item = std::move(s.get());
+                s.get().~T();
+                s.seq.store(tail_idx + capacity, std::memory_order_release);
+                tail.v.store(tail_idx + 1, std::memory_order_relaxed);
+                return item;
+            }
+
+            // ---------------------------- stats
+            [[nodiscard]] std::size_t queue_size() const noexcept
+            {
+                // number of items in this ring = head − tail
+                auto head_idx = head.v.load(std::memory_order_acquire);
+                auto tail_idx = tail.v.load(std::memory_order_acquire);
+                return head_idx - tail_idx;
+            }
+
             const std::size_t capacity;
             std::unique_ptr<Slot[]> buffer;
             const std::size_t mask;
-            PaddedAtomic head; // producer‑only write
-            PaddedAtomic tail; // consumer‑only write
+            PaddedAtomic head, tail;
         };
 
-        // ---------------------------- subscriber bookkeeping
         using Callback = void (*)(const T &, void *);
-        struct Handler
+
+        // ---------------------------- per‐subscriber state
+        struct alignas(64) Subscriber
         {
-            Callback fn{nullptr};
-            void *ctx{nullptr};
+            Callback fn;
+            void *ctx;
+            CircularBuffer local_q;
+            std::jthread thr;
+
+            Subscriber(Callback f, void *c, std::size_t qsize)
+                : fn(f), ctx(c), local_q(qsize),
+                  thr([this](std::stop_token stop)
+                      {
+                      constexpr int kSpin = 64;
+                      while (!stop.stop_requested())
+                      {
+                          if (auto opt = local_q.try_pop_item())
+                          {
+                              fn(*opt, ctx);
+                          }
+                          else
+                          {
+                              for (int i = 0; i < kSpin; ++i) _mm_pause();
+                              std::this_thread::yield();
+                          }
+                      } })
+            {
+            }
         };
 
+        // central queue + subscribers
         CircularBuffer queue;
-        std::array<Handler, MaxSubscribers> subscribers{};
+        std::array<std::optional<Subscriber>, MaxSubscribers> subscribers;
         std::atomic<std::size_t> active_cnt{0};
-
         std::jthread dispatch_thread;
 
         // ---------------------------- dispatch loop
         void dispatch_loop(std::stop_token stop) noexcept
         {
             constexpr int kSpin = 64;
+            int backoff = 1;
             while (!stop.stop_requested())
             {
-                bool progressed = queue.pop(
-                        [this](const T &msg) noexcept
-                        {
-                            const std::size_t cnt = active_cnt.load(std::memory_order_acquire);
-                            for (std::size_t i = 0; i < cnt; ++i)
-                                if (auto fn = subscribers[i].fn)
-                                    fn(msg, subscribers[i].ctx); 
-                        });
-
-                if (!progressed)
+                if (auto opt = queue.try_pop_item())
                 {
-                    for (int i = 0; i < kSpin; ++i)
+                    backoff = 1;
+                    auto cnt = active_cnt.load(std::memory_order_acquire);
+
+                    // copy the shared_ptr into each subscriber
+                    for (size_t i = 0; i < cnt; ++i)
+                        subscribers[i]->local_q.push(*opt);
+                }
+                else
+                {
+                    // exponential pause then yield
+                    for (int i = 0; i < backoff; ++i)
                         _mm_pause();
-                    std::this_thread::yield();
+                    backoff = std::min(backoff << 1, kSpin);
+                    if (backoff == kSpin)
+                        std::this_thread::yield();
                 }
             }
         }
@@ -159,70 +197,82 @@ namespace boblib::utils::pubsub
         explicit PubSub(std::size_t queue_size = 128)
             : queue(queue_size)
         {
-            dispatch_thread = std::jthread([this](std::stop_token st) noexcept
+            dispatch_thread = std::jthread(
+                [this](std::stop_token st)
                 { dispatch_loop(st); });
         }
 
         ~PubSub() noexcept
         {
-            // std::jthread’s destructor will request stop and join for us
-            while (queue.pop([](const T &) noexcept {}))
+            // drain central queue
+            while (queue.try_pop_item())
             {
             }
+            // stop dispatch thread
+            dispatch_thread.request_stop();
+            // destroy subscribers (jthread destructor joins)
+            for (std::size_t i = 0, n = active_cnt.load(); i < n; ++i)
+                subscribers[i].reset();
         }
 
-        // ---------------------------- publish
-        [[gnu::always_inline]]
-        bool publish(T && msg) noexcept
+        // overload for raw M → we wrap in shared_ptr
+        bool publish(M &&raw) noexcept
         {
-            return queue.push(std::move(msg));
+            return queue.push(std::make_shared<M>(std::move(raw)));
         }
 
-        template <typename U, void (U::*Method)(const T &) noexcept>
-        void subscribe(U * instance) noexcept
+        // overload for when you already have a shared_ptr<M>
+        bool publish(const T &msg) noexcept
         {
-            subscribe(&MemberCallback<U, T, Method>::callback, instance);
+            return queue.push(msg);
         }
 
         // ---------------------------- subscribe
         std::optional<std::size_t> subscribe(Callback fn, void *ctx = nullptr) noexcept
         {
-            std::size_t idx = active_cnt.load(std::memory_order_acquire);
+            auto idx = active_cnt.load(std::memory_order_acquire);
             if (idx >= MaxSubscribers)
+            {
                 return std::nullopt;
-
-            subscribers[idx] = Handler{fn, ctx};
+            }
+            // construct Subscriber in-place into the optional
+            subscribers[idx].emplace(fn, ctx, queue.capacity);
             std::atomic_thread_fence(std::memory_order_release);
             active_cnt.store(idx + 1, std::memory_order_release);
             return idx;
         }
 
+        template <typename U, void (U::*Method)(const T &) noexcept>
+        std::optional<std::size_t> subscribe(U *inst) noexcept
+        {
+            return subscribe(&MemberCallback<U, T, Method>::callback, inst);
+        }
+
         // ---------------------------- unsubscribe
         bool unsubscribe(std::size_t id) noexcept
         {
-            std::size_t cnt = active_cnt.load(std::memory_order_acquire);
+            auto cnt = active_cnt.load(std::memory_order_acquire);
             if (id >= cnt)
                 return false;
-
-            subscribers[id].fn = nullptr; // 1. quiesce
-            std::atomic_thread_fence(std::memory_order_release);
-
-            subscribers[id] = subscribers[cnt - 1];
-            subscribers[cnt - 1] = Handler{};
+            // stop that subscriber
+            subscribers[id].reset();
+            // compact list
+            if (id + 1 < cnt)
+                subscribers[id] = std::move(subscribers[cnt - 1]);
+            subscribers[cnt - 1].reset();
             active_cnt.store(cnt - 1, std::memory_order_release);
             return true;
         }
 
-        // ---------------------------- stats helpers
-        [[nodiscard]] std::size_t queue_capacity() const noexcept { return queue.capacity; }
+        // ---------------------------- stats
         [[nodiscard]] std::size_t queue_size() const noexcept
         {
-            const auto head_idx = queue.head.v.load(std::memory_order_relaxed);
-            const auto tail_idx = queue.tail.v.load(std::memory_order_relaxed);
-            return (head_idx - tail_idx) & queue.mask;
+           return queue.queue_size();
         }
-        [[nodiscard]] bool empty() const noexcept { return queue_size() == 0; }
-        [[nodiscard]] std::size_t subscriber_count() const noexcept { return active_cnt.load(std::memory_order_relaxed); }
+
+        // ---------------------------- stats
+        [[nodiscard]] std::size_t queue_capacity() const noexcept { return queue.capacity; }
+        [[nodiscard]] std::size_t subscriber_count() const noexcept { return active_cnt.load(); }
     };
 
 } // namespace boblib::utils::pubsub

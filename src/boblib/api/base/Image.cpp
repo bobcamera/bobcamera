@@ -14,15 +14,14 @@ Image::Image(bool use_cuda) noexcept
     reset();
 }
 
-
-Image::Image(const Image & img) noexcept
+Image::Image(const Image &img) noexcept
     : using_cuda_(img.using_cuda_),
-      box_filter_size_(img.box_filter_size_)
+      median_filter_size_(img.median_filter_size_)
 {
     if (using_cuda_) 
     {
 #ifdef HAVE_CUDA
-        box_filter_ = img.box_filter_;
+        median_filter_ = img.median_filter_;
 #endif
         gpu_mat_ptr_ = std::make_unique<cv::cuda::GpuMat>();
         img.gpu_mat_ptr_->copyTo(*gpu_mat_ptr_);
@@ -33,14 +32,14 @@ Image::Image(const Image & img) noexcept
     }
 }
 
-Image::Image(Image && img) noexcept
+Image::Image(Image &&img) noexcept
     : using_cuda_(img.using_cuda_),
       gpu_mat_ptr_(std::move(img.gpu_mat_ptr_)),
       mat_ptr_(std::move(img.mat_ptr_)),
-      box_filter_size_(std::exchange(img.box_filter_size_, -1))
+      median_filter_size_(std::exchange(img.median_filter_size_, -1))
 {
 #ifdef HAVE_CUDA
-    box_filter_ = std::move(img.box_filter_);
+    median_filter_ = std::move(img.median_filter_);
 #endif
     // Reseting the Moved img
     img.reset();
@@ -58,9 +57,9 @@ void Image::reset() noexcept
     }
     mat_ptr_ = std::make_unique<cv::Mat>();
 #ifdef HAVE_CUDA
-    box_filter_.reset();
+    median_filter_.reset();
 #endif
-    box_filter_size_ = -1;
+    median_filter_size_ = -1;
 }
 
 Image & Image::operator=(const Image & img)
@@ -71,9 +70,9 @@ Image & Image::operator=(const Image & img)
     }
 
     using_cuda_ = img.using_cuda_;
-    box_filter_size_ = img.box_filter_size_;
+    median_filter_size_ = img.median_filter_size_;
 #ifdef HAVE_CUDA
-    box_filter_ = img.box_filter_; 
+    median_filter_ = img.median_filter_;
 #endif
 
     if (using_cuda_) 
@@ -109,9 +108,9 @@ Image& Image::operator=(Image && img) noexcept
     gpu_mat_ptr_ = std::move(img.gpu_mat_ptr_);
     mat_ptr_ = std::move(img.mat_ptr_);
 #ifdef HAVE_CUDA
-    box_filter_ = std::move(img.box_filter_);
+    median_filter_ = std::move(img.median_filter_);
 #endif
-    box_filter_size_ = std::exchange(img.box_filter_size_, -1);
+    median_filter_size_ = std::exchange(img.median_filter_size_, -1);
 
     img.reset();
 
@@ -321,8 +320,8 @@ void Image::medianBlurTo(Image & blured, int size) const
     {
         if (blured.using_cuda_)
         {
-            cv::Ptr<cv::cuda::Filter> boxFilter = cv::cuda::createBoxFilter(gpu_mat_ptr_->type(), gpu_mat_ptr_->type(), cv::Size(size, size));
-            boxFilter->apply(*gpu_mat_ptr_, *blured.gpu_mat_ptr_);
+            cv::Ptr<cv::cuda::Filter> medianFilter = cv::cuda::createMedianFilter(gpu_mat_ptr_->type(), gpu_mat_ptr_->type(), cv::Size(size, size));
+            medianFilter->apply(*gpu_mat_ptr_, *blured.gpu_mat_ptr_);
             return;
         }
 
@@ -346,12 +345,12 @@ void Image::medianBlur(int size)
 #ifdef HAVE_CUDA
     if (using_cuda_)
     {
-        if (!box_filter_ || box_filter_size_ != size)
+        if (!median_filter_ || median_filter_size_ != size)
         {
-            box_filter_ = cv::cuda::createBoxFilter(gpu_mat_ptr_->type(), gpu_mat_ptr_->type(), cv::Size(size, size));
-            box_filter_size_ = size;
+            median_filter_ = cv::cuda::createMedianFilter(gpu_mat_ptr_->type(), gpu_mat_ptr_->type(), cv::Size(size, size));
+            median_filter_size_ = size;
         }
-        box_filter_->apply(*gpu_mat_ptr_, *gpu_mat_ptr_);
+        median_filter_->apply(*gpu_mat_ptr_, *gpu_mat_ptr_);
     }
     else
 #endif
@@ -360,7 +359,7 @@ void Image::medianBlur(int size)
     }
 }
 
-void Image::convertTo(Image & converted, int type) const
+void Image::convertColorTo(Image &converted, int type) const
 {
 #ifdef HAVE_CUDA
     if (using_cuda_)    
@@ -387,7 +386,7 @@ void Image::convertTo(Image & converted, int type) const
     cv::cvtColor(*mat_ptr_, *converted.mat_ptr_, type);
 }
 
-void Image::convert(int type)
+void Image::convertColor(int type)
 {
 #ifdef HAVE_CUDA
     if (using_cuda_)    

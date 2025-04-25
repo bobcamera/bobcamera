@@ -15,8 +15,8 @@ namespace SORT
         Tracker(rclcpp::Logger logger);
         ~Tracker() = default;
 
-        static float CalculateIou(const cv::Rect& rect1, const cv::Rect& rect2);
-        static float CalculateDiou(const cv::Rect& rect1, const cv::Rect& rect2);
+        [[nodiscard]] static constexpr float CalculateIou(const cv::Rect &rect1, const cv::Rect &rect2);
+        [[nodiscard]] static float CalculateDiou(const cv::Rect &rect1, const cv::Rect &rect2);
         static void HungarianMatching(const std::vector<std::vector<float>>& iou_matrix,
                             size_t nrows, size_t ncols,
                             std::vector<std::vector<float>>& association);
@@ -40,11 +40,11 @@ namespace SORT
         const std::vector<Track> get_active_trackers() const;
         const std::vector<Track> get_live_trackers() const;
         void update_trackers(const std::vector<cv::Rect> &detections);
-        size_t get_total_trackable_trackers() const;
-        size_t get_total_live_trackers() const;
-        std::map<int, Track> GetTracks() const;
-        int get_total_trackers_started() const;
-        int get_total_trackers_finished() const;
+        [[nodiscard]] size_t get_total_trackable_trackers() const;
+        [[nodiscard]] size_t get_total_live_trackers() const;
+        [[nodiscard]] std::map<int, Track> GetTracks() const;
+        [[nodiscard]] int get_total_trackers_started() const;
+        [[nodiscard]] int get_total_trackers_finished() const;
         void set_max_coast_cycles(size_t max_coast_cycles);
 
     private:

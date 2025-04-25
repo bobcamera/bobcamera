@@ -67,9 +67,9 @@ namespace boblib::base
 
         void resize(const cv::Size & size);
 
-        void convertTo(Image & converted, int type) const;
+        void convertColorTo(Image &converted, int type) const;
 
-        void convert(int type);
+        void convertColor(int type);
 
         void medianBlurTo(Image & converted, int size) const;
 
@@ -99,8 +99,8 @@ namespace boblib::base
 #ifdef HAVE_CUDA
         void mask_cuda(cv::cuda::GpuMat &mask_);
         
-        cv::Ptr<cv::cuda::Filter> box_filter_;
+        cv::Ptr<cv::cuda::Filter> median_filter_;
 #endif
-        int box_filter_size_{-1};
+        int median_filter_size_{-1};
     };
 }
