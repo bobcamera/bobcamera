@@ -40,10 +40,10 @@ public:
         pub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
         pub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
 
-        pub_tracker_tracking_ = node_.create_publisher<bob_interfaces::msg::Tracking>(params_.get_topics().get_tracking_publisher_topic(), pub_qos_profile);
-        pub_tracker_tracking_resized_ = node_.create_publisher<bob_interfaces::msg::Tracking>(params_.get_topics().get_tracking_publisher_topic() + "/resized", pub_qos_profile);
+        pub_tracker_tracking_ = node_.create_publisher<bob_interfaces::msg::Tracking>(params_.topics.tracking_publisher_topic, pub_qos_profile);
+        pub_tracker_tracking_resized_ = node_.create_publisher<bob_interfaces::msg::Tracking>(params_.topics.tracking_publisher_topic + "/resized", pub_qos_profile);
 
-        detector_pubsub_ptr_ = topic_manager_.get_topic<bob_interfaces::msg::DetectorBBoxArray>(params_.get_topics().get_detection_publish_topic());
+        detector_pubsub_ptr_ = topic_manager_.get_topic<bob_interfaces::msg::DetectorBBoxArray>(params_.topics.detection_publish_topic);
         detector_pubsub_ptr_->subscribe<TrackProviderWorker, &TrackProviderWorker::callback>(this);
     }
 
@@ -91,12 +91,13 @@ private:
 
     inline void publish_tracking_resized(const bob_interfaces::msg::Tracking &tracking_msg, int image_height) const
     {
-        if ((params_.get_resize_height() <= 0) || node_.count_subscribers(std::string(pub_tracker_tracking_->get_topic_name()) + "/resized") <= 0)
+        if ((params_.resize_height <= 0) 
+            || node_.count_subscribers(std::string(pub_tracker_tracking_->get_topic_name()) + "/resized") <= 0)
         {
             return;
         }
 
-        const double adjust = (double)params_.get_resize_height() / (double)image_height;
+        const double adjust = (double)params_.resize_height / (double)image_height;
 
         bob_interfaces::msg::Tracking tracking_msg_resized(tracking_msg);
         for (auto &detect : tracking_msg_resized.detections)

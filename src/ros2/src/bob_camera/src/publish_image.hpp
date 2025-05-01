@@ -11,9 +11,6 @@ struct PublishImage
     using ImagePtr = std::shared_ptr<boblib::base::Image>;
     using HeaderPtr = std::shared_ptr<const std_msgs::msg::Header>;
 
-    // ------------------------------------------------------------------
-    //  Constructors
-    // ------------------------------------------------------------------
     PublishImage() = default;
 
     PublishImage(HeaderPtr header,
@@ -23,9 +20,6 @@ struct PublishImage
     {
     }
 
-    // ------------------------------------------------------------------
-    //  Data members
-    // ------------------------------------------------------------------
     HeaderPtr headerPtr;
     ImagePtr imagePtr;
 

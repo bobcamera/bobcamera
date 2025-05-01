@@ -58,22 +58,22 @@ public:
         sub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
         sub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
 
-        recording_event_subscriber_ = node_.create_subscription<bob_interfaces::msg::RecordingEvent>(params_.get_topics().get_recording_event_subscriber_topic(), sub_qos_profile,
+        recording_event_subscriber_ = node_.create_subscription<bob_interfaces::msg::RecordingEvent>(params_.topics.recording_event_subscriber_topic, sub_qos_profile,
                                                                                      [this](const bob_interfaces::msg::RecordingEvent::SharedPtr event)
                                                                                      { recording_event(*event); });
 
-        tracking_subscription_ = node_.create_subscription<bob_interfaces::msg::Tracking>(params_.get_topics().get_tracking_publisher_topic(), sub_qos_profile,
+        tracking_subscription_ = node_.create_subscription<bob_interfaces::msg::Tracking>(params_.topics.tracking_publisher_topic, sub_qos_profile,
                                                                                           [this](const bob_interfaces::msg::Tracking::SharedPtr tracking_msg)
                                                                                           { tracking_callback(tracking_msg); });
 
-        camera_info_subscription_ = node_.create_subscription<bob_camera::msg::CameraInfo>(params_.get_topics().get_camera_info_publish_topic(), sub_qos_profile,
+        camera_info_subscription_ = node_.create_subscription<bob_camera::msg::CameraInfo>(params_.topics.camera_info_publish_topic, sub_qos_profile,
                                                                                            [this](const bob_camera::msg::CameraInfo::SharedPtr camera_info_msg)
                                                                                            { camera_info_callback(camera_info_msg); });
 
-        image_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.get_topics().get_image_publish_topic() + "_publish");
+        image_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.topics.image_publish_topic + "_publish");
         image_pubsub_ptr_->subscribe<CameraSaveWorker, &CameraSaveWorker::record_image>(this);
 
-        bgs_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.get_topics().get_image_publish_topic() + "_process");
+        bgs_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.topics.image_publish_topic + "_process");
         bgs_pubsub_ptr_->subscribe<CameraSaveWorker, &CameraSaveWorker::bgs_image_callback>(this);
     }
 
@@ -88,7 +88,7 @@ public:
         if (last_camera_info_->fps != fps_)
         {
             fps_ = last_camera_info_->fps;
-            auto total_pre_frames = (size_t)(static_cast<int>(std::ceil(fps_)) * params_.get_recording().get_recording_seconds_save());
+            auto total_pre_frames = (size_t)(static_cast<int>(std::ceil(fps_)) * params_.recording.seconds_save);
             img_recorder_ = std::make_unique<ImageRecorder>(total_pre_frames);
             json_recorder_ = std::make_unique<JsonRecorder>(total_pre_frames);
             video_recorder_ptr_ = std::make_unique<VideoRecorder>(total_pre_frames);
@@ -132,7 +132,7 @@ private:
     {
         try
         {
-            if (!params_.get_recording().get_recording_enabled())
+            if (!params_.recording.enabled)
             {
                 return;
             }
@@ -151,7 +151,7 @@ private:
                 {
                     const auto complete_filename = last_recording_event_.recording_path + "/" + last_recording_event_.filename + ".mp4";
                     node_.log_info("Opening new video: %s", complete_filename.c_str());
-                    if (!video_recorder_ptr_->open_new_video(complete_filename, params_.get_recording().get_recording_codec(), fps_, camera_img.size()))
+                    if (!video_recorder_ptr_->open_new_video(complete_filename, params_.recording.codec, fps_, camera_img.size()))
                     {
                         node_.log_info("Could not create new video");
                     }
@@ -186,7 +186,7 @@ private:
 
     inline void accumulate_mask(const boblib::base::Image &gray_img)
     {
-        if (params_.get_recording().get_recording_enabled() && last_recording_event_.recording && img_recorder_ != nullptr)
+        if (params_.recording.enabled && last_recording_event_.recording && img_recorder_ != nullptr)
         {
             img_recorder_->accumulate_mask(gray_img.toMat());
         }
@@ -194,7 +194,7 @@ private:
 
     void tracking_callback(const bob_interfaces::msg::Tracking::SharedPtr tracking_msg)
     {
-        if (!params_.get_recording().get_recording_enabled() || img_recorder_ == nullptr || json_recorder_ == nullptr)
+        if (!params_.recording.enabled || img_recorder_ == nullptr || json_recorder_ == nullptr)
         {
             return;
         }
@@ -234,7 +234,7 @@ private:
 
     inline void create_save_heatmap(const boblib::base::Image &img) noexcept
     {
-        if (!params_.get_recording().get_recording_enabled() || img_recorder_ == nullptr)
+        if (!params_.recording.enabled || img_recorder_ == nullptr)
         {
             return;
         }
