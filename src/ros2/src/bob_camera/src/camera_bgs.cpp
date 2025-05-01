@@ -29,15 +29,11 @@ public:
         qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
         qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
 
-        camera_save_params_ptr_ = std::make_unique<CameraSaveWorkerParams>();
-        bgs_params_ptr_ = std::make_unique<BackgroundSubtractorWorkerParams>();
-        track_provider_worker_params_ptr_ = std::make_unique<TrackProviderWorkerParams>();
-
         topic_manager_ = std::make_unique<boblib::utils::pubsub::TopicManager>(100);
 
-        bgs_worker_ptr_ = std::make_unique<BackgroundSubtractorWorker>(*this, *bgs_params_ptr_, *topic_manager_);
-        camera_save_worker_ptr_ = std::make_unique<CameraSaveWorker>(*this, *camera_save_params_ptr_, *topic_manager_);
-        track_provider_worker_ptr_ = std::make_unique<TrackProviderWorker>(*this, *track_provider_worker_params_ptr_, *topic_manager_);
+        bgs_worker_ptr_ = std::make_unique<BackgroundSubtractorWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_);
+        camera_save_worker_ptr_ = std::make_unique<CameraSaveWorker>(*this, camera_bgs_params_, *topic_manager_);
+        track_provider_worker_ptr_ = std::make_unique<TrackProviderWorker>(*this, camera_bgs_params_, *topic_manager_);
         camera_worker_ptr_ = std::make_unique<CameraWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_);
     }
 
@@ -85,9 +81,7 @@ private:
                     [this](const rclcpp::Parameter &param)
                     {
                         camera_bgs_params_.get_topics().set_image_publish_topic(param.as_string());
-                        camera_save_params_ptr_->set_image_publish_topic(param.as_string());
                         camera_bgs_params_.get_topics().set_image_resized_publish_topic(camera_bgs_params_.get_topics().get_image_publish_topic() + "/resized");
-                        bgs_params_ptr_->set_camera_image_subscriber_topic(param.as_string());
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("image_info_publish_topic", "bob/camera/all_sky/image_info"),
@@ -100,38 +94,30 @@ private:
                     [this](const rclcpp::Parameter &param)
                     {
                         camera_bgs_params_.get_topics().set_camera_info_publish_topic(param.as_string());
-                        bgs_params_ptr_->set_camera_info_subscriber_topic(param.as_string());
-                        camera_save_params_ptr_->set_camera_info_subscriber_topic(param.as_string());
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("camera_recording_event_subscriber_topic", "bob/camera1/recording/event"),
                     [this](const rclcpp::Parameter &param)
                     {
                         camera_bgs_params_.get_topics().set_recording_event_subscriber_topic(param.as_string());
-                        camera_save_params_ptr_->set_recording_event_subscriber_topic(param.as_string());
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("bgs_publish_topic", "bob/frames/foreground_mask"),
                     [this](const rclcpp::Parameter &param)
                     {
-                        bgs_params_ptr_->set_image_publish_topic(param.as_string());
-                        bgs_params_ptr_->set_image_resized_publish_topic(bgs_params_ptr_->get_image_publish_topic() + "/resized");
-                        bgs_params_ptr_->set_image_publisher(create_publisher<sensor_msgs::msg::Image>(bgs_params_ptr_->get_image_publish_topic(), qos_profile_));
+                        camera_bgs_params_.get_topics().set_bgs_image_publish_topic(param.as_string());
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("bgs_detection_topic", "bob/detection/allsky/boundingboxes"),
                     [this](const rclcpp::Parameter &param)
                     {
-                        bgs_params_ptr_->set_detection_publish_topic(param.as_string());
-                        bgs_params_ptr_->set_detection_publisher(create_publisher<bob_interfaces::msg::DetectorBBoxArray>(bgs_params_ptr_->get_detection_publish_topic(), qos_profile_));
-                        track_provider_worker_params_ptr_->set_bounding_boxes_subscription_topic(param.as_string());
+                        camera_bgs_params_.get_topics().set_detection_publish_topic(param.as_string());
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("bgs_detection_state_topic", "bob/detection/detector_state"),
                     [this](const rclcpp::Parameter &param)
                     {
-                        bgs_params_ptr_->set_detection_state_publish_topic(param.as_string());
-                        bgs_params_ptr_->set_state_publisher(create_publisher<bob_interfaces::msg::DetectorState>(bgs_params_ptr_->get_detection_state_publish_topic(), qos_profile_));
+                        camera_bgs_params_.get_topics().set_detection_state_publish_topic(param.as_string());
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("privacy_mask_override_service_topic", "bob/mask/privacy/override"),
@@ -161,15 +147,13 @@ private:
                     rclcpp::Parameter("tracker_publisher_topic", "bob/tracker/tracking"),
                     [this](const rclcpp::Parameter &param)
                     {
-                        track_provider_worker_params_ptr_->set_tracking_publisher_topic(param.as_string());
-                        camera_save_params_ptr_->set_tracking_subscriber_topic(param.as_string());
+                        camera_bgs_params_.get_topics().set_tracking_publisher_topic(param.as_string());
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("use_cuda", true),
                     [this](const rclcpp::Parameter &param)
                     {
                         camera_bgs_params_.set_use_cuda(param.as_bool());
-                        bgs_params_ptr_->set_use_cuda(param.as_bool());
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("mask_timer_seconds", 5),
@@ -177,7 +161,7 @@ private:
                     {
                         camera_bgs_params_.get_camera().get_privacy_mask().set_mask_timer_seconds(static_cast<int>(param.as_int()));
                         camera_worker_ptr_->restart_mask();
-                        bgs_params_ptr_->set_mask_timer_seconds(static_cast<int>(param.as_int()));
+                        camera_bgs_params_.get_bgs().get_mask().set_mask_timer_seconds(static_cast<int>(param.as_int()));
                         bgs_worker_ptr_->restart_mask();
                     }),
                 ParameterNode::ActionParam(
@@ -267,7 +251,7 @@ private:
                     rclcpp::Parameter("bgs_json_params", ""),
                     [this](const rclcpp::Parameter &param)
                     {
-                        bgs_params_ptr_->set_sensitivity_collection(param.as_string());
+                        camera_bgs_params_.get_bgs().set_sensitivity_collection(param.as_string());
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("bgs_sensitivity", "medium_c"),
@@ -286,12 +270,14 @@ private:
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("bgs_mask_enable_override", true),
                     [this](const rclcpp::Parameter &param)
-                    { bgs_params_ptr_->set_mask_enable_override(param.as_bool()); }),
+                    {
+                        camera_bgs_params_.get_bgs().get_mask().set_mask_enable_override(param.as_bool());
+                    }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("bgs_mask_file", "mask.pgm"),
                     [this](const rclcpp::Parameter &param)
                     {
-                        bgs_params_ptr_->set_mask_filename(param.as_string());
+                        camera_bgs_params_.get_bgs().get_mask().set_mask_filename(param.as_string());
                         bgs_worker_ptr_->restart_mask();
                     }),
                 ParameterNode::ActionParam(
@@ -312,17 +298,6 @@ private:
                     {
                         const auto &height = static_cast<int>(param.as_int());
                         camera_bgs_params_.set_resize_height(height);
-                        bgs_params_ptr_->set_resize_height(height);
-                        track_provider_worker_params_ptr_->set_resize_height(height);
-                        if (height > 0)
-                        {
-                            bgs_params_ptr_->set_image_resized_publisher(create_publisher<sensor_msgs::msg::Image>(bgs_params_ptr_->get_image_resized_publish_topic(), qos_profile_));
-                        }
-                        else
-                        {
-                            bgs_params_ptr_->set_image_resized_publisher(nullptr);
-                            log_debug("Resizer topics disabled");
-                        }
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("limit_fps", true),
@@ -334,19 +309,19 @@ private:
                     rclcpp::Parameter("recording_enabled", false),
                     [this](const rclcpp::Parameter &param)
                     {
-                        camera_save_params_ptr_->set_recording_enabled(param.as_bool());
+                        camera_bgs_params_.get_recording().set_recording_enabled(param.as_bool());
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("recording_codec", "avc1"),
                     [this](const rclcpp::Parameter &param)
                     {
-                        camera_save_params_ptr_->set_recording_codec(param.as_string());
+                        camera_bgs_params_.get_recording().set_recording_codec(param.as_string());
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("recording_seconds_save", 2),
                     [this](const rclcpp::Parameter &param)
                     {
-                        camera_save_params_ptr_->set_recording_seconds_save(param.as_int());
+                        camera_bgs_params_.get_recording().set_recording_seconds_save(param.as_int());
                     }),
             };
         add_action_parameters(params);
@@ -370,7 +345,7 @@ private:
     void bgs_mask_override_request(const std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Request> request, 
                                    std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Response> response)
     {
-        bgs_params_ptr_->set_mask_enable_override(request->mask_enabled);
+        camera_bgs_params_.get_bgs().get_mask().set_mask_enable_override(request->mask_enabled);
         if (request->mask_enabled)
         {
             log_send_debug("BGS Mask Override set to: True");
@@ -388,10 +363,6 @@ private:
     std::unique_ptr<BackgroundSubtractorWorker> bgs_worker_ptr_;
     std::unique_ptr<CameraSaveWorker> camera_save_worker_ptr_;
     std::unique_ptr<TrackProviderWorker> track_provider_worker_ptr_;
-
-    std::unique_ptr<BackgroundSubtractorWorkerParams> bgs_params_ptr_;
-    std::unique_ptr<CameraSaveWorkerParams> camera_save_params_ptr_;
-    std::unique_ptr<TrackProviderWorkerParams> track_provider_worker_params_ptr_;
 
     std::unique_ptr<boblib::utils::pubsub::TopicManager> topic_manager_;
 

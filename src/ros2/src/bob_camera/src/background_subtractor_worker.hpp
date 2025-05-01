@@ -9,10 +9,12 @@
 #include <boblib/api/blobs/connectedBlobDetection.hpp>
 #include <boblib/api/base/Image.hpp>
 #include <boblib/api/utils/pubsub/TopicManager.hpp>
+
 #include <bob_interfaces/msg/tracking.hpp>
+#include <bob_interfaces/msg/detector_state.hpp>
+#include <bob_interfaces/msg/detector_b_box_array.hpp>
 
 #include "parameter_node.hpp"
-#include "background_subtractor_worker_params.hpp"
 
 #include "mask_worker.hpp"
 #include "publish_image.hpp"
@@ -22,9 +24,13 @@
 class BackgroundSubtractorWorker
 {
 public:
-    BackgroundSubtractorWorker(ParameterNode &node, BackgroundSubtractorWorkerParams &params, boblib::utils::pubsub::TopicManager &topic_manager)
+    BackgroundSubtractorWorker(ParameterNode &node
+                            , CameraBgsParams &params
+                            , const rclcpp::QoS &qos_publish_profile
+                            , boblib::utils::pubsub::TopicManager &topic_manager)
         : node_(node)
         , params_(params)
+        , qos_publish_profile_(qos_publish_profile)
         , topic_manager_(topic_manager)
     {
         mask_worker_ptr_ = std::make_unique<MaskWorker>(node_,
@@ -43,22 +49,27 @@ public:
         blank_mask_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_);
         detection_mask_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_);
 
-        mask_worker_ptr_->init(params_.get_mask_timer_seconds(), params_.get_mask_filename());
+        mask_worker_ptr_->init(params_.get_bgs().get_mask().get_mask_timer_seconds(), params_.get_bgs().get_mask().get_mask_filename());
 
-        camera_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.get_camera_image_subscriber_topic() + "_publish");
+        image_publisher_ptr_ = node_.create_publisher<sensor_msgs::msg::Image>(params_.get_topics().get_bgs_image_publish_topic(), qos_publish_profile_);
+        image_resized_publisher_ptr_ = node_.create_publisher<sensor_msgs::msg::Image>(params_.get_topics().get_bgs_image_publish_topic() + "/resized", qos_publish_profile_);
+        detection_publisher_ptr_ = node_.create_publisher<bob_interfaces::msg::DetectorBBoxArray>(params_.get_topics().get_detection_publish_topic(), qos_publish_profile_);
+        state_publisher_ptr_ = node_.create_publisher<bob_interfaces::msg::DetectorState>(params_.get_topics().get_detection_state_publish_topic(), qos_publish_profile_);
+
+        camera_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.get_topics().get_image_publish_topic() + "_publish");
         camera_pubsub_ptr_->subscribe<BackgroundSubtractorWorker, &BackgroundSubtractorWorker::camera_image_callback>(this);
 
-        process_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.get_camera_image_subscriber_topic() + "_process");
+        process_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.get_topics().get_image_publish_topic() + "_process");
         process_pubsub_ptr_->subscribe<BackgroundSubtractorWorker, &BackgroundSubtractorWorker::process_image>(this);
 
-        detector_pubsub_ptr_ = topic_manager_.get_topic<bob_interfaces::msg::DetectorBBoxArray>(params_.get_detection_publish_topic());
+        detector_pubsub_ptr_ = topic_manager_.get_topic<bob_interfaces::msg::DetectorBBoxArray>(params_.get_topics().get_detection_publish_topic());
     }
 
     void restart_mask()
     {
         if (mask_worker_ptr_ && mask_worker_ptr_->is_running())
         {
-            mask_worker_ptr_->init(params_.get_mask_timer_seconds(), params_.get_mask_filename());
+            mask_worker_ptr_->init(params_.get_bgs().get_mask().get_mask_timer_seconds(), params_.get_bgs().get_mask().get_mask_filename());
         }
     }
 
@@ -73,15 +84,15 @@ public:
         {
             if (bgs == "vibe")
             {
-                params_.set_bgs_type(BackgroundSubtractorWorkerParams::BGSType::Vibe);
+                params_.get_bgs().set_bgs_type(CameraBgsParams::BGSType::Vibe);
             }
             else
             {
-                params_.set_bgs_type(BackgroundSubtractorWorkerParams::BGSType::WMV);
+                params_.get_bgs().set_bgs_type(CameraBgsParams::BGSType::WMV);
             }
-            if (!params_.get_sensitivity().empty())
+            if (!params_.get_bgs().get_sensitivity().empty())
             {
-                bgs_ptr_ = create_bgs(params_.get_bgs_type());
+                bgs_ptr_ = create_bgs(params_.get_bgs().get_bgs_type());
             }
         }
         catch (const std::exception &e)
@@ -133,14 +144,14 @@ public:
                 cv_processing_.notify_all();
                 return;
             }
-            if (params_.get_sensitivity() == sensitivity)
+            if (params_.get_bgs().get_sensitivity() == sensitivity)
             {
                 node_.log_info("Ignoring sensitivity change request, NO CHANGE");
                 cv_processing_.notify_all();
                 return;
             }
 
-            if (!params_.get_sensitivity_collection().get_configs().contains(sensitivity))
+            if (!params_.get_bgs().get_sensitivity_collection().get_configs().contains(sensitivity))
             {
                 node_.log_error("Unknown config specified: %s", sensitivity.c_str());
                 cv_processing_.notify_all();
@@ -148,9 +159,9 @@ public:
             }
 
             ready_ = false;
-            params_.set_sensitivity(sensitivity);
+            params_.get_bgs().set_sensitivity(sensitivity);
 
-            const auto &config = params_.get_sensitivity_collection().get_configs().at(sensitivity);
+            const auto &config = params_.get_bgs().get_sensitivity_collection().get_configs().at(sensitivity);
 
             wmv_params_ = std::make_unique<boblib::bgs::WMVParams>(
                 config.sensitivity.wmv_enable_weight, config.sensitivity.wmv_enable_threshold, config.sensitivity.wmv_threshold,
@@ -158,7 +169,7 @@ public:
             vibe_params_ = std::make_unique<boblib::bgs::VibeParams>(
                 config.sensitivity.vibe_threshold, config.sensitivity.vibe_bg_samples, config.sensitivity.vibe_required_bg_samples,
                 config.sensitivity.vibe_learning_rate);
-            bgs_ptr_ = create_bgs(params_.get_bgs_type());
+            bgs_ptr_ = create_bgs(params_.get_bgs().get_bgs_type());
             blob_params_ = std::make_unique<boblib::blobs::ConnectedBlobDetectionParams>(false,
                                                                                          config.sensitivity.blob_size_threshold, config.sensitivity.blob_area_threshold, config.sensitivity.blob_min_distance,
                                                                                          config.sensitivity.blob_max_blobs);
@@ -202,14 +213,14 @@ public:
             publish_image->imagePtr->convertColorTo(gray_img, cv::COLOR_BGR2GRAY);
 
             // Resize detection mask if needed
-            if (mask_enabled_ && params_.get_mask_enable_override() &&
+            if (mask_enabled_ && params_.get_bgs().get_mask().get_mask_enable_override() &&
                 (detection_mask_ptr_->size() != gray_img.size()))
             {
                 detection_mask_ptr_->resize(gray_img.size());
             }
 
             // Apply background subtraction
-            const auto &mask = (mask_enabled_ && params_.get_mask_enable_override())
+            const auto &mask = (mask_enabled_ && params_.get_bgs().get_mask().get_mask_enable_override())
                                    ? *detection_mask_ptr_
                                    : *blank_mask_ptr_;
 
@@ -270,7 +281,7 @@ private:
 
     inline void publish_frame(const std_msgs::msg::Header &header, boblib::base::Image &bgs_img) noexcept
     {
-        if (node_.count_subscribers(params_.get_image_publisher()->get_topic_name()) <= 0)
+        if (node_.count_subscribers(image_publisher_ptr_->get_topic_name()) <= 0)
         {
             return;
         }
@@ -278,12 +289,14 @@ private:
         const size_t totalBytes = bgs_img.total() * bgs_img.elemSize();
         bgs_msg.data.assign(bgs_img.data(), bgs_img.data() + totalBytes);
 
-        params_.get_image_publisher()->publish(bgs_msg);
+        image_publisher_ptr_->publish(bgs_msg);
     }
 
     inline void publish_resized_frame(const std_msgs::msg::Header &header, const boblib::base::Image &bgs_img) const
     {
-        if (!params_.get_image_resized_publisher() || (params_.get_resize_height() <= 0) || (node_.count_subscribers(params_.get_image_resized_publisher()->get_topic_name()) <= 0))
+        if (!image_resized_publisher_ptr_ 
+            || (params_.get_resize_height() <= 0) 
+            || (node_.count_subscribers(image_resized_publisher_ptr_->get_topic_name()) <= 0))
         {
             return;
         }
@@ -295,14 +308,14 @@ private:
         }
 
         auto resized_frame_msg = cv_bridge::CvImage(header, ImageUtils::type_to_encoding(resized_img.type()), resized_img.toMat()).toImageMsg();
-        params_.get_image_resized_publisher()->publish(*resized_frame_msg);
+        image_resized_publisher_ptr_->publish(*resized_frame_msg);
     }
 
     inline void do_detection(const std_msgs::msg::Header &header, boblib::base::Image &bgs_img)
     {
         // Initialize detector state and bounding box array messages
         bob_interfaces::msg::DetectorState state;
-        state.sensitivity = params_.get_sensitivity();
+        state.sensitivity = params_.get_bgs().get_sensitivity();
         state.max_blobs_reached = false; // Initialize to false by default
 
         bob_interfaces::msg::DetectorBBoxArray bbox2D_array;
@@ -341,8 +354,8 @@ private:
         }
 
         // Publish results if there are subscribers
-        node_.publish_if_subscriber(params_.get_state_publisher(), state);
-        node_.publish_if_subscriber(params_.get_detection_publisher(), bbox2D_array);
+        node_.publish_if_subscriber(state_publisher_ptr_, state);
+        node_.publish_if_subscriber(detection_publisher_ptr_, bbox2D_array);
 
         detector_pubsub_ptr_->publish(std::move(bbox2D_array));
     }
@@ -361,13 +374,13 @@ private:
         }
     }
 
-    inline std::unique_ptr<boblib::bgs::CoreBgs> create_bgs(BackgroundSubtractorWorkerParams::BGSType type)
+    inline std::unique_ptr<boblib::bgs::CoreBgs> create_bgs(CameraBgsParams::BGSType type)
     {
         switch (type)
         {
-        case BackgroundSubtractorWorkerParams::BGSType::Vibe:
+        case CameraBgsParams::BGSType::Vibe:
             return std::make_unique<boblib::bgs::Vibe>(*vibe_params_);
-        case BackgroundSubtractorWorkerParams::BGSType::WMV:
+        case CameraBgsParams::BGSType::WMV:
             return std::make_unique<boblib::bgs::WeightedMovingVariance>(*wmv_params_);
         default:
             return nullptr;
@@ -399,9 +412,15 @@ private:
     }
 
     ParameterNode &node_;
-    BackgroundSubtractorWorkerParams &params_;
+    CameraBgsParams &params_;
+    const rclcpp::QoS &qos_publish_profile_;
 
     std::unique_ptr<MaskWorker> mask_worker_ptr_;
+
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_ptr_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_resized_publisher_ptr_;
+    rclcpp::Publisher<bob_interfaces::msg::DetectorBBoxArray>::SharedPtr detection_publisher_ptr_;
+    rclcpp::Publisher<bob_interfaces::msg::DetectorState>::SharedPtr state_publisher_ptr_;
 
     bool mask_enabled_{false};
     bool median_filter_{false};

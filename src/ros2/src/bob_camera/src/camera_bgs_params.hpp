@@ -11,6 +11,8 @@
 #include <bob_interfaces/srv/camera_settings.hpp>
 #include <bob_interfaces/msg/recording_event.hpp>
 
+#include "background_subtractor_companion.hpp"
+
 class CameraBgsParams
 {
 public:
@@ -21,15 +23,24 @@ public:
         RTSP_STREAM,
         UNKNOWN
     };
+    enum class BGSType
+    {
+        Unknown,
+        Vibe,
+        WMV
+    };
 
     // Constructor
     CameraBgsParams() = default;
 
     // Getters
     [[nodiscard]] bool get_use_cuda() const { return use_cuda_; }
-    [[nodiscard]] auto & get_camera() { return camera_params_; }
-    [[nodiscard]] auto & get_topics() { return topics_params_; }
     [[nodiscard]] int get_resize_height() const { return resize_height_; }
+
+    [[nodiscard]] auto &get_camera() { return camera_params_; }
+    [[nodiscard]] auto &get_topics() { return topics_params_; }
+    [[nodiscard]] auto &get_recording() { return recording_params_; }
+    [[nodiscard]] auto &get_bgs() { return bgs_params_; }
 
     // Setters
     void set_use_cuda(bool enable) { use_cuda_ = enable; }
@@ -103,6 +114,10 @@ public:
         [[nodiscard]] const auto &get_recording_event_subscriber_topic() const { return recording_event_subscriber_topic_; }
         [[nodiscard]] const auto &get_image_resized_publish_topic() const { return image_resized_publish_topic_; }
         [[nodiscard]] const auto &get_camera_settings_client_topic() const { return camera_settings_client_topic_; }
+        [[nodiscard]] const auto &get_tracking_publisher_topic() const { return tracking_publisher_topic_; }
+        [[nodiscard]] const auto &get_detection_publish_topic() const { return detection_publish_topic_; }
+        [[nodiscard]] const auto &get_detection_state_publish_topic() const { return detection_state_publish_topic_; }
+        [[nodiscard]] const auto &get_bgs_image_publish_topic() const { return bgs_image_publish_topic_; }
 
         void set_image_publish_topic(const std::string &topic) { image_publish_topic_ = topic; }
         void set_recording_event_subscriber_topic(const std::string &topic) { recording_event_subscriber_topic_ = topic; }
@@ -110,6 +125,10 @@ public:
         void set_camera_info_publish_topic(const std::string &topic) { camera_info_publish_topic_ = topic; }
         void set_image_resized_publish_topic(const std::string &topic) { image_resized_publish_topic_ = topic; }
         void set_camera_settings_client_topic(const std::string &topic) { camera_settings_client_topic_ = topic; }
+        void set_tracking_publisher_topic(const std::string &topic) { tracking_publisher_topic_ = topic; }
+        void set_detection_publish_topic(const std::string &topic) { detection_publish_topic_ = topic; }
+        void set_detection_state_publish_topic(const std::string &topic) { detection_state_publish_topic_ = topic; }
+        void set_bgs_image_publish_topic(const std::string &topic) { bgs_image_publish_topic_ = topic; }
 
     private:
         std::string image_publish_topic_;
@@ -118,6 +137,45 @@ public:
         std::string recording_event_subscriber_topic_;
         std::string image_resized_publish_topic_;
         std::string camera_settings_client_topic_;
+        std::string tracking_publisher_topic_;
+        std::string detection_publish_topic_;
+        std::string detection_state_publish_topic_;
+        std::string bgs_image_publish_topic_;
+    };
+
+    struct RecordingParams
+    {
+        [[nodiscard]] bool get_recording_enabled() const { return recording_enabled_; }
+        [[nodiscard]] const auto &get_recording_codec() const { return recording_codec_; }
+        [[nodiscard]] int get_recording_seconds_save() const { return recording_seconds_save_; }
+
+        void set_recording_seconds_save(int seconds) { recording_seconds_save_ = seconds; }
+        void set_recording_enabled(bool enable) { recording_enabled_ = enable; }
+        void set_recording_codec(const std::string &codec) { recording_codec_ = codec; }
+
+    private:
+        bool recording_enabled_{false};
+        std::string recording_codec_{"avc1"};
+        int recording_seconds_save_{2};
+    };
+
+    struct BgsParams
+    {
+        [[nodiscard]] BGSType get_bgs_type() const { return bgs_type_; }
+        [[nodiscard]] const auto &get_sensitivity() const { return sensitivity_; }
+        [[nodiscard]] const auto &get_sensitivity_collection() const { return sensitivity_collection_; }
+        [[nodiscard]] auto &get_mask() { return mask_params_; }
+
+        void set_bgs_type(BGSType type) { bgs_type_ = type; }
+        void set_sensitivity(const std::string &sensitivity) { sensitivity_ = sensitivity; }
+        void set_sensitivity_collection(const SensitivityConfigCollection &collection) { sensitivity_collection_ = collection; }
+        void set_sensitivity_collection(const std::string &json_collection) { sensitivity_collection_.set_configs(json_collection); }
+
+    private:
+        BGSType bgs_type_{BGSType::Unknown};
+        std::string sensitivity_;
+        SensitivityConfigCollection sensitivity_collection_;
+        MaskParams mask_params_;
     };
 
 private:
@@ -126,4 +184,6 @@ private:
 
     CameraParams camera_params_;
     TopicsParams topics_params_;
+    RecordingParams recording_params_;
+    BgsParams bgs_params_;
 };

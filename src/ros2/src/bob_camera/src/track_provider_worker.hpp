@@ -15,7 +15,7 @@
 #include "sort/include/sort_tracker.h"
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
-#include "track_provider_worker_params.hpp"
+#include "camera_bgs_params.hpp"
 
 #include <visibility_control.h>
 
@@ -24,7 +24,7 @@ class TrackProviderWorker final
 public:
     COMPOSITION_PUBLIC
     explicit TrackProviderWorker(ParameterNode &node,
-                                 TrackProviderWorkerParams &params,
+                                 CameraBgsParams &params,
                                  boblib::utils::pubsub::TopicManager &topic_manager)
         : node_(node)
         , params_(params)
@@ -40,10 +40,10 @@ public:
         pub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
         pub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
 
-        pub_tracker_tracking_ = node_.create_publisher<bob_interfaces::msg::Tracking>(params_.get_tracking_publisher_topic(), pub_qos_profile);
-        pub_tracker_tracking_resized_ = node_.create_publisher<bob_interfaces::msg::Tracking>(params_.get_tracking_publisher_topic() + "/resized", pub_qos_profile);
+        pub_tracker_tracking_ = node_.create_publisher<bob_interfaces::msg::Tracking>(params_.get_topics().get_tracking_publisher_topic(), pub_qos_profile);
+        pub_tracker_tracking_resized_ = node_.create_publisher<bob_interfaces::msg::Tracking>(params_.get_topics().get_tracking_publisher_topic() + "/resized", pub_qos_profile);
 
-        detector_pubsub_ptr_ = topic_manager_.get_topic<bob_interfaces::msg::DetectorBBoxArray>(params_.get_bounding_boxes_subscription_topic());
+        detector_pubsub_ptr_ = topic_manager_.get_topic<bob_interfaces::msg::DetectorBBoxArray>(params_.get_topics().get_detection_publish_topic());
         detector_pubsub_ptr_->subscribe<TrackProviderWorker, &TrackProviderWorker::callback>(this);
     }
 
@@ -176,7 +176,7 @@ private:
     }
 
     ParameterNode &node_;
-    TrackProviderWorkerParams &params_;
+    CameraBgsParams &params_;
     boblib::utils::pubsub::TopicManager &topic_manager_;
     rclcpp::Publisher<bob_interfaces::msg::Tracking>::SharedPtr pub_tracker_tracking_;
     rclcpp::Publisher<bob_interfaces::msg::Tracking>::SharedPtr pub_tracker_tracking_resized_;
