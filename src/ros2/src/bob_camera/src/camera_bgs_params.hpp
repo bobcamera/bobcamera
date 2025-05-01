@@ -61,13 +61,15 @@ struct CameraBgsParams
         std::string image_publish_topic;
         std::string image_info_publish_topic;
         std::string camera_info_publish_topic;
-        std::string recording_event_subscriber_topic;
         std::string image_resized_publish_topic;
         std::string camera_settings_client_topic;
         std::string tracking_publisher_topic;
         std::string detection_publish_topic;
         std::string detection_state_publish_topic;
         std::string bgs_image_publish_topic;
+        std::string recording_event_publisher_topic;
+        std::string recording_request_service_topic;
+        std::string recording_state_publisher_topic;
     };
 
     struct RecordingParams
@@ -75,6 +77,8 @@ struct CameraBgsParams
         bool enabled{false};
         std::string codec{"avc1"};
         int seconds_save{2};
+        std::string recordings_directory{""};
+        std::string prefix{""};
     };
 
     struct BgsParams

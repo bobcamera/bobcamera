@@ -74,8 +74,11 @@ advanced_config:
     bgs_detection_state_topic: 'bob/camera1/detection/detector_state'
     bgs_mask_file: 'assets/masks/camera1-detection-mask.jpg'
     bgs_mask_override_service_topic: 'bob/mask/detection/override/camera1'
-    camera_recording_event_subscriber_topic: 'bob/camera1/recording/event'
+    recording_event_publisher_topic: 'bob/camera1/recording/event'
     tracker_publisher_topic: 'bob/camera1/tracker/tracking'
+    recording_request_service_topic: 'bob/recording/update/camera1'
+    recording_state_publisher_topic: 'bob/camera1/recording/state'
+    recording_prefix: 'directional4k'
 
   camera2_node:
     privacy_mask_file: 'assets/masks/camera2-privacy-mask.jpg'
@@ -89,8 +92,11 @@ advanced_config:
     bgs_detection_state_topic: 'bob/camera2/detection/detector_state'
     bgs_mask_file: 'assets/masks/camera2-detection-mask.jpg'
     bgs_mask_override_service_topic: 'bob/mask/detection/override/camera2'
-    camera_recording_event_subscriber_topic: 'bob/camera2/recording/event'
+    recording_event_publisher_topic: 'bob/camera2/recording/event'
     tracker_publisher_topic: 'bob/camera2/tracker/tracking'
+    recording_request_service_topic: 'bob/recording/update/camera2'
+    recording_state_publisher_topic: 'bob/camera2/recording/state'
+    recording_prefix: 'allsky'
 
   base_camera_node:
     resize_height: $resize_height # 0 to disable resize publish
@@ -107,6 +113,7 @@ advanced_config:
     recording_enabled: $use_recording
     recording_codec: 'avc1'
     recording_seconds_save: $extra_saving_seconds
+    recordings_directory: 'assets/recordings/'
     bgs_json_params: '[
                     { "name": "low",
                       "sensitivity": {
@@ -146,24 +153,24 @@ advanced_config:
                         "median_filter": true}}
                   ]'
 
-  base_camera_recorder_node:
-    enabled: $use_recording
-    seconds_save: $extra_saving_seconds
-    recordings_directory: 'assets/recordings/'
+  # base_camera_recorder_node:
+  #   enabled: $use_recording
+  #   seconds_save: $extra_saving_seconds
+  #   recordings_directory: 'assets/recordings/'
 
-  camera1_recorder_node:
-    recording_request_service_topic: 'bob/recording/update/camera1'
-    state_publisher_topic: 'bob/camera1/recording/state'
-    event_publisher_topic: 'bob/camera1/recording/event'
-    tracking_topic: 'bob/camera1/tracker/tracking'
-    camera_info_topic: 'bob/camera1/camera_info'
+  # camera1_recorder_node:
+  #   recording_request_service_topic: 'bob/recording/update/camera1'
+  #   state_publisher_topic: 'bob/camera1/recording/state'
+  #   event_publisher_topic: 'bob/camera1/recording/event'
+  #   tracking_topic: 'bob/camera1/tracker/tracking'
+  #   camera_info_topic: 'bob/camera1/camera_info'
 
-  camera2_recorder_node:
-    recording_request_service_topic: 'bob/recording/update/camera2'
-    state_publisher_topic: 'bob/camera2/recording/state'
-    event_publisher_topic: 'bob/camera2/recording/event'
-    tracking_topic: 'bob/camera2/tracker/tracking'
-    camera_info_topic: 'bob/camera2/camera_info'
+  # camera2_recorder_node:
+  #   recording_request_service_topic: 'bob/recording/update/camera2'
+  #   state_publisher_topic: 'bob/camera2/recording/state'
+  #   event_publisher_topic: 'bob/camera2/recording/event'
+  #   tracking_topic: 'bob/camera2/tracker/tracking'
+  #   camera_info_topic: 'bob/camera2/camera_info'
 
   base_annotated_frame_provider_node:
     tracking_status_message: false
@@ -337,10 +344,10 @@ launch:
           plugin: CameraBGS
           name: camera1_node
           remappings: []
-        - package: bob_recorder
-          plugin: RecordManager
-          name: camera1_recorder_node
-          remappings: []
+        # - package: bob_recorder
+        #   plugin: RecordManager
+        #   name: camera1_recorder_node
+        #   remappings: []
         - package: bob_image_processing
           plugin: AnnotatedFrameProvider
           name: camera1_annotated_frame_provider_node
@@ -367,10 +374,10 @@ launch:
           plugin: CameraBGS
           name: camera2_node
           remappings: []
-        - package: bob_recorder
-          plugin: RecordManager
-          name: camera2_recorder_node
-          remappings: []
+        # - package: bob_recorder
+        #   plugin: RecordManager
+        #   name: camera2_recorder_node
+        #   remappings: []
         - package: bob_image_processing
           plugin: AnnotatedFrameProvider
           name: camera2_annotated_frame_provider_node

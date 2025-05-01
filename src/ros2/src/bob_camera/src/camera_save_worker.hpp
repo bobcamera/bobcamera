@@ -24,14 +24,16 @@ class CameraSaveWorker final
 public:
     explicit CameraSaveWorker(ParameterNode &node,
                               CameraBgsParams &params,
+                              const rclcpp::QoS &sub_qos_profile,
                               boblib::utils::pubsub::TopicManager &topic_manager)
         : node_(node),
           params_(params),
+          sub_qos_profile_(sub_qos_profile),
           topic_manager_(topic_manager)
     {
     }
 
-    ~CameraSaveWorker()
+    ~CameraSaveWorker() noexcept
     {
         node_.log_info("CameraSaveWorker destructor");
         if (video_recorder_ptr_ && video_recorder_ptr_->is_recording())
@@ -39,7 +41,7 @@ public:
             node_.log_info("Closing video");
             video_recorder_ptr_->close_video();
         }
-        if (img_recorder_)
+        if (img_recorder_ && !last_recording_event_.recording_path.empty())
         {
             std::string full_path = last_recording_event_.recording_path +
                                     "/heatmaps/" + last_recording_event_.filename + ".jpg";
@@ -53,22 +55,14 @@ public:
 
     void init()
     {
-        rclcpp::QoS sub_qos_profile(4);
-        sub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
-        sub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
-        sub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
+        recording_event_pubsub_ptr_ = topic_manager_.get_topic<bob_interfaces::msg::RecordingEvent>(params_.topics.recording_event_publisher_topic);
+        recording_event_pubsub_ptr_->subscribe<CameraSaveWorker, &CameraSaveWorker::recording_event>(this);
 
-        recording_event_subscriber_ = node_.create_subscription<bob_interfaces::msg::RecordingEvent>(params_.topics.recording_event_subscriber_topic, sub_qos_profile,
-                                                                                     [this](const bob_interfaces::msg::RecordingEvent::SharedPtr event)
-                                                                                     { recording_event(*event); });
+        camera_info_pubsub_ptr_ = topic_manager_.get_topic<bob_camera::msg::CameraInfo>(params_.topics.camera_info_publish_topic);
+        camera_info_pubsub_ptr_->subscribe<CameraSaveWorker, &CameraSaveWorker::camera_info_callback>(this);
 
-        tracking_subscription_ = node_.create_subscription<bob_interfaces::msg::Tracking>(params_.topics.tracking_publisher_topic, sub_qos_profile,
-                                                                                          [this](const bob_interfaces::msg::Tracking::SharedPtr tracking_msg)
-                                                                                          { tracking_callback(tracking_msg); });
-
-        camera_info_subscription_ = node_.create_subscription<bob_camera::msg::CameraInfo>(params_.topics.camera_info_publish_topic, sub_qos_profile,
-                                                                                           [this](const bob_camera::msg::CameraInfo::SharedPtr camera_info_msg)
-                                                                                           { camera_info_callback(camera_info_msg); });
+        tracking_pubsub_ptr_ = topic_manager_.get_topic<bob_interfaces::msg::Tracking>(params_.topics.tracking_publisher_topic);
+        tracking_pubsub_ptr_->subscribe<CameraSaveWorker, &CameraSaveWorker::tracking_callback>(this);
 
         image_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.topics.image_publish_topic + "_publish");
         image_pubsub_ptr_->subscribe<CameraSaveWorker, &CameraSaveWorker::record_image>(this);
@@ -77,17 +71,18 @@ public:
         bgs_pubsub_ptr_->subscribe<CameraSaveWorker, &CameraSaveWorker::bgs_image_callback>(this);
     }
 
-    void recording_event(const bob_interfaces::msg::RecordingEvent &event) noexcept
+private:
+    void recording_event(const bob_interfaces::msg::RecordingEvent::SharedPtr &event) noexcept
     {
-        last_recording_event_ = event;
+        last_recording_event_ = *event;
     }
 
-    void camera_info_callback(const bob_camera::msg::CameraInfo::SharedPtr camera_info_msg) noexcept
+    void camera_info_callback(const bob_camera::msg::CameraInfo::SharedPtr &camera_info_msg) noexcept
     {
-        last_camera_info_ = camera_info_msg;
-        if (last_camera_info_->fps != fps_)
+        last_camera_info_ = *camera_info_msg;
+        if (last_camera_info_.fps != fps_)
         {
-            fps_ = last_camera_info_->fps;
+            fps_ = last_camera_info_.fps;
             auto total_pre_frames = (size_t)(static_cast<int>(std::ceil(fps_)) * params_.recording.seconds_save);
             img_recorder_ = std::make_unique<ImageRecorder>(total_pre_frames);
             json_recorder_ = std::make_unique<JsonRecorder>(total_pre_frames);
@@ -95,10 +90,9 @@ public:
         }
     }
 
-private:
     void save_json()
     {
-        if (!json_recorder_)
+        if (!json_recorder_ || last_recording_event_.recording_path.empty())
         {
             return;
         }
@@ -140,7 +134,7 @@ private:
 
             create_save_heatmap(camera_img);
 
-            if (!video_recorder_ptr_)
+            if (!video_recorder_ptr_ || last_recording_event_.recording_path.empty())
             {
                 return;
             }
@@ -192,43 +186,56 @@ private:
         }
     }
 
-    void tracking_callback(const bob_interfaces::msg::Tracking::SharedPtr tracking_msg)
+    void tracking_callback(const bob_interfaces::msg::Tracking::SharedPtr &tracking_msg) noexcept
     {
-        if (!params_.recording.enabled || img_recorder_ == nullptr || json_recorder_ == nullptr)
+        try
         {
-            return;
-        }
-
-        // Start recording heatmap when recording begins
-        if (last_recording_event_.recording && !recording_json_)
-        {
-            recording_json_ = true;
-        }
-        else
-            // Save heatmap when recording ends
-            if (!last_recording_event_.recording && recording_json_)
+            if (!params_.recording.enabled || img_recorder_ == nullptr || json_recorder_ == nullptr || last_recording_event_.recording_path.empty())
             {
-                recording_json_ = false;
-                save_json();
+                return;
             }
 
-        auto json_data = JsonRecorder::build_json_value(tracking_msg, false);
-        if (last_recording_event_.recording)
-        {
-            for (const auto &detection : tracking_msg->detections)
+            // Start recording heatmap when recording begins
+            if (last_recording_event_.recording && !recording_json_)
             {
-                if (detection.state == 2) // ActiveTarget
+                recording_json_ = true;
+            }
+            else
+                // Save heatmap when recording ends
+                if (!last_recording_event_.recording && recording_json_)
                 {
-                    const auto &bbox = detection.bbox;
-                    const double area = bbox.size_x * bbox.size_y;
-                    img_recorder_->store_trajectory_point(detection.id, cv::Point(static_cast<int>(bbox.center.position.x), static_cast<int>(bbox.center.position.y)), area);
+                    recording_json_ = false;
+                    save_json();
                 }
+
+            auto json_data = JsonRecorder::build_json_value(tracking_msg, false);
+            if (last_recording_event_.recording)
+            {
+                for (const auto &detection : tracking_msg->detections)
+                {
+                    if (detection.state == 2) // ActiveTarget
+                    {
+                        const auto &bbox = detection.bbox;
+                        const double area = bbox.size_x * bbox.size_y;
+                        img_recorder_->store_trajectory_point(detection.id, cv::Point(static_cast<int>(bbox.center.position.x), static_cast<int>(bbox.center.position.y)), area);
+                    }
+                }
+                json_recorder_->add_to_buffer(json_data, false);
             }
-            json_recorder_->add_to_buffer(json_data, false);
+            else
+            {
+                json_recorder_->add_to_pre_buffer(json_data, false);
+            }
         }
-        else
+        catch (const std::exception &e)
         {
-            json_recorder_->add_to_pre_buffer(json_data, false);
+            node_.log_send_error("CameraSaveWorker: process_images: Exception: %s", e.what());
+            rcutils_reset_error();
+        }
+        catch (...)
+        {
+            node_.log_send_error("CameraSaveWorker: process_images: Unknown exception");
+            rcutils_reset_error();
         }
     }
 
@@ -285,21 +292,22 @@ private:
 
     ParameterNode &node_;
     CameraBgsParams &params_;
+    const rclcpp::QoS &sub_qos_profile_;
     boblib::utils::pubsub::TopicManager &topic_manager_;
 
-    bob_camera::msg::CameraInfo::SharedPtr last_camera_info_;
+    bob_camera::msg::CameraInfo last_camera_info_;
 
-    rclcpp::Subscription<bob_interfaces::msg::RecordingEvent>::SharedPtr recording_event_subscriber_;
-    rclcpp::Subscription<bob_interfaces::msg::Tracking>::SharedPtr tracking_subscription_;
-    rclcpp::Subscription<bob_camera::msg::CameraInfo>::SharedPtr camera_info_subscription_;
     std::unique_ptr<ImageRecorder> img_recorder_;
     std::unique_ptr<JsonRecorder> json_recorder_;
     bool recording_heatmap_{false};
     bool recording_json_{false};
     float fps_{-1.0f};
 
+    std::shared_ptr<boblib::utils::pubsub::PubSub<bob_camera::msg::CameraInfo>> camera_info_pubsub_ptr_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<PublishImage>> image_pubsub_ptr_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<PublishImage>> bgs_pubsub_ptr_;
+    std::shared_ptr<boblib::utils::pubsub::PubSub<bob_interfaces::msg::RecordingEvent>> recording_event_pubsub_ptr_;
+    std::shared_ptr<boblib::utils::pubsub::PubSub<bob_interfaces::msg::Tracking>> tracking_pubsub_ptr_;
 
     bob_interfaces::msg::RecordingEvent last_recording_event_;
     std::unique_ptr<VideoRecorder> video_recorder_ptr_;

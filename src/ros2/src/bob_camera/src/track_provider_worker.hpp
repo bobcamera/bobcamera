@@ -17,12 +17,9 @@
 #include "image_utils.hpp"
 #include "camera_bgs_params.hpp"
 
-#include <visibility_control.h>
-
 class TrackProviderWorker final
 {
 public:
-    COMPOSITION_PUBLIC
     explicit TrackProviderWorker(ParameterNode &node,
                                  CameraBgsParams &params,
                                  boblib::utils::pubsub::TopicManager &topic_manager)
@@ -39,6 +36,8 @@ public:
         pub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
         pub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
         pub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
+
+        tracking_pubsub_ptr_ = topic_manager_.get_topic<bob_interfaces::msg::Tracking>(params_.topics.tracking_publisher_topic);
 
         pub_tracker_tracking_ = node_.create_publisher<bob_interfaces::msg::Tracking>(params_.topics.tracking_publisher_topic, pub_qos_profile);
         pub_tracker_tracking_resized_ = node_.create_publisher<bob_interfaces::msg::Tracking>(params_.topics.tracking_publisher_topic + "/resized", pub_qos_profile);
@@ -84,9 +83,10 @@ private:
             add_trajectory_detection(tracker, tracking_msg.trajectories);
             add_prediction(tracker, tracking_msg.predictions);
         }
-        pub_tracker_tracking_->publish(tracking_msg);
-
+        node_.publish_if_subscriber(pub_tracker_tracking_, tracking_msg);
         publish_tracking_resized(tracking_msg, image_height);
+
+        tracking_pubsub_ptr_->publish(std::move(tracking_msg));
     }
 
     inline void publish_tracking_resized(const bob_interfaces::msg::Tracking &tracking_msg, int image_height) const
@@ -182,5 +182,6 @@ private:
     rclcpp::Publisher<bob_interfaces::msg::Tracking>::SharedPtr pub_tracker_tracking_;
     rclcpp::Publisher<bob_interfaces::msg::Tracking>::SharedPtr pub_tracker_tracking_resized_;
     SORT::Tracker video_tracker_;
+    std::shared_ptr<boblib::utils::pubsub::PubSub<bob_interfaces::msg::Tracking>> tracking_pubsub_ptr_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<bob_interfaces::msg::DetectorBBoxArray>> detector_pubsub_ptr_;
 };

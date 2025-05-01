@@ -50,9 +50,10 @@ public:
             is_open_ = false;
             is_camera_info_auto_ = false;
 
-            camera_info_msg_.frame_height = 0;
-            camera_info_msg_.frame_width = 0;
-            camera_info_msg_.fps = 0;
+            camera_info_msg_ptr_ = std::make_shared<bob_camera::msg::CameraInfo>();
+            camera_info_msg_ptr_->frame_height = 0;
+            camera_info_msg_ptr_->frame_width = 0;
+            camera_info_msg_ptr_->fps = 0;
             using_cuda_ = params_.use_cuda ? boblib::base::Utils::has_cuda() : false;
             privacy_mask_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_);
 
@@ -73,6 +74,8 @@ public:
 
             publish_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.topics.image_publish_topic + "_publish");
             publish_pubsub_ptr_->subscribe<CameraWorker, &CameraWorker::publish_image>(this);
+
+            camera_info_pubsub_ptr_ = topic_manager_.get_topic<bob_camera::msg::CameraInfo>(params_.topics.camera_info_publish_topic);
 
             mask_worker_ptr_->init(params_.camera.privacy_mask.timer_seconds, params_.camera.privacy_mask.filename);
 
@@ -464,20 +467,16 @@ private:
 
     void publish_camera_info(const std_msgs::msg::Header &header, const boblib::base::Image &camera_img)
     {
-        if (!camera_info_publisher_
-            || (node_.count_subscribers(camera_info_publisher_->get_topic_name()) <= 0))
-        {
-            return;
-        }
+        camera_info_msg_ptr_->header = header;
+        camera_info_msg_ptr_->fps = fps_;
+        camera_info_msg_ptr_->frame_width = camera_img.size().width;
+        camera_info_msg_ptr_->frame_height = camera_img.size().height;
+        camera_info_msg_ptr_->is_color = camera_img.channels() >= 3;
+        camera_info_msg_ptr_->initial_connection = initial_camera_connect_;
+        camera_info_msg_ptr_->last_connection = last_camera_connect_;
 
-        camera_info_msg_.header = header;
-        camera_info_msg_.fps = fps_;
-        camera_info_msg_.frame_width = camera_img.size().width;
-        camera_info_msg_.frame_height = camera_img.size().height;
-        camera_info_msg_.is_color = camera_img.channels() >= 3;
-        camera_info_msg_.initial_connection = initial_camera_connect_;
-        camera_info_msg_.last_connection = last_camera_connect_;
-        camera_info_publisher_->publish(camera_info_msg_);
+        node_.publish_if_subscriber(camera_info_publisher_, *camera_info_msg_ptr_);
+        camera_info_pubsub_ptr_->publish(camera_info_msg_ptr_);
     }
 
     void request_camera_settings(const std::string_view &uri,
@@ -509,16 +508,16 @@ private:
         {
             auto update_camera_info = [this](const bob_interfaces::srv::CameraSettings::Response::SharedPtr &response)
             {
-                camera_info_msg_.id = response->hardware_id;
-                camera_info_msg_.manufacturer = response->manufacturer;
-                camera_info_msg_.model = response->model;
-                camera_info_msg_.serial_num = response->serial_number;
-                camera_info_msg_.firmware_version = response->firmware_version;
-                camera_info_msg_.num_configurations = response->num_configurations;
-                camera_info_msg_.encoding = response->encoding;
-                camera_info_msg_.frame_width = response->frame_width;
-                camera_info_msg_.frame_height = response->frame_height;
-                camera_info_msg_.fps = response->fps;
+                camera_info_msg_ptr_->id = response->hardware_id;
+                camera_info_msg_ptr_->manufacturer = response->manufacturer;
+                camera_info_msg_ptr_->model = response->model;
+                camera_info_msg_ptr_->serial_num = response->serial_number;
+                camera_info_msg_ptr_->firmware_version = response->firmware_version;
+                camera_info_msg_ptr_->num_configurations = response->num_configurations;
+                camera_info_msg_ptr_->encoding = response->encoding;
+                camera_info_msg_ptr_->frame_width = response->frame_width;
+                camera_info_msg_ptr_->frame_height = response->frame_height;
+                camera_info_msg_ptr_->fps = response->fps;
                 is_camera_info_auto_ = true;
                 loop_rate_ptr_ = std::make_unique<rclcpp::WallRate>(response->fps);
             };
@@ -526,11 +525,11 @@ private:
         }
         else if (params_.camera.source_type == CameraBgsParams::SourceType::USB_CAMERA)
         {
-            camera_info_msg_.model = "USB Camera";
+            camera_info_msg_ptr_->model = "USB Camera";
         }
         else if (params_.camera.source_type == CameraBgsParams::SourceType::VIDEO_FILE)
         {
-            camera_info_msg_.model = "Video File";
+            camera_info_msg_ptr_->model = "Video File";
         }
     }
 
@@ -578,7 +577,7 @@ private:
     rclcpp::Client<bob_interfaces::srv::CameraSettings>::SharedPtr camera_settings_client_;
 
     std::unique_ptr<boblib::video::VideoReader> video_reader_ptr_;
-    bob_camera::msg::CameraInfo camera_info_msg_;
+    bob_camera::msg::CameraInfo::SharedPtr camera_info_msg_ptr_;
 
     bool run_{false};
     std::thread capture_thread_;
@@ -603,4 +602,5 @@ private:
     bool using_cuda_{false};
 
     std::shared_ptr<boblib::utils::pubsub::PubSub<PublishImage>> publish_pubsub_ptr_;
+    std::shared_ptr<boblib::utils::pubsub::PubSub<bob_camera::msg::CameraInfo>> camera_info_pubsub_ptr_;
 };

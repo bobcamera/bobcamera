@@ -119,20 +119,20 @@ public:
         return jsonValue;
     }
 
-    static Json::Value build_json_camera_info(const bob_camera::msg::CameraInfo::SharedPtr& camera_info_msg) 
+    static Json::Value build_json_camera_info(const bob_camera::msg::CameraInfo & camera_info_msg) 
     { 
         Json::Value jsonValue;
         Json::Value jsonCameraInfo;
-        jsonCameraInfo["id"] = camera_info_msg->id;
-        jsonCameraInfo["manufacturer"] = camera_info_msg->manufacturer;
-        jsonCameraInfo["model"] = camera_info_msg->model;
-        jsonCameraInfo["serial_num"] = camera_info_msg->serial_num;
-        jsonCameraInfo["firmware_version"] = camera_info_msg->firmware_version;
-        jsonCameraInfo["num_configurations"] = camera_info_msg->num_configurations;
-        jsonCameraInfo["encoding"] = camera_info_msg->encoding;
-        jsonCameraInfo["frame_width"] = camera_info_msg->frame_width;
-        jsonCameraInfo["frame_height"] = camera_info_msg->frame_height;
-        jsonCameraInfo["fps"] = camera_info_msg->fps;
+        jsonCameraInfo["id"] = camera_info_msg.id;
+        jsonCameraInfo["manufacturer"] = camera_info_msg.manufacturer;
+        jsonCameraInfo["model"] = camera_info_msg.model;
+        jsonCameraInfo["serial_num"] = camera_info_msg.serial_num;
+        jsonCameraInfo["firmware_version"] = camera_info_msg.firmware_version;
+        jsonCameraInfo["num_configurations"] = camera_info_msg.num_configurations;
+        jsonCameraInfo["encoding"] = camera_info_msg.encoding;
+        jsonCameraInfo["frame_width"] = camera_info_msg.frame_width;
+        jsonCameraInfo["frame_height"] = camera_info_msg.frame_height;
+        jsonCameraInfo["fps"] = camera_info_msg.fps;
         jsonValue["camera_info"] = jsonCameraInfo;
 
         return jsonValue;

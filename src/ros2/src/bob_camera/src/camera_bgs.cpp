@@ -16,6 +16,7 @@
 #include "camera_save_worker.hpp"
 #include "background_subtractor_worker.hpp"
 #include "track_provider_worker.hpp"
+#include "record_manager_worker.hpp"
 
 class CameraBGS : public ParameterNode
 {
@@ -32,8 +33,9 @@ public:
         topic_manager_ = std::make_unique<boblib::utils::pubsub::TopicManager>(100);
 
         bgs_worker_ptr_ = std::make_unique<BackgroundSubtractorWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_);
-        camera_save_worker_ptr_ = std::make_unique<CameraSaveWorker>(*this, camera_bgs_params_, *topic_manager_);
+        camera_save_worker_ptr_ = std::make_unique<CameraSaveWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_);
         track_provider_worker_ptr_ = std::make_unique<TrackProviderWorker>(*this, camera_bgs_params_, *topic_manager_);
+        record_manager_worker_ptr_ = std::make_unique<RecordManagerWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_);
         camera_worker_ptr_ = std::make_unique<CameraWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_);
     }
 
@@ -59,6 +61,7 @@ private:
         bgs_worker_ptr_->init();
         camera_save_worker_ptr_->init();
         track_provider_worker_ptr_->init();
+        record_manager_worker_ptr_->init();
         camera_worker_ptr_->init();
     }
 
@@ -96,10 +99,10 @@ private:
                         camera_bgs_params_.topics.camera_info_publish_topic = param.as_string();
                     }),
                 ParameterNode::ActionParam(
-                    rclcpp::Parameter("camera_recording_event_subscriber_topic", "bob/camera1/recording/event"),
+                    rclcpp::Parameter("camera_recording_event_publisher_topic", "bob/camera1/recording/event"),
                     [this](const rclcpp::Parameter &param)
                     {
-                        camera_bgs_params_.topics.recording_event_subscriber_topic = param.as_string();
+                        camera_bgs_params_.topics.recording_event_publisher_topic = param.as_string();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("bgs_publish_topic", "bob/frames/foreground_mask"),
@@ -325,6 +328,30 @@ private:
                     {
                         camera_bgs_params_.recording.seconds_save = param.as_int();
                     }),
+                ParameterNode::ActionParam(
+                    rclcpp::Parameter("recordings_directory", "."),
+                    [this](const rclcpp::Parameter &param)
+                    {
+                        camera_bgs_params_.recording.recordings_directory = param.as_string();
+                    }),
+                ParameterNode::ActionParam(
+                    rclcpp::Parameter("recording_request_service_topic", "bob/recording/update"),
+                    [this](const rclcpp::Parameter &param)
+                    {
+                        camera_bgs_params_.topics.recording_request_service_topic = param.as_string();
+                    }),
+                ParameterNode::ActionParam(
+                    rclcpp::Parameter("recording_state_publisher_topic", "bob/recording/state"),
+                    [this](const rclcpp::Parameter &param)
+                    {
+                        camera_bgs_params_.topics.recording_state_publisher_topic = param.as_string();
+                    }),
+                ParameterNode::ActionParam(
+                    rclcpp::Parameter("recording_prefix", ""),
+                    [this](const rclcpp::Parameter &param)
+                    {
+                        camera_bgs_params_.recording.prefix = param.as_string();
+                    }),
             };
         add_action_parameters(params);
     }
@@ -365,6 +392,7 @@ private:
     std::unique_ptr<BackgroundSubtractorWorker> bgs_worker_ptr_;
     std::unique_ptr<CameraSaveWorker> camera_save_worker_ptr_;
     std::unique_ptr<TrackProviderWorker> track_provider_worker_ptr_;
+    std::unique_ptr<RecordManagerWorker> record_manager_worker_ptr_;
 
     std::unique_ptr<boblib::utils::pubsub::TopicManager> topic_manager_;
 
