@@ -18,6 +18,7 @@
 
 #include "mask_worker.hpp"
 #include "publish_image.hpp"
+#include "detection.hpp"
 #include "image_recorder.hpp"
 #include "json_recorder.hpp"
 
@@ -62,7 +63,7 @@ public:
         process_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.topics.image_publish_topic + "_process");
         process_pubsub_ptr_->subscribe<BackgroundSubtractorWorker, &BackgroundSubtractorWorker::process_image>(this);
 
-        detector_pubsub_ptr_ = topic_manager_.get_topic<bob_interfaces::msg::DetectorBBoxArray>(params_.topics.detection_publish_topic);
+        detector_pubsub_ptr_ = topic_manager_.get_topic<Detection>(params_.topics.detection_publish_topic);
     }
 
     void restart_mask()
@@ -211,7 +212,7 @@ public:
             }
 
             boblib::base::Image gray_img(using_cuda_);
-            publish_image->imagePtr->convertColorTo(gray_img, cv::COLOR_BGR2GRAY);
+            publish_image->image_ptr->convertColorTo(gray_img, cv::COLOR_BGR2GRAY);
 
             // Resize detection mask if needed
             if (mask_enabled_ && params_.bgs.mask.enable_override &&
@@ -232,11 +233,10 @@ public:
                            { return ready_; });
             processing_ = true;
             bgs_ptr_->apply(gray_img, *bgs_img_ptr, mask);
-            //gray_img.copyTo(*bgs_img_ptr);
             processing_ = false;
             cv_processing_.notify_all();
 
-            process_pubsub_ptr_->publish(PublishImage(publish_image->headerPtr, std::move(bgs_img_ptr)));
+            process_pubsub_ptr_->publish(PublishImage(publish_image->header_ptr, std::move(bgs_img_ptr), publish_image->camera_info_ptr));
         }
         catch (const std::exception &e)
         {
@@ -260,11 +260,11 @@ private:
                 node_.log_info("Process Queue size: %d", process_pubsub_ptr_->queue_size() - 1);
             }
 
-            auto &header = *publish_image->headerPtr;
-            auto &bgs_img = *publish_image->imagePtr;
+            const auto &header = publish_image->header_ptr;
+            auto &bgs_img = *publish_image->image_ptr;
 
             // Process the results
-            do_detection(header, bgs_img);
+            do_detection(header, publish_image);
             publish_frame(header, bgs_img);
             publish_resized_frame(header, bgs_img);
         }
@@ -280,20 +280,20 @@ private:
         }
     }
 
-    inline void publish_frame(const std_msgs::msg::Header &header, boblib::base::Image &bgs_img) noexcept
+    inline void publish_frame(const std_msgs::msg::Header::SharedPtr &header, boblib::base::Image &bgs_img) noexcept
     {
         if (node_.count_subscribers(image_publisher_ptr_->get_topic_name()) <= 0)
         {
             return;
         }
-        auto bgs_msg = PublishImage::fill_imagemsg_header(header, bgs_img);
+        auto bgs_msg = PublishImage::fill_imagemsg_header(*header, bgs_img);
         const size_t totalBytes = bgs_img.total() * bgs_img.elemSize();
         bgs_msg.data.assign(bgs_img.data(), bgs_img.data() + totalBytes);
 
         image_publisher_ptr_->publish(bgs_msg);
     }
 
-    inline void publish_resized_frame(const std_msgs::msg::Header &header, const boblib::base::Image &bgs_img) const
+    inline void publish_resized_frame(const std_msgs::msg::Header::SharedPtr &header, const boblib::base::Image &bgs_img) const
     {
         if (!image_resized_publisher_ptr_ 
             || (params_.resize_height <= 0) 
@@ -305,21 +305,13 @@ private:
         const auto frame_width = static_cast<int>(bgs_img.size().aspectRatio() * static_cast<double>(params_.resize_height));
         bgs_img.resizeTo(resized_img, cv::Size(frame_width, params_.resize_height));
 
-        auto resized_frame_msg = cv_bridge::CvImage(header, ImageUtils::type_to_encoding(resized_img.type()), resized_img.toMat()).toImageMsg();
+        auto resized_frame_msg = cv_bridge::CvImage(*header, ImageUtils::type_to_encoding(resized_img.type()), resized_img.toMat()).toImageMsg();
         image_resized_publisher_ptr_->publish(*resized_frame_msg);
     }
 
-    inline void do_detection(const std_msgs::msg::Header &header, boblib::base::Image &bgs_img)
+    inline void do_detection(const std_msgs::msg::Header::SharedPtr &header, const std::shared_ptr<PublishImage> &publish_image)
     {
-        // Initialize detector state and bounding box array messages
-        bob_interfaces::msg::DetectorState state;
-        state.sensitivity = params_.bgs.sensitivity;
-        state.max_blobs_reached = false; // Initialize to false by default
-
-        bob_interfaces::msg::DetectorBBoxArray bbox2D_array;
-        bbox2D_array.header = header;
-        bbox2D_array.image_width = bgs_img.size().width;
-        bbox2D_array.image_height = bgs_img.size().height;
+        auto &bgs_img = *publish_image->image_ptr;
 
         // Apply median filter if enabled to reduce noise
         if (median_filter_)
@@ -328,42 +320,41 @@ private:
         }
 
         // Perform blob detection
-        std::vector<cv::Rect> bboxes;
+        auto bboxes = std::make_shared<std::vector<cv::Rect>>();
 
         std::unique_lock lock(mutex_);
         cv_ready_.wait(lock, [this]
                        { return ready_; });
         processing_ = true;
-        const auto det_result = blob_detector_ptr_->detect(bgs_img, bboxes);
-        // gray_img.copyTo(*bgs_img_ptr);
+        const auto det_result = blob_detector_ptr_->detect(bgs_img, *bboxes);
         processing_ = false;
         cv_processing_.notify_all();
 
-        // Handle detection results
-        switch (det_result)
+        // Sending ROS messages if there are subscribers
+        if ((node_.count_subscribers(state_publisher_ptr_->get_topic_name()) > 0) 
+            || (node_.count_subscribers(detection_publisher_ptr_->get_topic_name()) > 0))
         {
-        case boblib::blobs::DetectionResult::Success:
-            add_bboxes(bbox2D_array, bboxes);
-            break;
+            // Initialize detector state and bounding box array messages
+            bob_interfaces::msg::DetectorState state;
+            state.sensitivity = params_.bgs.sensitivity;
+            state.max_blobs_reached = det_result == boblib::blobs::DetectionResult::MaxBlobsReached;
 
-        case boblib::blobs::DetectionResult::MaxBlobsReached:
-            state.max_blobs_reached = true;
-            break;
+            bob_interfaces::msg::DetectorBBoxArray bbox2D_array;
+            bbox2D_array.header = *header;
+            bbox2D_array.image_width = bgs_img.size().width;
+            bbox2D_array.image_height = bgs_img.size().height;
 
-        case boblib::blobs::DetectionResult::NoBlobsDetected:
-            break;
+            if (!state.max_blobs_reached)
+            {
+                add_bboxes(bbox2D_array, *bboxes);
+            }
 
-        default:
-            // Log unexpected detection result
-            node_.log_send_warn("Unexpected detection result: %d", static_cast<int>(det_result));
-            break;
+            // Publish results if there are subscribers
+            state_publisher_ptr_->publish(state);
+            detection_publisher_ptr_->publish(bbox2D_array);
         }
 
-        // Publish results if there are subscribers
-        node_.publish_if_subscriber(state_publisher_ptr_, state);
-        node_.publish_if_subscriber(detection_publisher_ptr_, bbox2D_array);
-
-        detector_pubsub_ptr_->publish(std::move(bbox2D_array));
+        detector_pubsub_ptr_->publish(Detection(header, bboxes, bgs_img.size().width, bgs_img.size().height, publish_image->camera_info_ptr->fps));
     }
 
     inline void add_bboxes(bob_interfaces::msg::DetectorBBoxArray &bbox2D_array, const std::vector<cv::Rect> &bboxes) noexcept
@@ -449,5 +440,5 @@ private:
     boblib::utils::pubsub::TopicManager &topic_manager_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<PublishImage>> camera_pubsub_ptr_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<PublishImage>> process_pubsub_ptr_;
-    std::shared_ptr<boblib::utils::pubsub::PubSub<bob_interfaces::msg::DetectorBBoxArray>> detector_pubsub_ptr_;
+    std::shared_ptr<boblib::utils::pubsub::PubSub<Detection>> detector_pubsub_ptr_;
 };

@@ -104,18 +104,18 @@ private:
 
     void camera_info_callback(const bob_camera::msg::CameraInfo::SharedPtr &camera_info_msg) noexcept
     {
-        last_camera_info_ptr_ = *camera_info_msg;
+        last_camera_info_ = *camera_info_msg;
     }
 
     void tracking_info_callback(const bob_interfaces::msg::Tracking::SharedPtr &tracking_msg) noexcept
     {
-        if (!params_.recording.enabled || last_camera_info_ptr_.fps == 0)
+        if (!params_.recording.enabled || last_camera_info_.fps == 0)
         {
             return;
         }
         try
         {
-            if ((current_state_ != RecordingStateEnum::BeforeStart) && (prev_frame_size_ != cv::Size(last_camera_info_ptr_.frame_width, last_camera_info_ptr_.frame_height)))
+            if ((current_state_ != RecordingStateEnum::BeforeStart) && (prev_frame_size_ != cv::Size(last_camera_info_.frame_width, last_camera_info_.frame_height)))
             {
                 node_.log_send_info("Frame dimensions changed.");
                 current_state_ = RecordingStateEnum::AfterEnd;
@@ -130,10 +130,10 @@ private:
                     recording_ = true;
                     current_state_ = RecordingStateEnum::BetweenEvents;
 
-                    video_fps_ = static_cast<double>(last_camera_info_ptr_.fps);
+                    video_fps_ = static_cast<double>(last_camera_info_.fps);
                     base_filename_ = generate_filename(tracking_msg->header.stamp);
-                    prev_frame_size_.width = last_camera_info_ptr_.frame_width;
-                    prev_frame_size_.height = last_camera_info_ptr_.frame_height;
+                    prev_frame_size_.width = last_camera_info_.frame_width;
+                    prev_frame_size_.height = last_camera_info_.frame_height;
 
                     if (auto current_date = get_current_date_as_str(); current_date != date_)
                     {
@@ -244,5 +244,5 @@ private:
     cv::Size prev_frame_size_;
     bool recording_;
 
-    bob_camera::msg::CameraInfo last_camera_info_ptr_;
+    bob_camera::msg::CameraInfo last_camera_info_;
 };

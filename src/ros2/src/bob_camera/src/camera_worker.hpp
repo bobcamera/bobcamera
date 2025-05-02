@@ -186,8 +186,6 @@ public:
         return false;
     }
 
-    
-
 private:
     void update_capture_info()
     {
@@ -283,7 +281,9 @@ private:
                 header_ptr->stamp = node_.now();
                 header_ptr->frame_id = ParameterNode::generate_uuid();
 
-                publish_pubsub_ptr_->publish(PublishImage(std::move(header_ptr), std::move(camera_img_ptr)));
+                fill_camera_info(*header_ptr, *camera_img_ptr);
+
+                publish_pubsub_ptr_->publish(PublishImage(header_ptr, camera_img_ptr, camera_info_msg_ptr_));
 
                 // Only limiting fps if it is video and the limit_fps param is set
                 if (params_.camera.limit_fps 
@@ -312,10 +312,10 @@ private:
     {
         try
         {
-            publish_frame(*publish_image->headerPtr, *publish_image->imagePtr);
-            publish_resized_frame(*publish_image->headerPtr, *publish_image->imagePtr);
-            publish_image_info(*publish_image->headerPtr, *publish_image->imagePtr);
-            publish_camera_info(*publish_image->headerPtr, *publish_image->imagePtr);
+            publish_frame(*publish_image->header_ptr, *publish_image->image_ptr);
+            publish_resized_frame(*publish_image->header_ptr, *publish_image->image_ptr);
+            //publish_image_info(*publish_image->header_ptr, *publish_image->image_ptr);
+            publish_camera_info();
         }
         catch (const std::exception &e)
         {
@@ -464,8 +464,7 @@ private:
 
         image_info_publisher_->publish(image_info_msg);
     }
-
-    void publish_camera_info(const std_msgs::msg::Header &header, const boblib::base::Image &camera_img)
+    void fill_camera_info(const std_msgs::msg::Header &header, const boblib::base::Image &camera_img)
     {
         camera_info_msg_ptr_->header = header;
         camera_info_msg_ptr_->fps = fps_;
@@ -474,7 +473,10 @@ private:
         camera_info_msg_ptr_->is_color = camera_img.channels() >= 3;
         camera_info_msg_ptr_->initial_connection = initial_camera_connect_;
         camera_info_msg_ptr_->last_connection = last_camera_connect_;
+    }
 
+    void publish_camera_info()
+    {
         node_.publish_if_subscriber(camera_info_publisher_, *camera_info_msg_ptr_);
         camera_info_pubsub_ptr_->publish(camera_info_msg_ptr_);
     }

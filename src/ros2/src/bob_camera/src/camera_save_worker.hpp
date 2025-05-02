@@ -58,9 +58,6 @@ public:
         recording_event_pubsub_ptr_ = topic_manager_.get_topic<bob_interfaces::msg::RecordingEvent>(params_.topics.recording_event_publisher_topic);
         recording_event_pubsub_ptr_->subscribe<CameraSaveWorker, &CameraSaveWorker::recording_event>(this);
 
-        camera_info_pubsub_ptr_ = topic_manager_.get_topic<bob_camera::msg::CameraInfo>(params_.topics.camera_info_publish_topic);
-        camera_info_pubsub_ptr_->subscribe<CameraSaveWorker, &CameraSaveWorker::camera_info_callback>(this);
-
         tracking_pubsub_ptr_ = topic_manager_.get_topic<bob_interfaces::msg::Tracking>(params_.topics.tracking_publisher_topic);
         tracking_pubsub_ptr_->subscribe<CameraSaveWorker, &CameraSaveWorker::tracking_callback>(this);
 
@@ -75,19 +72,6 @@ private:
     void recording_event(const bob_interfaces::msg::RecordingEvent::SharedPtr &event) noexcept
     {
         last_recording_event_ = *event;
-    }
-
-    void camera_info_callback(const bob_camera::msg::CameraInfo::SharedPtr &camera_info_msg) noexcept
-    {
-        last_camera_info_ = *camera_info_msg;
-        if (last_camera_info_.fps != fps_)
-        {
-            fps_ = last_camera_info_.fps;
-            auto total_pre_frames = (size_t)(static_cast<int>(std::ceil(fps_)) * params_.recording.seconds_save);
-            img_recorder_ = std::make_unique<ImageRecorder>(total_pre_frames);
-            json_recorder_ = std::make_unique<JsonRecorder>(total_pre_frames);
-            video_recorder_ptr_ = std::make_unique<VideoRecorder>(total_pre_frames);
-        }
     }
 
     void save_json()
@@ -108,7 +92,7 @@ private:
     {
         try
         {
-            accumulate_mask(*camera_publish->imagePtr);
+            accumulate_mask(*camera_publish->image_ptr);
         }
         catch (const std::exception &e)
         {
@@ -130,7 +114,18 @@ private:
             {
                 return;
             }
-            auto &camera_img = *camera_publish->imagePtr;
+            auto &camera_img = *camera_publish->image_ptr;
+
+            last_camera_info_ = *camera_publish->camera_info_ptr;
+            if (last_camera_info_.fps != fps_)
+            {
+                // TODO: close previous recorders
+                fps_ = last_camera_info_.fps;
+                auto total_pre_frames = (size_t)(static_cast<int>(std::ceil(fps_)) * params_.recording.seconds_save);
+                img_recorder_ = std::make_unique<ImageRecorder>(total_pre_frames);
+                json_recorder_ = std::make_unique<JsonRecorder>(total_pre_frames);
+                video_recorder_ptr_ = std::make_unique<VideoRecorder>(total_pre_frames);
+            }
 
             create_save_heatmap(camera_img);
 
@@ -303,7 +298,6 @@ private:
     bool recording_json_{false};
     float fps_{-1.0f};
 
-    std::shared_ptr<boblib::utils::pubsub::PubSub<bob_camera::msg::CameraInfo>> camera_info_pubsub_ptr_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<PublishImage>> image_pubsub_ptr_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<PublishImage>> bgs_pubsub_ptr_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<bob_interfaces::msg::RecordingEvent>> recording_event_pubsub_ptr_;

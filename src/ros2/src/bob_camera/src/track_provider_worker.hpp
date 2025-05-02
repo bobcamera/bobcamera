@@ -14,6 +14,7 @@
 
 #include "sort/include/sort_tracker.h"
 #include "parameter_node.hpp"
+#include "detection.hpp"
 #include "image_utils.hpp"
 #include "camera_bgs_params.hpp"
 
@@ -22,9 +23,11 @@ class TrackProviderWorker final
 public:
     explicit TrackProviderWorker(ParameterNode &node,
                                  CameraBgsParams &params,
+                                 const rclcpp::QoS &pub_qos_profile,
                                  boblib::utils::pubsub::TopicManager &topic_manager)
         : node_(node)
         , params_(params)
+        , pub_qos_profile_(pub_qos_profile)
         , topic_manager_(topic_manager)
         , video_tracker_(node.get_logger())
     {
@@ -32,35 +35,23 @@ public:
 
     void init()
     {
-        rclcpp::QoS pub_qos_profile(4);
-        pub_qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
-        pub_qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
-        pub_qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
-
         tracking_pubsub_ptr_ = topic_manager_.get_topic<bob_interfaces::msg::Tracking>(params_.topics.tracking_publisher_topic);
 
-        pub_tracker_tracking_ = node_.create_publisher<bob_interfaces::msg::Tracking>(params_.topics.tracking_publisher_topic, pub_qos_profile);
-        pub_tracker_tracking_resized_ = node_.create_publisher<bob_interfaces::msg::Tracking>(params_.topics.tracking_publisher_topic + "/resized", pub_qos_profile);
+        pub_tracker_tracking_ = node_.create_publisher<bob_interfaces::msg::Tracking>(params_.topics.tracking_publisher_topic, pub_qos_profile_);
+        pub_tracker_tracking_resized_ = node_.create_publisher<bob_interfaces::msg::Tracking>(params_.topics.tracking_publisher_topic + "/resized", pub_qos_profile_);
 
-        detector_pubsub_ptr_ = topic_manager_.get_topic<bob_interfaces::msg::DetectorBBoxArray>(params_.topics.detection_publish_topic);
+        detector_pubsub_ptr_ = topic_manager_.get_topic<Detection>(params_.topics.detection_publish_topic);
         detector_pubsub_ptr_->subscribe<TrackProviderWorker, &TrackProviderWorker::callback>(this);
     }
 
 private:
-    void callback(const std::shared_ptr<bob_interfaces::msg::DetectorBBoxArray> &bounding_boxes_msg) noexcept
+    void callback(const std::shared_ptr<Detection> &detection) noexcept
     {
         try
         {
-            std::vector<cv::Rect> bboxes;
-            bboxes.reserve(bounding_boxes_msg->detections.size());
-            for (const auto &bbox2D : bounding_boxes_msg->detections)
-            {
-                bboxes.emplace_back(bbox2D.x, bbox2D.y, bbox2D.width, bbox2D.height);
-            }
+            video_tracker_.update_trackers(*detection->bbox_ptr);
 
-            video_tracker_.update_trackers(bboxes);
-
-            publish_tracking(bounding_boxes_msg->header, bounding_boxes_msg->image_height);
+            publish_tracking(*detection->header_ptr, detection->image_height);
         }
         catch (const std::exception &cve)
         {
@@ -178,10 +169,11 @@ private:
 
     ParameterNode &node_;
     CameraBgsParams &params_;
+    const rclcpp::QoS &pub_qos_profile_;
     boblib::utils::pubsub::TopicManager &topic_manager_;
     rclcpp::Publisher<bob_interfaces::msg::Tracking>::SharedPtr pub_tracker_tracking_;
     rclcpp::Publisher<bob_interfaces::msg::Tracking>::SharedPtr pub_tracker_tracking_resized_;
     SORT::Tracker video_tracker_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<bob_interfaces::msg::Tracking>> tracking_pubsub_ptr_;
-    std::shared_ptr<boblib::utils::pubsub::PubSub<bob_interfaces::msg::DetectorBBoxArray>> detector_pubsub_ptr_;
+    std::shared_ptr<boblib::utils::pubsub::PubSub<Detection>> detector_pubsub_ptr_;
 };

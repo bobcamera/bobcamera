@@ -34,7 +34,7 @@ public:
 
         bgs_worker_ptr_ = std::make_unique<BackgroundSubtractorWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_);
         camera_save_worker_ptr_ = std::make_unique<CameraSaveWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_);
-        track_provider_worker_ptr_ = std::make_unique<TrackProviderWorker>(*this, camera_bgs_params_, *topic_manager_);
+        track_provider_worker_ptr_ = std::make_unique<TrackProviderWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_);
         record_manager_worker_ptr_ = std::make_unique<RecordManagerWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_);
         camera_worker_ptr_ = std::make_unique<CameraWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_);
     }
