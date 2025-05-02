@@ -59,7 +59,7 @@ private:
         declare_node_parameters();
 
         bgs_worker_ptr_->init();
-        camera_save_worker_ptr_->init();
+        //camera_save_worker_ptr_->init();
         track_provider_worker_ptr_->init();
         record_manager_worker_ptr_->init();
         camera_worker_ptr_->init();
@@ -263,14 +263,14 @@ private:
                     rclcpp::Parameter("bgs_sensitivity", "medium_c"),
                     [this](const rclcpp::Parameter &param)
                     {
-                        log_info("Setting Sensitivity: %s", param.as_string().c_str());
+                        log_send_info("Setting Sensitivity: %s", param.as_string().c_str());
                         bgs_worker_ptr_->init_sensitivity(param.as_string());
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("bgs_type", "vibe"),
                     [this](const rclcpp::Parameter &param)
                     {
-                        log_info("Setting BGS: %s", param.as_string().c_str());
+                        log_send_info("Setting BGS: %s", param.as_string().c_str());
                         bgs_worker_ptr_->init_bgs(param.as_string());
                     }),
                 ParameterNode::ActionParam(

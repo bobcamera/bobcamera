@@ -190,6 +190,7 @@ public:
 
         ready_ = true;
         cv_ready_.notify_all();
+        cv_processing_.notify_all();
     }
 
     void camera_image_callback(const std::shared_ptr<PublishImage> &publish_image) noexcept
@@ -328,7 +329,15 @@ private:
 
         // Perform blob detection
         std::vector<cv::Rect> bboxes;
+
+        std::unique_lock lock(mutex_);
+        cv_ready_.wait(lock, [this]
+                       { return ready_; });
+        processing_ = true;
         const auto det_result = blob_detector_ptr_->detect(bgs_img, bboxes);
+        // gray_img.copyTo(*bgs_img_ptr);
+        processing_ = false;
+        cv_processing_.notify_all();
 
         // Handle detection results
         switch (det_result)

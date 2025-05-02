@@ -7,7 +7,7 @@ variables:
   extra_saving_seconds: 2
   image_compression_quality: 75
   use_cuda: false #Leave it false as it is not working
-  use_recording: true
+  use_recording: false
   display_enabled: true
   camera1_enabled: true
   camera2_enabled: true

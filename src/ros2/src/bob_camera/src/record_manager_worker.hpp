@@ -109,7 +109,7 @@ private:
 
     void tracking_info_callback(const bob_interfaces::msg::Tracking::SharedPtr &tracking_msg) noexcept
     {
-        if (last_camera_info_ptr_.fps == 0)
+        if (!params_.recording.enabled || last_camera_info_ptr_.fps == 0)
         {
             return;
         }
