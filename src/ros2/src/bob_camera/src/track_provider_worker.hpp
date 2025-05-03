@@ -1,6 +1,7 @@
 #pragma once
 
 #include <opencv2/opencv.hpp>
+#include <chrono>
 
 #include <boblib/api/utils/pubsub/TopicManager.hpp>
 
@@ -25,11 +26,9 @@ public:
                                  CameraBgsParams &params,
                                  const rclcpp::QoS &pub_qos_profile,
                                  boblib::utils::pubsub::TopicManager &topic_manager)
-        : node_(node)
-        , params_(params)
-        , pub_qos_profile_(pub_qos_profile)
-        , topic_manager_(topic_manager)
-        , video_tracker_(node.get_logger())
+        : node_(node), params_(params), pub_qos_profile_(pub_qos_profile), topic_manager_(topic_manager), last_profile_log_(std::chrono::steady_clock::now()) // profiling
+          ,
+          profile_time_sum_(0.0), profile_time_count_(0), video_tracker_(node.get_logger())
     {
     }
 
@@ -49,9 +48,23 @@ private:
     {
         try
         {
+            auto start = std::chrono::steady_clock::now(); // profiling start
             video_tracker_.update_trackers(*detection->bbox_ptr);
 
             publish_tracking(detection);
+            auto end = std::chrono::steady_clock::now(); // profiling end
+            double duration_us = std::chrono::duration<double, std::micro>(end - start).count();
+            profile_time_sum_ += duration_us;
+            ++profile_time_count_;
+            auto now = std::chrono::steady_clock::now();
+            if (std::chrono::duration<double>(now - last_profile_log_).count() >= 5.0)
+            {
+                double mean_us = profile_time_sum_ / profile_time_count_;
+                node_.log_send_info("TrackProviderWorker callback mean time: %.3f us over %zu calls", mean_us, profile_time_count_);
+                last_profile_log_ = now;
+                profile_time_sum_ = 0.0;
+                profile_time_count_ = 0;
+            }
         }
         catch (const std::exception &cve)
         {
@@ -165,6 +178,11 @@ private:
             track_msg.trajectory.push_back(std::move(point));
         }
     }
+
+    // profiling fields
+    std::chrono::steady_clock::time_point last_profile_log_;
+    double profile_time_sum_;
+    size_t profile_time_count_;
 
     ParameterNode &node_;
     CameraBgsParams &params_;

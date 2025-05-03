@@ -149,11 +149,9 @@ void SORT::Tracker::AssociateDetectionsToTrackers(const std::vector<cv::Rect> &d
 void SORT::Tracker::update_trackers(const std::vector<cv::Rect> &detections)
 {
     /*** Predict internal tracks from previous frame ***/
-    std::vector<std::jthread> predict_threads;
     for (auto &track : tracks_)
     {
-        predict_threads.emplace_back([&track]()
-                                     { track.second.predict(); });
+        track.second.predict();
     }
 
     // Hash-map between track ID and associated detection bounding box
@@ -166,13 +164,10 @@ void SORT::Tracker::update_trackers(const std::vector<cv::Rect> &detections)
         AssociateDetectionsToTrackers(detections, tracks_, matched, unmatched_det);
     }
 
-    // Update phase with threading
-    std::vector<std::jthread> update_threads;
+    // Update phase
     for (const auto &match : matched)
     {
-        const auto &ID = match.first;
-        update_threads.emplace_back([this, &ID, &match]()
-                                    { tracks_[ID].update(match.second); });
+        tracks_[match.first].update(match.second);
     }
 
     /*** Create new tracks for unmatched detections ***/
