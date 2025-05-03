@@ -118,57 +118,52 @@ private:
                 prediction.center.y *= adjust;
             }
         }
-        pub_tracker_tracking_resized_->publish(tracking_msg_resized);
+        pub_tracker_tracking_resized_->publish(std::move(tracking_msg_resized));
     }
 
     inline void add_track_detection(const auto &tracker, std::vector<bob_interfaces::msg::TrackDetection> &detection_array) const
     {
         auto bbox = tracker.get_bbox();
-        bob_interfaces::msg::DetectorBBox bbox_msg;
-        bbox_msg.x = bbox.x;
-        bbox_msg.y = bbox.y;
-        bbox_msg.width = bbox.width;
-        bbox_msg.height = bbox.height;
 
-        bob_interfaces::msg::TrackDetection detect_msg;
+        auto &detect_msg = detection_array.emplace_back();
         detect_msg.id = tracker.get_id();
         detect_msg.state = (int)tracker.get_tracking_state();
-        detect_msg.bbox = bbox_msg;
-
-        detection_array.push_back(detect_msg);
+        detect_msg.bbox.x = bbox.x;
+        detect_msg.bbox.y = bbox.y;
+        detect_msg.bbox.width = bbox.width;
+        detect_msg.bbox.height = bbox.height;
     }
 
     inline void add_trajectory_detection(const auto &tracker, std::vector<bob_interfaces::msg::TrackTrajectory> &trajectory_array) const
     {
-        bob_interfaces::msg::TrackTrajectory track_msg;
-        track_msg.id = std::to_string(tracker.get_id()) + std::string("-") + std::to_string(tracker.get_tracking_state());
+        auto &center_points = tracker.get_center_points();
 
-        for (const auto &center_point : tracker.get_center_points())
+        auto &track_msg = trajectory_array.emplace_back();
+        track_msg.id = std::to_string(tracker.get_id()) + std::string("-") + std::to_string(tracker.get_tracking_state());
+        track_msg.trajectory.reserve(center_points.size());
+        for (const auto &center_point : center_points)
         {
-            bob_interfaces::msg::TrackPoint point;
+            bob_interfaces::msg::TrackPoint &point = track_msg.trajectory.emplace_back();
             point.center.x = center_point.first.x;
             point.center.y = center_point.first.y;
             point.tracking_state = (int)center_point.second;
-            track_msg.trajectory.push_back(point);
         }
-
-        trajectory_array.push_back(track_msg);
     }
 
     inline void add_prediction(const auto &tracker, std::vector<bob_interfaces::msg::TrackTrajectory> &prediction_array) const
     {
-        bob_interfaces::msg::TrackTrajectory track_msg;
-        track_msg.id = std::to_string(tracker.get_id()) + std::string("-") + std::to_string(tracker.get_tracking_state());
+        auto &predictor_center_points = tracker.get_predictor_center_points();
 
-        for (const auto &center_point : tracker.get_predictor_center_points())
+        auto &track_msg = prediction_array.emplace_back();
+        track_msg.id = std::to_string(tracker.get_id()) + std::string("-") + std::to_string(tracker.get_tracking_state());
+        track_msg.trajectory.reserve(predictor_center_points.size());
+        for (const auto &center_point : predictor_center_points)
         {
             bob_interfaces::msg::TrackPoint point;
             point.center.x = center_point.x;
             point.center.y = center_point.y;
-            track_msg.trajectory.push_back(point);
+            track_msg.trajectory.push_back(std::move(point));
         }
-
-        prediction_array.push_back(track_msg);
     }
 
     ParameterNode &node_;
