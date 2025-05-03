@@ -50,7 +50,7 @@ public:
     template <class T>
     inline void publish_if_subscriber(rclcpp::Publisher<T>::SharedPtr publisher, T message) const
     {
-        if (!publisher || (count_subscribers(publisher->get_topic_name()) <= 0))
+        if (!publisher || publisher->get_subscription_count() <= 0)
         {
             return;
         }

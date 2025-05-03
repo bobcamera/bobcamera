@@ -282,7 +282,7 @@ private:
 
     inline void publish_frame(const std_msgs::msg::Header::SharedPtr &header, boblib::base::Image &bgs_img) noexcept
     {
-        if (node_.count_subscribers(image_publisher_ptr_->get_topic_name()) <= 0)
+        if (image_publisher_ptr_->get_subscription_count() <= 0)
         {
             return;
         }
@@ -297,7 +297,7 @@ private:
     {
         if (!image_resized_publisher_ptr_ 
             || (params_.resize_height <= 0) 
-            || (node_.count_subscribers(image_resized_publisher_ptr_->get_topic_name()) <= 0))
+            || (image_resized_publisher_ptr_->get_subscription_count() <= 0))
         {
             return;
         }
@@ -331,8 +331,8 @@ private:
         cv_processing_.notify_all();
 
         // Sending ROS messages if there are subscribers
-        if ((node_.count_subscribers(state_publisher_ptr_->get_topic_name()) > 0) 
-            || (node_.count_subscribers(detection_publisher_ptr_->get_topic_name()) > 0))
+        if ((state_publisher_ptr_->get_subscription_count() > 0) 
+            || (detection_publisher_ptr_->get_subscription_count() > 0))
         {
             // Initialize detector state and bounding box array messages
             bob_interfaces::msg::DetectorState state;

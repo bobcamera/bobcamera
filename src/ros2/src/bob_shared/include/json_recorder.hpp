@@ -106,10 +106,10 @@ public:
                 jsonDetection["state"] = detection.state;
 
                 Json::Value jsonBbox;
-                jsonBbox["x"] = detection.bbox.center.position.x;
-                jsonBbox["y"] = detection.bbox.center.position.y;
-                jsonBbox["width"] = detection.bbox.size_x;
-                jsonBbox["height"] = detection.bbox.size_y;
+                jsonBbox["x"] = detection.bbox.x;
+                jsonBbox["y"] = detection.bbox.y;
+                jsonBbox["width"] = detection.bbox.width;
+                jsonBbox["height"] = detection.bbox.height;
                 jsonDetection["bbox"] = jsonBbox;
                 jsonDetectionsArray.append(jsonDetection);
             }

@@ -340,7 +340,7 @@ private:
 
     inline void publish_frame(const std_msgs::msg::Header &header, const boblib::base::Image &camera_img)
     {
-        if (node_.count_subscribers(image_publisher_->get_topic_name()) <= 0)
+        if (image_publisher_->get_subscription_count() <= 0)
         {
             return;
         }
@@ -355,7 +355,7 @@ private:
     {
         if (!image_resized_publisher_ 
             || (params_.resize_height <= 0) 
-            || (node_.count_subscribers(image_resized_publisher_->get_topic_name()) <= 0))
+            || (image_resized_publisher_->get_subscription_count() <= 0))
         {
             return;
         }
@@ -433,7 +433,7 @@ private:
 
     void publish_image_info(const std_msgs::msg::Header &header, const boblib::base::Image &camera_img) const
     {
-        if (!image_info_publisher_ || (node_.count_subscribers(image_info_publisher_->get_topic_name()) <= 0))
+        if (!image_info_publisher_ || image_info_publisher_->get_subscription_count() <= 0)
         {
             return;
         }

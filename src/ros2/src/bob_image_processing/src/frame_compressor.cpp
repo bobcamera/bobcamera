@@ -86,7 +86,7 @@ private:
         timer_->cancel();
         try
         {
-            auto num_subs = count_subscribers(pub_compressed_frame_->get_topic_name());
+            auto num_subs = pub_compressed_frame_->get_subscription_count();
             if ((num_subs > 0) && !image_subscription_)
             {
                 image_subscription_ = create_subscription<sensor_msgs::msg::Image>(compressed_frame_subscriber_topic_, sub_qos_profile_,

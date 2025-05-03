@@ -182,12 +182,12 @@ private:
         return fontScale;
     }
 
-    inline cv::Rect get_sized_bbox(vision_msgs::msg::BoundingBox2D bbox_msg)
+    inline cv::Rect get_sized_bbox(const bob_interfaces::msg::DetectorBBox &bbox_msg)
     {
-        const int x = static_cast<int>(bbox_msg.center.position.x - (bbox_msg.size_x / 2));
-        const int y = static_cast<int>(bbox_msg.center.position.y - (bbox_msg.size_y / 2));
-        const int w = static_cast<int>(bbox_msg.size_x);
-        const int h = static_cast<int>(bbox_msg.size_y);
+        const int x = static_cast<int>(bbox_msg.x);
+        const int y = static_cast<int>(bbox_msg.y);
+        const int w = static_cast<int>(bbox_msg.width);
+        const int h = static_cast<int>(bbox_msg.height);
 
         const int size = std::max(w, h) + 15;
         const int x1 = x + (w / 2) - (size / 2);

@@ -211,8 +211,8 @@ private:
                     if (detection.state == 2) // ActiveTarget
                     {
                         const auto &bbox = detection.bbox;
-                        const double area = bbox.size_x * bbox.size_y;
-                        img_recorder_->store_trajectory_point(detection.id, cv::Point(static_cast<int>(bbox.center.position.x), static_cast<int>(bbox.center.position.y)), area);
+                        const double area = bbox.width * bbox.height;
+                        img_recorder_->store_trajectory_point(detection.id, cv::Point(static_cast<int>(bbox.x), static_cast<int>(bbox.y)), area);
                     }
                 }
                 json_recorder_->add_to_buffer(json_data, false);
