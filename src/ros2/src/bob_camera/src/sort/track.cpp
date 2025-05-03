@@ -1,16 +1,76 @@
 #include "include/track.h"
 
-Track::Track()
-    : kf_(8, 4),
-      tracking_state_(ProvisionaryTarget),
-      track_stationary_threshold_(50),
-      stationary_track_counter_(0),
-      coast_cycles_(0),
-      hit_streak_(0),
-      id_(0),
-      min_hits_(2),
-      logger_(rclcpp::get_logger("track_logger"))
+namespace
 {
+    // Static KalmanFilter matrices initialized once
+    static const Eigen::Matrix<double, 8, 8> static_KF_F = []
+    {
+        Eigen::Matrix<double, 8, 8> m;
+        m << 1, 0, 0, 0, 1, 0, 0, 0,
+            0, 1, 0, 0, 0, 1, 0, 0,
+            0, 0, 1, 0, 0, 0, 1, 0,
+            0, 0, 0, 1, 0, 0, 0, 1,
+            0, 0, 0, 0, 1, 0, 0, 0,
+            0, 0, 0, 0, 0, 1, 0, 0,
+            0, 0, 0, 0, 0, 0, 1, 0,
+            0, 0, 0, 0, 0, 0, 0, 1;
+        return m;
+    }();
+    static const Eigen::Matrix<double, 8, 8> static_KF_P = []
+    {
+        Eigen::Matrix<double, 8, 8> m;
+        m << 10, 0, 0, 0, 0, 0, 0, 0,
+            0, 10, 0, 0, 0, 0, 0, 0,
+            0, 0, 10, 0, 0, 0, 0, 0,
+            0, 0, 0, 10, 0, 0, 0, 0,
+            0, 0, 0, 0, 10000, 0, 0, 0,
+            0, 0, 0, 0, 0, 10000, 0, 0,
+            0, 0, 0, 0, 0, 0, 10000, 0,
+            0, 0, 0, 0, 0, 0, 0, 10000;
+        return m;
+    }();
+    static const Eigen::Matrix<double, 4, 8> static_KF_H = []
+    {
+        Eigen::Matrix<double, 4, 8> m;
+        m << 1, 0, 0, 0, 0, 0, 0, 0,
+            0, 1, 0, 0, 0, 0, 0, 0,
+            0, 0, 1, 0, 0, 0, 0, 0,
+            0, 0, 0, 1, 0, 0, 0, 0;
+        return m;
+    }();
+    static const Eigen::Matrix<double, 8, 8> static_KF_Q = []
+    {
+        Eigen::Matrix<double, 8, 8> m;
+        // delta_k*4 = 0.08,  process noise
+        m << 1, 0, 0, 0, 0.08, 0, 0, 0,
+            0, 1, 0, 0, 0, 0.08, 0, 0,
+            0, 0, 1, 0, 0, 0, 0.08, 0,
+            0, 0, 0, 1, 0, 0, 0, 0.08,
+            0.08, 0, 0, 0, 0.01, 0, 0, 0,
+            0, 0.08, 0, 0, 0, 0.01, 0, 0,
+            0, 0, 0.08, 0, 0, 0, 0.01, 0,
+            0, 0, 0, 0.08, 0, 0, 0, 0.01;
+        return m;
+    }();
+    static const Eigen::Matrix<double, 4, 4> static_KF_R = []
+    {
+        Eigen::Matrix<double, 4, 4> m;
+        m << 1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1;
+        return m;
+    }();
+} // anonymous namespace
+
+// Helper to assign static Kalman filter matrices
+void Track::assignStaticKF() noexcept
+{
+    kf_.F_ = static_KF_F;
+    kf_.P_ = static_KF_P;
+    kf_.H_ = static_KF_H;
+    kf_.Q_ = static_KF_Q;
+    kf_.R_ = static_KF_R;
 }
 
 Track::Track(rclcpp::Logger logger)
@@ -24,53 +84,20 @@ Track::Track(rclcpp::Logger logger)
       min_hits_(2),
       logger_(logger)
 {
+    assignStaticKF();
 
     const float fps = 50.0f; // placeholder
     const float delta_k = 1.0f / fps;
 
-    /*** Define constant velocity model ***/
-    // state - center_x, center_y, width, height, v_cx, v_cy, v_width, v_height
-    kf_.F_ << 1, 0, 0, 0, 1, 0, 0, 0,
-        0, 1, 0, 0, 0, 1, 0, 0,
-        0, 0, 1, 0, 0, 0, 1, 0,
-        0, 0, 0, 1, 0, 0, 0, 1,
-        0, 0, 0, 0, 1, 0, 0, 0,
-        0, 0, 0, 0, 0, 1, 0, 0,
-        0, 0, 0, 0, 0, 0, 1, 0,
-        0, 0, 0, 0, 0, 0, 0, 1; // time to intercept scaling
-
-    // Give high uncertainty to the unobservable initial velocities
-    kf_.P_ << 10, 0, 0, 0, 0, 0, 0, 0,
-        0, 10, 0, 0, 0, 0, 0, 0,
-        0, 0, 10, 0, 0, 0, 0, 0,
-        0, 0, 0, 10, 0, 0, 0, 0,
-        0, 0, 0, 0, 10000, 0, 0, 0,
-        0, 0, 0, 0, 0, 10000, 0, 0,
-        0, 0, 0, 0, 0, 0, 10000, 0,
-        0, 0, 0, 0, 0, 0, 0, 10000;
-
-    kf_.H_ << 1, 0, 0, 0, 0, 0, 0, 0,
-        0, 1, 0, 0, 0, 0, 0, 0,
-        0, 0, 1, 0, 0, 0, 0, 0,
-        0, 0, 0, 1, 0, 0, 0, 0;
-
-    // Represents the uncertainty in the process model
-    // Larger Q suggests uncertainty in process model leading the filter to put more weight on new measurements
+    // Override only the process noise Q based on delta_k
     kf_.Q_ << 1, 0, 0, 0, delta_k * 4, 0, 0, 0,
         0, 1, 0, 0, 0, delta_k * 4, 0, 0,
         0, 0, 1, 0, 0, 0, delta_k * 4, 0,
         0, 0, 0, 1, 0, 0, 0, delta_k * 4,
         delta_k * 4, 0, 0, 0, 0.01, 0, 0, 0,
         0, delta_k * 4, 0, 0, 0, 0.01, 0, 0,
-        0, 0, 0, delta_k * 4, 0, 0, 0.01, 0,
-        0, 0, 0, 0, delta_k * 4, 0, 0, 0.01;
-
-    // Represents the uncertainty in the measurements
-    // Larger R places less trust in measurements
-    kf_.R_ << 1, 0, 0, 0,
-        0, 1, 0, 0,
-        0, 0, 1, 0,
-        0, 0, 0, 1;
+        0, 0, delta_k * 4, 0, 0, 0, 0.01, 0,
+        0, 0, 0, delta_k * 4, 0, 0, 0, 0.01;
 }
 
 // Get predicted locations from existing trackers

@@ -7,8 +7,7 @@
 
 class Track {
 public:
-Track();
-    explicit Track(rclcpp::Logger logger);
+    explicit Track(rclcpp::Logger logger = rclcpp::get_logger("track_logger"));
     ~Track() = default;
 
     void init(const cv::Rect& bbox) noexcept;
@@ -32,6 +31,7 @@ Track();
 private:
     [[nodiscard]] Eigen::VectorXd convert_bbox_to_observation(const cv::Rect &bbox) const noexcept;
     [[nodiscard]] static cv::Rect convert_state_to_bbox(const Eigen::VectorXd &state) noexcept;
+    void assignStaticKF() noexcept;
 
     SORT::KalmanFilter kf_;
     TrackingStateEnum tracking_state_;
