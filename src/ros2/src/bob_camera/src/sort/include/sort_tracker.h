@@ -32,25 +32,23 @@ namespace SORT
          * @param iou_threshold
          */
         static void AssociateDetectionsToTrackers(const std::vector<cv::Rect> &detection,
-                                                  const std::map<int, Track> &tracks,
-                                                  std::map<int, cv::Rect> &matched,
+                                                  const std::unordered_map<int, Track> &tracks,
+                                                  std::unordered_map<int, cv::Rect> &matched,
                                                   std::vector<cv::Rect> &unmatched_det,
                                                   // float iou_threshold = 0.001); // 0 to 1 for IOU
                                                   float iou_threshold = -0.9); // -1 to 1 for DIOU
 
-        const std::vector<Track> get_active_trackers() const;
-        const std::vector<Track> get_live_trackers() const;
         void update_trackers(const std::vector<cv::Rect> &detections);
         [[nodiscard]] size_t get_total_trackable_trackers() const;
         [[nodiscard]] size_t get_total_live_trackers() const;
-        [[nodiscard]] std::map<int, Track> GetTracks() const;
+        [[nodiscard]] const std::unordered_map<int, Track> & get_tracks() const noexcept;
         [[nodiscard]] int get_total_trackers_started() const;
         [[nodiscard]] int get_total_trackers_finished() const;
         void set_max_coast_cycles(size_t max_coast_cycles);
 
     private:
         rclcpp::Logger logger_;
-        std::map<int, Track> tracks_;
+        std::unordered_map<int, Track> tracks_;
         int total_trackers_started_;
         int total_trackers_finished_;
         int max_coast_cycles_; // base on fps

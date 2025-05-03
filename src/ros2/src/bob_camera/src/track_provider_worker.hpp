@@ -26,9 +26,14 @@ public:
                                  CameraBgsParams &params,
                                  const rclcpp::QoS &pub_qos_profile,
                                  boblib::utils::pubsub::TopicManager &topic_manager)
-        : node_(node), params_(params), pub_qos_profile_(pub_qos_profile), topic_manager_(topic_manager), last_profile_log_(std::chrono::steady_clock::now()) // profiling
-          ,
-          profile_time_sum_(0.0), profile_time_count_(0), video_tracker_(node.get_logger())
+        : node_(node)
+        , params_(params)
+        , pub_qos_profile_(pub_qos_profile)
+        , topic_manager_(topic_manager)
+        , last_profile_log_(std::chrono::steady_clock::now()) // profiling
+        , profile_time_sum_(0.0)
+        , profile_time_count_(0)
+        , video_tracker_(node.get_logger())
     {
     }
 
@@ -53,6 +58,8 @@ private:
 
             publish_tracking(detection);
             auto end = std::chrono::steady_clock::now(); // profiling end
+
+            // Calculate the elapsed time in microseconds
             double duration_us = std::chrono::duration<double, std::micro>(end - start).count();
             profile_time_sum_ += duration_us;
             ++profile_time_count_;
@@ -81,16 +88,16 @@ private:
         tracking_msg.state.started = video_tracker_.get_total_trackers_started();
         tracking_msg.state.ended = video_tracker_.get_total_trackers_finished();
 
-        const auto &lts = video_tracker_.get_live_trackers();
+        const auto &lts = video_tracker_.get_tracks();
         const size_t n = lts.size();
         tracking_msg.detections.reserve(n);
         tracking_msg.trajectories.reserve(n);
         tracking_msg.predictions.reserve(n);
         for (const auto &tracker : lts)
         {
-            add_track_detection(tracker, tracking_msg.detections);
-            add_trajectory_detection(tracker, tracking_msg.trajectories);
-            add_prediction(tracker, tracking_msg.predictions);
+            add_track_detection(tracker.second, tracking_msg.detections);
+            add_trajectory_detection(tracker.second, tracking_msg.trajectories);
+            add_prediction(tracker.second, tracking_msg.predictions);
         }
         node_.publish_if_subscriber(pub_tracker_tracking_, tracking_msg);
         publish_tracking_resized(tracking_msg, detection->image_height);
@@ -179,15 +186,16 @@ private:
         }
     }
 
+    ParameterNode &node_;
+    CameraBgsParams &params_;
+    const rclcpp::QoS &pub_qos_profile_;
+    boblib::utils::pubsub::TopicManager &topic_manager_;
+
     // profiling fields
     std::chrono::steady_clock::time_point last_profile_log_;
     double profile_time_sum_;
     size_t profile_time_count_;
 
-    ParameterNode &node_;
-    CameraBgsParams &params_;
-    const rclcpp::QoS &pub_qos_profile_;
-    boblib::utils::pubsub::TopicManager &topic_manager_;
     rclcpp::Publisher<bob_interfaces::msg::Tracking>::SharedPtr pub_tracker_tracking_;
     rclcpp::Publisher<bob_interfaces::msg::Tracking>::SharedPtr pub_tracker_tracking_resized_;
     SORT::Tracker video_tracker_;

@@ -88,8 +88,8 @@ void SORT::Tracker::HungarianMatching(const std::vector<std::vector<float>> &iou
 }
 
 void SORT::Tracker::AssociateDetectionsToTrackers(const std::vector<cv::Rect> &detection,
-                                                  const std::map<int, Track> &tracks,
-                                                  std::map<int, cv::Rect> &matched,
+                                                  const std::unordered_map<int, Track> &tracks,
+                                                  std::unordered_map<int, cv::Rect> &matched,
                                                   std::vector<cv::Rect> &unmatched_det,
                                                   float iou_threshold)
 {
@@ -155,7 +155,7 @@ void SORT::Tracker::update_trackers(const std::vector<cv::Rect> &detections)
     }
 
     // Hash-map between track ID and associated detection bounding box
-    std::map<int, cv::Rect> matched;
+    std::unordered_map<int, cv::Rect> matched;
 
     // vector of unassociated detections
     std::vector<cv::Rect> unmatched_det;
@@ -194,7 +194,7 @@ void SORT::Tracker::update_trackers(const std::vector<cv::Rect> &detections)
         if (it->second.get_coast_cycles() > max_coast_cycles_)
         {
             it = tracks_.erase(it);
-            total_trackers_finished_++;
+            ++total_trackers_finished_;
         }
         else
         {
@@ -203,34 +203,7 @@ void SORT::Tracker::update_trackers(const std::vector<cv::Rect> &detections)
     }
 }
 
-const std::vector<Track> SORT::Tracker::get_active_trackers() const
-{
-    std::vector<Track> activeTracks;
-    activeTracks.reserve(tracks_.size()); // Pre-allocate for better performance
-
-    for (const auto &[id, track] : tracks_)
-    { // C++17 structured binding
-        if (track.is_active())
-        {
-            activeTracks.push_back(track);
-        }
-    }
-    return activeTracks;
-}
-
-[[nodiscard]] const std::vector<Track> SORT::Tracker::get_live_trackers() const
-{
-    std::vector<Track> live_trackers;
-
-    for (const auto &pair : tracks_)
-    {
-        live_trackers.push_back(pair.second);
-    }
-
-    return live_trackers;
-}
-
-[[nodiscard]] std::map<int, Track> SORT::Tracker::GetTracks() const
+[[nodiscard]] const std::unordered_map<int, Track> &SORT::Tracker::get_tracks() const noexcept
 {
     return tracks_;
 }
@@ -243,7 +216,8 @@ const std::vector<Track> SORT::Tracker::get_active_trackers() const
 
 [[nodiscard]] size_t SORT::Tracker::get_total_live_trackers() const
 {
-    return get_active_trackers().size();
+    return std::ranges::count_if(tracks_, [](const auto &pair)
+                                 { return pair.second.is_active(); });
 }
 
 [[nodiscard]] int SORT::Tracker::get_total_trackers_started() const

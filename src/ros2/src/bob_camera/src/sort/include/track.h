@@ -11,27 +11,27 @@ Track();
     explicit Track(rclcpp::Logger logger);
     ~Track() = default;
 
-    void init(const cv::Rect& bbox);
-    void predict();
-    void update(const cv::Rect& bbox);
-    [[nodiscard]] float get_nis() const;
+    void init(const cv::Rect& bbox) noexcept;
+    void predict() noexcept;
+    void update(const cv::Rect& bbox) noexcept;
+    [[nodiscard]] float get_nis() const noexcept;
     [[nodiscard]] constexpr bool is_active() const noexcept { return tracking_state_ == ActiveTarget; }
-    [[nodiscard]] bool is_tracking() const;
+    [[nodiscard]] bool is_tracking() const noexcept;
     [[nodiscard]] constexpr int get_id() const noexcept { return id_; }
-    [[nodiscard]] int get_coast_cycles() const;
-    void set_id(int x);
-    void set_min_hits(int min_hits);
-    void set_track_stationary_threshold(int thresh);
-    [[nodiscard]] cv::Point get_center() const;
-    [[nodiscard]] cv::Rect get_bbox() const;
-    [[nodiscard]] const std::vector<std::pair<cv::Point, TrackingStateEnum>>& get_center_points() const;
-    [[nodiscard]] const std::vector<cv::Point>& get_predictor_center_points() const;
+    [[nodiscard]] int get_coast_cycles() const noexcept;
+    void set_id(int x) noexcept;
+    void set_min_hits(int min_hits) noexcept;
+    void set_track_stationary_threshold(int thresh) noexcept;
+    [[nodiscard]] cv::Point get_center() const noexcept;
+    [[nodiscard]] cv::Rect get_bbox() const noexcept;
+    [[nodiscard]] const std::vector<std::pair<cv::Point, TrackingStateEnum>>& get_center_points() const noexcept;
+    [[nodiscard]] const std::vector<cv::Point>& get_predictor_center_points() const noexcept;
     [[nodiscard]] constexpr TrackingStateEnum get_tracking_state() const noexcept { return tracking_state_; }
-    [[nodiscard]] std::tuple<double, double, double> get_ellipse() const;
+    [[nodiscard]] std::tuple<double, double, double> get_ellipse() const noexcept;
 
 private:
-    Eigen::VectorXd convert_bbox_to_observation(const cv::Rect& bbox) const;
-    [[nodiscard]] static cv::Rect convert_state_to_bbox(const Eigen::VectorXd &state);
+    [[nodiscard]] Eigen::VectorXd convert_bbox_to_observation(const cv::Rect &bbox) const noexcept;
+    [[nodiscard]] static cv::Rect convert_state_to_bbox(const Eigen::VectorXd &state) noexcept;
 
     SORT::KalmanFilter kf_;
     TrackingStateEnum tracking_state_;
