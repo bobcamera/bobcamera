@@ -1,6 +1,7 @@
 #include "include/sort_tracker.h"
 #include <ranges>
 
+
 SORT::Tracker::Tracker(rclcpp::Logger logger)
     : logger_(logger), total_trackers_started_(0), total_trackers_finished_(0), max_coast_cycles_(50), tracker_max_active_trackers_(100)
 {
@@ -106,14 +107,12 @@ void SORT::Tracker::AssociateDetectionsToTrackers(const std::vector<cv::Rect> &d
     std::vector<std::vector<float>> iou_matrix(detection.size(), std::vector<float>(tracks.size()));
     std::vector<std::vector<float>> association(detection.size(), std::vector<float>(tracks.size()));
 
-    // row - detection, column - tracks
     for (size_t i = 0; i < detection.size(); ++i)
     {
-        size_t j = 0;
-        for (const auto &trk : tracks)
+        for (size_t j = 0; j < tracks.size(); ++j)
         {
-            iou_matrix[i][j] = CalculateDiou(detection[i], trk.second.get_bbox());
-            ++j;
+            const auto &track_iter = std::next(tracks.begin(), j);
+            iou_matrix[i][j] = CalculateDiou(detection[i], track_iter->second.get_bbox());
         }
     }
 

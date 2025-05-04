@@ -50,7 +50,8 @@ namespace SORT
         /**
          * Calculate marginal log-likelihood to evaluate different parameter choices
          */
-        float CalculateLogLikelihood(const Eigen::Matrix<double, OBS_DIM, 1> &y, const Eigen::Matrix<double, OBS_DIM, OBS_DIM> &S);
+        float CalculateLogLikelihood(const Eigen::Matrix<double, OBS_DIM, 1> &y, const Eigen::Matrix<double, OBS_DIM, OBS_DIM> &S,
+                                     const Eigen::Matrix<double, OBS_DIM, OBS_DIM> &S_inv);
 
         // State vector
         Eigen::Matrix<double, STATE_DIM, 1> x_, x_predict_;

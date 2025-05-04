@@ -139,7 +139,7 @@ void Track::update(const cv::Rect &bbox) noexcept
 // Create and initialize new trackers for unmatched detections, with initial bounding box
 void Track::init(const cv::Rect &bbox) noexcept
 {
-    kf_.x_.head(TRACK_OBS_DIM) << convert_bbox_to_observation(bbox);
+    kf_.x_.head<TRACK_OBS_DIM>() = convert_bbox_to_observation(bbox);
     hit_streak_++;
 }
 

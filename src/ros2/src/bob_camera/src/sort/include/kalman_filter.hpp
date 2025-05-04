@@ -100,7 +100,7 @@ namespace SORT
         NIS_ = y.transpose() * S_inv * y;
 
         // Pre-compute log-likelihood for later use
-        log_likelihood_delta_ = CalculateLogLikelihood(y, S);
+        log_likelihood_delta_ = CalculateLogLikelihood(y, S, S_inv);
 
         // Basic adaptive filtering
         if (NIS_ > eps_max_)
@@ -131,10 +131,10 @@ namespace SORT
     template <int STATE_DIM, int OBS_DIM>
     float KalmanFilter<STATE_DIM, OBS_DIM>::CalculateLogLikelihood(
         const Eigen::Matrix<double, OBS_DIM, 1> &y,
-        const Eigen::Matrix<double, OBS_DIM, OBS_DIM> &S)
+        const Eigen::Matrix<double, OBS_DIM, OBS_DIM> &S,
+        const Eigen::Matrix<double, OBS_DIM, OBS_DIM> &S_inv)
     {
         // Use S which is already calculated in Update to avoid duplicate inversion
-        Eigen::Matrix<double, OBS_DIM, OBS_DIM> S_inv = S.inverse();
         double log_determinant = S.determinant() > 0 ? log(S.determinant()) : 0;
 
         // Compute log-likelihood

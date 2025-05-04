@@ -6,17 +6,20 @@
 #include <rclcpp/rclcpp.hpp>
 
 // Define constants for state and observation dimensions
-constexpr int TRACK_STATE_DIM = 8;  // x, y, w, h, vx, vy, vw, vh
-constexpr int TRACK_OBS_DIM = 4;    // x, y, w, h
+constexpr int TRACK_STATE_DIM = 8; // x, y, w, h, vx, vy, vw, vh
+constexpr int TRACK_OBS_DIM = 4;   // x, y, w, h
 
-class Track {
+class Track
+{
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
 public:
     explicit Track(rclcpp::Logger logger = rclcpp::get_logger("track_logger"));
     ~Track() = default;
 
-    void init(const cv::Rect& bbox) noexcept;
+    void init(const cv::Rect &bbox) noexcept;
     void predict() noexcept;
-    void update(const cv::Rect& bbox) noexcept;
+    void update(const cv::Rect &bbox) noexcept;
     [[nodiscard]] float get_nis() const noexcept;
     [[nodiscard]] constexpr bool is_active() const noexcept { return tracking_state_ == ActiveTarget; }
     [[nodiscard]] bool is_tracking() const noexcept;
@@ -27,8 +30,8 @@ public:
     void set_track_stationary_threshold(int thresh) noexcept;
     [[nodiscard]] cv::Point get_center() const noexcept;
     [[nodiscard]] cv::Rect get_bbox() const noexcept;
-    [[nodiscard]] const std::vector<std::pair<cv::Point, TrackingStateEnum>>& get_center_points() const noexcept;
-    [[nodiscard]] const std::vector<cv::Point>& get_predictor_center_points() const noexcept;
+    [[nodiscard]] const std::vector<std::pair<cv::Point, TrackingStateEnum>> &get_center_points() const noexcept;
+    [[nodiscard]] const std::vector<cv::Point> &get_predictor_center_points() const noexcept;
     [[nodiscard]] constexpr TrackingStateEnum get_tracking_state() const noexcept { return tracking_state_; }
     [[nodiscard]] std::tuple<double, double, double> get_ellipse() const noexcept;
 
