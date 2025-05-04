@@ -11,9 +11,9 @@ constexpr int TRACK_OBS_DIM = 4;   // x, y, w, h
 
 class Track
 {
+public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-public:
     explicit Track(rclcpp::Logger logger = rclcpp::get_logger("track_logger"));
     ~Track() = default;
 

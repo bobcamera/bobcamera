@@ -16,11 +16,10 @@ namespace SORT
         Tracker(rclcpp::Logger logger);
         ~Tracker() = default;
 
-        [[nodiscard]] static constexpr float CalculateIou(const cv::Rect &rect1, const cv::Rect &rect2);
-        [[nodiscard]] static float CalculateDiou(const cv::Rect &rect1, const cv::Rect &rect2);
+        [[nodiscard]] static float CalculateDiou(const cv::Rect &rect1, const cv::Rect &rect2) noexcept;
         static void HungarianMatching(const std::vector<std::vector<float>> &iou_matrix,
                                       size_t nrows, size_t ncols,
-                                      std::vector<std::vector<float>> &association);
+                                      std::vector<std::vector<float>> &association) noexcept;
 
         /**
          * Assigns detections to tracked object (both represented as bounding boxes)
@@ -36,15 +35,15 @@ namespace SORT
                                                   std::unordered_map<int, cv::Rect> &matched,
                                                   std::vector<cv::Rect> &unmatched_det,
                                                   // float iou_threshold = 0.001); // 0 to 1 for IOU
-                                                  float iou_threshold = -0.9); // -1 to 1 for DIOU
+                                                  float iou_threshold = -0.9) noexcept; // -1 to 1 for DIOU
 
-        void update_trackers(const std::vector<cv::Rect> &detections);
-        [[nodiscard]] size_t get_total_trackable_trackers() const;
-        [[nodiscard]] size_t get_total_live_trackers() const;
+        void update_trackers(const std::vector<cv::Rect> &detections) noexcept;
+        [[nodiscard]] size_t get_total_trackable_trackers() const noexcept;
+        [[nodiscard]] size_t get_total_live_trackers() const noexcept;
         [[nodiscard]] const std::unordered_map<int, Track> & get_tracks() const noexcept;
-        [[nodiscard]] int get_total_trackers_started() const;
-        [[nodiscard]] int get_total_trackers_finished() const;
-        void set_max_coast_cycles(size_t max_coast_cycles);
+        [[nodiscard]] int get_total_trackers_started() const noexcept;
+        [[nodiscard]] int get_total_trackers_finished() const noexcept;
+        void set_max_coast_cycles(size_t max_coast_cycles) noexcept;
 
     private:
         rclcpp::Logger logger_;

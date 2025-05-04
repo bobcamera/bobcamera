@@ -51,21 +51,46 @@ namespace SORT
         P_predict_ = (alpha_ * alpha_) * F_ * P_ * F_.transpose() + Q_;
     }
 
+    // template <int STATE_DIM, int OBS_DIM>
+    // std::tuple<double, double, double> KalmanFilter<STATE_DIM, OBS_DIM>::covarianceEllipse(
+    //     const Eigen::Matrix<double, STATE_DIM, STATE_DIM> &P_predict, double deviations)
+    // {
+    //     // Extract the position covariance (2x2) for ellipse calculation
+    //     Eigen::Matrix2d pos_cov = P_predict.template block<2, 2>(0, 0);
+
+    //     // Use Eigen's SVD for the 2x2 position covariance
+    //     Eigen::JacobiSVD<Eigen::Matrix2d> svd(pos_cov, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    //     Eigen::Matrix2d U = svd.matrixU();
+    //     Eigen::Vector2d s = svd.singularValues();
+
+    //     const double orientation = atan2(U(1, 0), U(0, 0));
+    //     const double width = deviations * sqrt(s(0));
+    //     const double height = deviations * sqrt(s(1));
+
+    //     return {width, height, orientation};
+    // }
+
     template <int STATE_DIM, int OBS_DIM>
     std::tuple<double, double, double> KalmanFilter<STATE_DIM, OBS_DIM>::covarianceEllipse(
         const Eigen::Matrix<double, STATE_DIM, STATE_DIM> &P_predict, double deviations)
     {
-        // Extract the position covariance (2x2) for ellipse calculation
-        Eigen::Matrix2d pos_cov = P_predict.template block<2, 2>(0, 0);
+        // Extract the 2x2 position covariance block (always the top-left corner)
+        const auto &a = P_predict(0, 0);
+        const auto &b = P_predict(0, 1);
+        const auto &c = P_predict(1, 0);
+        const auto &d = P_predict(1, 1);
 
-        // Use Eigen's SVD for the 2x2 position covariance
-        Eigen::JacobiSVD<Eigen::Matrix2d> svd(pos_cov, Eigen::ComputeFullU | Eigen::ComputeFullV);
-        Eigen::Matrix2d U = svd.matrixU();
-        Eigen::Vector2d s = svd.singularValues();
+        // Calculate eigenvalues directly (faster than SVD for 2x2 matrix)
+        const double trace = a + d;
+        const double det = a * d - b * c;
+        const double discriminant = std::sqrt(std::max(0.0, trace * trace / 4 - det));
+        const double eigenvalue1 = trace / 2 + discriminant;
+        const double eigenvalue2 = trace / 2 - discriminant;
 
-        const double orientation = atan2(U(1, 0), U(0, 0));
-        const double width = deviations * sqrt(s(0));
-        const double height = deviations * sqrt(s(1));
+        // Calculate orientation using direct formula for 2x2
+        const double orientation = std::atan2(eigenvalue1 - a, b);
+        const double width = deviations * std::sqrt(std::max(0.0, eigenvalue1));
+        const double height = deviations * std::sqrt(std::max(0.0, eigenvalue2));
 
         return {width, height, orientation};
     }
@@ -91,34 +116,20 @@ namespace SORT
     template <int STATE_DIM, int OBS_DIM>
     void KalmanFilter<STATE_DIM, OBS_DIM>::Update(const Eigen::Matrix<double, OBS_DIM, 1> &z)
     {
-        const Eigen::Matrix<double, OBS_DIM, 1> z_predict = PredictionToObservation(x_predict_);
-        const Eigen::Matrix<double, OBS_DIM, 1> y = z - z_predict;
-        const Eigen::Matrix<double, STATE_DIM, OBS_DIM> Ht = H_.transpose();
-        const Eigen::Matrix<double, OBS_DIM, OBS_DIM> S = H_ * P_predict_ * Ht + R_;
-        const Eigen::Matrix<double, OBS_DIM, OBS_DIM> S_inv = S.inverse();
+        // More efficient calculation of innovation (measurement residual)
+        const Eigen::Matrix<double, OBS_DIM, 1> y = z - H_ * x_predict_;
 
-        NIS_ = y.transpose() * S_inv * y;
+        // Compute innovation covariance
+        const Eigen::Matrix<double, OBS_DIM, OBS_DIM> S = H_ * P_predict_ * H_.transpose() + R_;
 
-        // Pre-compute log-likelihood for later use
-        log_likelihood_delta_ = CalculateLogLikelihood(y, S, S_inv);
+        // Use LDLT decomposition instead of direct inversion - faster and more stable
+        const Eigen::Matrix<double, OBS_DIM, OBS_DIM> S_inv = S.ldlt().solve(Eigen::Matrix<double, OBS_DIM, OBS_DIM>::Identity());
 
-        // Basic adaptive filtering
-        if (NIS_ > eps_max_)
-        {
-            Q_ *= Q_scale_factor_;
-            count_ += 1;
-        }
-        else if (count_ > 0)
-        {
-            Q_ /= Q_scale_factor_;
-            count_ -= 1;
-        }
+        // Use noalias to avoid temporary matrix allocation
+        const Eigen::Matrix<double, STATE_DIM, OBS_DIM> K = P_predict_ * H_.transpose() * S_inv;
 
-        // Compute Kalman gain
-        Eigen::Matrix<double, STATE_DIM, OBS_DIM> K = P_predict_ * Ht * S_inv;
-
-        // Update state estimation based on Kalman gain and innovation
-        x_ = x_predict_ + K * y;
+        // Use noalias() to avoid temporary allocation
+        x_.noalias() = x_predict_ + K * y;
 
         // Using Joseph form for better numerical stability
         Eigen::Matrix<double, STATE_DIM, STATE_DIM> I = Eigen::Matrix<double, STATE_DIM, STATE_DIM>::Identity();

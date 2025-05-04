@@ -7,13 +7,15 @@ SORT::Tracker::Tracker(rclcpp::Logger logger)
 {
 }
 
-[[nodiscard]] constexpr float SORT::Tracker::CalculateIou(const cv::Rect &rect1, const cv::Rect &rect2)
+[[nodiscard]] float SORT::Tracker::CalculateDiou(const cv::Rect &rect1, const cv::Rect &rect2) noexcept
 {
+    // Calculate coordinates only once
     const int right1 = rect1.x + rect1.width;
     const int right2 = rect2.x + rect2.width;
     const int bottom1 = rect1.y + rect1.height;
     const int bottom2 = rect2.y + rect2.height;
 
+    // Calculate intersection area efficiently
     const int xA = std::max(rect1.x, rect2.x);
     const int yA = std::max(rect1.y, rect2.y);
     const int xB = std::min(right1, right2);
@@ -21,42 +23,44 @@ SORT::Tracker::Tracker(rclcpp::Logger logger)
 
     const int interWidth = xB - xA;
     const int interHeight = yB - yA;
-    if (interWidth < 0 || interHeight < 0)
-        return 0.0f; // No overlap
+    
+    // Fast exit if no overlap
+    if (interWidth <= 0 || interHeight <= 0)
+        return -1.0f; // Minimum DIoU value when no overlap
 
     const int interArea = interWidth * interHeight;
     const int boxAArea = rect1.width * rect1.height;
     const int boxBArea = rect2.width * rect2.height;
-
-    return static_cast<float>(interArea) / (boxAArea + boxBArea - interArea);
-}
-
-[[nodiscard]] float SORT::Tracker::CalculateDiou(const cv::Rect &rect1, const cv::Rect &rect2)
-{
-    const float iou = CalculateIou(rect1, rect2);
-
-    // Calculate the center distance
+    
+    // Calculate IoU
+    const float iou = static_cast<float>(interArea) / (boxAArea + boxBArea - interArea);
+    
+    // Calculate center distance - use squares to avoid sqrt
     const float cx1 = rect1.x + rect1.width * 0.5f;
     const float cy1 = rect1.y + rect1.height * 0.5f;
     const float cx2 = rect2.x + rect2.width * 0.5f;
     const float cy2 = rect2.y + rect2.height * 0.5f;
-    const float centerDistance = (cx1 - cx2) * (cx1 - cx2) + (cy1 - cy2) * (cy1 - cy2);
-
-    // Calculate the diagonal of the smallest enclosing box
+    const float centerDistanceSquared = (cx1 - cx2) * (cx1 - cx2) + (cy1 - cy2) * (cy1 - cy2);
+    
+    // Calculate diagonal of enclosing rectangle - use squares to avoid sqrt
     const int enclose_x1 = std::min(rect1.x, rect2.x);
     const int enclose_y1 = std::min(rect1.y, rect2.y);
-    const int enclose_x2 = std::max(rect1.x + rect1.width, rect2.x + rect2.width);
-    const int enclose_y2 = std::max(rect1.y + rect1.height, rect2.y + rect2.height);
-    float encloseDiagonal = (enclose_x2 - enclose_x1) * (enclose_x2 - enclose_x1) +
-                            (enclose_y2 - enclose_y1) * (enclose_y2 - enclose_y1);
-
+    const int enclose_x2 = std::max(right1, right2);
+    const int enclose_y2 = std::max(bottom1, bottom2);
+    const float encloseDiagonalSquared = static_cast<float>((enclose_x2 - enclose_x1) * (enclose_x2 - enclose_x1) +
+                        (enclose_y2 - enclose_y1) * (enclose_y2 - enclose_y1));
+    
+    // Avoid division by zero
+    if (encloseDiagonalSquared < 1e-10f)
+        return iou;
+        
     // Calculate DIoU
-    return iou - (centerDistance / encloseDiagonal);
+    return iou - (centerDistanceSquared / encloseDiagonalSquared);
 }
 
 void SORT::Tracker::HungarianMatching(const std::vector<std::vector<float>> &iou_matrix,
                                       size_t nrows, size_t ncols,
-                                      std::vector<std::vector<float>> &association)
+                                      std::vector<std::vector<float>> &association) noexcept
 {
     Matrix<float> matrix(nrows, ncols);
     // Initialize matrix with IOU values
@@ -92,7 +96,7 @@ void SORT::Tracker::AssociateDetectionsToTrackers(const std::vector<cv::Rect> &d
                                                   const std::unordered_map<int, Track> &tracks,
                                                   std::unordered_map<int, cv::Rect> &matched,
                                                   std::vector<cv::Rect> &unmatched_det,
-                                                  float iou_threshold)
+                                                  float iou_threshold) noexcept
 {
     // Set all detection as unmatched if no tracks existing
     if (tracks.empty())
@@ -149,7 +153,7 @@ void SORT::Tracker::AssociateDetectionsToTrackers(const std::vector<cv::Rect> &d
     }
 }
 
-void SORT::Tracker::update_trackers(const std::vector<cv::Rect> &detections)
+void SORT::Tracker::update_trackers(const std::vector<cv::Rect> &detections) noexcept
 {
     /*** Predict internal tracks from previous frame ***/
     for (auto &track : tracks_)
@@ -211,29 +215,29 @@ void SORT::Tracker::update_trackers(const std::vector<cv::Rect> &detections)
     return tracks_;
 }
 
-[[nodiscard]] size_t SORT::Tracker::get_total_trackable_trackers() const
+[[nodiscard]] size_t SORT::Tracker::get_total_trackable_trackers() const noexcept
 {
     return std::ranges::count_if(tracks_, [](const auto &pair)
                                  { return pair.second.is_tracking(); });
 }
 
-[[nodiscard]] size_t SORT::Tracker::get_total_live_trackers() const
+[[nodiscard]] size_t SORT::Tracker::get_total_live_trackers() const noexcept
 {
     return std::ranges::count_if(tracks_, [](const auto &pair)
                                  { return pair.second.is_active(); });
 }
 
-[[nodiscard]] int SORT::Tracker::get_total_trackers_started() const
+[[nodiscard]] int SORT::Tracker::get_total_trackers_started() const noexcept
 {
     return total_trackers_started_;
 }
 
-[[nodiscard]] int SORT::Tracker::get_total_trackers_finished() const
+[[nodiscard]] int SORT::Tracker::get_total_trackers_finished() const noexcept
 {
     return total_trackers_finished_;
 }
 
-void SORT::Tracker::set_max_coast_cycles(size_t max_coast_cycles)
+void SORT::Tracker::set_max_coast_cycles(size_t max_coast_cycles) noexcept
 {
     max_coast_cycles_ = max_coast_cycles;
 }

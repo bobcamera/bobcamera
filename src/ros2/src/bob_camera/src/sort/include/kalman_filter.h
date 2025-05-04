@@ -8,9 +8,11 @@
 namespace SORT
 {
     template <int STATE_DIM, int OBS_DIM>
-    class KalmanFilter
+    class KalmanFilter final
     {
     public:
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
         /**
          * user need to define H matrix & R matrix
          */
@@ -18,14 +20,14 @@ namespace SORT
         explicit KalmanFilter();
 
         // destructor
-        virtual ~KalmanFilter() = default;
+        ~KalmanFilter() = default;
 
         /**
          * Coast state and state covariance using the process model
          * User can use this function without change the internal
          * tracking state x_
          */
-        virtual void Coast();
+        void Coast();
 
         std::tuple<double, double, double> covarianceEllipse(const Eigen::Matrix<double, STATE_DIM, STATE_DIM> &P_predict, double deviations = 1.0);
 
@@ -39,13 +41,13 @@ namespace SORT
          * using the observation model
          * User can implement their own method for more complicated models
          */
-        virtual Eigen::Matrix<double, OBS_DIM, 1> PredictionToObservation(const Eigen::Matrix<double, STATE_DIM, 1> &state);
+        Eigen::Matrix<double, OBS_DIM, 1> PredictionToObservation(const Eigen::Matrix<double, STATE_DIM, 1> &state);
 
         /**
          * Updates the state by using Extended Kalman Filter equations
          * @param z The measurement at k+1
          */
-        virtual void Update(const Eigen::Matrix<double, OBS_DIM, 1> &z);
+        void Update(const Eigen::Matrix<double, OBS_DIM, 1> &z);
 
         /**
          * Calculate marginal log-likelihood to evaluate different parameter choices
