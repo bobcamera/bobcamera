@@ -3,9 +3,9 @@
 namespace
 {
     // Static KalmanFilter matrices initialized once
-    static const Eigen::Matrix<double, 8, 8> static_KF_F = []
+    static const Eigen::Matrix<double, TRACK_STATE_DIM, TRACK_STATE_DIM> static_KF_F = []
     {
-        Eigen::Matrix<double, 8, 8> m;
+        Eigen::Matrix<double, TRACK_STATE_DIM, TRACK_STATE_DIM> m;
         m << 1, 0, 0, 0, 1, 0, 0, 0,
             0, 1, 0, 0, 0, 1, 0, 0,
             0, 0, 1, 0, 0, 0, 1, 0,
@@ -16,9 +16,9 @@ namespace
             0, 0, 0, 0, 0, 0, 0, 1;
         return m;
     }();
-    static const Eigen::Matrix<double, 8, 8> static_KF_P = []
+    static const Eigen::Matrix<double, TRACK_STATE_DIM, TRACK_STATE_DIM> static_KF_P = []
     {
-        Eigen::Matrix<double, 8, 8> m;
+        Eigen::Matrix<double, TRACK_STATE_DIM, TRACK_STATE_DIM> m;
         m << 10, 0, 0, 0, 0, 0, 0, 0,
             0, 10, 0, 0, 0, 0, 0, 0,
             0, 0, 10, 0, 0, 0, 0, 0,
@@ -29,32 +29,18 @@ namespace
             0, 0, 0, 0, 0, 0, 0, 10000;
         return m;
     }();
-    static const Eigen::Matrix<double, 4, 8> static_KF_H = []
+    static const Eigen::Matrix<double, TRACK_OBS_DIM, TRACK_STATE_DIM> static_KF_H = []
     {
-        Eigen::Matrix<double, 4, 8> m;
+        Eigen::Matrix<double, TRACK_OBS_DIM, TRACK_STATE_DIM> m;
         m << 1, 0, 0, 0, 0, 0, 0, 0,
             0, 1, 0, 0, 0, 0, 0, 0,
             0, 0, 1, 0, 0, 0, 0, 0,
             0, 0, 0, 1, 0, 0, 0, 0;
         return m;
     }();
-    static const Eigen::Matrix<double, 8, 8> static_KF_Q = []
+    static const Eigen::Matrix<double, TRACK_OBS_DIM, TRACK_OBS_DIM> static_KF_R = []
     {
-        Eigen::Matrix<double, 8, 8> m;
-        // delta_k*4 = 0.08,  process noise
-        m << 1, 0, 0, 0, 0.08, 0, 0, 0,
-            0, 1, 0, 0, 0, 0.08, 0, 0,
-            0, 0, 1, 0, 0, 0, 0.08, 0,
-            0, 0, 0, 1, 0, 0, 0, 0.08,
-            0.08, 0, 0, 0, 0.01, 0, 0, 0,
-            0, 0.08, 0, 0, 0, 0.01, 0, 0,
-            0, 0, 0.08, 0, 0, 0, 0.01, 0,
-            0, 0, 0, 0.08, 0, 0, 0, 0.01;
-        return m;
-    }();
-    static const Eigen::Matrix<double, 4, 4> static_KF_R = []
-    {
-        Eigen::Matrix<double, 4, 4> m;
+        Eigen::Matrix<double, TRACK_OBS_DIM, TRACK_OBS_DIM> m;
         m << 1, 0, 0, 0,
             0, 1, 0, 0,
             0, 0, 1, 0,
@@ -69,13 +55,11 @@ void Track::assignStaticKF() noexcept
     kf_.F_ = static_KF_F;
     kf_.P_ = static_KF_P;
     kf_.H_ = static_KF_H;
-    kf_.Q_ = static_KF_Q;
     kf_.R_ = static_KF_R;
 }
 
 Track::Track(rclcpp::Logger logger)
-    : kf_(8, 4),
-      tracking_state_(ProvisionaryTarget),
+    : tracking_state_(ProvisionaryTarget),
       track_stationary_threshold_(25),
       stationary_track_counter_(0),
       coast_cycles_(0),
@@ -84,10 +68,15 @@ Track::Track(rclcpp::Logger logger)
       min_hits_(2),
       logger_(logger)
 {
+    // Estimate typical size, e.g., 100 points. Adjust if needed.
+    constexpr size_t estimated_points = 100; 
+    center_points_.reserve(estimated_points);
+    predictor_center_points_.reserve(estimated_points); 
+
     assignStaticKF();
 
-    const float fps = 50.0f; // placeholder
-    const float delta_k = 1.0f / fps;
+    constexpr float fps = 50.0f; // placeholder
+    constexpr float delta_k = 1.0f / fps;
 
     // Override only the process noise Q based on delta_k
     kf_.Q_ << 1, 0, 0, 0, delta_k * 4, 0, 0, 0,
@@ -139,18 +128,18 @@ void Track::update(const cv::Rect &bbox) noexcept
     }
 
     // observation - center_x, center_y, area, ratio
-    Eigen::VectorXd observation = convert_bbox_to_observation(bbox);
+    Eigen::Matrix<double, TRACK_OBS_DIM, 1> observation = convert_bbox_to_observation(bbox);
     kf_.Update(observation);
 
     cv::Point center(bbox.x + bbox.width / 2, bbox.y + bbox.height / 2);
-    center_points_.push_back(std::make_pair(center, tracking_state_));
+    center_points_.emplace_back(center, tracking_state_);
     predictor_center_points_.clear();
 }
 
 // Create and initialize new trackers for unmatched detections, with initial bounding box
 void Track::init(const cv::Rect &bbox) noexcept
 {
-    kf_.x_.head(4) << convert_bbox_to_observation(bbox);
+    kf_.x_.head(TRACK_OBS_DIM) << convert_bbox_to_observation(bbox);
     hit_streak_++;
 }
 
@@ -181,9 +170,9 @@ std::tuple<double, double, double> Track::get_ellipse() const noexcept
  * @param bbox
  * @return
  */
-Eigen::VectorXd Track::convert_bbox_to_observation(const cv::Rect &bbox) const noexcept
+Eigen::Matrix<double, TRACK_OBS_DIM, 1> Track::convert_bbox_to_observation(const cv::Rect &bbox) const noexcept
 {
-    Eigen::VectorXd observation = Eigen::VectorXd::Zero(4);
+    Eigen::Matrix<double, TRACK_OBS_DIM, 1> observation;
     const double width = static_cast<double>(bbox.width);
     const double height = static_cast<double>(bbox.height);
     const double center_x = bbox.x + width * 0.5;
@@ -199,7 +188,7 @@ Eigen::VectorXd Track::convert_bbox_to_observation(const cv::Rect &bbox) const n
  * @param state
  * @return
  */
-[[nodiscard]] cv::Rect Track::convert_state_to_bbox(const Eigen::VectorXd &state) noexcept
+[[nodiscard]] cv::Rect Track::convert_state_to_bbox(const Eigen::Matrix<double, TRACK_STATE_DIM, 1> &state) noexcept
 {
     // state - center_x, center_y, width, height, v_cx, v_cy, v_width, v_height
     const auto width = std::max(0, static_cast<int>(state[2]));

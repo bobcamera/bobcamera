@@ -96,6 +96,7 @@ void SORT::Tracker::AssociateDetectionsToTrackers(const std::vector<cv::Rect> &d
     // Set all detection as unmatched if no tracks existing
     if (tracks.empty())
     {
+        // Reserve space for all detections if there are no tracks
         unmatched_det.reserve(detection.size());
         unmatched_det.insert(unmatched_det.end(), detection.begin(), detection.end());
         return;
@@ -141,6 +142,9 @@ void SORT::Tracker::AssociateDetectionsToTrackers(const std::vector<cv::Rect> &d
         // if detection cannot match with any tracks
         if (!matched_flag)
         {
+            // Note: push_back might reallocate if capacity is insufficient.
+            // Reserving beforehand helps if the number of unmatched detections can be estimated,
+            // but it's less predictable here than the initial case.
             unmatched_det.push_back(detection[i]);
         }
     }

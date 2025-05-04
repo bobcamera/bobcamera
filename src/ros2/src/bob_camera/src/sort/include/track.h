@@ -5,6 +5,10 @@
 #include "../../bob_shared/include/tracking_state.hpp"
 #include <rclcpp/rclcpp.hpp>
 
+// Define constants for state and observation dimensions
+constexpr int TRACK_STATE_DIM = 8;  // x, y, w, h, vx, vy, vw, vh
+constexpr int TRACK_OBS_DIM = 4;    // x, y, w, h
+
 class Track {
 public:
     explicit Track(rclcpp::Logger logger = rclcpp::get_logger("track_logger"));
@@ -29,11 +33,11 @@ public:
     [[nodiscard]] std::tuple<double, double, double> get_ellipse() const noexcept;
 
 private:
-    [[nodiscard]] Eigen::VectorXd convert_bbox_to_observation(const cv::Rect &bbox) const noexcept;
-    [[nodiscard]] static cv::Rect convert_state_to_bbox(const Eigen::VectorXd &state) noexcept;
+    [[nodiscard]] Eigen::Matrix<double, TRACK_OBS_DIM, 1> convert_bbox_to_observation(const cv::Rect &bbox) const noexcept;
+    [[nodiscard]] static cv::Rect convert_state_to_bbox(const Eigen::Matrix<double, TRACK_STATE_DIM, 1> &state) noexcept;
     void assignStaticKF() noexcept;
 
-    SORT::KalmanFilter kf_;
+    SORT::KalmanFilter<TRACK_STATE_DIM, TRACK_OBS_DIM> kf_;
     TrackingStateEnum tracking_state_;
     std::vector<std::pair<cv::Point, TrackingStateEnum>> center_points_;
     std::vector<cv::Point> predictor_center_points_;

@@ -48,11 +48,6 @@ namespace SORT
          */
         virtual void Update(const Eigen::VectorXd &z);
 
-        /**
-         * Calculate marginal log-likelihood to evaluate different parameter choices
-         */
-        float CalculateLogLikelihood(const Eigen::VectorXd& y, const Eigen::MatrixXd& S);
-
         // State vector
         Eigen::VectorXd x_, x_predict_;
 
