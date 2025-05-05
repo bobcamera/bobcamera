@@ -63,8 +63,8 @@ public:
   void solve(EigenMatrix &m)
   {
     const Eigen::Index rows = m.rows(),
-                 columns = m.cols(),
-                 size = std::max(rows, columns);
+                       columns = m.cols(),
+                       size = std::max(rows, columns);
 
     // Track if we're working with a non-square matrix
     const bool is_square = (rows == columns);
@@ -92,13 +92,14 @@ public:
     mask_matrix.setZero(size, size);
 
     // Replace raw pointers with vectors
-    row_mask.resize(size, false);
-    col_mask.resize(size, false);
+    row_mask.resize(size, 0);
+    col_mask.resize(size, 0);
 
     // Prepare the matrix values
     replace_infinites(matrix);
-    minimize_along_direction(matrix, rows >= columns);
-    minimize_along_direction(matrix, rows < columns);
+    reduce_rows_and_cols(matrix);
+    // minimize_along_direction(matrix, rows >= columns);
+    // minimize_along_direction(matrix, rows < columns);
 
     // Follow the steps
     int step = 1;
@@ -140,10 +141,11 @@ public:
     else
     {
       // Resize m if needed
-      if (m.rows() != rows || m.cols() != columns) {
+      if (m.rows() != rows || m.cols() != columns)
+      {
         m.resize(rows, columns);
       }
-      
+
       // Copy only the relevant portion
       for (Eigen::Index row = 0; row < rows; ++row)
       {
@@ -208,6 +210,26 @@ public:
         }
       }
     }
+  }
+
+  /// Vectorised row‑ and column‑minimum reduction (no temporaries,
+  /// works for any scalar type `Data`)
+  template <class Derived>
+  static void reduce_rows_and_cols(Eigen::MatrixBase<Derived> &m)
+  {
+    /* ---- row pass ------------------------------------------------ */
+    // rowMin : (rows × 1) column‑vector
+    const auto rowMin = m.rowwise().minCoeff();
+
+    // broadcast and subtract : each column gets the same column‑vector
+    m.array().colwise() -= rowMin.array();
+
+    /* ---- column pass --------------------------------------------- */
+    // colMin : (1 × cols) row‑vector
+    const auto colMin = m.colwise().minCoeff();
+
+    // broadcast and subtract : each row gets the same row‑vector
+    m.array().rowwise() -= colMin.array();
   }
 
   static void minimize_along_direction(EigenMatrix &matrix, const bool over_columns)
@@ -343,8 +365,8 @@ private:
     {
       if (mask_matrix(saverow, ncol) == STAR)
       {
-        row_mask[saverow] = true; // cover this row and
-        col_mask[ncol] = false;   // uncover the column containing the starred zero
+        row_mask[saverow] = 1; // cover this row and
+        col_mask[ncol] = 0;   // uncover the column containing the starred zero
         return 3;                 // repeat
       }
     }
@@ -432,7 +454,7 @@ private:
       }
     } while (madepair);
 
-    for (const auto& pair : seq)
+    for (const auto &pair : seq)
     {
       // 2. Unstar each starred zero of the sequence.
       if (mask_matrix(pair.first, pair.second) == STAR)
@@ -458,8 +480,8 @@ private:
     }
 
     // Uncover all rows and columns
-    std::fill(row_mask.begin(), row_mask.end(), false);
-    std::fill(col_mask.begin(), col_mask.end(), false);
+    std::fill(row_mask.begin(), row_mask.end(), 0);
+    std::fill(col_mask.begin(), col_mask.end(), 0);
 
     // and return to Step 2.
     return 2;
@@ -523,7 +545,7 @@ private:
 
   MaskMatrix mask_matrix;
   EigenMatrix matrix;
-  std::vector<bool> row_mask;
-  std::vector<bool> col_mask;
+  std::vector<char> row_mask;
+  std::vector<char> col_mask;
   Eigen::Index saverow = 0, savecol = 0;
 };

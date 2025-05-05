@@ -91,16 +91,13 @@ advanced_config:
     recording_state_publisher_topic: 'bob/camera2/recording/state'
 
   base_camera_node:
+    use_cuda: $use_cuda
     resize_height: $resize_height # 0 to disable resize publish
     simulator: False              # True for including simulated objects, False otherwise
     simulator_num_objects: 15     # Number of simulated objects if the simulator parameter is True
     bgs_sensitivity: 'medium_c'   # Initial sensitivity configuration based on the 'bgs_json_params' in the advanced config section
     bgs_type: 'vibe'              # The background subtractor to use: 'vibe' | 'wmv'
-    onvif_host: ''
-    onvif_port: 0
-    onvif_user: ''
-    onvif_password: ''
-    use_cuda: $use_cuda
+    onvif_uri: ''
     mask_timer_seconds: 5
     recording_enabled: $use_recording
     recording_codec: 'avc1'
