@@ -1,6 +1,7 @@
 /*
  *   Copyright (c) 2007 John Weaver
  *   Copyright (c) 2015 Miroslav Krajicek
+ *   Copyright (c) 2025 Updated to use Eigen
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -17,11 +18,8 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#if !defined(_MUNKRES_H_)
-#define _MUNKRES_H_
-
-#include "matrix.h"
-
+#pragma once
+#include <Eigen/Dense>
 #include <vector>
 #include <unordered_set>
 #include <utility>
@@ -49,6 +47,10 @@ class Munkres
   static constexpr int STAR = 1;
   static constexpr int PRIME = 2;
 
+  // Define aliases for Eigen matrices with row-major storage
+  using EigenMatrix = Eigen::Matrix<Data, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+  using MaskMatrix = Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+
 public:
   /*
    * Linear assignment problem solution
@@ -58,17 +60,17 @@ public:
    * Assignments are remaining 0 values
    * (extra 0 values are replaced with -1)
    */
-  void solve(Matrix<Data> &m)
+  void solve(EigenMatrix &m)
   {
-    const size_t rows = m.rows(),
-                 columns = m.columns(),
+    const Eigen::Index rows = m.rows(),
+                 columns = m.cols(),
                  size = std::max(rows, columns);
 
     // Track if we're working with a non-square matrix
     const bool is_square = (rows == columns);
 
     // Instead of copying and resizing, consider working directly with padded matrix
-    Matrix<Data> padded_matrix;
+    EigenMatrix padded_matrix;
 
     if (is_square)
     {
@@ -78,26 +80,16 @@ public:
     else
     {
       // Create padded matrix only when needed
-      padded_matrix.resize(size, size, m.max());
+      padded_matrix.setConstant(size, size, m.maxCoeff());
 
       // Copy original matrix values to padded matrix
-      for (size_t row = 0; row < rows; row++)
-      {
-        for (size_t col = 0; col < columns; col++)
-        {
-          padded_matrix(row, col) = m(row, col);
-        }
-      }
+      padded_matrix.block(0, 0, rows, columns) = m;
 
       matrix = padded_matrix;
     }
 
-#ifdef DEBUG
-    std::cout << "Munkres input: " << m << std::endl;
-#endif
-
     // STAR == 1 == starred, PRIME == 2 == primed
-    mask_matrix.resize(size, size);
+    mask_matrix.setZero(size, size);
 
     // Replace raw pointers with vectors
     row_mask.resize(size, false);
@@ -133,27 +125,13 @@ public:
     }
 
     // Store results
-    for (size_t row = 0; row < size; row++)
+    for (Eigen::Index row = 0; row < size; ++row)
     {
-      for (size_t col = 0; col < size; col++)
+      for (Eigen::Index col = 0; col < size; ++col)
       {
-        if (mask_matrix(row, col) == STAR)
-        {
-          matrix(row, col) = 0;
-        }
-        else
-        {
-          matrix(row, col) = -1;
-        }
+        matrix(row, col) = (mask_matrix(row, col) == STAR) ? 0 : -1;
       }
     }
-
-#ifdef DEBUG
-    std::cout << "Munkres output: " << matrix << std::endl;
-#endif
-    // Remove the excess rows or columns that we added to fit the
-    // input to a square matrix.
-    matrix.resize(rows, columns);
 
     if (is_square)
     {
@@ -161,29 +139,27 @@ public:
     }
     else
     {
+      // Resize m if needed
+      if (m.rows() != rows || m.cols() != columns) {
+        m.resize(rows, columns);
+      }
+      
       // Copy only the relevant portion
-      for (size_t row = 0; row < rows; row++)
+      for (Eigen::Index row = 0; row < rows; ++row)
       {
-        for (size_t col = 0; col < columns; col++)
+        for (Eigen::Index col = 0; col < columns; ++col)
         {
-          if (mask_matrix(row, col) == STAR)
-          {
-            m(row, col) = 0;
-          }
-          else
-          {
-            m(row, col) = -1;
-          }
+          m(row, col) = (mask_matrix(row, col) == STAR) ? 0 : -1;
         }
       }
     }
   }
 
   // Static methods made const-correct and with clearer typing
-  static void replace_infinites(Matrix<Data> &matrix)
+  static void replace_infinites(EigenMatrix &matrix)
   {
-    const size_t rows = matrix.rows(),
-                 columns = matrix.columns();
+    const Eigen::Index rows = matrix.rows(),
+                       columns = matrix.cols();
 
     if (rows == 0 || columns == 0)
       return;
@@ -192,9 +168,9 @@ public:
     constexpr auto infinity = std::numeric_limits<Data>::infinity();
 
     // Find the greatest value in the matrix that isn't infinity.
-    for (size_t row = 0; row < rows; row++)
+    for (Eigen::Index row = 0; row < rows; ++row)
     {
-      for (size_t col = 0; col < columns; col++)
+      for (Eigen::Index col = 0; col < columns; ++col)
       {
         if (matrix(row, col) != infinity)
         {
@@ -221,9 +197,10 @@ public:
       max = max + static_cast<Data>(1);
     }
 
-    for (size_t row = 0; row < rows; row++)
+    // Replace infinity values with max+1
+    for (Eigen::Index row = 0; row < rows; ++row)
     {
-      for (size_t col = 0; col < columns; col++)
+      for (Eigen::Index col = 0; col < columns; ++col)
       {
         if (matrix(row, col) == infinity)
         {
@@ -233,19 +210,19 @@ public:
     }
   }
 
-  static void minimize_along_direction(Matrix<Data> &matrix, const bool over_columns)
+  static void minimize_along_direction(EigenMatrix &matrix, const bool over_columns)
   {
-    const size_t outer_size = over_columns ? matrix.columns() : matrix.rows(),
-                 inner_size = over_columns ? matrix.rows() : matrix.columns();
+    const Eigen::Index outer_size = over_columns ? matrix.cols() : matrix.rows(),
+                       inner_size = over_columns ? matrix.rows() : matrix.cols();
 
     // Look for a minimum value to subtract from all values along
     // the "outer" direction.
-    for (size_t i = 0; i < outer_size; i++)
+    for (Eigen::Index i = 0; i < outer_size; ++i)
     {
       Data min = over_columns ? matrix(0, i) : matrix(i, 0);
 
       // Find minimum value in this row/column
-      for (size_t j = 1; j < inner_size && min > 0; j++)
+      for (Eigen::Index j = 1; j < inner_size && min > 0; ++j)
       {
         min = std::min<Data>(
             min,
@@ -254,7 +231,7 @@ public:
 
       if (min > 0)
       {
-        for (size_t j = 0; j < inner_size; j++)
+        for (Eigen::Index j = 0; j < inner_size; ++j)
         {
           if (over_columns)
           {
@@ -271,16 +248,16 @@ public:
 
 private:
   // Made const-correct
-  inline bool find_uncovered_in_matrix(const Data item, size_t &row, size_t &col) const
+  inline bool find_uncovered_in_matrix(const Data item, Eigen::Index &row, Eigen::Index &col) const
   {
-    const size_t rows = matrix.rows(),
-                 columns = matrix.columns();
+    const Eigen::Index rows = matrix.rows(),
+                       columns = matrix.cols();
 
-    for (row = 0; row < rows; row++)
+    for (row = 0; row < rows; ++row)
     {
       if (!row_mask[row])
       {
-        for (col = 0; col < columns; col++)
+        for (col = 0; col < columns; ++col)
         {
           if (!col_mask[col] && matrix(row, col) == item)
           {
@@ -293,23 +270,23 @@ private:
   }
 
   // Improved to use an unordered_set for O(1) lookups instead of O(n)
-  bool pair_in_list(const std::pair<size_t, size_t> &needle,
-                    const std::unordered_set<std::pair<size_t, size_t>, PairHash> &haystack) const
+  bool pair_in_list(const std::pair<Eigen::Index, Eigen::Index> &needle,
+                    const std::unordered_set<std::pair<Eigen::Index, Eigen::Index>, PairHash> &haystack) const
   {
     return haystack.find(needle) != haystack.end();
   }
 
   int step1()
   {
-    const size_t rows = matrix.rows(),
-                 columns = matrix.columns();
+    const Eigen::Index rows = matrix.rows(),
+                       columns = matrix.cols();
 
     // Precompute starred columns for O(1) lookup
     std::vector<bool> star_in_col(columns, false);
 
-    for (size_t row = 0; row < rows; row++)
+    for (Eigen::Index row = 0; row < rows; ++row)
     {
-      for (size_t col = 0; col < columns; col++)
+      for (Eigen::Index col = 0; col < columns; ++col)
       {
         if (matrix(row, col) == 0 && !star_in_col[col])
         {
@@ -324,30 +301,22 @@ private:
 
   int step2()
   {
-    const size_t rows = matrix.rows(),
-                 columns = matrix.columns();
-    size_t covercount = 0;
+    const Eigen::Index rows = matrix.rows(),
+                       columns = matrix.cols();
+    Eigen::Index covercount = 0;
 
-    for (size_t row = 0; row < rows; row++)
-      for (size_t col = 0; col < columns; col++)
+    for (Eigen::Index row = 0; row < rows; ++row)
+      for (Eigen::Index col = 0; col < columns; ++col)
         if (STAR == mask_matrix(row, col))
         {
           col_mask[col] = true;
           covercount++;
         }
 
-    if (covercount >= matrix.minsize())
+    if (covercount >= std::min(rows, columns))
     {
-#ifdef DEBUG
-      std::cout << "Final cover count: " << covercount << std::endl;
-#endif
       return 0;
     }
-
-#ifdef DEBUG
-    std::cout << "Munkres matrix has " << covercount << " of " << matrix.minsize() << " Columns covered:" << std::endl;
-    std::cout << matrix << std::endl;
-#endif
 
     return 3;
   }
@@ -370,7 +339,7 @@ private:
       return 5;
     }
 
-    for (size_t ncol = 0; ncol < matrix.columns(); ncol++)
+    for (Eigen::Index ncol = 0; ncol < matrix.cols(); ++ncol)
     {
       if (mask_matrix(saverow, ncol) == STAR)
       {
@@ -385,27 +354,27 @@ private:
 
   int step4()
   {
-    const size_t rows = matrix.rows(),
-                 columns = matrix.columns();
+    const Eigen::Index rows = matrix.rows(),
+                       columns = matrix.cols();
 
     // Replace std::list with std::vector for better cache locality
-    std::vector<std::pair<size_t, size_t>> seq;
+    std::vector<std::pair<Eigen::Index, Eigen::Index>> seq;
     // Reserve space to avoid reallocations (typical sequence length rarely exceeds matrix dimension)
     seq.reserve(std::max(rows, columns));
 
     // Add a dedicated unordered_set for fast lookups
-    std::unordered_set<std::pair<size_t, size_t>, PairHash> seq_set;
+    std::unordered_set<std::pair<Eigen::Index, Eigen::Index>, PairHash> seq_set;
 
     // use saverow, savecol from step 3
-    std::pair<size_t, size_t> z0(saverow, savecol);
+    std::pair<Eigen::Index, Eigen::Index> z0(saverow, savecol);
     seq.push_back(z0);
     seq_set.insert(z0);
 
     // We have to find these two pairs:
-    std::pair<size_t, size_t> z1(-1, -1);
-    std::pair<size_t, size_t> z2n(-1, -1);
+    std::pair<Eigen::Index, Eigen::Index> z1(-1, -1);
+    std::pair<Eigen::Index, Eigen::Index> z2n(-1, -1);
 
-    size_t row, col = savecol;
+    Eigen::Index row, col = savecol;
     /*
     Increment Set of Starred Zeros
 
@@ -463,24 +432,23 @@ private:
       }
     } while (madepair);
 
-    for (std::vector<std::pair<size_t, size_t>>::iterator i = seq.begin();
-         i != seq.end();
-         i++)
+    for (const auto& pair : seq)
     {
       // 2. Unstar each starred zero of the sequence.
-      if (mask_matrix(i->first, i->second) == STAR)
-        mask_matrix(i->first, i->second) = NORMAL;
+      if (mask_matrix(pair.first, pair.second) == STAR)
+        mask_matrix(pair.first, pair.second) = NORMAL;
 
       // 3. Star each primed zero of the sequence,
       // thus increasing the number of starred zeros by one.
-      if (mask_matrix(i->first, i->second) == PRIME)
-        mask_matrix(i->first, i->second) = STAR;
+      if (mask_matrix(pair.first, pair.second) == PRIME)
+        mask_matrix(pair.first, pair.second) = STAR;
     }
 
-    // 4. Erase all primes, uncover all columns and rows,
-    for (size_t row = 0; row < mask_matrix.rows(); row++)
+    // 4. Erase all primes, uncover all columns and rows
+    // First, find all prime locations and set them to normal
+    for (Eigen::Index row = 0; row < mask_matrix.rows(); row++)
     {
-      for (size_t col = 0; col < mask_matrix.columns(); col++)
+      for (Eigen::Index col = 0; col < mask_matrix.cols(); col++)
       {
         if (mask_matrix(row, col) == PRIME)
         {
@@ -489,15 +457,9 @@ private:
       }
     }
 
-    for (size_t i = 0; i < rows; i++)
-    {
-      row_mask[i] = false;
-    }
-
-    for (size_t i = 0; i < columns; i++)
-    {
-      col_mask[i] = false;
-    }
+    // Uncover all rows and columns
+    std::fill(row_mask.begin(), row_mask.end(), false);
+    std::fill(col_mask.begin(), col_mask.end(), false);
 
     // and return to Step 2.
     return 2;
@@ -505,18 +467,18 @@ private:
 
   int step5()
   {
-    const size_t rows = matrix.rows(),
-                 columns = matrix.columns();
+    const Eigen::Index rows = matrix.rows(),
+                       columns = matrix.cols();
 
     // Use the same type as matrix elements for h
     Data h = std::numeric_limits<Data>::max();
 
-    // Optimize nested loops for cache locality
-    for (size_t row = 0; row < rows; row++)
+    // Find the minimum uncovered value
+    for (Eigen::Index row = 0; row < rows; ++row)
     {
       if (!row_mask[row])
       {
-        for (size_t col = 0; col < columns; col++)
+        for (Eigen::Index col = 0; col < columns; ++col)
         {
           if (!col_mask[col])
           {
@@ -533,11 +495,11 @@ private:
 
     // Matrix modifications with better locality
     // Update covered rows first (complete row operations)
-    for (size_t row = 0; row < rows; row++)
+    for (Eigen::Index row = 0; row < rows; ++row)
     {
       if (row_mask[row])
       {
-        for (size_t col = 0; col < columns; col++)
+        for (Eigen::Index col = 0; col < columns; ++col)
         {
           matrix(row, col) += h;
         }
@@ -545,11 +507,11 @@ private:
     }
 
     // Then update uncovered columns (complete column operations)
-    for (size_t col = 0; col < columns; col++)
+    for (Eigen::Index col = 0; col < columns; ++col)
     {
       if (!col_mask[col])
       {
-        for (size_t row = 0; row < rows; row++)
+        for (Eigen::Index row = 0; row < rows; ++row)
         {
           matrix(row, col) -= h;
         }
@@ -559,11 +521,9 @@ private:
     return 3;
   }
 
-  Matrix<int> mask_matrix;
-  Matrix<Data> matrix;
+  MaskMatrix mask_matrix;
+  EigenMatrix matrix;
   std::vector<bool> row_mask;
   std::vector<bool> col_mask;
-  size_t saverow = 0, savecol = 0;
+  Eigen::Index saverow = 0, savecol = 0;
 };
-
-#endif /* !defined(_MUNKRES_H_) */

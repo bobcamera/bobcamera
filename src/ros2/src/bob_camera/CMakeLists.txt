@@ -28,7 +28,9 @@ find_package(boblib REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(bob_interfaces REQUIRED)
 find_package(jsoncpp REQUIRED)
+find_package(Eigen3 REQUIRED)
 
+include_directories(${EIGEN3_INCLUDE_DIRS})
 include_directories(${OpenCV_INCLUDE_DIRS})
 include_directories("../bob_shared/include")
 include_directories(/usr/include/jsoncpp)
@@ -60,7 +62,7 @@ add_library(camera_bgs_node SHARED
     src/camera_bgs.cpp
     src/sort/kalman_filter.cpp src/sort/sort_tracker.cpp src/sort/track.cpp)
 target_compile_definitions(camera_bgs_node PRIVATE "COMPOSITION_BUILDING_DLL")
-target_link_libraries(camera_bgs_node PUBLIC jsoncpp boblib "${cpp_typesupport_target}")
+target_link_libraries(camera_bgs_node PUBLIC jsoncpp boblib "${cpp_typesupport_target}" ${EIGEN3_LIBRARIES})
 ament_target_dependencies(camera_bgs_node PUBLIC
     rclcpp 
     sensor_msgs 

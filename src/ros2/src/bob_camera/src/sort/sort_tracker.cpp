@@ -58,36 +58,34 @@ SORT::Tracker::Tracker(rclcpp::Logger logger)
     return iou - (centerDistanceSquared / encloseDiagonalSquared);
 }
 
-void SORT::Tracker::HungarianMatching(const std::vector<std::vector<float>> &iou_matrix,
-                                      size_t nrows, size_t ncols,
-                                      std::vector<std::vector<float>> &association) noexcept
+void SORT::Tracker::HungarianMatching(
+    const std::vector<std::vector<float>> &iou_matrix,
+    size_t nrows, size_t ncols,
+    std::vector<std::vector<float>> &association) noexcept 
 {
-    // Pre-allocate matrix as a member variable
-    if (cost_matrix_.rows() != nrows || cost_matrix_.columns() != ncols)
-    {
-        cost_matrix_.resize(nrows, ncols);
-    }
-
-    // Direct assignment to avoid double copy
-    for (size_t i = 0; i < nrows; ++i)
-    {
-        for (size_t j = 0; j < ncols; ++j)
-        {
-            // Inverting IOU value directly
-            cost_matrix_(i, j) = iou_matrix[i][j] != 0 ? -iou_matrix[i][j] : 1.0f;
+    // Convert input to Eigen matrix
+    // Convert DIoU scores to costs (lower is better for Hungarian algorithm)
+    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> cost(nrows, ncols);
+    
+    // Transform DIoU values (higher is better) to costs (lower is better)
+    for (size_t i = 0; i < nrows; i++) {
+        for (size_t j = 0; j < ncols; j++) {
+            // Convert from maximization to minimization problem
+            // Add 1 to handle negative DIoU values (DIoU ranges from -1 to 1)
+            cost(i, j) = -iou_matrix[i][j] + 1.0f;  // Now costs range from 0 to 2
         }
     }
 
-    // Apply Munkres algorithm using pre-allocated matrix
+    // Apply Hungarian algorithm
     Munkres<float> m;
-    m.solve(cost_matrix_);
-
-    // Copy results back
-    for (size_t i = 0; i < nrows; ++i)
-    {
-        for (size_t j = 0; j < ncols; ++j)
-        {
-            association[i][j] = cost_matrix_(i, j);
+    m.solve(cost);
+    
+    // Convert result back to association vector
+    association.resize(nrows);
+    for (size_t i = 0; i < nrows; i++) {
+        association[i].resize(ncols);
+        for (size_t j = 0; j < ncols; j++) {
+            association[i][j] = cost(i, j);
         }
     }
 }
@@ -129,6 +127,7 @@ void SORT::Tracker::AssociateDetectionsToTrackers(const std::vector<cv::Rect> &d
         size_t j = 0;
         for (const auto &trk : tracks)
         {
+            // Check for 0s in the Munkres result (optimal assignments)
             if (association[i][j] == 0)
             {
                 // Filter out matched with low IOU

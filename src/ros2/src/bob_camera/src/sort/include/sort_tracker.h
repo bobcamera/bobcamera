@@ -4,6 +4,7 @@
 #include <thread>
 #include <opencv2/core.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <Eigen/Dense>
 
 #include "../include/track.h"
 #include "../include/munkres.h"
@@ -52,6 +53,6 @@ namespace SORT
         int total_trackers_finished_;
         int max_coast_cycles_; // base on fps
         size_t tracker_max_active_trackers_;
-        Matrix<float> cost_matrix_;
+        Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> cost_matrix_;
     };
 }
