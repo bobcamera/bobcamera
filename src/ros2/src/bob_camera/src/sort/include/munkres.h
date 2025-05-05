@@ -22,272 +22,338 @@
 
 #include "matrix.h"
 
-#include <list>
+#include <vector>
+#include <unordered_set>
 #include <utility>
 #include <iostream>
 #include <cmath>
 #include <limits>
+#include <algorithm>
 
-template<typename Data> class Munkres
+// Hash function for std::pair to use with unordered_set
+struct PairHash
 {
-    static constexpr int NORMAL = 0;
-    static constexpr int STAR   = 1;
-    static constexpr int PRIME  = 2;
+  template <class T1, class T2>
+  std::size_t operator()(const std::pair<T1, T2> &p) const
+  {
+    auto h1 = std::hash<T1>{}(p.first);
+    auto h2 = std::hash<T2>{}(p.second);
+    return h1 ^ (h2 << 1);
+  }
+};
+
+template <typename Data>
+class Munkres
+{
+  static constexpr int NORMAL = 0;
+  static constexpr int STAR = 1;
+  static constexpr int PRIME = 2;
+
 public:
+  /*
+   * Linear assignment problem solution
+   * [modifies matrix in-place.]
+   * matrix(row,col): row major format assumed.
+   *
+   * Assignments are remaining 0 values
+   * (extra 0 values are replaced with -1)
+   */
+  void solve(Matrix<Data> &m)
+  {
+    const size_t rows = m.rows(),
+                 columns = m.columns(),
+                 size = std::max(rows, columns);
 
-    /*
-     *
-     * Linear assignment problem solution
-     * [modifies matrix in-place.]
-     * matrix(row,col): row major format assumed.
-     *
-     * Assignments are remaining 0 values
-     * (extra 0 values are replaced with -1)
-     *
-     */
-    void solve(Matrix<Data> &m) {
-        const size_t rows = m.rows(),
-                columns = m.columns(),
-                size = std::max(rows, columns);
+    // Track if we're working with a non-square matrix
+    const bool is_square = (rows == columns);
 
-#ifdef DEBUG
-        std::cout << "Munkres input: " << m << std::endl;
-#endif
+    // Instead of copying and resizing, consider working directly with padded matrix
+    Matrix<Data> padded_matrix;
 
-        // Copy input matrix
-        this->matrix = m;
+    if (is_square)
+    {
+      // If already square, just copy
+      matrix = m;
+    }
+    else
+    {
+      // Create padded matrix only when needed
+      padded_matrix.resize(size, size, m.max());
 
-        if ( rows != columns ) {
-            // If the input matrix isn't square, make it square
-            // and fill the empty values with the largest value present
-            // in the matrix.
-            matrix.resize(size, size, matrix.max());
+      // Copy original matrix values to padded matrix
+      for (size_t row = 0; row < rows; row++)
+      {
+        for (size_t col = 0; col < columns; col++)
+        {
+          padded_matrix(row, col) = m(row, col);
         }
+      }
 
-
-        // STAR == 1 == starred, PRIME == 2 == primed
-        mask_matrix.resize(size, size);
-
-        row_mask = new bool[size];
-        col_mask = new bool[size];
-        for ( size_t i = 0 ; i < size ; i++ ) {
-            row_mask[i] = false;
-        }
-
-        for ( size_t i = 0 ; i < size ; i++ ) {
-            col_mask[i] = false;
-        }
-
-        // Prepare the matrix values...
-
-        // If there were any infinities, replace them with a value greater
-        // than the maximum value in the matrix.
-        replace_infinites(matrix);
-
-        minimize_along_direction(matrix, rows >= columns);
-        minimize_along_direction(matrix, rows <  columns);
-
-        // Follow the steps
-        int step = 1;
-        while ( step ) {
-            switch ( step ) {
-            case 1:
-                step = step1();
-                // step is always 2
-                break;
-            case 2:
-                step = step2();
-                // step is always either 0 or 3
-                break;
-            case 3:
-                step = step3();
-                // step in [3, 4, 5]
-                break;
-            case 4:
-                step = step4();
-                // step is always 2
-                break;
-            case 5:
-                step = step5();
-                // step is always 3
-                break;
-            }
-        }
-
-        // Store results
-        for ( size_t row = 0 ; row < size ; row++ ) {
-            for ( size_t col = 0 ; col < size ; col++ ) {
-                if ( mask_matrix(row, col) == STAR ) {
-                    matrix(row, col) = 0;
-                } else {
-                    matrix(row, col) = -1;
-                }
-            }
-        }
-
-#ifdef DEBUG
-        std::cout << "Munkres output: " << matrix << std::endl;
-#endif
-        // Remove the excess rows or columns that we added to fit the
-        // input to a square matrix.
-        matrix.resize(rows, columns);
-
-        m = matrix;
-
-        delete [] row_mask;
-        delete [] col_mask;
+      matrix = padded_matrix;
     }
 
-    static void replace_infinites(Matrix<Data> &matrix) {
-      const size_t rows = matrix.rows(),
-                columns = matrix.columns();
-      assert( rows > 0 && columns > 0 );
-      double max = matrix(0, 0);
-      constexpr auto infinity = std::numeric_limits<double>::infinity();
+#ifdef DEBUG
+    std::cout << "Munkres input: " << m << std::endl;
+#endif
 
-      // Find the greatest value in the matrix that isn't infinity.
-      for ( size_t row = 0 ; row < rows ; row++ ) {
-        for ( size_t col = 0 ; col < columns ; col++ ) {
-          if ( matrix(row, col) != infinity ) {
-            if ( max == infinity ) {
-              max = matrix(row, col);
-            } else {
-              max = std::max<double>(max, matrix(row, col));
-            }
+    // STAR == 1 == starred, PRIME == 2 == primed
+    mask_matrix.resize(size, size);
+
+    // Replace raw pointers with vectors
+    row_mask.resize(size, false);
+    col_mask.resize(size, false);
+
+    // Prepare the matrix values
+    replace_infinites(matrix);
+    minimize_along_direction(matrix, rows >= columns);
+    minimize_along_direction(matrix, rows < columns);
+
+    // Follow the steps
+    int step = 1;
+    while (step)
+    {
+      switch (step)
+      {
+      case 1:
+        step = step1();
+        break;
+      case 2:
+        step = step2();
+        break;
+      case 3:
+        step = step3();
+        break;
+      case 4:
+        step = step4();
+        break;
+      case 5:
+        step = step5();
+        break;
+      }
+    }
+
+    // Store results
+    for (size_t row = 0; row < size; row++)
+    {
+      for (size_t col = 0; col < size; col++)
+      {
+        if (mask_matrix(row, col) == STAR)
+        {
+          matrix(row, col) = 0;
+        }
+        else
+        {
+          matrix(row, col) = -1;
+        }
+      }
+    }
+
+#ifdef DEBUG
+    std::cout << "Munkres output: " << matrix << std::endl;
+#endif
+    // Remove the excess rows or columns that we added to fit the
+    // input to a square matrix.
+    matrix.resize(rows, columns);
+
+    if (is_square)
+    {
+      m = matrix;
+    }
+    else
+    {
+      // Copy only the relevant portion
+      for (size_t row = 0; row < rows; row++)
+      {
+        for (size_t col = 0; col < columns; col++)
+        {
+          if (mask_matrix(row, col) == STAR)
+          {
+            m(row, col) = 0;
+          }
+          else
+          {
+            m(row, col) = -1;
           }
         }
       }
+    }
+  }
 
-      // a value higher than the maximum value present in the matrix.
-      if ( max == infinity ) {
-        // This case only occurs when all values are infinite.
-        max = 0;
-      } else {
-        max++;
-      }
+  // Static methods made const-correct and with clearer typing
+  static void replace_infinites(Matrix<Data> &matrix)
+  {
+    const size_t rows = matrix.rows(),
+                 columns = matrix.columns();
 
-      for ( size_t row = 0 ; row < rows ; row++ ) {
-        for ( size_t col = 0 ; col < columns ; col++ ) {
-          if ( matrix(row, col) == infinity ) {
-            matrix(row, col) = max;
+    if (rows == 0 || columns == 0)
+      return;
+
+    Data max = matrix(0, 0);
+    constexpr auto infinity = std::numeric_limits<Data>::infinity();
+
+    // Find the greatest value in the matrix that isn't infinity.
+    for (size_t row = 0; row < rows; row++)
+    {
+      for (size_t col = 0; col < columns; col++)
+      {
+        if (matrix(row, col) != infinity)
+        {
+          if (max == infinity)
+          {
+            max = matrix(row, col);
+          }
+          else
+          {
+            max = std::max<Data>(max, matrix(row, col));
           }
         }
       }
-
     }
 
-    static void minimize_along_direction(Matrix<Data> &matrix, const bool over_columns) {
-      const size_t outer_size = over_columns ? matrix.columns() : matrix.rows(),
-                   inner_size = over_columns ? matrix.rows() : matrix.columns();
+    // a value higher than the maximum value present in the matrix.
+    if (max == infinity)
+    {
+      // This case only occurs when all values are infinite.
+      max = static_cast<Data>(0);
+    }
+    else
+    {
+      max = max + static_cast<Data>(1);
+    }
 
-      // Look for a minimum value to subtract from all values along
-      // the "outer" direction.
-      for ( size_t i = 0 ; i < outer_size ; i++ ) {
-        double min = over_columns ? matrix(0, i) : matrix(i, 0);
+    for (size_t row = 0; row < rows; row++)
+    {
+      for (size_t col = 0; col < columns; col++)
+      {
+        if (matrix(row, col) == infinity)
+        {
+          matrix(row, col) = max;
+        }
+      }
+    }
+  }
 
-        // As long as the current minimum is greater than zero,
-        // keep looking for the minimum.
-        // Start at one because we already have the 0th value in min.
-        for ( size_t j = 1 ; j < inner_size && min > 0 ; j++ ) {
-          min = std::min<double>(
+  static void minimize_along_direction(Matrix<Data> &matrix, const bool over_columns)
+  {
+    const size_t outer_size = over_columns ? matrix.columns() : matrix.rows(),
+                 inner_size = over_columns ? matrix.rows() : matrix.columns();
+
+    // Look for a minimum value to subtract from all values along
+    // the "outer" direction.
+    for (size_t i = 0; i < outer_size; i++)
+    {
+      Data min = over_columns ? matrix(0, i) : matrix(i, 0);
+
+      // Find minimum value in this row/column
+      for (size_t j = 1; j < inner_size && min > 0; j++)
+      {
+        min = std::min<Data>(
             min,
             over_columns ? matrix(j, i) : matrix(i, j));
-        }
+      }
 
-        if ( min > 0 ) {
-          for ( size_t j = 0 ; j < inner_size ; j++ ) {
-            if ( over_columns ) {
-              matrix(j, i) -= min;
-            } else {
-              matrix(i, j) -= min;
-            }
+      if (min > 0)
+      {
+        for (size_t j = 0; j < inner_size; j++)
+        {
+          if (over_columns)
+          {
+            matrix(j, i) -= min;
+          }
+          else
+          {
+            matrix(i, j) -= min;
           }
         }
       }
     }
+  }
 
 private:
-
-  inline bool find_uncovered_in_matrix(const double item, size_t &row, size_t &col) const {
+  // Made const-correct
+  inline bool find_uncovered_in_matrix(const Data item, size_t &row, size_t &col) const
+  {
     const size_t rows = matrix.rows(),
-              columns = matrix.columns();
+                 columns = matrix.columns();
 
-    for ( row = 0 ; row < rows ; row++ ) {
-      if ( !row_mask[row] ) {
-        for ( col = 0 ; col < columns ; col++ ) {
-          if ( !col_mask[col] ) {
-            if ( matrix(row,col) == item ) {
-              return true;
-            }
+    for (row = 0; row < rows; row++)
+    {
+      if (!row_mask[row])
+      {
+        for (col = 0; col < columns; col++)
+        {
+          if (!col_mask[col] && matrix(row, col) == item)
+          {
+            return true;
           }
         }
       }
     }
-
     return false;
   }
 
-  bool pair_in_list(const std::pair<size_t,size_t> &needle, const std::list<std::pair<size_t,size_t> > &haystack) {
-    for ( std::list<std::pair<size_t,size_t> >::const_iterator i = haystack.begin() ; i != haystack.end() ; i++ ) {
-      if ( needle == *i ) {
-        return true;
-      }
-    }
-
-    return false;
+  // Improved to use an unordered_set for O(1) lookups instead of O(n)
+  bool pair_in_list(const std::pair<size_t, size_t> &needle,
+                    const std::unordered_set<std::pair<size_t, size_t>, PairHash> &haystack) const
+  {
+    return haystack.find(needle) != haystack.end();
   }
 
-  int step1() {
+  int step1()
+  {
     const size_t rows = matrix.rows(),
-              columns = matrix.columns();
+                 columns = matrix.columns();
 
-    for ( size_t row = 0 ; row < rows ; row++ ) {
-      for ( size_t col = 0 ; col < columns ; col++ ) {
-        if ( 0 == matrix(row, col) ) {
-          for ( size_t nrow = 0 ; nrow < row ; nrow++ )
-            if ( STAR == mask_matrix(nrow,col) )
-              goto next_column;
+    // Precompute starred columns for O(1) lookup
+    std::vector<bool> star_in_col(columns, false);
 
-          mask_matrix(row,col) = STAR;
-          goto next_row;
+    for (size_t row = 0; row < rows; row++)
+    {
+      for (size_t col = 0; col < columns; col++)
+      {
+        if (matrix(row, col) == 0 && !star_in_col[col])
+        {
+          mask_matrix(row, col) = STAR;
+          star_in_col[col] = true;
+          break; // Move to next row
         }
-        next_column:;
       }
-      next_row:;
     }
-
     return 2;
   }
 
-  int step2() {
+  int step2()
+  {
     const size_t rows = matrix.rows(),
-              columns = matrix.columns();
+                 columns = matrix.columns();
     size_t covercount = 0;
 
-    for ( size_t row = 0 ; row < rows ; row++ )
-      for ( size_t col = 0 ; col < columns ; col++ )
-        if ( STAR == mask_matrix(row, col) ) {
+    for (size_t row = 0; row < rows; row++)
+      for (size_t col = 0; col < columns; col++)
+        if (STAR == mask_matrix(row, col))
+        {
           col_mask[col] = true;
           covercount++;
         }
 
-    if ( covercount >= matrix.minsize() ) {
-  #ifdef DEBUG
+    if (covercount >= matrix.minsize())
+    {
+#ifdef DEBUG
       std::cout << "Final cover count: " << covercount << std::endl;
-  #endif
+#endif
       return 0;
     }
 
-  #ifdef DEBUG
+#ifdef DEBUG
     std::cout << "Munkres matrix has " << covercount << " of " << matrix.minsize() << " Columns covered:" << std::endl;
     std::cout << matrix << std::endl;
-  #endif
-
+#endif
 
     return 3;
   }
 
-  int step3() {
+  int step3()
+  {
     /*
     Main Zero Search
 
@@ -295,37 +361,49 @@ private:
      2. If No Z* exists in the row of the Z', go to Step 4.
      3. If a Z* exists, cover this row and uncover the column of the Z*. Return to Step 3.1 to find a new Z
     */
-    if ( find_uncovered_in_matrix(0, saverow, savecol) ) {
-      mask_matrix(saverow,savecol) = PRIME; // prime it.
-    } else {
+    if (find_uncovered_in_matrix(0, saverow, savecol))
+    {
+      mask_matrix(saverow, savecol) = PRIME; // prime it.
+    }
+    else
+    {
       return 5;
     }
 
-    for ( size_t ncol = 0 ; ncol < matrix.columns() ; ncol++ ) {
-      if ( mask_matrix(saverow,ncol) == STAR ) {
-        row_mask[saverow] = true; //cover this row and
-        col_mask[ncol] = false; // uncover the column containing the starred zero
-        return 3; // repeat
+    for (size_t ncol = 0; ncol < matrix.columns(); ncol++)
+    {
+      if (mask_matrix(saverow, ncol) == STAR)
+      {
+        row_mask[saverow] = true; // cover this row and
+        col_mask[ncol] = false;   // uncover the column containing the starred zero
+        return 3;                 // repeat
       }
     }
 
     return 4; // no starred zero in the row containing this primed zero
   }
 
-  int step4() {
+  int step4()
+  {
     const size_t rows = matrix.rows(),
-              columns = matrix.columns();
+                 columns = matrix.columns();
 
-    // seq contains pairs of row/column values where we have found
-    // either a star or a prime that is part of the ``alternating sequence``.
-    std::list<std::pair<size_t,size_t> > seq;
-    // use saverow, savecol from step 3.
-    std::pair<size_t,size_t> z0(saverow, savecol);
-    seq.insert(seq.end(), z0);
+    // Replace std::list with std::vector for better cache locality
+    std::vector<std::pair<size_t, size_t>> seq;
+    // Reserve space to avoid reallocations (typical sequence length rarely exceeds matrix dimension)
+    seq.reserve(std::max(rows, columns));
+
+    // Add a dedicated unordered_set for fast lookups
+    std::unordered_set<std::pair<size_t, size_t>, PairHash> seq_set;
+
+    // use saverow, savecol from step 3
+    std::pair<size_t, size_t> z0(saverow, savecol);
+    seq.push_back(z0);
+    seq_set.insert(z0);
 
     // We have to find these two pairs:
-    std::pair<size_t,size_t> z1(-1, -1);
-    std::pair<size_t,size_t> z2n(-1, -1);
+    std::pair<size_t, size_t> z1(-1, -1);
+    std::pair<size_t, size_t> z2n(-1, -1);
 
     size_t row, col = savecol;
     /*
@@ -341,68 +419,83 @@ private:
         The sequence eventually terminates with an unpaired Z' = Z[2N] for some N.
     */
     bool madepair;
-    do {
+    do
+    {
       madepair = false;
-      for ( row = 0 ; row < rows ; row++ ) {
-        if ( mask_matrix(row,col) == STAR ) {
+      for (row = 0; row < rows; row++)
+      {
+        if (mask_matrix(row, col) == STAR)
+        {
           z1.first = row;
           z1.second = col;
-          if ( pair_in_list(z1, seq) ) {
+          if (pair_in_list(z1, seq_set))
+          {
             continue;
           }
 
           madepair = true;
-          seq.insert(seq.end(), z1);
+          seq.push_back(z1);
+          seq_set.insert(z1);
           break;
         }
       }
 
-      if ( !madepair )
+      if (!madepair)
         break;
 
       madepair = false;
 
-      for ( col = 0 ; col < columns ; col++ ) {
-        if ( mask_matrix(row, col) == PRIME ) {
+      for (col = 0; col < columns; col++)
+      {
+        if (mask_matrix(row, col) == PRIME)
+        {
           z2n.first = row;
           z2n.second = col;
-          if ( pair_in_list(z2n, seq) ) {
+          if (pair_in_list(z2n, seq_set))
+          {
             continue;
           }
           madepair = true;
-          seq.insert(seq.end(), z2n);
+          seq.push_back(z2n);
+          seq_set.insert(z2n);
           break;
         }
       }
-    } while ( madepair );
+    } while (madepair);
 
-    for ( std::list<std::pair<size_t,size_t> >::iterator i = seq.begin() ;
-        i != seq.end() ;
-        i++ ) {
+    for (std::vector<std::pair<size_t, size_t>>::iterator i = seq.begin();
+         i != seq.end();
+         i++)
+    {
       // 2. Unstar each starred zero of the sequence.
-      if ( mask_matrix(i->first,i->second) == STAR )
-        mask_matrix(i->first,i->second) = NORMAL;
+      if (mask_matrix(i->first, i->second) == STAR)
+        mask_matrix(i->first, i->second) = NORMAL;
 
       // 3. Star each primed zero of the sequence,
       // thus increasing the number of starred zeros by one.
-      if ( mask_matrix(i->first,i->second) == PRIME )
-        mask_matrix(i->first,i->second) = STAR;
+      if (mask_matrix(i->first, i->second) == PRIME)
+        mask_matrix(i->first, i->second) = STAR;
     }
 
     // 4. Erase all primes, uncover all columns and rows,
-    for ( size_t row = 0 ; row < mask_matrix.rows() ; row++ ) {
-      for ( size_t col = 0 ; col < mask_matrix.columns() ; col++ ) {
-        if ( mask_matrix(row,col) == PRIME ) {
-          mask_matrix(row,col) = NORMAL;
+    for (size_t row = 0; row < mask_matrix.rows(); row++)
+    {
+      for (size_t col = 0; col < mask_matrix.columns(); col++)
+      {
+        if (mask_matrix(row, col) == PRIME)
+        {
+          mask_matrix(row, col) = NORMAL;
         }
       }
     }
 
-    for ( size_t i = 0 ; i < rows ; i++ ) {
+    for (size_t i = 0; i < rows; i++)
+    {
       row_mask[i] = false;
     }
 
-    for ( size_t i = 0 ; i < columns ; i++ ) {
+    for (size_t i = 0; i < columns; i++)
+    {
       col_mask[i] = false;
     }
 
@@ -410,41 +503,54 @@ private:
     return 2;
   }
 
-  int step5() {
+  int step5()
+  {
     const size_t rows = matrix.rows(),
-              columns = matrix.columns();
-    /*
-    New Zero Manufactures
+                 columns = matrix.columns();
 
-     1. Let h be the smallest uncovered entry in the (modified) distance matrix.
-     2. Add h to all covered rows.
-     3. Subtract h from all uncovered columns
-     4. Return to Step 3, without altering stars, primes, or covers.
-    */
-    double h = std::numeric_limits<double>::max();
-    for ( size_t row = 0 ; row < rows ; row++ ) {
-      if ( !row_mask[row] ) {
-        for ( size_t col = 0 ; col < columns ; col++ ) {
-          if ( !col_mask[col] ) {
-            if ( h > matrix(row, col) && matrix(row, col) != 0 ) {
-              h = matrix(row, col);
+    // Use the same type as matrix elements for h
+    Data h = std::numeric_limits<Data>::max();
+
+    // Optimize nested loops for cache locality
+    for (size_t row = 0; row < rows; row++)
+    {
+      if (!row_mask[row])
+      {
+        for (size_t col = 0; col < columns; col++)
+        {
+          if (!col_mask[col])
+          {
+            const Data val = matrix(row, col);
+            // Combine conditions to reduce branching
+            if (val != 0 && val < h)
+            {
+              h = val;
             }
           }
         }
       }
     }
 
-    for ( size_t row = 0 ; row < rows ; row++ ) {
-      if ( row_mask[row] ) {
-        for ( size_t col = 0 ; col < columns ; col++ ) {
+    // Matrix modifications with better locality
+    // Update covered rows first (complete row operations)
+    for (size_t row = 0; row < rows; row++)
+    {
+      if (row_mask[row])
+      {
+        for (size_t col = 0; col < columns; col++)
+        {
           matrix(row, col) += h;
         }
       }
     }
 
-    for ( size_t col = 0 ; col < columns ; col++ ) {
-      if ( !col_mask[col] ) {
-        for ( size_t row = 0 ; row < rows ; row++ ) {
+    // Then update uncovered columns (complete column operations)
+    for (size_t col = 0; col < columns; col++)
+    {
+      if (!col_mask[col])
+      {
+        for (size_t row = 0; row < rows; row++)
+        {
           matrix(row, col) -= h;
         }
       }
@@ -455,10 +561,9 @@ private:
 
   Matrix<int> mask_matrix;
   Matrix<Data> matrix;
-  bool *row_mask;
-  bool *col_mask;
+  std::vector<bool> row_mask;
+  std::vector<bool> col_mask;
   size_t saverow = 0, savecol = 0;
 };
-
 
 #endif /* !defined(_MUNKRES_H_) */

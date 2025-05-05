@@ -62,32 +62,32 @@ void SORT::Tracker::HungarianMatching(const std::vector<std::vector<float>> &iou
                                       size_t nrows, size_t ncols,
                                       std::vector<std::vector<float>> &association) noexcept
 {
-    Matrix<float> matrix(nrows, ncols);
-    // Initialize matrix with IOU values
+    // Pre-allocate matrix as a member variable
+    if (cost_matrix_.rows() != nrows || cost_matrix_.columns() != ncols)
+    {
+        cost_matrix_.resize(nrows, ncols);
+    }
+
+    // Direct assignment to avoid double copy
     for (size_t i = 0; i < nrows; ++i)
     {
         for (size_t j = 0; j < ncols; ++j)
         {
-            // Inverting IOU value directly, using ternary operator to handle zeros
-            matrix(i, j) = iou_matrix[i][j] != 0 ? -iou_matrix[i][j] : 1.0f;
+            // Inverting IOU value directly
+            cost_matrix_(i, j) = iou_matrix[i][j] != 0 ? -iou_matrix[i][j] : 1.0f;
         }
     }
 
-    // Apply Kuhn-Munkres algorithm to the matrix.
+    // Apply Munkres algorithm using pre-allocated matrix
     Munkres<float> m;
-    m.solve(matrix);
+    m.solve(cost_matrix_);
 
-    // Resize the association matrix only if necessary
-    if (association.size() != nrows || (nrows > 0 && association[0].size() != ncols))
-    {
-        association.resize(nrows, std::vector<float>(ncols));
-    }
-
+    // Copy results back
     for (size_t i = 0; i < nrows; ++i)
     {
         for (size_t j = 0; j < ncols; ++j)
         {
-            association[i][j] = matrix(i, j);
+            association[i][j] = cost_matrix_(i, j);
         }
     }
 }
