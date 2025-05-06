@@ -10,6 +10,7 @@
 
 #include "./../../api/bgs/bgs.hpp"
 #include "./../../api/blobs/connectedBlobDetection.hpp"
+#include "./../../api/utils/profiler.hpp"
 
 /////////////////////////////////////////////////////////////
 // Default parameters
@@ -27,6 +28,12 @@ enum BGSType
 };
 std::unique_ptr<boblib::bgs::CoreBgs> bgsPtr{nullptr};
 
+std::unique_ptr<boblib::bgs::CoreBgs> bgs_ptr_{nullptr};
+std::unique_ptr<boblib::blobs::ConnectedBlobDetection> blob_detector_ptr_{nullptr};
+std::unique_ptr<boblib::bgs::VibeParams> vibe_params_;
+std::unique_ptr<boblib::bgs::WMVParams> wmv_params_;
+std::unique_ptr<boblib::blobs::ConnectedBlobDetectionParams> blob_params_;
+
 /////////////////////////////////////////////////////////////
 // Blob Detector
 boblib::blobs::ConnectedBlobDetection blobDetector;
@@ -34,10 +41,10 @@ boblib::blobs::ConnectedBlobDetection blobDetector;
 /////////////////////////////////////////////////////////////
 // Function Definitions
 std::unique_ptr<boblib::bgs::CoreBgs> createBGS(BGSType _type);
-inline void appyPreProcess(const cv::Mat &input, cv::Mat &output);
-inline void appyBGS(const cv::Mat &input, cv::Mat &output);
-inline void drawBboxes(std::vector<cv::KeyPoint> &keypoints, const cv::Mat &frame);
-inline void findBlobs(const cv::Mat &image, std::vector<cv::Rect> &blobs);
+inline void appyPreProcess(const boblib::base::Image &input, boblib::base::Image &output);
+inline void appyBGS(const boblib::base::Image &input, boblib::base::Image &output);
+inline void drawBboxes(std::vector<cv::Rect> &bboxes, boblib::base::Image &frame);
+inline void findBlobs(const boblib::base::Image &image, std::vector<cv::Rect> &blobs);
 inline void drawBboxes(std::vector<cv::Rect> &keypoints, const cv::Mat &frame);
 inline void outputBoundingBoxes(std::vector<cv::Rect> &bboxes);
 int getIntArg(std::string arg);
@@ -46,20 +53,11 @@ int getIntArg(std::string arg);
 // Main entry point for demo
 int main(int argc, const char **argv)
 {
-    std::string videoFile{"Dahua-20220901-184734.mp4"};
-    // std::string videoFile{"birds_and_plane.mp4"};
-    // std::string videoFile{"brad_drone_1.mp4"};
-
-    // Setting some initial configurations
-    cv::ocl::setUseOpenCL(true);
-    if (cv::ocl::haveOpenCL())
-    {
-        std::cout << "Has OpenCL support, using: " << (cv::ocl::useOpenCL() ? "Yes" : "No") << std::endl;
-    }
+    std::string videoFile{"mike-drone.mp4"};
 
     std::cout << "Available number of concurrent threads = " << std::thread::hardware_concurrency() << std::endl;
 
-    bgsPtr = createBGS(BGSType::WMV);
+    bgsPtr = createBGS(BGSType::Vibe);
     cv::VideoCapture cap;
 
     if (argc > 1)
@@ -79,8 +77,6 @@ int main(int argc, const char **argv)
         cap.open(videoFile);
     }
 
-    // int camNum = std::stoi(argv[1]);
-    // cap.open(camNum);
     if (!cap.isOpened())
     {
         std::cout << "***Could not initialize capturing...***" << std::endl;
@@ -94,12 +90,7 @@ int main(int argc, const char **argv)
     cv::namedWindow("BGS Demo", 0);
     cv::namedWindow("Live Video", 0);
 
-    cv::Mat frame, frame16, processedFrame;
-    long numFrames{0};
-    long totalNumFrames{0};
-    double totalTime{0.0};
-    double totalProcessedTime{0.0};
-    double totalMeanProcessedTime{0.0};
+    cv::Mat frame;
 
     cap.read(frame);
     if (frame.type() != CV_8UC3)
@@ -107,37 +98,58 @@ int main(int argc, const char **argv)
         std::cout << "Image type not supported" << std::endl;
         return -1;
     }
-    cv::Mat bgsMask{frame.size(), CV_8UC1};
+    boblib::utils::Profiler profiler;
+
+    boblib::base::Image bgsMaskImg;
 
     std::vector<cv::Rect> bboxes;
     bool pause = false;
     std::cout << "Enter loop" << std::endl;
     while (true)
     {
-        auto startFrameTime = std::chrono::high_resolution_clock::now();
         if (!pause)
         {
-            auto startProcessedTime = std::chrono::high_resolution_clock::now();
             cap.read(frame);
             if (frame.empty())
             {
                 std::cout << "No image" << std::endl;
                 break;
             }
-            //frame.convertTo(frame16, CV_16UC3, 256.0f);
-            appyPreProcess(frame, processedFrame);
-            appyBGS(processedFrame, bgsMask);
-            findBlobs(bgsMask, bboxes);
-            auto endProcessedTime = std::chrono::high_resolution_clock::now();
-            drawBboxes(bboxes, bgsMask);
-            drawBboxes(bboxes, frame);
-            ++numFrames;
-            totalProcessedTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endProcessedTime - startProcessedTime).count() * 1e-9;
-            totalMeanProcessedTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endProcessedTime - startProcessedTime).count() * 1e-9;
-            ++totalNumFrames;
-            cv::imshow("BGS Demo", bgsMask);
+            boblib::base::Image img_input(frame);
+            boblib::base::Image processedFrame;
+
+            profiler.start(0, "Preprocess");
+            if (applyGreyscale)
+            {
+                img_input.convertColorTo(processedFrame, cv::COLOR_RGB2GRAY);
+            }
+            else
+            {
+                processedFrame = img_input;
+            }
+            if (applyNoiseReduction)
+            {
+                processedFrame.medianBlur(blur_radius);
+            }
+            profiler.stop(0);
+            profiler.start(1, "BGS");
+            bgsPtr->apply(processedFrame, bgsMaskImg);
+            profiler.stop(1);
+            profiler.start(2, "Blob");
+            blobDetector.detect(bgsMaskImg, bboxes);
+            profiler.stop(2);
+            drawBboxes(bboxes, bgsMaskImg);
+            drawBboxes(bboxes, img_input);
+
+            std::string profiler_report;
+            if (profiler.report_if_greater(5.0, profiler_report))
+            {
+                std::cout << profiler_report << std::endl;
+            }
+
+            cv::imshow("BGS Demo", bgsMaskImg.toMat());
             cv::resizeWindow("BGS Demo", 1024, 1024);
-            cv::imshow("Live Video", frame);
+            cv::imshow("Live Video", img_input.toMat());
             cv::resizeWindow("Live Video", 1024, 1024);
         }
         char key = (char)cv::waitKey(1);
@@ -165,20 +177,9 @@ int main(int argc, const char **argv)
             std::cout << "Got threshold: " << threshold << std::endl;
             params.set_threshold(threshold - 5);
         }
-        auto endFrameTime = std::chrono::high_resolution_clock::now();
-        totalTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endFrameTime - startFrameTime).count() * 1e-9;
-        if (totalTime > 2.0)
-        {
-            std::cout << "Framerate: " << (numFrames / totalProcessedTime) << " fps" << std::endl;
-            totalTime = 0.0;
-            totalProcessedTime = 0.0;
-            numFrames = 0;
-        }
     }
     std::cout << "Exit loop\n"
               << std::endl;
-    std::cout << std::endl
-              << "Mean Framerate: " << (totalNumFrames / totalMeanProcessedTime) << " fps" << std::endl;
 
     cap.release();
 
@@ -200,27 +201,6 @@ std::unique_ptr<boblib::bgs::CoreBgs> createBGS(BGSType _type)
     }
 }
 
-// Do image pre-processing
-inline void appyPreProcess(const cv::Mat &input, cv::Mat &output)
-{
-    cv::Mat tmpFrame;
-
-    if (applyGreyscale)
-        cv::cvtColor(input, tmpFrame, cv::COLOR_RGB2GRAY);
-    else
-        tmpFrame = input;
-    if (applyNoiseReduction)
-        cv::GaussianBlur(tmpFrame, output, cv::Size(blur_radius, blur_radius), 0);
-    else
-        output = tmpFrame;
-}
-
-// Apply background subtraction
-inline void appyBGS(const cv::Mat &input, cv::Mat &output)
-{
-    bgsPtr->apply(input, output);
-}
-
 inline void outputBoundingBoxes(std::vector<cv::Rect> &bboxes)
 {
     std::cout << "Bounding boxes" << std::endl;
@@ -230,18 +210,13 @@ inline void outputBoundingBoxes(std::vector<cv::Rect> &bboxes)
     }
 }
 
-inline void drawBboxes(std::vector<cv::Rect> &bboxes, const cv::Mat &frame)
+inline void drawBboxes(std::vector<cv::Rect> &bboxes, boblib::base::Image &frame)
 {
+    auto &frameMat = frame.toMat();
     for (auto bb : bboxes)
     {
-        cv::rectangle(frame, bb, cv::Scalar(255, 0, 255), 2);
+        cv::rectangle(frameMat, bb, cv::Scalar(255, 0, 255), 2);
     }
-}
-
-// Finds the connected components in the image and returns a list of bounding boxes
-inline void findBlobs(const cv::Mat &image, std::vector<cv::Rect> &blobs)
-{
-    blobDetector.detect(image, blobs);
 }
 
 int getIntArg(std::string arg)

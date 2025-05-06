@@ -89,22 +89,33 @@ namespace boblib::bgs
     {
         auto & image = _image.toMat();
         auto & fgmask = _fgmask.toMat();
+
+        std::vector<boblib::base::Image> imgSplits(m_num_processes_parallel, false);
+        std::vector<boblib::base::Image> maskPartials(m_num_processes_parallel, false);
+        std::vector<boblib::base::Image> detectMaskPartials(m_num_processes_parallel, false);
+        for (size_t np = 0; np < m_num_processes_parallel; ++np)
+        {
+            imgSplits[np].create(m_img_sizes_parallel[np]->height, m_img_sizes_parallel[np]->width, image.type(),
+                            image.data + (m_img_sizes_parallel[np]->original_pixel_pos * m_img_sizes_parallel[np]->num_channels * m_img_sizes_parallel[np]->bytes_per_channel));
+            maskPartials[np].create(m_img_sizes_parallel[np]->height, m_img_sizes_parallel[np]->width, fgmask.type(),
+                               fgmask.data + m_img_sizes_parallel[np]->original_pixel_pos);
+            if (_detectMask.empty())
+            {
+                detectMaskPartials[np] = _detectMask;
+            }
+            else
+            {
+                detectMaskPartials[np].create(m_img_sizes_parallel[np]->height, m_img_sizes_parallel[np]->width, _detectMask.type(), _detectMask.data() + m_img_sizes_parallel[np]->original_pixel_pos);
+            }
+        }
+
         std::for_each(
             std::execution::par,
             m_process_seq.begin(),
             m_process_seq.end(),
             [&](int np)
             {
-                boblib::base::Image imgSplit(false);
-                boblib::base::Image maskPartial(false);
-                boblib::base::Image detectMaskPartial(false);
-                imgSplit.create(m_img_sizes_parallel[np]->height, m_img_sizes_parallel[np]->width, image.type(),
-                                    image.data + (m_img_sizes_parallel[np]->original_pixel_pos * m_img_sizes_parallel[np]->num_channels * m_img_sizes_parallel[np]->bytes_per_channel));
-                maskPartial.create(m_img_sizes_parallel[np]->height, m_img_sizes_parallel[np]->width, fgmask.type(),
-                                    fgmask.data + m_img_sizes_parallel[np]->original_pixel_pos);
-                const boblib::base::Image & detectMask = _detectMask.empty() ? _detectMask : 
-                                detectMaskPartial.create(m_img_sizes_parallel[np]->height, m_img_sizes_parallel[np]->width, _detectMask.type(), _detectMask.data() + m_img_sizes_parallel[np]->original_pixel_pos);
-                process(imgSplit, maskPartial, detectMask, np);
+                process(imgSplits[np], maskPartials[np], detectMaskPartials[np], np);
             });
     }
 }
