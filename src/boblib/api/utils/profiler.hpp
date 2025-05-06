@@ -15,101 +15,77 @@ namespace boblib::utils
     {
         std::string name;
         TimePoint start_time;
+        TimePoint stop_time;
         Duration duration;
         int count;
 
-        double fps() const
+        double fps() const noexcept
         {
             return duration.count() > 0 ? (double)count / duration_in_seconds() : 0.0;
         }
 
-        double avg_time_in_ns() const
+        double avg_time_in_ns() const noexcept
         {
             return count > 0 ? duration.count() / count : 0.0;
         }
 
-        double avg_time_in_s() const
+        double avg_time_in_us() const noexcept
+        {
+            return count > 0 ? (duration.count() * 1e-3) / count : 0.0;
+        }
+
+        double avg_time_in_ms() const noexcept
+        {
+            return count > 0 ? (duration.count() * 1e-6) / count : 0.0;
+        }
+
+        double avg_time_in_s() const noexcept
         {
             return count > 0 ? (duration.count() * 1e-9) / count : 0.0;
         }
 
-        double duration_in_seconds() const
+        double duration_in_seconds() const noexcept
         {
             return duration.count() * 1e-9;
         }
     };
 
-    using DataMap = std::unordered_map<std::string, ProfilerData>;
+    using DataMap = std::unordered_map<size_t, ProfilerData>;
 
-    class Profiler
+    class Profiler final
     {
     public:
-        inline void start(const std::string &region)
-        {
-            auto time = Clock::now();
-            if (m_profiler_data.empty())
-                start_time = time;
+        Profiler(bool enabled = true) noexcept;
+        ~Profiler() noexcept = default;
 
-            auto& data = m_profiler_data[region];
-            if (data.name.empty())
-                data.name = region;
-            data.start_time = time;
-        }
+        void set_enabled(bool enabled) noexcept;
 
-        inline void stop(const std::string &region)
-        {
-            auto& data = m_profiler_data[region];
-            Duration elapsed_time = Clock::now() - data.start_time;
-            data.duration += elapsed_time;
-            data.count++;
-        }
+        void start(size_t region_id, std::string_view region) noexcept;
 
-        inline void reset()
-        {
-            m_profiler_data.clear();
-        }
+        void stop(size_t region_id) noexcept;
 
-        inline ProfilerData const& get_data(const std::string &region) const
-        {
-            return m_profiler_data.at(region);
-        }
+        void reset() noexcept;
 
-        inline DataMap const & get_data() const
-        {
-            return m_profiler_data;
-        }
+        ProfilerData const &get_data(size_t region_id) const noexcept;
 
-        inline TimePoint get_start_time() const
-        {
-            return start_time;
-        }
+        DataMap const &get_data() const noexcept;
 
-        std::string report() const
-        {
-            auto stop_time = Clock::now();
-            std::string report;
-            for (const auto &entry : m_profiler_data)
-            {
-                report += "\n" + report_individual(entry.second, stop_time);
-            }
-            return report;
-        }
+        TimePoint get_start_time() const noexcept;
 
-        std::string report_individual(const ProfilerData& data, TimePoint stop_time = Clock::now()) const
-        {
-            std::ostringstream oss;
-            auto totalDuration = stop_time - start_time;
-            oss << "Region: " << data.name
-                << ", Average Time (ns): " << data.avg_time_in_ns()
-                << ", Average Time (s): " << data.avg_time_in_s()
-                << ", Count: " << data.count
-                << ", FPS: " << data.fps()
-                << ", %: " << (data.duration / totalDuration) * 100.0;
-            return oss.str();
-        }
+        Duration get_total_duration() const noexcept;
+
+        std::string report() const noexcept;
+
+        std::string report_individual(const ProfilerData &data) const noexcept;
+
+        bool report_if_greater(double time_in_seconds, std::string &the_report) noexcept;
 
     private:
-        DataMap m_profiler_data;
-        TimePoint start_time;
+        DataMap profiler_data_;
+        TimePoint start_time_;
+        TimePoint stop_time_;
+        int max_name_length_{0}; 
+        bool enabled_{true}; // Enable or disable profiling
     };
 }
+

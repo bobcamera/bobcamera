@@ -9,6 +9,7 @@
 #include <boblib/api/blobs/connectedBlobDetection.hpp>
 #include <boblib/api/base/Image.hpp>
 #include <boblib/api/utils/pubsub/TopicManager.hpp>
+#include <boblib/api/utils/profiler.hpp>
 
 #include <bob_interfaces/msg/tracking.hpp>
 #include <bob_interfaces/msg/detector_state.hpp>
@@ -47,8 +48,11 @@ public:
     void init()
     {
         using_cuda_ = params_.use_cuda ? boblib::base::Utils::has_cuda() : false;
+
         blank_mask_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_);
         detection_mask_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_);
+
+        profiler_.set_enabled(params_.profiling);
 
         mask_worker_ptr_->init(params_.bgs.mask.timer_seconds, params_.bgs.mask.filename);
 
@@ -61,7 +65,7 @@ public:
         camera_pubsub_ptr_->subscribe<BackgroundSubtractorWorker, &BackgroundSubtractorWorker::camera_image_callback>(this);
 
         process_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.topics.image_publish_topic + "_process");
-        process_pubsub_ptr_->subscribe<BackgroundSubtractorWorker, &BackgroundSubtractorWorker::process_image>(this);
+        process_pubsub_ptr_->subscribe<BackgroundSubtractorWorker, &BackgroundSubtractorWorker::publish_bgs_image>(this);
 
         detector_pubsub_ptr_ = topic_manager_.get_topic<Detection>(params_.topics.detection_publish_topic);
     }
@@ -198,10 +202,16 @@ public:
     {
         try
         {
+            profiler_.start(0, "Image Callback");
             if (camera_pubsub_ptr_->queue_size() > 1)
             {
                 node_.log_info("Publish Queue size: %d", camera_pubsub_ptr_->queue_size() - 1);
             }
+
+            std::unique_lock lock(mutex_);
+            cv_ready_.wait(lock, [this]
+                           { return ready_; });
+            processing_ = true;
 
             if (!bgs_ptr_)
             {
@@ -211,8 +221,10 @@ public:
                 return;
             }
 
+            profiler_.start(1, "Convert Color");
             boblib::base::Image gray_img(using_cuda_);
             publish_image->image_ptr->convertColorTo(gray_img, cv::COLOR_BGR2GRAY);
+            profiler_.stop(1);
 
             // Resize detection mask if needed
             if (mask_enabled_ && params_.bgs.mask.enable_override &&
@@ -226,17 +238,27 @@ public:
                                    ? *detection_mask_ptr_
                                    : *blank_mask_ptr_;
 
+            profiler_.start(2, "Bgs Apply");
             auto bgs_img_ptr = std::make_shared<boblib::base::Image>(using_cuda_);
 
-            std::unique_lock lock(mutex_);
-            cv_ready_.wait(lock, [this]
-                           { return ready_; });
-            processing_ = true;
             bgs_ptr_->apply(gray_img, *bgs_img_ptr, mask);
+            profiler_.stop(2);
+            profiler_.start(3, "Bgs Detection");
+            do_detection(publish_image->header_ptr, *bgs_img_ptr, publish_image->camera_info_ptr->fps);
+            profiler_.stop(3);
+
             processing_ = false;
             cv_processing_.notify_all();
 
             process_pubsub_ptr_->publish(PublishImage(publish_image->header_ptr, std::move(bgs_img_ptr), publish_image->camera_info_ptr));
+
+            profiler_.stop(0);
+
+            std::string profiler_report;
+            if (profiler_.report_if_greater(5.0, profiler_report))
+            {
+                node_.log_send_info(profiler_report);
+            }
         }
         catch (const std::exception &e)
         {
@@ -251,7 +273,7 @@ public:
     }
 
 private:
-    void process_image(const std::shared_ptr<PublishImage> &publish_image) noexcept
+    void publish_bgs_image(const std::shared_ptr<PublishImage> &publish_image) noexcept
     {
         try
         {
@@ -263,8 +285,6 @@ private:
             const auto &header = publish_image->header_ptr;
             auto &bgs_img = *publish_image->image_ptr;
 
-            // Process the results
-            do_detection(header, publish_image);
             publish_frame(header, bgs_img);
             publish_resized_frame(header, bgs_img);
         }
@@ -309,10 +329,8 @@ private:
         image_resized_publisher_ptr_->publish(*resized_frame_msg);
     }
 
-    inline void do_detection(const std_msgs::msg::Header::SharedPtr &header, const std::shared_ptr<PublishImage> &publish_image)
+    inline void do_detection(const std_msgs::msg::Header::SharedPtr &header, boblib::base::Image &bgs_img, float fps)
     {
-        auto &bgs_img = *publish_image->image_ptr;
-
         // Apply median filter if enabled to reduce noise
         if (median_filter_)
         {
@@ -321,14 +339,7 @@ private:
 
         // Perform blob detection
         auto bboxes = std::make_shared<std::vector<cv::Rect>>();
-
-        std::unique_lock lock(mutex_);
-        cv_ready_.wait(lock, [this]
-                       { return ready_; });
-        processing_ = true;
         const auto det_result = blob_detector_ptr_->detect(bgs_img, *bboxes);
-        processing_ = false;
-        cv_processing_.notify_all();
 
         // Sending ROS messages if there are subscribers
         if ((state_publisher_ptr_->get_subscription_count() > 0) 
@@ -354,7 +365,7 @@ private:
             detection_publisher_ptr_->publish(bbox2D_array);
         }
 
-        detector_pubsub_ptr_->publish(Detection(header, bboxes, bgs_img.size().width, bgs_img.size().height, publish_image->camera_info_ptr->fps));
+        detector_pubsub_ptr_->publish(Detection(header, bboxes, bgs_img.size().width, bgs_img.size().height, fps));
     }
 
     inline void add_bboxes(bob_interfaces::msg::DetectorBBoxArray &bbox2D_array, const std::vector<cv::Rect> &bboxes) noexcept
@@ -441,4 +452,7 @@ private:
     std::shared_ptr<boblib::utils::pubsub::PubSub<PublishImage>> camera_pubsub_ptr_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<PublishImage>> process_pubsub_ptr_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<Detection>> detector_pubsub_ptr_;
+
+    // profiling fields
+    boblib::utils::Profiler profiler_;
 };

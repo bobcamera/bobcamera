@@ -7,6 +7,7 @@ variables:
   extra_saving_seconds: 2
   image_compression_quality: 75
   use_cuda: false #Leave it false as it is not working
+  profiling: true
   use_recording: false
   display_enabled: true
   camera1_enabled: true
@@ -92,6 +93,7 @@ advanced_config:
 
   base_camera_node:
     use_cuda: $use_cuda
+    profiling: $profiling
     resize_height: $resize_height # 0 to disable resize publish
     simulator: False              # True for including simulated objects, False otherwise
     simulator_num_objects: 15     # Number of simulated objects if the simulator parameter is True

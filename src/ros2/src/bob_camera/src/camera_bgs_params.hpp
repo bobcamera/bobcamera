@@ -93,6 +93,7 @@ struct CameraBgsParams
 
     bool use_cuda{true};
     int resize_height{0};
+    bool profiling{false};
 
     CameraParams camera;
     TopicsParams topics;

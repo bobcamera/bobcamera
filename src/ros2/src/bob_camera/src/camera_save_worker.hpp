@@ -36,21 +36,7 @@ public:
     ~CameraSaveWorker() noexcept
     {
         node_.log_info("CameraSaveWorker destructor");
-        if (video_recorder_ptr_ && video_recorder_ptr_->is_recording())
-        {
-            node_.log_info("Closing video");
-            video_recorder_ptr_->close_video();
-        }
-        if (img_recorder_ && !last_recording_event_.recording_path.empty())
-        {
-            std::string full_path = last_recording_event_.recording_path +
-                                    "/heatmaps/" + last_recording_event_.filename + ".jpg";
-            img_recorder_->write_image(full_path);
-        }
-        if (json_recorder_)
-        {
-            save_json();
-        }
+        close_recorders();
     }
 
     void init()
@@ -69,6 +55,25 @@ public:
     }
 
 private:
+    void close_recorders()
+    {
+        if (video_recorder_ptr_ && video_recorder_ptr_->is_recording())
+        {
+            node_.log_info("Closing video");
+            video_recorder_ptr_->close_video();
+        }
+        if (img_recorder_ && !last_recording_event_.recording_path.empty())
+        {
+            std::string full_path = last_recording_event_.recording_path +
+                                    "/heatmaps/" + last_recording_event_.filename + ".jpg";
+            img_recorder_->write_image(full_path);
+        }
+        if (json_recorder_)
+        {
+            save_json();
+        }
+    }
+
     void recording_event(const bob_interfaces::msg::RecordingEvent::SharedPtr &event) noexcept
     {
         last_recording_event_ = *event;
@@ -119,7 +124,7 @@ private:
             last_camera_info_ = *camera_publish->camera_info_ptr;
             if (last_camera_info_.fps != fps_)
             {
-                // TODO: close previous recorders
+                close_recorders();
                 fps_ = last_camera_info_.fps;
                 auto total_pre_frames = (size_t)(static_cast<int>(std::ceil(fps_)) * params_.recording.seconds_save);
                 img_recorder_ = std::make_unique<ImageRecorder>(total_pre_frames);

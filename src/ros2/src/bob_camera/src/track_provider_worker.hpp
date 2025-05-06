@@ -4,6 +4,7 @@
 #include <chrono>
 
 #include <boblib/api/utils/pubsub/TopicManager.hpp>
+#include <boblib/api/utils/profiler.hpp>
 
 #include <rclcpp/rclcpp.hpp>
 #include <cv_bridge/cv_bridge.hpp>
@@ -30,15 +31,14 @@ public:
         , params_(params)
         , pub_qos_profile_(pub_qos_profile)
         , topic_manager_(topic_manager)
-        , last_profile_log_(std::chrono::steady_clock::now()) // profiling
-        , profile_time_sum_(0.0)
-        , profile_time_count_(0)
         , video_tracker_(node.get_logger())
     {
     }
 
     void init()
     {
+        profiler_.set_enabled(params_.profiling);
+
         tracking_pubsub_ptr_ = topic_manager_.get_topic<bob_interfaces::msg::Tracking>(params_.topics.tracking_publisher_topic);
 
         pub_tracker_tracking_ = node_.create_publisher<bob_interfaces::msg::Tracking>(params_.topics.tracking_publisher_topic, pub_qos_profile_);
@@ -53,24 +53,16 @@ private:
     {
         try
         {
-            auto start = std::chrono::steady_clock::now(); // profiling start
+            profiler_.start(0, "TrackProviderWorker");
             video_tracker_.update_trackers(*detection->bbox_ptr);
 
             publish_tracking(detection);
-            auto end = std::chrono::steady_clock::now(); // profiling end
+            profiler_.stop(0);
 
-            // Calculate the elapsed time in microseconds
-            double duration_us = std::chrono::duration<double, std::micro>(end - start).count();
-            profile_time_sum_ += duration_us;
-            ++profile_time_count_;
-            auto now = std::chrono::steady_clock::now();
-            if (std::chrono::duration<double>(now - last_profile_log_).count() >= 5.0)
+            std::string profiler_report;
+            if (profiler_.report_if_greater(5.0, profiler_report))
             {
-                double mean_us = profile_time_sum_ / profile_time_count_;
-                node_.log_send_info("TrackProviderWorker callback mean time: %.3f us over %zu calls", mean_us, profile_time_count_);
-                last_profile_log_ = now;
-                profile_time_sum_ = 0.0;
-                profile_time_count_ = 0;
+                node_.log_send_info(profiler_report);
             }
         }
         catch (const std::exception &cve)
@@ -191,10 +183,7 @@ private:
     const rclcpp::QoS &pub_qos_profile_;
     boblib::utils::pubsub::TopicManager &topic_manager_;
 
-    // profiling fields
-    std::chrono::steady_clock::time_point last_profile_log_;
-    double profile_time_sum_;
-    size_t profile_time_count_;
+    boblib::utils::Profiler profiler_;
 
     rclcpp::Publisher<bob_interfaces::msg::Tracking>::SharedPtr pub_tracker_tracking_;
     rclcpp::Publisher<bob_interfaces::msg::Tracking>::SharedPtr pub_tracker_tracking_resized_;

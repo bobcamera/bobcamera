@@ -59,7 +59,7 @@ private:
         declare_node_parameters();
 
         bgs_worker_ptr_->init();
-        //camera_save_worker_ptr_->init();
+        camera_save_worker_ptr_->init();
         track_provider_worker_ptr_->init();
         record_manager_worker_ptr_->init();
         camera_worker_ptr_->init();
@@ -351,6 +351,12 @@ private:
                     [this](const rclcpp::Parameter &param)
                     {
                         camera_bgs_params_.recording.prefix = param.as_string();
+                    }),
+                ParameterNode::ActionParam(
+                    rclcpp::Parameter("profiling", false),
+                    [this](const rclcpp::Parameter &param)
+                    {
+                        camera_bgs_params_.profiling = param.as_bool();
                     }),
             };
         add_action_parameters(params);
