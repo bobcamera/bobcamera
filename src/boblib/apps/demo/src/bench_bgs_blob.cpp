@@ -53,9 +53,10 @@ int getIntArg(std::string arg);
 // Main entry point for demo
 int main(int argc, const char **argv)
 {
-    std::string videoFile{"mike-drone.mp4"};
+    std::string videoFile{"1745175023.mp4"};
 
     std::cout << "Available number of concurrent threads = " << std::thread::hardware_concurrency() << std::endl;
+    std::cout << "OpenCV threads: " << cv::getNumThreads() << "\n";
 
     bgsPtr = createBGS(BGSType::Vibe);
     cv::VideoCapture cap;
