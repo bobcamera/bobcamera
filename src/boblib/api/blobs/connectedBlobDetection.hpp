@@ -80,12 +80,10 @@ namespace boblib::blobs
         bool initialized_;
         std::vector<size_t> process_seq_;
         std::vector<std::unique_ptr<ImgSize>> img_sizes_parallel_;
-        std::vector<std::unordered_map<int, cv::Rect>> bboxes_parallel_;
+        std::vector<std::vector<cv::Rect>> bboxes_parallel_;
         std::unique_ptr<ImgSize> original_img_size_;
 
         inline void prepare_parallel(const boblib::base::Image &image) noexcept;
-        inline static void apply_detect_bboxes(const cv::Mat &labels, std::unordered_map<int, cv::Rect> &bboxes_map) noexcept;
-        inline void pos_process_bboxes(std::unordered_map<int, cv::Rect> &bboxes_map) noexcept;
-        inline int run_parallel(const cv::Mat &labels, std::unordered_map<int, cv::Rect> &bboxes_map) noexcept;
+        inline int detect_parallel(const cv::Mat &img, std::vector<cv::Rect> &bboxes) noexcept;
     };
 }

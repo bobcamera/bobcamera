@@ -36,7 +36,8 @@ std::unique_ptr<boblib::blobs::ConnectedBlobDetectionParams> blob_params_;
 
 /////////////////////////////////////////////////////////////
 // Blob Detector
-boblib::blobs::ConnectedBlobDetection blobDetector;
+boblib::blobs::ConnectedBlobDetection blobDetector(boblib::blobs::ConnectedBlobDetectionParams(),
+                                                   boblib::blobs::ConnectedBlobDetection::DETECT_NUMBER_OF_THREADS);
 
 /////////////////////////////////////////////////////////////
 // Function Definitions
