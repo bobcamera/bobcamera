@@ -16,7 +16,7 @@ namespace boblib::bgs
         return (r0 * r0) + (r1 * r1) + (r2 * r2);
     }
 
-    static inline int get_neighbor_position_3x3(const int x, const int y, const ImgSize &oImageSize, const uint32_t nRandIdx)
+    static inline int get_neighbor_position_3x3_old(const int x, const int y, const ImgSize &oImageSize, const uint32_t nRandIdx)
     {
         typedef std::array<int, 2> Nb;
         static constexpr std::array<Nb, 8> s_anNeighborPattern = {
@@ -33,6 +33,27 @@ namespace boblib::bgs
         const int nNeighborCoord_X{std::max(std::min(x + s_anNeighborPattern[r][0], oImageSize.width - 1), 0)};
         const int nNeighborCoord_Y{std::max(std::min(y + s_anNeighborPattern[r][1], oImageSize.height - 1), 0)};
         return (nNeighborCoord_Y * oImageSize.width + nNeighborCoord_X);
+    }
+
+    static inline int get_neighbor_position_3x3(const int x, const int y, const ImgSize &oImageSize, const uint32_t nRandIdx)
+    {
+        // Using separate X and Y arrays avoids 2D array lookup
+        static constexpr int8_t s_offsetsX[] = {-1, 0, 1, -1, 1, -1, 0, 1};
+        static constexpr int8_t s_offsetsY[] = {1, 1, 1, 0, 0, -1, -1, -1};
+
+        // Extract the index with bit masking
+        const size_t r = nRandIdx & 0x7;
+
+        // Calculate neighbor coordinates
+        const int nx = x + s_offsetsX[r];
+        const int ny = y + s_offsetsY[r];
+
+        // Clamp coordinates using ternary operations which may compile to branchless code
+        const int clamped_x = (nx < 0) ? 0 : ((nx >= oImageSize.width) ? (oImageSize.width - 1) : nx);
+        const int clamped_y = (ny < 0) ? 0 : ((ny >= oImageSize.height) ? (oImageSize.height - 1) : ny);
+
+        // Calculate linear position
+        return clamped_y * oImageSize.width + clamped_x;
     }
 
     /// returns pixel coordinates clamped to the given image & border size
@@ -76,8 +97,8 @@ namespace boblib::bgs
                                            const ImgSize &oImageSize)
     {
         // based on 'floor(fspecial('gaussian',7,2)*512)'
-        static const int s_nSamplesInitPatternTot = 512;
-        static const std::array<std::array<int, 7>, 7> s_anSamplesInitPattern = {
+        static constexpr int s_nSamplesInitPatternTot = 512;
+        static constexpr std::array<std::array<int, 7>, 7> s_anSamplesInitPattern = {
             std::array<int, 7>{ 2,  4,  6,  7,  6,  4,  2 },
             std::array<int, 7>{ 4,  8, 12, 14, 12,  8,  4 },
             std::array<int, 7>{ 6, 12, 21, 25, 21, 12,  6 },
