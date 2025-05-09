@@ -22,6 +22,7 @@ namespace boblib::utils
         auto &data = profiler_data_[region_id];
         if (data.name.empty())
         {
+            data.region_id = region_id;
             data.name = region;
             max_name_length_ = std::max(max_name_length_, static_cast<int>(region.length()));
         }
@@ -93,11 +94,27 @@ namespace boblib::utils
         std::ostringstream oss;
         oss.str().reserve(profiler_data_.size() * 200); // Estimate 200 chars per entry
 
+        // Create a vector of entries that can be sorted by key
+        std::vector<std::pair<size_t, const ProfilerData *>> sorted_entries;
+        sorted_entries.reserve(profiler_data_.size());
+
         for (const auto &entry : profiler_data_)
         {
-            oss << '\n'
-                << report_individual(entry.second);
+            sorted_entries.push_back({entry.first, &entry.second});
         }
+
+        // Sort by key
+        std::sort(sorted_entries.begin(), sorted_entries.end(),
+                  [](const auto &a, const auto &b)
+                  { return a.first < b.first; });
+
+        // Output in sorted order
+        for (const auto &entry : sorted_entries)
+        {
+            oss << '\n'
+                << report_individual(*entry.second);
+        }
+        
         return oss.str();
     }
 

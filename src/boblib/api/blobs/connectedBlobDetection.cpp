@@ -159,7 +159,6 @@ namespace boblib::blobs
             initialized_ = true;
         }
 
-        bboxes.clear();
         const int num_blobs = detect_parallel(image.toMat(), bboxes);
         return num_blobs <= params_.max_blobs ? (num_blobs > 0 ? DetectionResult::Success : DetectionResult::NoBlobsDetected)
                : DetectionResult::MaxBlobsReached;
@@ -195,20 +194,41 @@ namespace boblib::blobs
         const int H = img.rows, W = img.cols;
         const int N = H * W;
 
-        // Use local buffers instead of member variables
-        std::vector<uint8_t> seen_buf(N, 0);
-        std::vector<std::pair<int, int>> queue_buf;
-        queue_buf.reserve(N); // Reserve capacity, not resize
+        // Thread-local storage to avoid repeated allocations between calls
+        static thread_local std::vector<uint8_t> seen_buf(N, 0);
+        static thread_local std::vector<std::pair<int, int>> queue_buf;
 
-        // Access image data properly
+        // Resize only if needed
+        if (seen_buf.size() < static_cast<size_t>(N))
+        {
+            seen_buf.resize(N, 0);
+        }
+        else
+        {
+            std::fill(seen_buf.begin(), seen_buf.begin() + N, 0);
+        }
+
+        // Reserve reasonable capacity
+        queue_buf.reserve(std::min(N, 10000)); // Most components are much smaller than entire image
+        queue_buf.clear();
+
+        // Cache row pointers for faster access
+        std::vector<const uint8_t *> row_ptrs(H);
         for (int y = 0; y < H; ++y)
         {
-            const uint8_t *row = img.ptr<uint8_t>(y);
+            row_ptrs[y] = img.ptr<uint8_t>(y);
+        }
+
+        for (int y = 0; y < H; ++y)
+        {
+            const uint8_t *row = row_ptrs[y];
             for (int x = 0; x < W; ++x)
             {
                 const int idx = y * W + x;
                 if (row[x] == 0 || seen_buf[idx])
+                {
                     continue;
+                }
 
                 // New component found
                 queue_buf.clear();
@@ -221,37 +241,40 @@ namespace boblib::blobs
                 // BFS
                 while (qhead < queue_buf.size())
                 {
-                    auto [cx, cy] = queue_buf[qhead++];
+                    const auto [cx, cy] = queue_buf[qhead++];
 
                     for (int d = 0; d < 8; ++d)
                     {
                         const int nx = cx + dx[d];
                         const int ny = cy + dy[d];
 
-                        // Explicit bounds checking
-                        if (nx >= 0 && nx < W && ny >= 0 && ny < H)
+                        // Simplified bounds checking
+                        if (nx < 0 || nx >= W || ny < 0 || ny >= H)
                         {
-                            const int nidx = ny * W + nx;
-                            if (img.ptr<uint8_t>(ny)[nx] != 0 && seen_buf[nidx] == 0)
-                            {
-                                seen_buf[nidx] = 1;
-                                queue_buf.push_back({nx, ny});
-                                minx = std::min(minx, nx);
-                                maxx = std::max(maxx, nx);
-                                miny = std::min(miny, ny);
-                                maxy = std::max(maxy, ny);
-                            }
+                            continue;
+                        }
+
+                        const int nidx = ny * W + nx;
+                        if (row_ptrs[ny][nx] != 0 && seen_buf[nidx] == 0)
+                        {
+                            seen_buf[nidx] = 1;
+                            queue_buf.push_back({nx, ny});
+                            minx = std::min(minx, nx);
+                            maxx = std::max(maxx, nx);
+                            miny = std::min(miny, ny);
+                            maxy = std::max(maxy, ny);
                         }
                     }
                 }
 
-                bboxes.emplace_back(minx, miny,maxx - minx + 1,maxy - miny + 1);
+                bboxes.emplace_back(minx, miny, maxx - minx + 1, maxy - miny + 1);
             }
         }
     }
 
     inline int ConnectedBlobDetection::detect_parallel(const cv::Mat &img, std::vector<cv::Rect> &bboxes) noexcept
     {
+        std::atomic_int num_blobs{0};
         // Parallel execution to process each chunk of the image
         std::for_each(
             std::execution::par,
@@ -271,16 +294,12 @@ namespace boblib::blobs
                     img.data + (img_sizes_parallel_[np]->original_pixel_pos * img_sizes_parallel_[np]->num_channels));
 
                 apply_connect(imgSplit, bboxesParallel);
+                num_blobs.fetch_add(static_cast<int>(bboxesParallel.size()), std::memory_order_relaxed);
             });
 
         // 2) merge all partial results
         bboxes.clear();
-        size_t total = 0;
-        for (auto &v : bboxes_parallel_)
-        {
-            total += v.size();
-        }
-        bboxes.reserve(total);
+        bboxes.reserve(num_blobs.load());
         int i = 0;
         for (auto &v : bboxes_parallel_)
         {

@@ -46,6 +46,8 @@ set(BOBLIB_APPS_COMPILE ON)
 find_package(OpenCV 4.0 REQUIRED)
 message(STATUS "Found OpenCV >=4.0")
 
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 if (USE_OPENMP)
     find_package(OpenMP REQUIRED)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")

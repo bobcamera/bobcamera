@@ -16,30 +16,10 @@ namespace boblib::bgs
         return (r0 * r0) + (r1 * r1) + (r2 * r2);
     }
 
-    /// returns the neighbor location for the specified random index & original pixel location; also guards against out-of-bounds values via image/border size check
-    static inline int get_neighbor_position_3x3_pos(const int pix, const ImgSize &oImageSize, const uint32_t nRandIdx)
-    {
-        typedef std::array<int, 2> Nb;
-        static const std::array<Nb, 8> s_anNeighborPattern = {
-            Nb{-1, 1},
-            Nb{0, 1},
-            Nb{1, 1},
-            Nb{-1, 0},
-            Nb{1, 0},
-            Nb{-1, -1},
-            Nb{0, -1},
-            Nb{1, -1},
-        };
-        const size_t r{nRandIdx & 0x7};
-        int nNeighborCoord_X{std::max(std::min((pix % oImageSize.width) + s_anNeighborPattern[r][0], oImageSize.width - 1), 0)};
-        int nNeighborCoord_Y{std::max(std::min((pix / oImageSize.width) + s_anNeighborPattern[r][1], oImageSize.height - 1), 0)};
-        return (nNeighborCoord_Y * oImageSize.width + nNeighborCoord_X);
-    }
-
     static inline int get_neighbor_position_3x3(const int x, const int y, const ImgSize &oImageSize, const uint32_t nRandIdx)
     {
         typedef std::array<int, 2> Nb;
-        static const std::array<Nb, 8> s_anNeighborPattern = {
+        static constexpr std::array<Nb, 8> s_anNeighborPattern = {
             Nb{-1, 1},
             Nb{0, 1},
             Nb{1, 1},
@@ -58,14 +38,8 @@ namespace boblib::bgs
     /// returns pixel coordinates clamped to the given image & border size
     inline void clamp_image_coords(int &nSampleCoord_X, int &nSampleCoord_Y, const ImgSize &oImageSize)
     {
-        if (nSampleCoord_X < 0)
-            nSampleCoord_X = 0;
-        else if (nSampleCoord_X >= oImageSize.width)
-            nSampleCoord_X = oImageSize.width - 1;
-        if (nSampleCoord_Y < 0)
-            nSampleCoord_Y = 0;
-        else if (nSampleCoord_Y >= oImageSize.height)
-            nSampleCoord_Y = oImageSize.height - 1;
+        nSampleCoord_X = std::clamp(nSampleCoord_X, 0, oImageSize.width - 1);
+        nSampleCoord_Y = std::clamp(nSampleCoord_Y, 0, oImageSize.height - 1);
     }
 
     /// returns the sampling location for the specified random index & original pixel location, given a predefined kernel; also guards against out-of-bounds values via image/border size check
@@ -75,16 +49,21 @@ namespace boblib::bgs
                                   const int nOrigCoord_X, const int nOrigCoord_Y, const ImgSize &oImageSize)
     {
         int r = 1 + (nRandIdx % nSamplesInitPatternTot);
-        for (nSampleCoord_Y = 0; nSampleCoord_Y < nKernelHeight; ++nSampleCoord_Y)
+        bool found = false;
+
+        for (nSampleCoord_Y = 0; !found && nSampleCoord_Y < nKernelHeight; ++nSampleCoord_Y)
         {
             for (nSampleCoord_X = 0; nSampleCoord_X < nKernelWidth; ++nSampleCoord_X)
             {
                 r -= anSamplesInitPattern[nSampleCoord_Y][nSampleCoord_X];
                 if (r <= 0)
-                    goto stop;
+                {
+                    found = true;
+                    break;
+                }
             }
         }
-    stop:
+
         nSampleCoord_X += nOrigCoord_X - nKernelWidth / 2;
         nSampleCoord_Y += nOrigCoord_Y - nKernelHeight / 2;
         clamp_image_coords(nSampleCoord_X, nSampleCoord_Y, oImageSize);
@@ -229,13 +208,13 @@ namespace boblib::bgs
 
         static uint32_t get_higher_value_bit(uint32_t value)
         {
-            uint32_t r = 1;
-
-            while (value >>= 1) 
-            {
-                r <<= 1;
-            }
-            return r;
+            // Find the position of the highest bit set
+            value |= value >> 1;
+            value |= value >> 2;
+            value |= value >> 4;
+            value |= value >> 8;
+            value |= value >> 16;
+            return value - (value >> 1);
         }
     };
 }

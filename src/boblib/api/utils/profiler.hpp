@@ -13,6 +13,7 @@ namespace boblib::utils
 
     struct ProfilerData
     {
+        size_t region_id;
         std::string name;
         TimePoint start_time;
         TimePoint stop_time;
