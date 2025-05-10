@@ -5,6 +5,7 @@
 
 #include <boblib/api/utils/pubsub/TopicManager.hpp>
 #include <boblib/api/utils/profiler.hpp>
+#include <boblib/api/utils/fps_tracker.hpp>
 
 #include <rclcpp/rclcpp.hpp>
 #include <cv_bridge/cv_bridge.hpp>
@@ -39,6 +40,8 @@ public:
     {
         profiler_.set_enabled(params_.profiling);
 
+        tracker_fps_tracker_ptr_ = std::make_unique<boblib::utils::FpsTracker>(params_.profiling, 5);
+
         tracking_pubsub_ptr_ = topic_manager_.get_topic<bob_interfaces::msg::Tracking>(params_.topics.tracking_publisher_topic);
 
         pub_tracker_tracking_ = node_.create_publisher<bob_interfaces::msg::Tracking>(params_.topics.tracking_publisher_topic, pub_qos_profile_);
@@ -63,6 +66,13 @@ private:
             if (profiler_.report_if_greater(5.0, profiler_report))
             {
                 node_.log_send_info(profiler_report);
+            }
+
+            tracker_fps_tracker_ptr_->add_frame();
+            double current_fps = 0.0;
+            if (tracker_fps_tracker_ptr_->get_fps_if_ready(current_fps))
+            {
+                std::cout << "tracker_loop: FPS: " << current_fps << std::endl;
             }
         }
         catch (const std::exception &cve)
@@ -190,4 +200,6 @@ private:
     SORT::Tracker video_tracker_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<bob_interfaces::msg::Tracking>> tracking_pubsub_ptr_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<Detection>> detector_pubsub_ptr_;
+
+    std::unique_ptr<boblib::utils::FpsTracker> tracker_fps_tracker_ptr_;
 };

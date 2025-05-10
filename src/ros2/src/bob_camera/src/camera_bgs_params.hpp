@@ -52,6 +52,10 @@ struct CameraBgsParams
         std::vector<std::string> videos;
         bool limit_fps{true};
 
+        bool speed_test{false};
+        size_t test_frames{0};
+        int speed_test_fps{60};
+
         MaskParams privacy_mask;
         SimulatorParams simulator;
     };

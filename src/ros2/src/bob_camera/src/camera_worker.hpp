@@ -5,6 +5,7 @@
 
 #include <boblib/api/video/VideoReader.hpp>
 #include <boblib/api/utils/pubsub/TopicManager.hpp>
+#include <boblib/api/utils/fps_tracker.hpp>
 
 #include <mask_worker.hpp>
 #include <circuit_breaker.hpp>
@@ -21,10 +22,7 @@ public:
                           CameraBgsParams &params,
                           const rclcpp::QoS &qos_publish_profile,
                           boblib::utils::pubsub::TopicManager &topic_manager)
-        : node_(node)
-        , params_(params)
-        , qos_publish_profile_(qos_publish_profile)
-        , topic_manager_(topic_manager)
+        : node_(node), params_(params), qos_publish_profile_(qos_publish_profile), topic_manager_(topic_manager)
     {
         mask_worker_ptr_ = std::make_unique<MaskWorker>(node_,
                                                         [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat &mask)
@@ -56,6 +54,7 @@ public:
             camera_info_msg_ptr_->fps = 0;
             using_cuda_ = params_.use_cuda ? boblib::base::Utils::has_cuda() : false;
             privacy_mask_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_);
+            camera_fps_tracker_ptr_ = std::make_unique<boblib::utils::FpsTracker>(params_.profiling, 5);
 
             circuit_breaker_ptr_ = std::make_unique<CircuitBreaker>(CIRCUIT_BREAKER_MAX_RETRIES, CIRCUIT_BREAKER_INITIAL_TIMEOUT, CIRCUIT_BREAKER_MAX_TIMEOUT);
 
@@ -208,10 +207,44 @@ private:
         }
     }
 
+    void cache_test(boblib::base::Image &camera_img)
+    {
+        if (!params_.camera.speed_test 
+            || (params_.camera.speed_test && cache_full_))
+        {
+            return;
+        }
+        if (!speed_test_images_ptr_)
+        {
+            speed_test_images_ptr_ = std::make_unique<std::vector<boblib::base::Image>>();
+            speed_test_images_ptr_->reserve(params_.camera.test_frames);
+            node_.log_send_info("Speed test cache created");
+        }
+        speed_test_images_ptr_->push_back(camera_img);
+        if (speed_test_images_ptr_->size() >= params_.camera.test_frames)
+        {
+            cache_full_ = true;
+            current_test_idx_ = 0;
+            node_.log_send_info("Speed test cache is full, size: %zu", speed_test_images_ptr_->size());
+        }
+    }
+
     bool acquire_image(boblib::base::Image &camera_img)
     {
         try
         {
+            if (params_.camera.speed_test && cache_full_)
+            {
+                camera_img = (*speed_test_images_ptr_)[current_test_idx_];
+                current_test_idx_ = (current_test_idx_ + 1) % params_.camera.test_frames;
+                
+                // Calculate sleep time based on desired FPS
+                // Formula: sleep_time = 1000ms / fps
+                const int sleep_ms = 1000 / std::max(1, params_.camera.speed_test_fps);
+                std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms));
+
+                return true;
+            }
             if (!circuit_breaker_ptr_->allow_request())
             {
                 node_.log_send_error("Could not acquire image, Waiting to connect to camera");
@@ -236,6 +269,7 @@ private:
                 return false;
             }
             circuit_breaker_ptr_->record_success();
+            cache_test(camera_img);
             return true;
         }
         catch (const std::exception &ex)
@@ -285,9 +319,15 @@ private:
 
                 publish_pubsub_ptr_->publish(PublishImage(header_ptr, camera_img_ptr, camera_info_msg_ptr_));
 
+                camera_fps_tracker_ptr_->add_frame();
+                double current_fps = 0.0;
+                if (camera_fps_tracker_ptr_->get_fps_if_ready(current_fps))
+                {
+                    std::cout << "capture_loop: FPS: " << current_fps << std::endl;
+                }
+
                 // Only limiting fps if it is video and the limit_fps param is set
-                if (params_.camera.limit_fps 
-                    && (params_.camera.source_type == CameraBgsParams::SourceType::VIDEO_FILE))
+                if (params_.camera.limit_fps && (params_.camera.source_type == CameraBgsParams::SourceType::VIDEO_FILE))
                 {
                     loop_rate_ptr_->sleep();
                 }
@@ -314,7 +354,7 @@ private:
         {
             publish_frame(*publish_image->header_ptr, *publish_image->image_ptr);
             publish_resized_frame(*publish_image->header_ptr, *publish_image->image_ptr);
-            //publish_image_info(*publish_image->header_ptr, *publish_image->image_ptr);
+            // publish_image_info(*publish_image->header_ptr, *publish_image->image_ptr);
             publish_camera_info();
         }
         catch (const std::exception &e)
@@ -353,9 +393,7 @@ private:
 
     void publish_resized_frame(const std_msgs::msg::Header &header, const boblib::base::Image &camera_img) const
     {
-        if (!image_resized_publisher_ 
-            || (params_.resize_height <= 0) 
-            || (image_resized_publisher_->get_subscription_count() <= 0))
+        if (!image_resized_publisher_ || (params_.resize_height <= 0) || (image_resized_publisher_->get_subscription_count() <= 0))
         {
             return;
         }
@@ -412,8 +450,7 @@ private:
         };
 
         // If we have the values defined, try setting
-        if ((params_.camera.usb_resolution.size() == 2) 
-            && (set_check_resolution(params_.camera.usb_resolution[0], params_.camera.usb_resolution[1])))
+        if ((params_.camera.usb_resolution.size() == 2) && (set_check_resolution(params_.camera.usb_resolution[0], params_.camera.usb_resolution[1])))
         {
             return true;
         }
@@ -567,7 +604,7 @@ private:
 
     ParameterNode &node_;
     CameraBgsParams &params_;
-    const rclcpp::QoS & qos_publish_profile_;
+    const rclcpp::QoS &qos_publish_profile_;
     boblib::utils::pubsub::TopicManager &topic_manager_;
 
     std::unique_ptr<MaskWorker> mask_worker_ptr_;
@@ -605,4 +642,10 @@ private:
 
     std::shared_ptr<boblib::utils::pubsub::PubSub<PublishImage>> publish_pubsub_ptr_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<bob_camera::msg::CameraInfo>> camera_info_pubsub_ptr_;
+
+    std::unique_ptr<std::vector<boblib::base::Image>> speed_test_images_ptr_;
+    bool cache_full_{false};
+    size_t current_test_idx_{0};
+
+    std::unique_ptr<boblib::utils::FpsTracker> camera_fps_tracker_ptr_;
 };

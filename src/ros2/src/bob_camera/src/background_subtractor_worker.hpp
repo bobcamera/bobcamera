@@ -10,6 +10,7 @@
 #include <boblib/api/base/Image.hpp>
 #include <boblib/api/utils/pubsub/TopicManager.hpp>
 #include <boblib/api/utils/profiler.hpp>
+#include <boblib/api/utils/fps_tracker.hpp>
 
 #include <bob_interfaces/msg/tracking.hpp>
 #include <bob_interfaces/msg/detector_state.hpp>
@@ -55,6 +56,8 @@ public:
         profiler_.set_enabled(params_.profiling);
 
         mask_worker_ptr_->init(params_.bgs.mask.timer_seconds, params_.bgs.mask.filename);
+
+        bgs_fps_tracker_ptr_ = std::make_unique<boblib::utils::FpsTracker>(params_.profiling, 5);
 
         image_publisher_ptr_ = node_.create_publisher<sensor_msgs::msg::Image>(params_.topics.bgs_image_publish_topic, qos_publish_profile_);
         image_resized_publisher_ptr_ = node_.create_publisher<sensor_msgs::msg::Image>(params_.topics.bgs_image_publish_topic + "/resized", qos_publish_profile_);
@@ -259,6 +262,13 @@ public:
             {
                 node_.log_send_info(profiler_report);
             }
+
+            bgs_fps_tracker_ptr_->add_frame();
+            double current_fps = 0.0;
+            if (bgs_fps_tracker_ptr_->get_fps_if_ready(current_fps))
+            {
+                std::cout << "bgs_loop: FPS: " << current_fps << std::endl;
+            }
         }
         catch (const std::exception &e)
         {
@@ -455,4 +465,6 @@ private:
 
     // profiling fields
     boblib::utils::Profiler profiler_;
+
+    std::unique_ptr<boblib::utils::FpsTracker> bgs_fps_tracker_ptr_;
 };

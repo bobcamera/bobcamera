@@ -14,6 +14,7 @@
 #include <visibility_control.h>
 #include <json/json.h>
 #include "annotated_frame/annotated_frame_creator.hpp"
+#include <boblib/api/utils/fps_tracker.hpp>
 
 class AnnotatedFrameProvider : public ParameterNode
 {
@@ -45,6 +46,8 @@ private:
         enable_tracking_status_ = true;
 
         declare_node_parameters();
+
+        fps_tracker_ptr_ = std::make_unique<boblib::utils::FpsTracker>(false, 5);
 
         annotated_frame_creator_ptr_ = std::make_unique<AnnotatedFrameCreator>(annotated_frame_creator_settings_);
 
@@ -118,6 +121,13 @@ private:
             pub_annotated_frame_->publish(*image_msg);
 
             publish_resized_frame(image_msg, img);
+
+            fps_tracker_ptr_->add_frame();
+            double current_fps = 0.0;
+            if (fps_tracker_ptr_->get_fps_if_ready(current_fps))
+            {
+                log_info("annotated: FPS: %g", current_fps);
+            }
         }
         catch (const std::exception &e)
         {
@@ -169,6 +179,8 @@ private:
     int resize_height_ = 960;
     std::string image_resized_publish_topic_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_resized_publisher_;
+
+    std::unique_ptr<boblib::utils::FpsTracker> fps_tracker_ptr_;
 };
 
 RCLCPP_COMPONENTS_REGISTER_NODE(AnnotatedFrameProvider)

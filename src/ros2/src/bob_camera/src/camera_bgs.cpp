@@ -358,6 +358,24 @@ private:
                     {
                         camera_bgs_params_.profiling = param.as_bool();
                     }),
+                ParameterNode::ActionParam(
+                    rclcpp::Parameter("speed_test", false),
+                    [this](const rclcpp::Parameter &param)
+                    {
+                        camera_bgs_params_.camera.speed_test = param.as_bool();
+                    }),
+                ParameterNode::ActionParam(
+                    rclcpp::Parameter("test_frames", 300),
+                    [this](const rclcpp::Parameter &param)
+                    {
+                        camera_bgs_params_.camera.test_frames = static_cast<size_t>(param.as_int());
+                    }),
+                ParameterNode::ActionParam(
+                    rclcpp::Parameter("speed_test_fps", 60),
+                    [this](const rclcpp::Parameter &param)
+                    {
+                        camera_bgs_params_.camera.speed_test_fps = static_cast<int>(param.as_int());
+                    }),
             };
         add_action_parameters(params);
     }
