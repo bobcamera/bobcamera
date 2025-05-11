@@ -225,6 +225,9 @@ private:
         {
             cache_full_ = true;
             current_test_idx_ = 0;
+            // compute frame duration and init next‐time
+            speed_test_frame_duration_ = std::chrono::milliseconds(1000 / std::max(1, params_.camera.speed_test_fps));
+            next_speed_test_time_ = std::chrono::steady_clock::now();
             node_.log_send_info("Speed test cache is full, size: %zu", speed_test_images_ptr_->size());
         }
     }
@@ -237,11 +240,15 @@ private:
             {
                 camera_img = (*speed_test_images_ptr_)[current_test_idx_];
                 current_test_idx_ = (current_test_idx_ + 1) % params_.camera.test_frames;
-                
-                // Calculate sleep time based on desired FPS
-                // Formula: sleep_time = 1000ms / fps
-                const int sleep_ms = 1000 / std::max(1, params_.camera.speed_test_fps);
-                std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms));
+
+                // steady-clock sleep-until
+                auto now = std::chrono::steady_clock::now();
+                if (now < next_speed_test_time_)
+                {
+                    std::this_thread::sleep_until(next_speed_test_time_);
+                    now = next_speed_test_time_;
+                }
+                next_speed_test_time_ = now + speed_test_frame_duration_;
 
                 return true;
             }
@@ -648,4 +655,6 @@ private:
     size_t current_test_idx_{0};
 
     std::unique_ptr<boblib::utils::FpsTracker> camera_fps_tracker_ptr_;
+    std::chrono::steady_clock::time_point next_speed_test_time_;
+    std::chrono::milliseconds speed_test_frame_duration_{0};
 };

@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
 
+find_package(TurboJPEG REQUIRED)
+
 find_package(CUDA QUIET)
 if (CUDA_FOUND)
 #if (EXISTS "${OpenCV_INCLUDE_DIRS}/opencv2/core/cuda.hpp")
@@ -25,7 +27,7 @@ file(GLOB_RECURSE LIB_SOURCES_CU "*.cu")
 
 add_library(boblib STATIC ${LIB_SOURCES_CPP} ${LIB_SOURCES_CU})
 
-target_link_libraries(boblib PRIVATE "${OpenCV_LIBS}" qhyccd)
+target_link_libraries(boblib PRIVATE "${OpenCV_LIBS}" qhyccd turbojpeg)
 
 if (CUDA_FOUND)
     target_compile_definitions(boblib PRIVATE HAVE_CUDA)

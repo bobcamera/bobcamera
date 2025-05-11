@@ -5,11 +5,11 @@ variables:
   resize_height: 1024
   logging_type: screen
   extra_saving_seconds: 2
-  image_compression_quality: 75
+  image_compression_quality: 50
   use_cuda: false #Leave it false as it is not working
   profiling: false
   use_recording: false
-  display_enabled: true
+  display_enabled: false
   camera1_enabled: true
   camera2_enabled: false
 
@@ -30,7 +30,7 @@ basic_config:
       - '/workspaces/bobcamera/media/fisheye_videos/mikeg-30min.mp4'
     speed_test: true            # True to run the speed test, False otherwise
     test_frames: 500            # Number of frames to test the speed
-    speed_test_fps: 100          # FPS to test the speed
+    speed_test_fps: 80          # FPS to test the speed
 
   camera2_node:
     copy: base_camera_node
@@ -153,6 +153,7 @@ advanced_config:
   base_annotated_frame_provider_node:
     tracking_status_message: false
     resize_height: $resize_height
+    compression_quality: $image_compression_quality
     visualiser_settings: '{"bbox_line_thickness": "2", "font_scale_width": "0", "font_scale_width": "0", "font_scale": "1.0", "zoom_factor": "2.0", "enable_cropped_tracks": "true", "font_colour": "{50,170,50}", "prediction_colour": "{255,0,50}"}'
 
   camera1_annotated_frame_provider_node:
@@ -179,7 +180,7 @@ advanced_config:
     compressed_frame_subscriber_topic: 'bob/camera1/original/resized'
     compression_quality: $image_compression_quality
 
-  camera2_detection_masked_compressor_node:
+  camera2_original_compressor_node:
     compressed_frame_subscriber_topic: 'bob/camera2/original/resized'
     compression_quality: $image_compression_quality
 
@@ -328,10 +329,6 @@ launch:
           remappings: []
         - package: bob_image_processing
           plugin: FrameCompressor
-          name: camera1_annotated_frame_compressor_node
-          remappings: []
-        - package: bob_image_processing
-          plugin: FrameCompressor
           name: camera1_original_compressor_node
           remappings: []
         - package: bob_image_processing
@@ -354,11 +351,7 @@ launch:
           remappings: []
         - package: bob_image_processing
           plugin: FrameCompressor
-          name: camera2_annotated_frame_compressor_node
-          remappings: []
-        - package: bob_image_processing
-          plugin: FrameCompressor
-          name: camera2_detection_masked_compressor_node
+          name: camera2_original_compressor_node
           remappings: []
         - package: bob_image_processing
           plugin: FrameCompressor
