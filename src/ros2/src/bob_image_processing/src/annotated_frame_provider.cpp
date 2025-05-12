@@ -49,7 +49,7 @@ private:
 
         declare_node_parameters();
 
-        profiler_.set_enabled(true);
+        profiler_.set_enabled(false);
 
         compressed_image_msg_.format = "jpeg";
 

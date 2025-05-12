@@ -151,24 +151,23 @@ private:
                 if (!video_recorder_ptr_->is_recording())
                 {
                     const auto complete_filename = last_recording_event_.recording_path + "/" + last_recording_event_.filename + ".mp4";
-                    node_.log_info("Opening new video: %s", complete_filename.c_str());
+                    node_.log_send_info("Opening new video: %s", complete_filename.c_str());
                     if (!video_recorder_ptr_->open_new_video(complete_filename, params_.recording.codec, fps_, camera_img.size()))
                     {
-                        node_.log_info("Could not create new video");
+                        node_.log_send_error("Could not create new video");
                     }
                 }
 
                 if (video_recorder_ptr_->is_recording())
                 {
                     video_recorder_ptr_->write_frame(camera_img);
-                    node_.log_info("Recording video frame");
                 }
             }
             else
             {
                 if (video_recorder_ptr_->is_recording())
                 {
-                    node_.log_info("Closing video");
+                    node_.log_send_info("Closing video");
                     video_recorder_ptr_->close_video();
                 }
                 video_recorder_ptr_->add_to_pre_buffer(camera_img);
