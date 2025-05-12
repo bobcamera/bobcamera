@@ -64,12 +64,15 @@ private:
         }
         if (img_recorder_ && !last_recording_event_.recording_path.empty())
         {
+            node_.log_info("Saving heatmap image");
             std::string full_path = last_recording_event_.recording_path +
                                     "/heatmaps/" + last_recording_event_.filename + ".jpg";
             img_recorder_->write_image(full_path);
+            img_recorder_->reset();
         }
         if (json_recorder_)
         {
+            node_.log_info("Saving JSON");
             save_json();
         }
     }
@@ -97,16 +100,15 @@ private:
     {
         try
         {
-            accumulate_mask(*camera_publish->image_ptr);
+            if (!params_.recording.enabled || !last_recording_event_.recording || !img_recorder_)
+            {
+                return;
+            }
+            img_recorder_->accumulate_mask(camera_publish->image_ptr->toMat());
         }
         catch (const std::exception &e)
         {
             node_.log_send_error("CameraSaveWorker: process_images: Exception: %s", e.what());
-            rcutils_reset_error();
-        }
-        catch (...)
-        {
-            node_.log_send_error("CameraSaveWorker: process_images: Unknown exception");
             rcutils_reset_error();
         }
     }
@@ -119,6 +121,11 @@ private:
             {
                 return;
             }
+            if (image_pubsub_ptr_->queue_size() > 0)
+            {
+                node_.log_info("CameraSaveWorker: image_pubsub_ptr_ queue size: %zu", image_pubsub_ptr_->queue_size());
+            }
+
             auto &camera_img = *camera_publish->image_ptr;
 
             last_camera_info_ = *camera_publish->camera_info_ptr;
@@ -154,6 +161,7 @@ private:
                 if (video_recorder_ptr_->is_recording())
                 {
                     video_recorder_ptr_->write_frame(camera_img);
+                    node_.log_info("Recording video frame");
                 }
             }
             else
@@ -170,19 +178,6 @@ private:
         {
             node_.log_send_error("CameraSaveWorker: process_images: Exception: %s", e.what());
             rcutils_reset_error();
-        }
-        catch (...)
-        {
-            node_.log_send_error("CameraSaveWorker: process_images: Unknown exception");
-            rcutils_reset_error();
-        }
-    }
-
-    inline void accumulate_mask(const boblib::base::Image &gray_img)
-    {
-        if (params_.recording.enabled && last_recording_event_.recording && img_recorder_ != nullptr)
-        {
-            img_recorder_->accumulate_mask(gray_img.toMat());
         }
     }
 

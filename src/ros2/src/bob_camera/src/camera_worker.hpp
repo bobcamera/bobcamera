@@ -88,11 +88,6 @@ public:
             node_.log_error("camera_worker: init: Exception: %s", e.what());
             throw;
         }
-        catch (...)
-        {
-            node_.log_error("camera_worker: init: Unknown exception");
-            throw;
-        }
     }
 
     void restart_mask()
@@ -175,10 +170,6 @@ public:
         catch (const std::exception &ex)
         {
             node_.log_error("open_camera: exception %s", ex.what());
-        }
-        catch (...)
-        {
-            node_.log_error("open_camera: unknown exception");
         }
 
         video_reader_ptr_.reset();

@@ -232,7 +232,6 @@ private:
 
     sensor_msgs::msg::CompressedImage compressed_image_msg_;
 
-    // profiling fields
     boblib::utils::Profiler profiler_;
 
     std::unique_ptr<boblib::utils::JpegCompressor> jpeg_compressor_ptr_;

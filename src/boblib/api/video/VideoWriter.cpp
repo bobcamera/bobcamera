@@ -3,18 +3,22 @@
 
 using namespace boblib::video;
 
-VideoWriter::VideoWriter(const std::string &fileName, const cv::Size &frame_size, boblib::video::Codec codec, double fps, bool use_cuda)
-    : using_cuda_(use_cuda ? boblib::base::Utils::has_cuda() : false), fileName_(fileName), codec_(codec), fps_(fps), frame_size_(frame_size)
+VideoWriter::VideoWriter(const std::string &fileName, const cv::Size &frame_size, boblib::video::Codec codec, double fps, bool use_cuda) noexcept
+    : using_cuda_(use_cuda ? boblib::base::Utils::has_cuda() : false)
+    , fileName_(fileName)
+    , codec_(codec)
+    , fps_(fps)
+    , frame_size_(frame_size)
 {
     create_video_writer();
 }
 
-VideoWriter::~VideoWriter()
+VideoWriter::~VideoWriter() noexcept
 {
     release();
 }
 
-void VideoWriter::write(const cv::Mat &image)
+void VideoWriter::write(const cv::Mat &image) noexcept
 {
 #ifdef HAVE_CUDA
     if (using_cuda_)
@@ -30,7 +34,7 @@ void VideoWriter::write(const cv::Mat &image)
     }
 }
 
-void VideoWriter::write(const boblib::base::Image & image)
+void VideoWriter::write(const boblib::base::Image &image) noexcept
 {
 #ifdef HAVE_CUDA
     if (using_cuda_)
@@ -44,7 +48,7 @@ void VideoWriter::write(const boblib::base::Image & image)
     }
 }
 
-void VideoWriter::release()
+void VideoWriter::release() noexcept
 {
 #ifdef HAVE_CUDA
     if (using_cuda_)
@@ -58,17 +62,17 @@ void VideoWriter::release()
     }
 }
 
-bool VideoWriter::is_open() const
+bool VideoWriter::is_open() const noexcept
 {
     return using_cuda_ ? true : video_writer_ptr_->isOpened();
 }
 
-bool VideoWriter::using_cuda() const
+bool VideoWriter::using_cuda() const noexcept
 {
     return using_cuda_;
 }
 
-inline void VideoWriter::create_video_writer()
+inline void VideoWriter::create_video_writer() noexcept
 {
 #ifdef HAVE_CUDA
     if (using_cuda_)

@@ -20,12 +20,12 @@ VideoReader::VideoReader(const std::string & camera_uri, bool use_cuda, const st
     create_video_capture();
 }
 
-VideoReader::~VideoReader()
+VideoReader::~VideoReader() noexcept
 {
     release();
 }
 
-void VideoReader::release()
+void VideoReader::release() noexcept
 {
 #ifdef HAVE_CUDA
     if (using_cuda_)
@@ -39,7 +39,7 @@ void VideoReader::release()
     }
 }
 
-bool VideoReader::read(boblib::base::Image & image)
+bool VideoReader::read(boblib::base::Image &image) noexcept
 {
     try
     {
@@ -57,12 +57,7 @@ bool VideoReader::read(boblib::base::Image & image)
             return true;
         }
 #endif
-        auto success = video_capture_ptr_->read(image.toMat());
-        if (success)
-        {
-            image.upload();
-        }
-        return success;
+        return video_capture_ptr_->read(image.toMat());
     }
     catch (const std::exception & e)
     {
@@ -71,7 +66,7 @@ bool VideoReader::read(boblib::base::Image & image)
     return false;
 }
 
-bool VideoReader::set(int parameter_id, double value)
+bool VideoReader::set(int parameter_id, double value) noexcept
 {
     if (using_cuda_)
     {
@@ -81,7 +76,7 @@ bool VideoReader::set(int parameter_id, double value)
     return video_capture_ptr_->set(parameter_id, value);
 }
 
-bool VideoReader::get(int parameter_id, double & value) const
+bool VideoReader::get(int parameter_id, double &value) const noexcept
 {
 #ifdef HAVE_CUDA
     if (using_cuda_)
@@ -93,17 +88,17 @@ bool VideoReader::get(int parameter_id, double & value) const
     return true;
 }
 
-bool VideoReader::using_cuda() const
+bool VideoReader::using_cuda() const noexcept
 {
     return using_cuda_;
 }
 
-bool VideoReader::is_open() const
+bool VideoReader::is_open() const noexcept
 {
     return using_cuda_ ? true : video_capture_ptr_->isOpened();
 }
 
-inline void VideoReader::create_video_capture()
+inline void VideoReader::create_video_capture() noexcept
 {
     static const std::vector<int> default_params_normal = {cv::CAP_PROP_HW_ACCELERATION, cv::VIDEO_ACCELERATION_ANY};
     static const std::vector<int> default_params_cuda = {cv::CAP_PROP_OPEN_TIMEOUT_MSEC, 10000, cv::CAP_PROP_CONVERT_RGB, 1};

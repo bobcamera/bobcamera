@@ -20,23 +20,22 @@ namespace boblib::video
 
         VideoReader(const std::string & camera_uri, bool use_cuda = true, const std::vector<int> & params = {});
 
-        ~VideoReader();
+        ~VideoReader() noexcept;
 
-        bool read(boblib::base::Image & image);
+        bool read(boblib::base::Image &image) noexcept;
 
-        bool set(int parameter_id, double value);
+        bool set(int parameter_id, double value) noexcept;
 
-        bool get(int parameter_id, double & value) const;
+        bool get(int parameter_id, double &value) const noexcept;
 
-        bool is_open() const;
+        bool is_open() const noexcept;
 
-        bool using_cuda() const;
+        bool using_cuda() const noexcept;
 
-        void release();
+        void release() noexcept;
 
     private:
-
-        inline void create_video_capture();
+        inline void create_video_capture() noexcept;
 
         bool using_cuda_;
         bool is_usb_;

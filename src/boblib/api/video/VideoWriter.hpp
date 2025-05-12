@@ -21,27 +21,27 @@ namespace boblib::video
         AVC1 // Does not work with Cuda, will switch to H264
     };
 
-    class VideoWriter
+    class VideoWriter final
     {
     public:
-        VideoWriter(const std::string & fileName, const cv::Size & frame_size, boblib::video::Codec codec, double fps, bool use_cuda = true);
+        VideoWriter(const std::string &fileName, const cv::Size &frame_size, boblib::video::Codec codec, double fps, bool use_cuda = true) noexcept;
 
-        ~VideoWriter();
+        ~VideoWriter() noexcept;
 
-        void write(const cv::Mat & image);
+        void write(const cv::Mat &image) noexcept;
 
-        void write(const boblib::base::Image & image);
+        void write(const boblib::base::Image &image) noexcept;
 
-        void release();
+        void release() noexcept;
 
-        bool is_open() const;
+        bool is_open() const noexcept;
 
-        bool using_cuda() const;
+        bool using_cuda() const noexcept;
 
         [[nodiscard]] static boblib::video::Codec codec_from_string(std::string_view codec_str) noexcept;
 
     private:
-        inline void create_video_writer();
+        inline void create_video_writer() noexcept;
 
         const bool using_cuda_;
         const std::string &fileName_;

@@ -131,7 +131,3 @@ private:
     bool running_ = true;
 };
 
-// libclang-18-dev
-// libclang-cpp18
-// llvm-18-dev
-// libclang-cpp18-dev

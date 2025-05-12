@@ -11,6 +11,7 @@
 #include <sensor_msgs/msg/image.hpp>
 
 #include <boblib/api/utils/profiler.hpp>
+#include <boblib/api/utils/jpeg_compressor.hpp>
 
 #include "parameter_node.hpp"
 #include "image_utils.hpp"
@@ -58,25 +59,21 @@ private:
     {
         std::vector<ParameterNode::ActionParam> params = {
             ParameterNode::ActionParam(
-                rclcpp::Parameter("compressed_frame_subscriber_topic", "bob/compressor/source"), 
-                [this](const rclcpp::Parameter& param) 
+                rclcpp::Parameter("compressed_frame_subscriber_topic", "bob/compressor/source"),
+                [this](const rclcpp::Parameter &param)
                 {
                     compressed_frame_subscriber_topic_ = param.as_string();
                     image_subscription_.reset();
                     pub_compressed_frame_ = create_publisher<sensor_msgs::msg::CompressedImage>(compressed_frame_subscriber_topic_ + "/compressed", pub_qos_profile_);
                     log_debug("Creating topic %s", pub_compressed_frame_->get_topic_name());
-                }
-            ),
+                }),
             ParameterNode::ActionParam(
-                rclcpp::Parameter("compression_quality", 75), 
-                [this](const rclcpp::Parameter& param) 
+                rclcpp::Parameter("compression_quality", 75),
+                [this](const rclcpp::Parameter &param)
                 {
                     compression_quality_ = static_cast<int>(param.as_int());
-                    compression_params_.clear();
-                    compression_params_.push_back(cv::IMWRITE_JPEG_QUALITY);
-                    compression_params_.push_back(compression_quality_);
-                }
-            ),
+                    jpeg_compressor_ptr_ = std::make_unique<boblib::utils::JpegCompressor>(compression_quality_);
+                }),
         };
         add_action_parameters(params);
     }
@@ -118,7 +115,7 @@ private:
             compressed_image_msg.format = "jpeg";
             compressed_image_msg.data.reserve(image.total() * image.elemSize() / 2);
 
-            cv::imencode(".jpg", image, compressed_image_msg.data, compression_params_);            
+            jpeg_compressor_ptr_->compress(image, compressed_image_msg.data);
 
             pub_compressed_frame_->publish(compressed_image_msg);
         }
@@ -139,7 +136,7 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr pub_compressed_frame_;
     std::string compressed_frame_subscriber_topic_;
     int compression_quality_;
-    std::vector<int> compression_params_;
+    std::unique_ptr<boblib::utils::JpegCompressor> jpeg_compressor_ptr_;
 };
 
 RCLCPP_COMPONENTS_REGISTER_NODE(FrameCompressor)
