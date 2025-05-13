@@ -12,6 +12,7 @@
 	"runArgs": [
 		"--gpus",
 		"all",
+		"--runtime=nvidia",
 		"-e NVIDIA_DRIVER_CAPABILITIES=all",
 		"--privileged",
 		"--network=host",

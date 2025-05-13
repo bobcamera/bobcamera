@@ -13,7 +13,7 @@
 
 namespace boblib::video
 {
-    class VideoReader
+    class VideoReader final
     {
     public:
         VideoReader(int usb_camera_id, const std::vector<int> & params = {});

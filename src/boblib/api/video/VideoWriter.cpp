@@ -120,7 +120,12 @@ inline void VideoWriter::create_video_writer() noexcept
         }
     };
 
-    video_writer_ptr_ = std::make_unique<cv::VideoWriter>(fileName_, fourcc(codec_), fps_, frame_size_);
+    video_writer_ptr_ = std::make_unique<cv::VideoWriter>(fileName_, cv::CAP_FFMPEG, fourcc(codec_), fps_, frame_size_);
+}
+
+std::string VideoWriter::get_backend_name() const noexcept
+{
+    return video_writer_ptr_->getBackendName();
 }
 
 [[nodiscard]] boblib::video::Codec VideoWriter::codec_from_string(std::string_view codec_str) noexcept

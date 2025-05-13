@@ -42,7 +42,7 @@ basic_config:
     videos:                           # List of videos to display in sequence if source_type is VIDEO_FILE
       - '/workspaces/bobcamera/media/fisheye_videos/mike-drone.mp4'
       - '/workspaces/bobcamera/media/fisheye_videos/mikeg-30min.mp4'
-    speed_test: true            # True to run the speed test, False otherwise
+    speed_test: false            # True to run the speed test, False otherwise
     test_frames: 300            # Number of frames to test the speed
     speed_test_fps: 60          # FPS to test the speed
     

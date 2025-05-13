@@ -57,50 +57,98 @@ public:
 private:
     void close_recorders()
     {
-        if (video_recorder_ptr_ && video_recorder_ptr_->is_recording())
+        if (!recording_)
+        {
+            return;
+        }
+        node_.log_info("Closing recorders");
+
+        if (video_recorder_ptr_)
         {
             node_.log_info("Closing video");
             video_recorder_ptr_->close_video();
         }
-        if (img_recorder_ && !last_recording_event_.recording_path.empty())
+        if (img_recorder_)
         {
-            node_.log_info("Saving heatmap image");
             std::string full_path = last_recording_event_.recording_path +
                                     "/heatmaps/" + last_recording_event_.filename + ".jpg";
+            node_.log_info("Saving heatmap image to: %s", full_path.c_str());
             img_recorder_->write_image(full_path);
             img_recorder_->reset();
         }
         if (json_recorder_)
         {
-            node_.log_info("Saving JSON");
-            save_json();
+            auto json_full_path = last_recording_event_.recording_path + "/json/" + last_recording_event_.filename + ".json";
+            node_.log_send_info("Writing JSON to: %s", json_full_path.c_str());
+
+            auto json_camera_info = JsonRecorder::build_json_camera_info(last_camera_info_);
+            json_recorder_->add_to_buffer(json_camera_info, true);
+            json_recorder_->write_buffer_to_file(json_full_path);
         }
+        recording_ = false;
+    }
+
+    void open_recorders()
+    {
+        if (recording_ || !last_recording_event_.recording)
+        {
+            return;
+        }
+
+        if (video_recorder_ptr_)
+        {
+            const auto complete_filename = last_recording_event_.recording_path + "/" + last_recording_event_.filename + ".mp4";
+            node_.log_send_info("Opening new video: %s", complete_filename.c_str());
+            if (!video_recorder_ptr_->open_new_video(complete_filename, params_.recording.codec, fps_, last_camera_img_.size()))
+            {
+                node_.log_send_error("Could not create new video");
+            }
+            node_.log_send_info("Video backend: %s", video_recorder_ptr_->get_video_backend().c_str());
+        }
+
+        if (img_recorder_)
+        {
+            node_.log_send_error("Creating new image recorder");
+            img_recorder_->reset();
+            img_recorder_->update_frame_for_drawing(last_camera_img_.toMat());
+        }
+
+        if (json_recorder_)
+        {
+            node_.log_send_error("Creating new json recorder");
+            json_recorder_->reset();
+        }
+
+        recording_ = true;
     }
 
     void recording_event(const bob_interfaces::msg::RecordingEvent::SharedPtr &event) noexcept
     {
         last_recording_event_ = *event;
-    }
 
-    void save_json()
-    {
-        if (!json_recorder_ || last_recording_event_.recording_path.empty())
+        if (!params_.recording.enabled)
         {
             return;
         }
-        auto json_camera_info = JsonRecorder::build_json_camera_info(last_camera_info_);
-        json_recorder_->add_to_buffer(json_camera_info, true);
 
-        auto json_full_path = last_recording_event_.recording_path + "/json/" + last_recording_event_.filename + ".json";
-        node_.log_send_info("CameraSaveWorker: save_json: Writing JSON to: %s", json_full_path.c_str());
-        json_recorder_->write_buffer_to_file(json_full_path);
+        if (last_recording_event_.recording)
+        {
+            if (!recording_)
+            {
+                open_recorders();
+            }
+        }
+        else if (recording_)
+        {
+            close_recorders();
+        }
     }
 
     void bgs_image_callback(const std::shared_ptr<PublishImage> &camera_publish) noexcept
     {
         try
         {
-            if (!params_.recording.enabled || !last_recording_event_.recording || !img_recorder_)
+            if (!params_.recording.enabled || !recording_)
             {
                 return;
             }
@@ -129,47 +177,25 @@ private:
             auto &camera_img = *camera_publish->image_ptr;
 
             last_camera_info_ = *camera_publish->camera_info_ptr;
+            camera_img.copyTo(last_camera_img_);
             if (last_camera_info_.fps != fps_)
             {
                 close_recorders();
                 fps_ = last_camera_info_.fps;
+                node_.log_send_info("CameraSaveWorker: Creating recorders for fps %f", fps_);
                 auto total_pre_frames = (size_t)(static_cast<int>(std::ceil(fps_)) * params_.recording.seconds_save);
                 img_recorder_ = std::make_unique<ImageRecorder>(total_pre_frames);
                 json_recorder_ = std::make_unique<JsonRecorder>(total_pre_frames);
                 video_recorder_ptr_ = std::make_unique<VideoRecorder>(total_pre_frames);
+                open_recorders();
             }
 
-            create_save_heatmap(camera_img);
-
-            if (!video_recorder_ptr_ || last_recording_event_.recording_path.empty())
+            if (recording_)
             {
-                return;
-            }
-
-            if (last_recording_event_.recording)
-            {
-                if (!video_recorder_ptr_->is_recording())
-                {
-                    const auto complete_filename = last_recording_event_.recording_path + "/" + last_recording_event_.filename + ".mp4";
-                    node_.log_send_info("Opening new video: %s", complete_filename.c_str());
-                    if (!video_recorder_ptr_->open_new_video(complete_filename, params_.recording.codec, fps_, camera_img.size()))
-                    {
-                        node_.log_send_error("Could not create new video");
-                    }
-                }
-
-                if (video_recorder_ptr_->is_recording())
-                {
-                    video_recorder_ptr_->write_frame(camera_img);
-                }
+                video_recorder_ptr_->write_frame(camera_img);
             }
             else
             {
-                if (video_recorder_ptr_->is_recording())
-                {
-                    node_.log_send_info("Closing video");
-                    video_recorder_ptr_->close_video();
-                }
                 video_recorder_ptr_->add_to_pre_buffer(camera_img);
             }
         }
@@ -184,26 +210,13 @@ private:
     {
         try
         {
-            if (!params_.recording.enabled || img_recorder_ == nullptr || json_recorder_ == nullptr || last_recording_event_.recording_path.empty())
+            if (!params_.recording.enabled)
             {
                 return;
             }
 
-            // Start recording heatmap when recording begins
-            if (last_recording_event_.recording && !recording_json_)
-            {
-                recording_json_ = true;
-            }
-            else
-                // Save heatmap when recording ends
-                if (!last_recording_event_.recording && recording_json_)
-                {
-                    recording_json_ = false;
-                    save_json();
-                }
-
             auto json_data = JsonRecorder::build_json_value(tracking_msg, false);
-            if (last_recording_event_.recording)
+            if (recording_)
             {
                 for (const auto &detection : tracking_msg->detections)
                 {
@@ -226,62 +239,6 @@ private:
             node_.log_send_error("CameraSaveWorker: process_images: Exception: %s", e.what());
             rcutils_reset_error();
         }
-        catch (...)
-        {
-            node_.log_send_error("CameraSaveWorker: process_images: Unknown exception");
-            rcutils_reset_error();
-        }
-    }
-
-    inline void create_save_heatmap(const boblib::base::Image &img) noexcept
-    {
-        if (!params_.recording.enabled || img_recorder_ == nullptr)
-        {
-            return;
-        }
-
-        try
-        {
-            // Start recording heatmap when recording begins
-            if (last_recording_event_.recording && !recording_heatmap_)
-            {
-                recording_heatmap_ = true;
-                img_recorder_->update_frame_for_drawing(img.toMat());
-                return;
-            }
-
-            // Save heatmap when recording ends
-            if (!last_recording_event_.recording && recording_heatmap_)
-            {
-                recording_heatmap_ = false;
-
-                // Ensure the recording path and filename are valid
-                if (last_recording_event_.recording_path.empty() || last_recording_event_.filename.empty())
-                {
-                    node_.log_send_error("CameraSaveWorker: Cannot save heatmap: Invalid recording path or filename");
-                    return;
-                }
-
-                // Create the full path for the heatmap
-                std::string full_path = last_recording_event_.recording_path + "/heatmaps/" + last_recording_event_.filename + ".jpg";
-
-                // Write the image and reset the recorder
-                if (!img_recorder_->write_image(full_path))
-                {
-                    node_.log_send_error("CameraSaveWorker: Failed to write heatmap to: %s", full_path.c_str());
-                }
-
-                img_recorder_->reset();
-            }
-        }
-        catch (const std::exception &e)
-        {
-            node_.log_send_error("CameraSaveWorker: Error in create_save_heatmap: %s", e.what());
-        }
-        catch (...)
-        {
-            node_.log_send_error("CameraSaveWorker: Unknown error in create_save_heatmap");
-        }
     }
 
     ParameterNode &node_;
@@ -289,19 +246,18 @@ private:
     const rclcpp::QoS &sub_qos_profile_;
     boblib::utils::pubsub::TopicManager &topic_manager_;
 
-    bob_camera::msg::CameraInfo last_camera_info_;
-
     std::unique_ptr<ImageRecorder> img_recorder_;
     std::unique_ptr<JsonRecorder> json_recorder_;
-    bool recording_heatmap_{false};
-    bool recording_json_{false};
+    std::unique_ptr<VideoRecorder> video_recorder_ptr_;
+
+    bool recording_{false};
     float fps_{-1.0f};
+    boblib::base::Image last_camera_img_;
+    bob_camera::msg::CameraInfo last_camera_info_;
+    bob_interfaces::msg::RecordingEvent last_recording_event_;
 
     std::shared_ptr<boblib::utils::pubsub::PubSub<PublishImage>> image_pubsub_ptr_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<PublishImage>> bgs_pubsub_ptr_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<bob_interfaces::msg::RecordingEvent>> recording_event_pubsub_ptr_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<bob_interfaces::msg::Tracking>> tracking_pubsub_ptr_;
-
-    bob_interfaces::msg::RecordingEvent last_recording_event_;
-    std::unique_ptr<VideoRecorder> video_recorder_ptr_;
 };

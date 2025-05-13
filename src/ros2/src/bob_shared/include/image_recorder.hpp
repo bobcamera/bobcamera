@@ -20,7 +20,7 @@ struct TrackPoint
     }
 };
 
-class ImageRecorder 
+class ImageRecorder final
 {
 public:
     explicit ImageRecorder(int pre_buffer_size) 
@@ -46,7 +46,7 @@ public:
         cv::add(heatmap_accumulator_, shifted_fg_mask, heatmap_accumulator_);
     }
 
-    void reset() 
+    void reset() noexcept
     {
         heatmap_accumulator_ = cv::Mat();
         track_trajectories_.clear();
@@ -75,12 +75,12 @@ public:
         return cv::imwrite(full_path, frame_for_drawing_);
     }
 
-    void update_frame_for_drawing(const cv::Mat & img) 
+    void update_frame_for_drawing(const cv::Mat &img) noexcept
     {
         frame_for_drawing_ = img.clone();
     }
 
-    void add_to_pre_buffer(const cv::Mat& img)
+    void add_to_pre_buffer(const cv::Mat &img) noexcept
     {
         if (pre_buffer_ptr_->size() >= max_pre_buffer_size_) 
         {
@@ -89,7 +89,7 @@ public:
         pre_buffer_ptr_->push_back(img.clone());
     }
 
-    void accumulate_pre_buffer_images() 
+    void accumulate_pre_buffer_images() noexcept
     {
         for (const auto& img : *pre_buffer_ptr_) 
         {
@@ -98,17 +98,17 @@ public:
         pre_buffer_ptr_->clear();
     }
 
-    void store_trajectory_point(int detection_id, const cv::Point & point, double area)
+    void store_trajectory_point(int detection_id, const cv::Point &point, double area) noexcept
     {
         track_trajectories_[detection_id].emplace_back(point, area);
     }
 
-    void set_draw_trajectories_enabled(bool enabled) 
+    void set_draw_trajectories_enabled(bool enabled) noexcept
     {
         draw_trajectories_enabled_ = enabled;
     }
 
-    bool is_draw_trajectories_enabled() const 
+    bool is_draw_trajectories_enabled() const noexcept
     {
         return draw_trajectories_enabled_;
     }

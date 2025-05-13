@@ -38,6 +38,8 @@ namespace boblib::video
 
         bool using_cuda() const noexcept;
 
+        std::string get_backend_name() const noexcept;
+
         [[nodiscard]] static boblib::video::Codec codec_from_string(std::string_view codec_str) noexcept;
 
     private:

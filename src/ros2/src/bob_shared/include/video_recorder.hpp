@@ -10,6 +10,7 @@
 #include <sensor_msgs/msg/image.hpp>
 
 #include <boblib/api/video/VideoWriter.hpp>
+#include <boblib/api/video/ffmpeg_video_writer.hpp>
 
 #include <opencv2/opencv.hpp>
 #include <boost/circular_buffer.hpp>
@@ -37,7 +38,7 @@ public:
         {
             pre_buffer_image_.pop_front();
         }
-        pre_buffer_image_.push_back(img);
+        pre_buffer_image_.push_back(img.toMat());
     }
 
     [[nodiscard]] bool open_new_video(const std::string &full_path,
@@ -61,6 +62,8 @@ public:
                 video_writer_.reset();
                 return false;
             }
+
+            write_pre_buffer_to_video();
         }
         catch (const std::exception &e)
         {
@@ -68,19 +71,18 @@ public:
             return false;
         }
 
-        write_pre_buffer_to_video();
         return true;
     }
 
     void write_frame(const boblib::base::Image &image) noexcept
     {
-        if (video_writer_ && video_writer_->is_open())
+        if (video_writer_)
         {
-            video_writer_->write(image);
+            video_writer_->write(image.toMat());
         }
     }
 
-    void close_video()
+    void close_video() noexcept
     {
         if (video_writer_)
         {
@@ -94,24 +96,33 @@ public:
         return video_writer_ != nullptr;
     }
 
+    std::string get_video_backend() const noexcept
+    {
+        if (video_writer_)
+        {
+            return video_writer_->get_backend_name();
+        }
+        return {};
+    }
+
 private:
     void write_pre_buffer_to_video()
     {
-        if (!video_writer_ || !video_writer_->is_open())
+        if (!video_writer_)
         {
             return;
         }
 
-        auto buffer = std::move(pre_buffer_image_);
-        pre_buffer_image_.clear();
-
-        for (auto &m : buffer)
+        while (!pre_buffer_image_.empty())
         {
-            video_writer_->write(m);
+            video_writer_->write(pre_buffer_image_.front());
+            pre_buffer_image_.pop_front();
         }
     }
 
     size_t max_pre_buffer_size_;
     std::unique_ptr<boblib::video::VideoWriter> video_writer_;
-    boost::circular_buffer<boblib::base::Image> pre_buffer_image_;
+    boost::circular_buffer<cv::Mat> pre_buffer_image_;
+
+    std::unique_ptr<boblib::video::FFmpegVideoWriter> video_writer_ffmpeg_;
 };

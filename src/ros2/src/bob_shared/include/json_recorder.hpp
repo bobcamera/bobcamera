@@ -16,7 +16,12 @@ public:
     {
     }
 
-    void add_to_pre_buffer(const Json::Value & jsonValue, bool prepend = false) 
+    void reset() noexcept
+    {
+        json_buffer_.clear();
+    }
+
+    void add_to_pre_buffer(const Json::Value & jsonValue, bool prepend = false) noexcept
     {
         if (prepend) 
         {
@@ -33,7 +38,7 @@ public:
         }
     }
 
-    void add_to_buffer(const Json::Value& jsonValue, bool prepend = false) 
+    void add_to_buffer(const Json::Value& jsonValue, bool prepend = false) noexcept
     {
         if (prepend) 
         {
@@ -45,7 +50,7 @@ public:
         }
     }
 
-    bool write_buffer_to_file(const std::string & filename) 
+    bool write_buffer_to_file(const std::string & filename) noexcept
     {
         if (!json_buffer_.empty()) 
         {
@@ -77,7 +82,8 @@ public:
             
             file << "]" << std::endl;
             file.close();
-            json_buffer_.clear();
+            reset();
+            
             return true;
         }
 
@@ -85,7 +91,7 @@ public:
     }
 
     static Json::Value build_json_value(const bob_interfaces::msg::Tracking::SharedPtr & tracking_msg,
-                                        bool include_detections) 
+                                        bool include_detections) noexcept
     {
         Json::Value jsonValue;
 
@@ -119,7 +125,7 @@ public:
         return jsonValue;
     }
 
-    static Json::Value build_json_camera_info(const bob_camera::msg::CameraInfo & camera_info_msg) 
+    static Json::Value build_json_camera_info(const bob_camera::msg::CameraInfo &camera_info_msg) noexcept
     { 
         Json::Value jsonValue;
         Json::Value jsonCameraInfo;
