@@ -103,7 +103,7 @@ public:
         }
         else if (video_writer_ffmpeg_)
         {
-            video_writer_ffmpeg_->writeFrame(image.toMat());
+            video_writer_ffmpeg_->write_frame(image.toMat());
         }
     }
 
@@ -134,7 +134,7 @@ public:
         }
         else if (video_writer_ffmpeg_)
         {
-            return "FFmpeg";
+            return video_writer_ffmpeg_->get_codec_name();
         }
         return {};
     }
@@ -155,7 +155,7 @@ private:
             }
             else if (video_writer_ffmpeg_)
             {
-                video_writer_ffmpeg_->writeFrame(pre_buffer_image_.front());
+                video_writer_ffmpeg_->write_frame(pre_buffer_image_.front());
             }
             pre_buffer_image_.pop_front();
         }
