@@ -16,15 +16,17 @@
 		"--privileged",
 		"--network=host",
 		"--pid=host",
-		"--cap-add=SYS_PTRACE",
-		"--security-opt=seccomp:unconfined",
-		"--security-opt=apparmor:unconfined",
+		//"--cap-add=SYS_PTRACE",
+		//"--security-opt=seccomp:unconfined",
+		//"--security-opt=apparmor:unconfined",
 		//"--device=/dev/video0:/dev/video0",
 		"--volume=/dev:/dev",
 		"--volume=/tmp/.X11-unix:/tmp/.X11-unix"
 	],
 	"containerEnv": {
 		"DISPLAY": "${localEnv:DISPLAY}",
+		"NVIDIA_DRIVER_CAPABILITIES": "compute,utility,video",
+		"NVIDIA_VISIBLE_DEVICES": "all",
 		"LIBGL_ALWAYS_SOFTWARE": "1" // Needed for software rendering of opengl
 	},
 	// Set *default* container specific settings.json values on container create.

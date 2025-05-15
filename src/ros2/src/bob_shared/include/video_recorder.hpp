@@ -22,6 +22,7 @@ public:
         : max_pre_buffer_size_(pre_buffer_size)
         , pre_buffer_image_(pre_buffer_size)
     {
+        use_opencv_ = false;
     }
 
     // Delete copy operations
@@ -51,18 +52,38 @@ public:
             video_writer_->release();
             video_writer_.reset();
         }
+        else if (video_writer_ffmpeg_)
+        {
+            video_writer_ffmpeg_->stop();
+            video_writer_ffmpeg_.reset();
+        }
         try
         {
-            // Assuming boblib::video::Codec can be constructed from codec_str
-            auto codec = boblib::video::VideoWriter::codec_from_string(codec_str);
-
-            video_writer_ = std::make_unique<boblib::video::VideoWriter>(full_path, frame_size, codec, video_fps, false);
-            if (!video_writer_->is_open())
+            if (use_opencv_)
             {
-                video_writer_.reset();
-                return false;
-            }
+                // Assuming boblib::video::Codec can be constructed from codec_str
+                auto codec = boblib::video::VideoWriter::codec_from_string(codec_str);
 
+                video_writer_ = std::make_unique<boblib::video::VideoWriter>(full_path, frame_size, codec, video_fps, false);
+                if (!video_writer_->is_open())
+                {
+                    video_writer_.reset();
+                    return false;
+                }
+            }
+            else
+            {
+                boblib::video::FFmpegVideoWriter::Options options;
+                options.outputPath = full_path;
+                options.preset = "fast";
+                options.codec = "h264";
+                options.fps = video_fps;
+                options.width = frame_size.width;
+                options.height = frame_size.height;
+                options.useHardwareAcceleration = true;
+                video_writer_ffmpeg_ = std::make_unique<boblib::video::FFmpegVideoWriter>(options);
+                video_writer_ffmpeg_->start();
+            }
             write_pre_buffer_to_video();
         }
         catch (const std::exception &e)
@@ -80,6 +101,10 @@ public:
         {
             video_writer_->write(image.toMat());
         }
+        else if (video_writer_ffmpeg_)
+        {
+            video_writer_ffmpeg_->writeFrame(image.toMat());
+        }
     }
 
     void close_video() noexcept
@@ -89,11 +114,16 @@ public:
             video_writer_->release();
             video_writer_.reset();
         }
+        if (video_writer_ffmpeg_)
+        {
+            video_writer_ffmpeg_->stop();
+            video_writer_ffmpeg_.reset();
+        }
     }
 
     bool is_recording() const noexcept
     {
-        return video_writer_ != nullptr;
+        return video_writer_ || video_writer_ffmpeg_;
     }
 
     std::string get_video_backend() const noexcept
@@ -102,20 +132,31 @@ public:
         {
             return video_writer_->get_backend_name();
         }
+        else if (video_writer_ffmpeg_)
+        {
+            return "FFmpeg";
+        }
         return {};
     }
 
 private:
     void write_pre_buffer_to_video()
     {
-        if (!video_writer_)
+        if (!video_writer_ || !video_writer_ffmpeg_)
         {
             return;
         }
 
         while (!pre_buffer_image_.empty())
         {
-            video_writer_->write(pre_buffer_image_.front());
+            if (video_writer_)
+            {
+                video_writer_->write(pre_buffer_image_.front());
+            }
+            else if (video_writer_ffmpeg_)
+            {
+                video_writer_ffmpeg_->writeFrame(pre_buffer_image_.front());
+            }
             pre_buffer_image_.pop_front();
         }
     }
@@ -123,6 +164,7 @@ private:
     size_t max_pre_buffer_size_;
     std::unique_ptr<boblib::video::VideoWriter> video_writer_;
     boost::circular_buffer<cv::Mat> pre_buffer_image_;
+    bool use_opencv_{true}; // Use OpenCV by default
 
     std::unique_ptr<boblib::video::FFmpegVideoWriter> video_writer_ffmpeg_;
 };

@@ -6,6 +6,8 @@
 #include <boblib/api/video/VideoReader.hpp>
 #include <boblib/api/base/SynchronizedQueue.hpp>
 #include <boblib/api/utils/pubsub/TopicManager.hpp>
+#include <boblib/api/utils/fps_tracker.hpp>
+#include <boblib/api/utils/profiler.hpp>
 
 #include <mask_worker.hpp>
 #include <circuit_breaker.hpp>
@@ -41,6 +43,9 @@ public:
 
     void init()
     {
+        fps_tracker_ptr_ = std::make_unique<boblib::utils::FpsTracker>(true, 5);//params_.profiling, 5);
+        profiler_.set_enabled(true);//params_.profiling);
+
         recording_event_pubsub_ptr_ = topic_manager_.get_topic<bob_interfaces::msg::RecordingEvent>(params_.topics.recording_event_publisher_topic);
         recording_event_pubsub_ptr_->subscribe<CameraSaveWorker, &CameraSaveWorker::recording_event>(this);
 
@@ -152,7 +157,9 @@ private:
             {
                 return;
             }
+            profiler_.start(1, "bgs");
             img_recorder_->accumulate_mask(camera_publish->image_ptr->toMat());
+            profiler_.stop(1);
         }
         catch (const std::exception &e)
         {
@@ -169,10 +176,18 @@ private:
             {
                 return;
             }
+            fps_tracker_ptr_->add_frame();
+            double current_fps = 0.0;
+            if (fps_tracker_ptr_->get_fps_if_ready(current_fps))
+            {
+                std::cout << "image_callback: FPS: " << current_fps << std::endl;
+            }
+
             if (image_pubsub_ptr_->queue_size() > 0)
             {
                 node_.log_info("CameraSaveWorker: image_pubsub_ptr_ queue size: %zu", image_pubsub_ptr_->queue_size());
             }
+            profiler_.start(0, "images");
 
             auto &camera_img = *camera_publish->image_ptr;
 
@@ -198,6 +213,13 @@ private:
             {
                 video_recorder_ptr_->add_to_pre_buffer(camera_img);
             }
+            profiler_.stop(0);
+
+            std::string profiler_report;
+            if (profiler_.report_if_greater(5.0, profiler_report))
+            {
+                node_.log_send_info(profiler_report);
+            }
         }
         catch (const std::exception &e)
         {
@@ -215,6 +237,7 @@ private:
                 return;
             }
 
+            profiler_.start(2, "tracking");
             auto json_data = JsonRecorder::build_json_value(tracking_msg, false);
             if (recording_)
             {
@@ -233,6 +256,7 @@ private:
             {
                 json_recorder_->add_to_pre_buffer(json_data, false);
             }
+            profiler_.stop(2);
         }
         catch (const std::exception &e)
         {
@@ -255,6 +279,9 @@ private:
     boblib::base::Image last_camera_img_;
     bob_camera::msg::CameraInfo last_camera_info_;
     bob_interfaces::msg::RecordingEvent last_recording_event_;
+
+    std::unique_ptr<boblib::utils::FpsTracker> fps_tracker_ptr_;
+    boblib::utils::Profiler profiler_;
 
     std::shared_ptr<boblib::utils::pubsub::PubSub<PublishImage>> image_pubsub_ptr_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<PublishImage>> bgs_pubsub_ptr_;

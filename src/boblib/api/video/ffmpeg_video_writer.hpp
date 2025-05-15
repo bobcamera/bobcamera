@@ -300,16 +300,17 @@ namespace boblib::video
             // Fallback to software encoder if hardware acceleration failed or wasn't requested
             if (!codec)
             {
-                codec = avcodec_find_encoder_by_name(m_options.codec.c_str());
+                auto codecName = m_options.codec == "h264" ? "libx264" : m_options.codec;
+                codec = avcodec_find_encoder_by_name(codecName.c_str());
                 if (!codec)
                 {
-                    std::cerr << "Codec '" << m_options.codec << "' not found" << std::endl;
+                    std::cerr << "Codec '" << codecName << "' not found" << std::endl;
                     return false;
                 }
 
                 if (m_options.logPerformance)
                 {
-                    std::cout << "Using software encoder: " << m_options.codec << std::endl;
+                    std::cout << "Using software encoder: " << codecName << std::endl;
                 }
             }
 
