@@ -246,232 +246,153 @@ namespace boblib::video
         uint8_t *m_frameBuffer;
         int m_ioBufferSize;
 
-        // Initialize FFmpeg components
-        bool initializeFFmpeg(int width, int height)
+        // pull all the heavy lifting into this helper
+        bool initWithCodec(const AVCodec *codec, int width, int height)
         {
             // Create output format context
-            avformat_alloc_output_context2(&m_formatContext, nullptr, nullptr, m_options.outputPath.c_str());
-            if (!m_formatContext)
+            if (avformat_alloc_output_context2(&m_formatContext, nullptr, nullptr, m_options.outputPath.c_str()) < 0)
             {
                 std::cerr << "Could not create output context" << std::endl;
                 return false;
             }
 
-            // Find the encoder
-            const AVCodec *codec = nullptr;
-            if (m_options.useHardwareAcceleration)
-            {
-                // Try hardware accelerated encoders first
-                std::vector<std::string> hwCodecs;
-
-                // NVIDIA GPUs
-                if (m_options.codec == "libx264" || m_options.codec == "h264")
-                {
-                    hwCodecs.push_back("h264_nvenc");
-                    hwCodecs.push_back("h264_qsv");     // Intel QuickSync
-                    hwCodecs.push_back("h264_amf");     // AMD
-                    hwCodecs.push_back("h264_v4l2m2m"); // V4L2
-                    hwCodecs.push_back("h264_vaapi");   // VAAPI
-                }
-                else if (m_options.codec == "libx265" || m_options.codec == "hevc")
-                {
-                    hwCodecs.push_back("hevc_nvenc");
-                    hwCodecs.push_back("hevc_qsv");     // Intel QuickSync
-                    hwCodecs.push_back("hevc_amf");     // AMD
-                    hwCodecs.push_back("hevc_v4l2m2m"); // V4L2
-                    hwCodecs.push_back("hevc_vaapi");   // VAAPI
-                }
-
-                // Try each hardware codec
-                for (const auto &hwCodec : hwCodecs)
-                {
-                    codec = avcodec_find_encoder_by_name(hwCodec.c_str());
-                    if (codec)
-                    {
-                        if (m_options.logPerformance)
-                        {
-                            std::cout << "Using hardware accelerated encoder: " << hwCodec << std::endl;
-                        }
-                        break;
-                    }
-                }
-            }
-
-            // Fallback to software encoder if hardware acceleration failed or wasn't requested
-            if (!codec)
-            {
-                auto codecName = m_options.codec == "h264" ? "libx264" : m_options.codec;
-                codec = avcodec_find_encoder_by_name(codecName.c_str());
-                if (!codec)
-                {
-                    std::cerr << "Codec '" << codecName << "' not found" << std::endl;
-                    return false;
-                }
-
-                if (m_options.logPerformance)
-                {
-                    std::cout << "Using software encoder: " << codecName << std::endl;
-                }
-            }
-
-            // Create stream
+            // create stream & codec context
             m_stream = avformat_new_stream(m_formatContext, nullptr);
             if (!m_stream)
             {
-                std::cerr << "Could not allocate stream" << std::endl;
+                std::cerr << "Could not allocate stream\n";
                 return false;
             }
-            m_stream->id = m_formatContext->nb_streams - 1;
-
-            // Create encoder context
             m_codecContext = avcodec_alloc_context3(codec);
             if (!m_codecContext)
             {
-                std::cerr << "Could not allocate an encoding context" << std::endl;
+                std::cerr << "Could not alloc context\n";
                 return false;
             }
 
-            // Set basic encoding parameters
+            // set parameters (width/height/fmt/bitrate/threads/gop/crf/preset/extraOptions…)
             m_codecContext->codec_id = codec->id;
             m_codecContext->codec_type = AVMEDIA_TYPE_VIDEO;
             m_codecContext->width = width;
             m_codecContext->height = height;
-            m_codecContext->time_base = AVRational{1, static_cast<int>(m_options.fps)};
+            m_codecContext->time_base = AVRational{1, int(m_options.fps)};
             m_stream->time_base = m_codecContext->time_base;
 
-            // Set pixel format
-            AVPixelFormat pixelFormat = AV_PIX_FMT_YUV420P; // Default
-
-            // Parse the requested pixel format
-            if (!m_options.pixelFormat.empty())
+            // pixel format
+            AVPixelFormat pf = av_get_pix_fmt(m_options.pixelFormat.c_str());
+            if (pf == AV_PIX_FMT_NONE)
             {
-                pixelFormat = av_get_pix_fmt(m_options.pixelFormat.c_str());
-                if (pixelFormat == AV_PIX_FMT_NONE)
-                {
-                    std::cerr << "Unrecognized pixel format: " << m_options.pixelFormat << std::endl;
-                    pixelFormat = AV_PIX_FMT_YUV420P; // Use default
-                }
+                pf = AV_PIX_FMT_YUV420P;
             }
+            m_codecContext->pix_fmt = pf;
 
-            m_codecContext->pix_fmt = pixelFormat;
-
-            // Set bitrate if specified
             if (m_options.bitrate > 0)
-            {
                 m_codecContext->bit_rate = m_options.bitrate;
-            }
-
-            // Set the number of threads
             if (m_options.threads > 0)
-            {
                 m_codecContext->thread_count = m_options.threads;
-            }
-
-            // Set GOP size
             if (m_options.gop_size > 0)
-            {
                 m_codecContext->gop_size = m_options.gop_size;
-            }
-
-            // Set quality
-            if (std::string(codec->name).find("264") != std::string::npos ||
-                std::string(codec->name).find("265") != std::string::npos)
-            {
+            if (strstr(codec->name, "264") || strstr(codec->name, "265"))
                 av_opt_set(m_codecContext->priv_data, "crf", std::to_string(m_options.quality).c_str(), 0);
-            }
-
-            // Set preset if supported
             if (!m_options.preset.empty())
-            {
-                int ret = av_opt_set(m_codecContext->priv_data, "preset", m_options.preset.c_str(), 0);
-                if (ret < 0)
-                {
-                    char errBuf[AV_ERROR_MAX_STRING_SIZE];
-                    av_strerror(ret, errBuf, AV_ERROR_MAX_STRING_SIZE);
-                    std::cerr << "Warning: Could not set preset '" << m_options.preset << "': " << errBuf << std::endl;
-                }
-            }
-
-            // Parse and set extra options
+                av_opt_set(m_codecContext->priv_data, "preset", m_options.preset.c_str(), 0);
             if (!m_options.extraOptions.empty())
             {
-                std::vector<std::string> options;
                 std::stringstream ss(m_options.extraOptions);
-                std::string option;
-
-                while (std::getline(ss, option, ':'))
+                std::string opt;
+                while (std::getline(ss, opt, ':'))
                 {
-                    size_t pos = option.find('=');
-                    if (pos != std::string::npos)
-                    {
-                        std::string key = option.substr(0, pos);
-                        std::string value = option.substr(pos + 1);
-
-                        int ret = av_opt_set(m_codecContext->priv_data, key.c_str(), value.c_str(), 0);
-                        if (ret < 0)
-                        {
-                            char errBuf[AV_ERROR_MAX_STRING_SIZE];
-                            av_strerror(ret, errBuf, AV_ERROR_MAX_STRING_SIZE);
-                            std::cerr << "Warning: Could not set option '" << key << "' to '" << value << "': " << errBuf << std::endl;
-                        }
-                    }
+                    auto pos = opt.find('=');
+                    av_opt_set(m_codecContext->priv_data,
+                               opt.substr(0, pos).c_str(),
+                               opt.substr(pos + 1).c_str(), 0);
                 }
             }
 
-            // Open the codec
+            // open codec, copy params, alloc frame/buffer, open file, write header
             if (avcodec_open2(m_codecContext, codec, nullptr) < 0)
             {
-                std::cerr << "Could not open codec" << std::endl;
+                std::cerr << "Could not open codec\n";
                 return false;
             }
-
-            // Copy codec parameters to stream
             if (avcodec_parameters_from_context(m_stream->codecpar, m_codecContext) < 0)
             {
-                std::cerr << "Could not copy codec parameters to stream" << std::endl;
+                std::cerr << "Could not copy params\n";
                 return false;
             }
-
-            // Allocate frame
             m_frame = av_frame_alloc();
-            if (!m_frame)
-            {
-                std::cerr << "Could not allocate video frame" << std::endl;
-                return false;
-            }
-
             m_frame->format = m_codecContext->pix_fmt;
-            m_frame->width = m_codecContext->width;
-            m_frame->height = m_codecContext->height;
-
-            // Allocate frame buffer
-            int ret = av_frame_get_buffer(m_frame, 32);
-            if (ret < 0)
+            m_frame->width = width;
+            m_frame->height = height;
+            if (av_frame_get_buffer(m_frame, 32) < 0)
             {
-                std::cerr << "Could not allocate frame buffer" << std::endl;
+                std::cerr << "Could not alloc frame buffer\n";
                 return false;
             }
-
-            // Open output file
-            if (!(m_formatContext->oformat->flags & AVFMT_NOFILE))
+            if (!(m_formatContext->oformat->flags & AVFMT_NOFILE) &&
+                avio_open(&m_formatContext->pb, m_options.outputPath.c_str(), AVIO_FLAG_WRITE) < 0)
             {
-                if (avio_open(&m_formatContext->pb, m_options.outputPath.c_str(), AVIO_FLAG_WRITE) < 0)
-                {
-                    std::cerr << "Could not open output file: " << m_options.outputPath << std::endl;
-                    return false;
-                }
+                std::cerr << "Could not open " << m_options.outputPath << std::endl;
+                return false;
             }
-
-            // Write header
             if (avformat_write_header(m_formatContext, nullptr) < 0)
             {
-                std::cerr << "Error writing header" << std::endl;
+                std::cerr << "Error writing header\n";
                 return false;
             }
 
             return true;
         }
 
+        bool initializeFFmpeg(int width, int height)
+        {
+            // build HW candidate list
+            std::vector<std::string> hwList;
+            if (m_options.useHardwareAcceleration)
+            {
+                if (m_options.codec == "libx264" || m_options.codec == "h264")
+                {
+                    hwList = {"h264_qsv", "h264_amf", "h264_v4l2m2m", "h264_vaapi"};
+                }
+                else if (m_options.codec == "libx265" || m_options.codec == "hevc")
+                {
+                    hwList = {"hevc_qsv", "hevc_amf", "hevc_v4l2m2m", "hevc_vaapi"};
+                }
+            }
+
+            // try hardware paths
+            for (auto &name : hwList)
+            {
+                const AVCodec *c = avcodec_find_encoder_by_name(name.c_str());
+                if (!c)
+                    continue;
+                cleanup(); // wipe any partial state
+                if (initWithCodec(c, width, height))
+                {
+                    std::cout << "Using hardware accelerated encoder: " << name << "\n";
+                    return true;
+                }
+            }
+
+            // fallback to software
+            std::string swName = (m_options.codec == "h264" ? "libx264" : m_options.codec == "hevc" ? "libx265"
+                                                                                                    : m_options.codec);
+            const AVCodec *sw = avcodec_find_encoder_by_name(swName.c_str());
+            if (!sw)
+            {
+                std::cerr << "Codec '" << swName << "' not found\n";
+                return false;
+            }
+            cleanup();
+            if (!initWithCodec(sw, width, height))
+            {
+                std::cerr << "Failed to initialize software encoder: " << swName << "\n";
+                return false;
+            }
+            std::cout << "Using software encoder: " << swName << "\n";
+            return true;
+        }
+        
         // Convert cv::Mat to FFmpeg frame
         bool convertFrame(const cv::Mat &input, AVFrame *output)
         {
