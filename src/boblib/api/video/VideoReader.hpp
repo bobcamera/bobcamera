@@ -10,6 +10,7 @@
 #endif
 
 #include "../base/Image.hpp"
+#include "ffmpeg_video_reader.hpp"
 
 namespace boblib::video
 {
@@ -34,9 +35,14 @@ namespace boblib::video
 
         void release() noexcept;
 
+        std::string get_codec_name() const noexcept;
+        std::string get_decoder_name() const noexcept;
+        std::string get_pixel_format_name() const noexcept;
+
     private:
         inline void create_video_capture() noexcept;
 
+        bool use_opencv_{false};
         bool using_cuda_;
         bool is_usb_;
         int usb_camera_id_{-1};
@@ -46,5 +52,6 @@ namespace boblib::video
 #ifdef HAVE_CUDA
         cv::Ptr<cv::cudacodec::VideoReader> cuda_video_reader_ptr_;
 #endif
+        std::unique_ptr<FFmpegVideoReader> ffmpeg_video_reader_ptr_;
     };
 }

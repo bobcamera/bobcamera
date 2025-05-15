@@ -164,7 +164,7 @@ private:
     size_t max_pre_buffer_size_;
     std::unique_ptr<boblib::video::VideoWriter> video_writer_;
     boost::circular_buffer<cv::Mat> pre_buffer_image_;
-    bool use_opencv_{true}; // Use OpenCV by default
+    bool use_opencv_{false}; // Use OpenCV by default
 
     std::unique_ptr<boblib::video::FFmpegVideoWriter> video_writer_ffmpeg_;
 };

@@ -188,6 +188,8 @@ private:
             const int cv_camera_width = video_reader_ptr_->get(cv::CAP_PROP_FRAME_WIDTH, frame_width) ? static_cast<int>(frame_width) : 0;
             const int cv_camera_height = video_reader_ptr_->get(cv::CAP_PROP_FRAME_HEIGHT, frame_height) ? static_cast<int>(frame_height) : 0;
             node_.log_send_info("Stream capture Info: %dx%d at %.2g FPS", cv_camera_width, cv_camera_height, fps_);
+            node_.log_send_info("              codec: %s, decoder: %s, Pixel Format: %s",
+                                video_reader_ptr_->get_codec_name().c_str(), video_reader_ptr_->get_decoder_name().c_str(), video_reader_ptr_->get_pixel_format_name().c_str());
             loop_rate_ptr_ = std::make_unique<rclcpp::WallRate>(fps_);
 
             create_camera_info_msg();

@@ -31,23 +31,23 @@ namespace boblib::video
     public:
         struct Options
         {
-            std::string outputPath;         // Output file path
-            std::string codec = "h264";     // Encoder to use (libx264, h264_nvenc, hevc_nvenc, etc.)
-            int width = 0;                  // Will be set from first frame if 0
-            int height = 0;                 // Will be set from first frame if 0
-            int bitrate = 0;                // In bits/s, 0 for default
-            double fps = 30.0;              // Frames per second (0 for default)
-            int threads = 0;                // 0 for auto-detection
-            int gop_size = 0;               // GOP size (0 for default)
+            std::string outputPath;              // Output file path
+            std::string codec = "h264";          // Encoder to use (libx264, h264_nvenc, hevc_nvenc, etc.)
+            int width = 0;                       // Will be set from first frame if 0
+            int height = 0;                      // Will be set from first frame if 0
+            int bitrate = 0;                     // In bits/s, 0 for default
+            double fps = 30.0;                   // Frames per second (0 for default)
+            int threads = 0;                     // 0 for auto-detection
+            int gop_size = 0;                    // GOP size (0 for default)
             bool useHardwareAcceleration = true; // Use hardware acceleration if available
-            int quality = 23;               // CRF for x264/x265 (lower is better quality, higher is smaller file)
+            int quality = 23;                    // CRF for x264/x265 (lower is better quality, higher is smaller file)
             std::string pixelFormat = "yuv420p"; // Output pixel format
-            std::string preset = "fast";    // Encoding preset (ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow)
-            size_t bufferSize = 300;        // Frame buffer size
-            size_t numWorkerThreads = 1;    // Usually 1 is enough as FFmpeg has internal threading
-            bool logPerformance = false;    // Log performance stats
-            bool debug = false;             // Enable debug output
-            std::string extraOptions = "";  // Additional FFmpeg options formatted as "key1=value1:key2=value2"
+            std::string preset = "fast";         // Encoding preset (ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow)
+            size_t bufferSize = 300;             // Frame buffer size
+            size_t numWorkerThreads = 1;         // Usually 1 is enough as FFmpeg has internal threading
+            bool logPerformance = false;         // Log performance stats
+            bool debug = false;                  // Enable debug output
+            std::string extraOptions = "";       // Additional FFmpeg options formatted as "key1=value1:key2=value2"
         };
 
         // Constructor
@@ -136,7 +136,7 @@ namespace boblib::video
 
 // Example usage
 /*
-int main() 
+int main()
 {
     // Create writer options
     FFmpegVideoWriter::Options options;
@@ -154,7 +154,7 @@ int main()
 
     // Feed frames to the writer
     cv::Mat frame(2160, 3840, CV_8UC3); // 4K frame as an example
-    for (int i = 0; i < 1000; ++i) 
+    for (int i = 0; i < 1000; ++i)
     {
         // Generate or get your frame here
         // frame = getSomeFrame();

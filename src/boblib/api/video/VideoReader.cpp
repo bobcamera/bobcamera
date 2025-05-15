@@ -35,6 +35,11 @@ void VideoReader::release() noexcept
     else
 #endif
     {
+        if (ffmpeg_video_reader_ptr_)
+        {
+            ffmpeg_video_reader_ptr_->close();
+            ffmpeg_video_reader_ptr_.reset();
+        }
         video_capture_ptr_->release();
     }
 }
@@ -57,6 +62,10 @@ bool VideoReader::read(boblib::base::Image &image) noexcept
             return true;
         }
 #endif
+        if (!use_opencv_)
+        {
+            return ffmpeg_video_reader_ptr_->read(image.toMat());
+        }
         return video_capture_ptr_->read(image.toMat());
     }
     catch (const std::exception & e)
@@ -84,6 +93,25 @@ bool VideoReader::get(int parameter_id, double &value) const noexcept
         return cuda_video_reader_ptr_->get(parameter_id, value);
     }
 #endif
+    if (!use_opencv_)
+    {
+        switch (parameter_id)
+        {
+            case cv::CAP_PROP_FPS:
+                value = ffmpeg_video_reader_ptr_->get_fps();
+                break;
+            case cv::CAP_PROP_FRAME_WIDTH:
+                value = ffmpeg_video_reader_ptr_->get_width();
+                break;
+            case cv::CAP_PROP_FRAME_HEIGHT:
+                value = ffmpeg_video_reader_ptr_->get_height();
+                break;
+            default:
+                return false;
+        }
+        return true;
+    }
+
     value = video_capture_ptr_->get(parameter_id);
     return true;
 }
@@ -95,6 +123,10 @@ bool VideoReader::using_cuda() const noexcept
 
 bool VideoReader::is_open() const noexcept
 {
+    if (!use_opencv_)
+    {
+        return ffmpeg_video_reader_ptr_ ? ffmpeg_video_reader_ptr_->is_opened() : false;
+    }
     return using_cuda_ ? true : video_capture_ptr_->isOpened();
 }
 
@@ -102,6 +134,12 @@ inline void VideoReader::create_video_capture() noexcept
 {
     static const std::vector<int> default_params_normal = {cv::CAP_PROP_HW_ACCELERATION, cv::VIDEO_ACCELERATION_ANY};
     static const std::vector<int> default_params_cuda = {cv::CAP_PROP_OPEN_TIMEOUT_MSEC, 10000, cv::CAP_PROP_CONVERT_RGB, 1};
+
+    if (!use_opencv_)
+    {
+        ffmpeg_video_reader_ptr_ = std::make_unique<FFmpegVideoReader>(camera_uri_);
+        return;
+    }
 
     if (is_usb_)
     {
@@ -123,4 +161,31 @@ inline void VideoReader::create_video_capture() noexcept
     cuda_video_reader_ptr_.reset();
 #endif
     video_capture_ptr_ = std::make_unique<cv::VideoCapture>(camera_uri_, cv::CAP_ANY, params_.empty() ? default_params_normal : params_);
+}
+
+std::string VideoReader::get_codec_name() const noexcept
+{
+    if (ffmpeg_video_reader_ptr_)
+    {
+        return ffmpeg_video_reader_ptr_->get_codec_name();
+    }
+    return {};
+}
+
+std::string VideoReader::get_decoder_name() const noexcept
+{
+    if (ffmpeg_video_reader_ptr_)
+    {
+        return ffmpeg_video_reader_ptr_->get_decoder_name();
+    }
+    return {};
+}
+
+std::string VideoReader::get_pixel_format_name() const noexcept
+{
+    if (ffmpeg_video_reader_ptr_)
+    {
+        return ffmpeg_video_reader_ptr_->get_pixel_format_name();
+    }
+    return {};
 }

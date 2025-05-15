@@ -113,14 +113,14 @@ private:
 
         if (img_recorder_)
         {
-            node_.log_send_error("Creating new image recorder");
+            node_.log_send_info("Creating new image recorder");
             img_recorder_->reset();
             img_recorder_->update_frame_for_drawing(last_camera_img_.toMat());
         }
 
         if (json_recorder_)
         {
-            node_.log_send_error("Creating new json recorder");
+            node_.log_send_info("Creating new json recorder");
             json_recorder_->reset();
         }
 
