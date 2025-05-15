@@ -8,7 +8,6 @@
 		}
 	},
 	"remoteUser": "ros",
-	// The first 4 args are to enable cuda for this container, if you don't have cuda, comment them out
 	"runArgs": [
 		"--gpus",
 		"all",
@@ -21,8 +20,10 @@
 		//"--security-opt=seccomp:unconfined",
 		//"--security-opt=apparmor:unconfined",
 		//"--device=/dev/video0:/dev/video0",
-		"--volume=/dev:/dev",
-		"--volume=/tmp/.X11-unix:/tmp/.X11-unix"
+		//"--volume=/dev:/dev",
+		"--volume=/tmp/.X11-unix:/tmp/.X11-unix",
+		"--group-add",
+		"video"
 	],
 	"containerEnv": {
 		"DISPLAY": "${localEnv:DISPLAY}",
