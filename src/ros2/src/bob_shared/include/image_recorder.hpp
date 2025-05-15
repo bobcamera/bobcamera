@@ -40,10 +40,7 @@ public:
             heatmap_accumulator_ = cv::Mat::zeros(fg_mask.size(), fg_mask.type());
         }
 
-        cv::Mat shifted_fg_mask = cv::Mat::zeros(fg_mask.size(), fg_mask.type());
-
-        fg_mask.copyTo(shifted_fg_mask);
-        cv::add(heatmap_accumulator_, shifted_fg_mask, heatmap_accumulator_);
+        cv::add(heatmap_accumulator_, fg_mask, heatmap_accumulator_);
     }
 
     void reset() noexcept

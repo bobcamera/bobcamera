@@ -43,8 +43,8 @@ public:
 
     void init()
     {
-        fps_tracker_ptr_ = std::make_unique<boblib::utils::FpsTracker>(true, 5);//params_.profiling, 5);
-        profiler_.set_enabled(true);//params_.profiling);
+        fps_tracker_ptr_ = std::make_unique<boblib::utils::FpsTracker>(params_.profiling, 5);
+        profiler_.set_enabled(params_.profiling);
 
         recording_event_pubsub_ptr_ = topic_manager_.get_topic<bob_interfaces::msg::RecordingEvent>(params_.topics.recording_event_publisher_topic);
         recording_event_pubsub_ptr_->subscribe<CameraSaveWorker, &CameraSaveWorker::recording_event>(this);
