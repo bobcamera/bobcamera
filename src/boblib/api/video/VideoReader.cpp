@@ -75,47 +75,6 @@ bool VideoReader::read(boblib::base::Image &image) noexcept
     return false;
 }
 
-bool VideoReader::set(int parameter_id, double value) noexcept
-{
-    if (using_cuda_)
-    {
-        return false;
-    }
-    
-    return video_capture_ptr_->set(parameter_id, value);
-}
-
-bool VideoReader::get(int parameter_id, double &value) const noexcept
-{
-#ifdef HAVE_CUDA
-    if (using_cuda_)
-    {
-        return cuda_video_reader_ptr_->get(parameter_id, value);
-    }
-#endif
-    if (!use_opencv_)
-    {
-        switch (parameter_id)
-        {
-            case cv::CAP_PROP_FPS:
-                value = ffmpeg_video_reader_ptr_->get_fps();
-                break;
-            case cv::CAP_PROP_FRAME_WIDTH:
-                value = ffmpeg_video_reader_ptr_->get_width();
-                break;
-            case cv::CAP_PROP_FRAME_HEIGHT:
-                value = ffmpeg_video_reader_ptr_->get_height();
-                break;
-            default:
-                return false;
-        }
-        return true;
-    }
-
-    value = video_capture_ptr_->get(parameter_id);
-    return true;
-}
-
 bool VideoReader::using_cuda() const noexcept
 {
     return using_cuda_;
@@ -186,6 +145,82 @@ std::string VideoReader::get_pixel_format_name() const noexcept
     if (ffmpeg_video_reader_ptr_)
     {
         return ffmpeg_video_reader_ptr_->get_pixel_format_name();
+    }
+    return {};
+}
+
+int VideoReader::get_width() const noexcept
+{
+    if (ffmpeg_video_reader_ptr_)
+    {
+        return ffmpeg_video_reader_ptr_->get_width();
+    }
+
+#ifdef HAVE_CUDA
+    if (using_cuda_)
+    {
+        double value = 0.0;
+        cuda_video_reader_ptr_->get(cv::CAP_PROP_FRAME_WIDTH, value);
+        return static_cast<int>(value);
+    }
+#endif
+    return video_capture_ptr_ ? static_cast<int>(video_capture_ptr_->get(cv::CAP_PROP_FRAME_WIDTH)) : 0;
+}
+
+int VideoReader::get_height() const noexcept
+{
+    if (ffmpeg_video_reader_ptr_)
+    {
+        return ffmpeg_video_reader_ptr_->get_height();
+    }
+
+#ifdef HAVE_CUDA
+    if (using_cuda_)
+    {
+        double value = 0.0;
+        cuda_video_reader_ptr_->get(cv::CAP_PROP_FRAME_HEIGHT, value);
+        return static_cast<int>(value);
+    }
+#endif
+    return video_capture_ptr_ ? static_cast<int>(video_capture_ptr_->get(cv::CAP_PROP_FRAME_HEIGHT)) : 0;
+}
+
+double VideoReader::get_fps() const noexcept
+{
+    if (ffmpeg_video_reader_ptr_)
+    {
+        return ffmpeg_video_reader_ptr_->get_fps();
+    }
+
+#ifdef HAVE_CUDA
+    if (using_cuda_)
+    {
+        double value = 0.0;
+        cuda_video_reader_ptr_->get(cv::CAP_PROP_FPS, value);
+        return static_cast<int>(value);
+    }
+#endif
+    return video_capture_ptr_ ? video_capture_ptr_->get(cv::CAP_PROP_FPS) : 0.0;
+}
+
+bool VideoReader::set_resolution(int width, int height) noexcept
+{
+    if (ffmpeg_video_reader_ptr_)
+    {
+        return ffmpeg_video_reader_ptr_->set_resolution(width, height);
+    }
+    if (video_capture_ptr_ && !using_cuda_)
+    {
+        return video_capture_ptr_->set(cv::CAP_PROP_FRAME_WIDTH, width) && video_capture_ptr_->set(cv::CAP_PROP_FRAME_HEIGHT, height);
+    }
+    return false;
+}
+
+std::vector<std::pair<int, int>> VideoReader::list_camera_resolutions() const noexcept
+{
+    if (ffmpeg_video_reader_ptr_)
+    {
+        return ffmpeg_video_reader_ptr_->list_camera_resolutions();
     }
     return {};
 }

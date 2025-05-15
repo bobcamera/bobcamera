@@ -25,9 +25,11 @@ namespace boblib::video
 
         bool read(boblib::base::Image &image) noexcept;
 
-        bool set(int parameter_id, double value) noexcept;
-
-        bool get(int parameter_id, double &value) const noexcept;
+        int get_width() const noexcept;
+        int get_height() const noexcept;
+        double get_fps() const noexcept;
+        bool set_resolution(int width, int height) noexcept;
+        std::vector<std::pair<int, int>> list_camera_resolutions() const noexcept;
 
         bool is_open() const noexcept;
 

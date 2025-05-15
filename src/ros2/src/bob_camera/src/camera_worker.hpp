@@ -181,12 +181,9 @@ private:
     {
         if (is_open_)
         {
-            double fps;
-            double frame_width;
-            double frame_height;
-            fps_ = video_reader_ptr_->get(cv::CAP_PROP_FPS, fps) ? static_cast<float>(fps) : UNKNOWN_DEVICE_FPS;
-            const int cv_camera_width = video_reader_ptr_->get(cv::CAP_PROP_FRAME_WIDTH, frame_width) ? static_cast<int>(frame_width) : 0;
-            const int cv_camera_height = video_reader_ptr_->get(cv::CAP_PROP_FRAME_HEIGHT, frame_height) ? static_cast<int>(frame_height) : 0;
+            fps_ = static_cast<float>(video_reader_ptr_->get_fps());
+            const int cv_camera_width = video_reader_ptr_->get_width();
+            const int cv_camera_height = video_reader_ptr_->get_height();
             node_.log_send_info("Stream capture Info: %dx%d at %.2g FPS", cv_camera_width, cv_camera_height, fps_);
             node_.log_send_info("              codec: %s, decoder: %s, Pixel Format: %s",
                                 video_reader_ptr_->get_codec_name().c_str(), video_reader_ptr_->get_decoder_name().c_str(), video_reader_ptr_->get_pixel_format_name().c_str());
@@ -437,20 +434,8 @@ private:
                 {320, 240}    // QVGA
             };
 
-        auto set_check_resolution = [this](long width, long height)
-        {
-            double width_double;
-            double height_double;
-            video_reader_ptr_->set(cv::CAP_PROP_FRAME_WIDTH, width);
-            video_reader_ptr_->set(cv::CAP_PROP_FRAME_HEIGHT, height);
-            long cur_video_width = static_cast<long>(video_reader_ptr_->get(cv::CAP_PROP_FRAME_WIDTH, width_double) ? width_double : -1);
-            long cur_video_height = static_cast<long>(video_reader_ptr_->get(cv::CAP_PROP_FRAME_HEIGHT, height_double) ? height_double : -1);
-
-            return (cur_video_width == width) && (cur_video_height == height);
-        };
-
         // If we have the values defined, try setting
-        if ((params_.camera.usb_resolution.size() == 2) && (set_check_resolution(params_.camera.usb_resolution[0], params_.camera.usb_resolution[1])))
+        if ((params_.camera.usb_resolution.size() == 2) && (video_reader_ptr_->set_resolution(params_.camera.usb_resolution[0], params_.camera.usb_resolution[1])))
         {
             return true;
         }
@@ -458,7 +443,7 @@ private:
         // If not, we set the highest resolution
         for (const auto &[width, height] : resolutions)
         {
-            if (set_check_resolution(width, height))
+            if (video_reader_ptr_->set_resolution(width, height))
             {
                 node_.log_info("Setting resolution for %d x %d", width, height);
                 return true;
