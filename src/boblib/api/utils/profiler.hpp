@@ -16,45 +16,14 @@ namespace boblib::utils
 
     struct ProfilerData
     {
-        size_t region_id;
-        std::string name;
-        size_t parent_id{};            // new
-        std::vector<size_t> children;  // new
-
-        TimePoint start_time;
-        TimePoint stop_time;
-        Duration duration;
-        size_t count;
-
-        double fps() const noexcept
-        {
-            return duration.count() > 0 ? (double)count / duration_in_seconds() : 0.0;
-        }
-
-        double avg_time_in_ns() const noexcept
-        {
-            return count > 0 ? duration.count() / count : 0.0;
-        }
-
-        double avg_time_in_us() const noexcept
-        {
-            return count > 0 ? (duration.count() * 1e-3) / count : 0.0;
-        }
-
-        double avg_time_in_ms() const noexcept
-        {
-            return count > 0 ? (duration.count() * 1e-6) / count : 0.0;
-        }
-
-        double avg_time_in_s() const noexcept
-        {
-            return count > 0 ? (duration.count() * 1e-9) / count : 0.0;
-        }
-
-        double duration_in_seconds() const noexcept
-        {
-            return duration.count() * 1e-9;
-        }
+        size_t                 region_id   = 0;
+        std::string            name;
+        size_t                 parent_id   = 0;
+        std::vector<size_t>    children;
+        TimePoint              start_time  = TimePoint{};
+        TimePoint              stop_time   = TimePoint{};
+        Duration               duration    = Duration{};
+        size_t                 count       = 0;
     };
 
     using DataMap = std::unordered_map<size_t, ProfilerData>;
@@ -95,6 +64,7 @@ namespace boblib::utils
         std::string report_line(const ProfilerData *d,
                                 int indent_level,
                                 int name_width,
+                                double local_total_us,
                                 double total_us) const noexcept;
         void monitor_thread(std::stop_token stoken);
     };

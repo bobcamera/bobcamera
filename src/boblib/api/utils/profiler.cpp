@@ -124,57 +124,56 @@ namespace boblib::utils
         std::scoped_lock lock(mutex_);
         std::ostringstream out;
 
-        out << "Profiler Report\n" << "=============================\n";
+        // 1) find the longest name of any region:
+        size_t max_len = 0;
+        double total_us = 0.0;
+        for (auto const& [id, data] : profiler_data_)
+        {
+            max_len = std::max(max_len, data.name.size());
+            total_us += std::chrono::duration<double, std::micro>(data.duration).count();
+        }
+
+        // 2) make a single global column width (add 2 for indent padding)
+        int name_w = static_cast<int>(max_len) + 2;
+
+        out << "Profiler Report\n"
+            << "===============================================\n";
+
         for (auto const& [id, root] : profiler_data_)
         {
-            if (root.parent_id != 0)
-            {
-                continue;
-            }
+            if (root.parent_id != 0) continue;
 
-            // collect only nodes with data
+            // collect only children that actually ran
             std::vector<const ProfilerData*> kids;
             for (auto cid : root.children)
             {
                 auto it = profiler_data_.find(cid);
                 if (it != profiler_data_.end() && it->second.count > 0)
-                {
                     kids.push_back(&it->second);
-                }
-            }
-            if (kids.empty()) 
-            {
-                out << report_line(&root, 0, 0, 0.0);
-                continue;
             }
 
-            // total in μs
-            double total_us = 0.0;
+            // compute total μs over all children
+            double local_total_us = std::chrono::duration<double, std::micro>(root.duration).count();
             for (auto d : kids)
             {
-                double dur_us = std::chrono::duration<double, std::micro>(d->duration).count();
-                total_us += dur_us;
+                local_total_us += std::chrono::duration<double, std::micro>(d->duration).count();
             }
 
-            // compute name column width
-            int name_w = root.name.size() + 2; // 2 for the ident level
-            for (auto d : kids)
-            {
-                name_w = std::max(name_w, (int)d->name.size());
-            }
-
+            // print the root itself (if it ever ran)
             if (root.count > 0)
             {
-                out << report_line(&root, 0, name_w, total_us);
+                out << report_line(&root, 0, name_w + 2, local_total_us, total_us);
             }
             else
             {
-                out << root.name << "\n";
+                double root_pct = total_us > 0 ? (local_total_us / total_us) * 100.0 : 0.0;
+                out << std::left << std::setw(81) << root.name 
+                    << " | % total: " << std::right << std::setw(6) << std::fixed << std::setprecision(2) << root_pct << "\n";
             }
-            // print each child
+
             for (auto d : kids)
             {
-                out << report_line(d, 1, name_w, total_us);
+                out << report_line(d, 1, name_w, local_total_us, total_us);
             }
         }
 
@@ -184,6 +183,7 @@ namespace boblib::utils
     std::string Profiler::report_line(const ProfilerData *d,
                                       int indent_level,
                                       int name_width,
+                                      double local_total_us,
                                       double total_us) const noexcept
     {
         std::ostringstream out;
@@ -191,15 +191,16 @@ namespace boblib::utils
 
         double dur_us = std::chrono::duration<double, std::micro>(d->duration).count();
         double avg_us = dur_us / d->count;
-        double pct    = total_us > 0
-                        ? (dur_us / total_us) * 100.0
-                        : 0.0;
+        double local_pct = local_total_us > 0 ? (dur_us / local_total_us) * 100.0 : 0.0;
+        double total_pct = total_us > 0 ? (dur_us / total_us) * 100.0: 0.0;
 
         out << indent
             << std::left   << std::setw(name_width) << d->name << " | "
             << "count: "   << std::right << std::setw(6) << d->count << " | "
             << "avg(us): " << std::right << std::setw(10) << std::fixed << std::setprecision(4) << avg_us << " | "
-            << "%: "       << std::right << std::setw(5) << std::fixed << std::setprecision(2) << pct << "\n";
+            << "% local: " << std::right << std::setw(6) << std::fixed << std::setprecision(2) << local_pct << " | " 
+            << "% total: " << std::right << std::setw(6) << std::fixed << std::setprecision(2) << total_pct 
+            << "\n";
 
         return out.str();
     }

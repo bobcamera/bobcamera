@@ -41,6 +41,8 @@ public:
     void init()
     {
         prof_tracker_id_ = profiler_.add_region("Tracker Worker");
+        prof_update_id_ = profiler_.add_region("Update", prof_tracker_id_);
+        prof_publish_id_ = profiler_.add_region("Publish", prof_tracker_id_);
 
         tracking_pubsub_ptr_ = topic_manager_.get_topic<bob_interfaces::msg::Tracking>(params_.topics.tracking_publisher_topic);
 
@@ -56,11 +58,12 @@ private:
     {
         try
         {
-            profiler_.start(prof_tracker_id_);
+            profiler_.start(prof_update_id_);
             video_tracker_.update_trackers(*detection->bbox_ptr);
-
+            profiler_.stop(prof_update_id_);
+            profiler_.start(prof_publish_id_);
             publish_tracking(detection);
-            profiler_.stop(prof_tracker_id_);
+            profiler_.stop(prof_publish_id_);
         }
         catch (const std::exception &cve)
         {
@@ -189,4 +192,6 @@ private:
     std::shared_ptr<boblib::utils::pubsub::PubSub<Detection>> detector_pubsub_ptr_;
 
     size_t prof_tracker_id_;
+    size_t prof_update_id_;
+    size_t prof_publish_id_;
 };
