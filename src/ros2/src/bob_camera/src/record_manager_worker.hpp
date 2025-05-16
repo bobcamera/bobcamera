@@ -25,14 +25,16 @@
 class RecordManagerWorker final
 {
 public:
-    explicit RecordManagerWorker(ParameterNode &node,
-                                 CameraBgsParams &params,
-                                 const rclcpp::QoS &pub_qos_profile,
-                                 boblib::utils::pubsub::TopicManager &topic_manager)
+    explicit RecordManagerWorker(ParameterNode &node
+                                 , CameraBgsParams &params
+                                 , const rclcpp::QoS &pub_qos_profile
+                                 , boblib::utils::pubsub::TopicManager &topic_manager
+                                 , boblib::utils::Profiler &profiler)
         : node_(node)
         , params_(params)
         , topic_manager_(topic_manager)
         , pub_qos_profile_(pub_qos_profile)
+        , profiler_(profiler)
     {
     }
 
@@ -245,4 +247,6 @@ private:
     bool recording_;
 
     bob_camera::msg::CameraInfo last_camera_info_;
+
+    boblib::utils::Profiler &profiler_;
 };

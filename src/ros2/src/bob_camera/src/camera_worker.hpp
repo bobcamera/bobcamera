@@ -18,11 +18,16 @@
 class CameraWorker final
 {
 public:
-    explicit CameraWorker(ParameterNode &node,
-                          CameraBgsParams &params,
-                          const rclcpp::QoS &qos_publish_profile,
-                          boblib::utils::pubsub::TopicManager &topic_manager)
-        : node_(node), params_(params), qos_publish_profile_(qos_publish_profile), topic_manager_(topic_manager)
+    explicit CameraWorker(ParameterNode &node
+                          , CameraBgsParams &params
+                          , const rclcpp::QoS &qos_publish_profile
+                          , boblib::utils::pubsub::TopicManager &topic_manager
+                          , boblib::utils::Profiler &profiler)
+        : node_(node)
+        , params_(params)
+        , qos_publish_profile_(qos_publish_profile)
+        , topic_manager_(topic_manager)
+        , profiler_(profiler)
     {
         mask_worker_ptr_ = std::make_unique<MaskWorker>(node_,
                                                         [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat &mask)
@@ -635,4 +640,6 @@ private:
     std::unique_ptr<boblib::utils::FpsTracker> camera_fps_tracker_ptr_;
     std::chrono::steady_clock::time_point next_speed_test_time_;
     std::chrono::milliseconds speed_test_frame_duration_{0};
+
+    boblib::utils::Profiler &profiler_;
 };

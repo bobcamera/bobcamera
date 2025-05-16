@@ -3,41 +3,58 @@
 
 namespace boblib::utils
 {
-    Profiler::Profiler(bool enabled) noexcept
-        : enabled_(enabled)
+    Profiler::Profiler(int report_time_seconds, bool enabled) noexcept
+        : report_time_seconds_(report_time_seconds)
+        , max_name_length_(0)
     {
+        set_enabled(enabled);
     }
 
     void Profiler::set_enabled(bool enabled) noexcept
     {
         enabled_ = enabled;
+
+        if (enabled_ && !monitor_thread_.joinable())
+        {
+            monitor_thread_ = std::jthread(&Profiler::monitor_thread, this);
+        }
+        else if (!enabled_ && monitor_thread_.joinable())
+        {
+            monitor_thread_.request_stop();
+            monitor_thread_.join();
+        }
     }
 
-    void Profiler::start(size_t region_id, std::string_view region) noexcept
+    size_t Profiler::add_region(std::string_view region) noexcept
     {
+        std::lock_guard<std::mutex> lock(mutex_);
+        size_t region_id = profiler_data_.size();
+        profiler_data_[region_id].name = region;
+        profiler_data_[region_id].region_id = region_id;
+        max_name_length_ = std::max(max_name_length_, static_cast<int>(region.length()));
+        return region_id;
+    }
+
+    void Profiler::start(size_t region_id) noexcept
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
         if (!enabled_)
         {
             return;
         }
-        auto &data = profiler_data_[region_id];
-        if (data.name.empty())
-        {
-            data.region_id = region_id;
-            data.name = region;
-            max_name_length_ = std::max(max_name_length_, static_cast<int>(region.length()));
-        }
-
         auto time = Clock::now();
         if (start_time_.time_since_epoch().count() == 0)
         {
             start_time_ = time;
         }
-
+        auto &data = profiler_data_[region_id];
+        data.region_id = region_id;
         data.start_time = time;
     }
 
     void Profiler::stop(size_t region_id) noexcept
     {
+        std::lock_guard<std::mutex> lock(mutex_);
         if (!enabled_)
         {
             return;
@@ -54,24 +71,20 @@ namespace boblib::utils
 
     void Profiler::reset() noexcept
     {
+        std::lock_guard<std::mutex> lock(mutex_);
         if (!enabled_)
         {
             return;
         }
-        profiler_data_.clear();
+        for (auto &entry : profiler_data_)
+        {
+            entry.second.start_time = TimePoint{};
+            entry.second.stop_time = TimePoint{};
+            entry.second.duration = Duration{};
+            entry.second.count = 0;
+        }
         start_time_ = TimePoint{};
         stop_time_ = TimePoint{};
-        max_name_length_ = 0;
-    }
-
-    ProfilerData const &Profiler::get_data(size_t region_id) const noexcept
-    {
-        return profiler_data_.at(region_id);
-    }
-
-    DataMap const &Profiler::get_data() const noexcept
-    {
-        return profiler_data_;
     }
 
     TimePoint Profiler::get_start_time() const noexcept
@@ -86,6 +99,7 @@ namespace boblib::utils
 
     std::string Profiler::report() const noexcept
     {
+        std::lock_guard<std::mutex> lock(mutex_);
         if (!enabled_)
         {
             return {};
@@ -133,7 +147,7 @@ namespace boblib::utils
         oss << std::fixed;
 
         // Format name with right alignment in a field of 15 characters
-        oss << '[' << std::setw(max_name_length_) << std::right << data.name << "]: ";
+        oss << '[' << std::setw(max_name_length_) << std::right << (!data.name.empty() ? data.name : std::to_string(data.region_id)) << "]: ";
 
         // Format numeric values with consistent width and precision
         oss << "Avg.Time(ns): " << std::setw(9) << std::right << std::setprecision(0) << avg_ns << ", ";
@@ -145,20 +159,34 @@ namespace boblib::utils
         return oss.str();
     }
 
-    bool Profiler::report_if_greater(double time_in_seconds, std::string & the_report) noexcept
-    {
-        if (!enabled_)
-        {
-            return false;
-        }
+    // bool Profiler::report_if_greater(double time_in_seconds, std::string &the_report) noexcept
+    // {
+    //     std::lock_guard<std::mutex> lock(mutex_);
+    //     if (!enabled_)
+    //     {
+    //         return false;
+    //     }
 
-        const double elapsed_seconds = (stop_time_ - start_time_).count() * 1e-9;
-        if (elapsed_seconds >= time_in_seconds)
+    //     const double elapsed_seconds = (stop_time_ - start_time_).count() * 1e-9;
+    //     if (elapsed_seconds >= time_in_seconds)
+    //     {
+    //         the_report = report();
+    //         reset();
+    //         return true;
+    //     }
+    //     return false;
+    // }
+
+    void Profiler::monitor_thread(std::stop_token stoken)
+    {
+        while (!stoken.stop_requested())
         {
-            the_report = report();
-            reset();
-            return true;
+            std::this_thread::sleep_for(std::chrono::seconds(report_time_seconds_));
+            if (start_time_.time_since_epoch().count() > 0)
+            {
+                std::cout << report() << std::endl;
+                reset();
+            }
         }
-        return false;
     }
 }

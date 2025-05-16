@@ -37,6 +37,11 @@ public:
 private:
     void init()
     {
+        prof_annotated_id_ = profiler_.add_region("Annotated Frame Provider");
+        prof_convert_color_id_ = profiler_.add_region("AFP: Convert Color");
+        prof_create_frame_id_ = profiler_.add_region("AFP: Create Frame");
+        prof_publish_id_ = profiler_.add_region("AFP: Publish Frame");
+
         pub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::Reliable);
         pub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
         pub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
@@ -127,31 +132,27 @@ private:
     {
         try
         {
-            profiler_.start(0, "Convert Color");
+            profiler_.start(prof_annotated_id_);
+            profiler_.start(prof_convert_color_id_);
             cv::Mat img;
             ImageUtils::convert_image_msg(image_msg, img, false);
-            profiler_.stop(0);
-            profiler_.start(1, "Create Annotated Frame");
+            profiler_.stop(prof_convert_color_id_);
+            profiler_.start(prof_create_frame_id_);
 
             annotated_frame_creator_ptr_->create_frame(img, *tracking, enable_tracking_status_);
-            profiler_.stop(1);
-            profiler_.start(2, "Publish Annotated Frame");
+            profiler_.stop(prof_create_frame_id_);
+            profiler_.start(prof_publish_id_);
             publish_if_subscriber(pub_annotated_frame_, *image_msg);
 
             publish_resized_frame(image_msg, img);
-            profiler_.stop(2);
+            profiler_.stop(prof_publish_id_);
+            profiler_.stop(prof_annotated_id_);
 
             fps_tracker_ptr_->add_frame();
             double current_fps = 0.0;
             if (fps_tracker_ptr_->get_fps_if_ready(current_fps))
             {
                 log_info("annotated: FPS: %g", current_fps);
-            }
-
-            std::string profiler_report;
-            if (profiler_.report_if_greater(5.0, profiler_report))
-            {
-                log_info(profiler_report);
             }
         }
         catch (const std::exception &e)
@@ -235,6 +236,11 @@ private:
     boblib::utils::Profiler profiler_;
 
     std::unique_ptr<boblib::utils::JpegCompressor> jpeg_compressor_ptr_;
+
+    size_t prof_annotated_id_;
+    size_t prof_convert_color_id_;
+    size_t prof_create_frame_id_;
+    size_t prof_publish_id_;
 };
 
 RCLCPP_COMPONENTS_REGISTER_NODE(AnnotatedFrameProvider)

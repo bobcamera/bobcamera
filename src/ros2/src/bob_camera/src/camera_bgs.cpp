@@ -1,15 +1,21 @@
 #include <chrono>
 #include <string>
 #include <memory>
+
 #include <opencv2/opencv.hpp>
+
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
-#include <bob_interfaces/srv/mask_override_request.hpp>
-#include <bob_interfaces/msg/recording_event.hpp>
+
 #include <parameter_node.hpp>
 #include <image_utils.hpp>
 #include <visibility_control.h>
+
+#include <bob_interfaces/srv/mask_override_request.hpp>
+#include <bob_interfaces/msg/recording_event.hpp>
+
 #include <boblib/api/utils/pubsub/TopicManager.hpp>
+#include <boblib/api/utils/profiler.hpp>
 
 #include "camera_bgs_params.hpp"
 #include "camera_worker.hpp"
@@ -18,7 +24,8 @@
 #include "track_provider_worker.hpp"
 #include "record_manager_worker.hpp"
 
-class CameraBGS : public ParameterNode
+class CameraBGS final
+    : public ParameterNode
 {
 public:
     COMPOSITION_PUBLIC
@@ -32,11 +39,11 @@ public:
 
         topic_manager_ = std::make_unique<boblib::utils::pubsub::TopicManager>(100);
 
-        bgs_worker_ptr_ = std::make_unique<BackgroundSubtractorWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_);
-        camera_save_worker_ptr_ = std::make_unique<CameraSaveWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_);
-        track_provider_worker_ptr_ = std::make_unique<TrackProviderWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_);
-        record_manager_worker_ptr_ = std::make_unique<RecordManagerWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_);
-        camera_worker_ptr_ = std::make_unique<CameraWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_);
+        bgs_worker_ptr_ = std::make_unique<BackgroundSubtractorWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_, profiler_);
+        camera_save_worker_ptr_ = std::make_unique<CameraSaveWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_, profiler_);
+        track_provider_worker_ptr_ = std::make_unique<TrackProviderWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_, profiler_);
+        record_manager_worker_ptr_ = std::make_unique<RecordManagerWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_, profiler_);
+        camera_worker_ptr_ = std::make_unique<CameraWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_, profiler_);
     }
 
     // Ensure child workers are destroyed when node is shut down
@@ -57,6 +64,8 @@ private:
     {
         log_info("CameraBGS init");
         declare_node_parameters();
+
+        profiler_.set_enabled(camera_bgs_params_.profiling);
 
         bgs_worker_ptr_->init();
         camera_save_worker_ptr_->init();
@@ -411,6 +420,8 @@ private:
     }
 
     rclcpp::QoS qos_profile_; 
+
+    boblib::utils::Profiler profiler_;
 
     std::unique_ptr<CameraWorker> camera_worker_ptr_;
     std::unique_ptr<BackgroundSubtractorWorker> bgs_worker_ptr_;

@@ -4,6 +4,8 @@
 #include <string>
 #include <unordered_map>
 #include <chrono>
+#include <mutex>
+#include <thread>
 
 namespace boblib::utils
 {
@@ -18,7 +20,7 @@ namespace boblib::utils
         TimePoint start_time;
         TimePoint stop_time;
         Duration duration;
-        int count;
+        size_t count;
 
         double fps() const noexcept
         {
@@ -56,20 +58,18 @@ namespace boblib::utils
     class Profiler final
     {
     public:
-        Profiler(bool enabled = true) noexcept;
+        Profiler(int report_time_seconds = 5, bool enabled = true) noexcept;
         ~Profiler() noexcept = default;
 
         void set_enabled(bool enabled) noexcept;
 
-        void start(size_t region_id, std::string_view region) noexcept;
+        size_t add_region(std::string_view region) noexcept;
+
+        void start(size_t region_id) noexcept;
 
         void stop(size_t region_id) noexcept;
 
         void reset() noexcept;
-
-        ProfilerData const &get_data(size_t region_id) const noexcept;
-
-        DataMap const &get_data() const noexcept;
 
         TimePoint get_start_time() const noexcept;
 
@@ -77,16 +77,20 @@ namespace boblib::utils
 
         std::string report() const noexcept;
 
-        std::string report_individual(const ProfilerData &data) const noexcept;
-
-        bool report_if_greater(double time_in_seconds, std::string &the_report) noexcept;
+        //bool report_if_greater(double time_in_seconds, std::string &the_report) noexcept;
 
     private:
+        int report_time_seconds_;
+        bool enabled_;
         DataMap profiler_data_;
         TimePoint start_time_;
         TimePoint stop_time_;
-        int max_name_length_{0}; 
-        bool enabled_{true}; // Enable or disable profiling
+        int max_name_length_;
+        mutable std::mutex mutex_;  // protect all shared state
+        std::jthread monitor_thread_;
+
+        std::string report_individual(const ProfilerData &data) const noexcept;
+        void monitor_thread(std::stop_token stoken);
     };
 }
 

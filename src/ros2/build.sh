@@ -9,4 +9,4 @@ mkdir -p cd ../boblib/build \
     && sudo make install \
     && cd -
 
-colcon build --executor parallel --parallel-workers $(nproc) --cmake-args -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+colcon build --executor parallel --parallel-workers $(nproc) --cmake-args -DCMAKE_BUILD_TYPE=Release -DCMAKE_BUILD_PARALLEL_LEVEL=$(nproc) -DCMAKE_EXPORT_COMPILE_COMMANDS=ON

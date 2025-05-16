@@ -24,14 +24,16 @@
 class CameraSaveWorker final
 {
 public:
-    explicit CameraSaveWorker(ParameterNode &node,
-                              CameraBgsParams &params,
-                              const rclcpp::QoS &sub_qos_profile,
-                              boblib::utils::pubsub::TopicManager &topic_manager)
-        : node_(node),
-          params_(params),
-          sub_qos_profile_(sub_qos_profile),
-          topic_manager_(topic_manager)
+    explicit CameraSaveWorker(ParameterNode &node
+                              , CameraBgsParams &params
+                              , const rclcpp::QoS &sub_qos_profile
+                              , boblib::utils::pubsub::TopicManager &topic_manager
+                              , boblib::utils::Profiler &profiler)
+        : node_(node)
+        , params_(params)
+        , sub_qos_profile_(sub_qos_profile)
+        , topic_manager_(topic_manager)
+        , profiler_(profiler)
     {
     }
 
@@ -43,8 +45,11 @@ public:
 
     void init()
     {
+        prof_image_id_ = profiler_.add_region("Save: Image");
+        prof_heatmap_id_ = profiler_.add_region("Save: Heatmap");
+        prof_json_id_ = profiler_.add_region("Save: Json");
+
         fps_tracker_ptr_ = std::make_unique<boblib::utils::FpsTracker>(params_.profiling, 5);
-        profiler_.set_enabled(params_.profiling);
 
         recording_event_pubsub_ptr_ = topic_manager_.get_topic<bob_interfaces::msg::RecordingEvent>(params_.topics.recording_event_publisher_topic);
         recording_event_pubsub_ptr_->subscribe<CameraSaveWorker, &CameraSaveWorker::recording_event>(this);
@@ -157,9 +162,9 @@ private:
             {
                 return;
             }
-            profiler_.start(1, "bgs");
+            profiler_.start(prof_heatmap_id_);
             img_recorder_->accumulate_mask(camera_publish->image_ptr->toMat());
-            profiler_.stop(1);
+            profiler_.stop(prof_heatmap_id_);
         }
         catch (const std::exception &e)
         {
@@ -187,7 +192,7 @@ private:
             {
                 node_.log_info("CameraSaveWorker: image_pubsub_ptr_ queue size: %zu", image_pubsub_ptr_->queue_size());
             }
-            profiler_.start(0, "images");
+            profiler_.start(prof_image_id_);
 
             auto &camera_img = *camera_publish->image_ptr;
 
@@ -213,13 +218,7 @@ private:
             {
                 video_recorder_ptr_->add_to_pre_buffer(camera_img);
             }
-            profiler_.stop(0);
-
-            std::string profiler_report;
-            if (profiler_.report_if_greater(5.0, profiler_report))
-            {
-                node_.log_send_info(profiler_report);
-            }
+            profiler_.stop(prof_image_id_);
         }
         catch (const std::exception &e)
         {
@@ -237,7 +236,7 @@ private:
                 return;
             }
 
-            profiler_.start(2, "tracking");
+            profiler_.start(prof_json_id_);
             auto json_data = JsonRecorder::build_json_value(tracking_msg, false);
             if (recording_)
             {
@@ -256,7 +255,7 @@ private:
             {
                 json_recorder_->add_to_pre_buffer(json_data, false);
             }
-            profiler_.stop(2);
+            profiler_.stop(prof_json_id_);
         }
         catch (const std::exception &e)
         {
@@ -281,10 +280,14 @@ private:
     bob_interfaces::msg::RecordingEvent last_recording_event_;
 
     std::unique_ptr<boblib::utils::FpsTracker> fps_tracker_ptr_;
-    boblib::utils::Profiler profiler_;
+    boblib::utils::Profiler &profiler_;
 
     std::shared_ptr<boblib::utils::pubsub::PubSub<PublishImage>> image_pubsub_ptr_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<PublishImage>> bgs_pubsub_ptr_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<bob_interfaces::msg::RecordingEvent>> recording_event_pubsub_ptr_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<bob_interfaces::msg::Tracking>> tracking_pubsub_ptr_;
+
+    size_t prof_image_id_;
+    size_t prof_heatmap_id_;
+    size_t prof_json_id_;
 };

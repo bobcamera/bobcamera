@@ -30,11 +30,13 @@ public:
     BackgroundSubtractorWorker(ParameterNode &node
                             , CameraBgsParams &params
                             , const rclcpp::QoS &qos_publish_profile
-                            , boblib::utils::pubsub::TopicManager &topic_manager)
+                            , boblib::utils::pubsub::TopicManager &topic_manager
+                            , boblib::utils::Profiler &profiler)
         : node_(node)
         , params_(params)
         , qos_publish_profile_(qos_publish_profile)
         , topic_manager_(topic_manager)
+        , profiler_(profiler)
     {
         mask_worker_ptr_ = std::make_unique<MaskWorker>(node_,
                                                         [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat &mask)
@@ -48,12 +50,15 @@ public:
 
     void init()
     {
+        prof_img_callback_id_ = profiler_.add_region("BGS: Image Callback");
+        prof_convert_color_id_ = profiler_.add_region("BGS: Convert Color");
+        prof_bgs_id_ = profiler_.add_region("BGS: Background Subtractor");
+        prof_blobs_id_ = profiler_.add_region("BGS: Blobs");
+
         using_cuda_ = params_.use_cuda ? boblib::base::Utils::has_cuda() : false;
 
         blank_mask_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_);
         detection_mask_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_);
-
-        profiler_.set_enabled(params_.profiling);
 
         mask_worker_ptr_->init(params_.bgs.mask.timer_seconds, params_.bgs.mask.filename);
 
@@ -205,7 +210,7 @@ public:
     {
         try
         {
-            profiler_.start(0, "Image Callback");
+            profiler_.start(prof_img_callback_id_);
             if (camera_pubsub_ptr_->queue_size() > 1)
             {
                 node_.log_info("Publish Queue size: %d", camera_pubsub_ptr_->queue_size() - 1);
@@ -224,10 +229,10 @@ public:
                 return;
             }
 
-            profiler_.start(1, "Convert Color");
+            profiler_.start(prof_convert_color_id_);
             boblib::base::Image gray_img(using_cuda_);
             publish_image->image_ptr->convertColorTo(gray_img, cv::COLOR_BGR2GRAY);
-            profiler_.stop(1);
+            profiler_.stop(prof_convert_color_id_);
 
             // Resize detection mask if needed
             if (mask_enabled_ && params_.bgs.mask.enable_override &&
@@ -241,27 +246,21 @@ public:
                                    ? *detection_mask_ptr_
                                    : *blank_mask_ptr_;
 
-            profiler_.start(2, "Bgs Apply");
+            profiler_.start(prof_bgs_id_);
             auto bgs_img_ptr = std::make_shared<boblib::base::Image>(using_cuda_);
 
             bgs_ptr_->apply(gray_img, *bgs_img_ptr, mask);
-            profiler_.stop(2);
-            profiler_.start(3, "Bgs Detection");
+            profiler_.stop(prof_bgs_id_);
+            profiler_.start(prof_blobs_id_);
             do_detection(publish_image->header_ptr, *bgs_img_ptr, publish_image->camera_info_ptr->fps);
-            profiler_.stop(3);
+            profiler_.stop(prof_blobs_id_);
 
             processing_ = false;
             cv_processing_.notify_all();
 
             process_pubsub_ptr_->publish(PublishImage(publish_image->header_ptr, std::move(bgs_img_ptr), publish_image->camera_info_ptr));
 
-            profiler_.stop(0);
-
-            std::string profiler_report;
-            if (profiler_.report_if_greater(5.0, profiler_report))
-            {
-                node_.log_send_info(profiler_report);
-            }
+            profiler_.stop(prof_img_callback_id_);
 
             bgs_fps_tracker_ptr_->add_frame();
             double current_fps = 0.0;
@@ -464,7 +463,12 @@ private:
     std::shared_ptr<boblib::utils::pubsub::PubSub<Detection>> detector_pubsub_ptr_;
 
     // profiling fields
-    boblib::utils::Profiler profiler_;
+    boblib::utils::Profiler &profiler_;
 
     std::unique_ptr<boblib::utils::FpsTracker> bgs_fps_tracker_ptr_;
+
+    size_t prof_img_callback_id_;
+    size_t prof_convert_color_id_;
+    size_t prof_bgs_id_;
+    size_t prof_blobs_id_;
 };

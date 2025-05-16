@@ -104,6 +104,10 @@ int main(int argc, const char **argv)
 
     boblib::base::Image bgsMaskImg;
 
+    size_t prof_pre_process_id = profiler.add_region("Preprocess");
+    size_t prof_bgs_id = profiler.add_region("BGS");
+    size_t prof_blob_id = profiler.add_region("Blob");
+
     std::vector<cv::Rect> bboxes;
     bool pause = false;
     std::cout << "Enter loop" << std::endl;
@@ -120,7 +124,7 @@ int main(int argc, const char **argv)
             boblib::base::Image img_input(frame);
             boblib::base::Image processedFrame;
 
-            profiler.start(0, "Preprocess");
+            profiler.start(prof_pre_process_id);
             if (applyGreyscale)
             {
                 img_input.convertColorTo(processedFrame, cv::COLOR_RGB2GRAY);
@@ -133,21 +137,15 @@ int main(int argc, const char **argv)
             {
                 processedFrame.medianBlur(blur_radius);
             }
-            profiler.stop(0);
-            profiler.start(1, "BGS");
+            profiler.stop(prof_pre_process_id);
+            profiler.start(prof_bgs_id);
             bgsPtr->apply(processedFrame, bgsMaskImg);
-            profiler.stop(1);
-            profiler.start(2, "Blob");
+            profiler.stop(prof_bgs_id);
+            profiler.start(prof_blob_id);
             blobDetector.detect(bgsMaskImg, bboxes);
-            profiler.stop(2);
+            profiler.stop(prof_blob_id);
             drawBboxes(bboxes, bgsMaskImg);
             drawBboxes(bboxes, img_input);
-
-            std::string profiler_report;
-            if (profiler.report_if_greater(5.0, profiler_report))
-            {
-                std::cout << profiler_report << std::endl;
-            }
 
             cv::imshow("BGS Demo", bgsMaskImg.toMat());
             cv::resizeWindow("BGS Demo", 1024, 1024);

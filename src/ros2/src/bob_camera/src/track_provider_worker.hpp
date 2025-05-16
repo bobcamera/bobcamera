@@ -24,21 +24,23 @@
 class TrackProviderWorker final
 {
 public:
-    explicit TrackProviderWorker(ParameterNode &node,
-                                 CameraBgsParams &params,
-                                 const rclcpp::QoS &pub_qos_profile,
-                                 boblib::utils::pubsub::TopicManager &topic_manager)
+    explicit TrackProviderWorker(ParameterNode &node
+                                 , CameraBgsParams &params
+                                 , const rclcpp::QoS &pub_qos_profile
+                                 , boblib::utils::pubsub::TopicManager &topic_manager
+                                 , boblib::utils::Profiler &profiler)
         : node_(node)
         , params_(params)
         , pub_qos_profile_(pub_qos_profile)
         , topic_manager_(topic_manager)
         , video_tracker_(node.get_logger())
+        , profiler_(profiler)
     {
     }
 
     void init()
     {
-        profiler_.set_enabled(params_.profiling);
+        prof_tracker_id_ = profiler_.add_region("Tracker: Tracking");
 
         tracker_fps_tracker_ptr_ = std::make_unique<boblib::utils::FpsTracker>(params_.profiling, 5);
 
@@ -56,17 +58,11 @@ private:
     {
         try
         {
-            profiler_.start(0, "TrackProviderWorker");
+            profiler_.start(prof_tracker_id_);
             video_tracker_.update_trackers(*detection->bbox_ptr);
 
             publish_tracking(detection);
-            profiler_.stop(0);
-
-            std::string profiler_report;
-            if (profiler_.report_if_greater(5.0, profiler_report))
-            {
-                node_.log_send_info(profiler_report);
-            }
+            profiler_.stop(prof_tracker_id_);
 
             tracker_fps_tracker_ptr_->add_frame();
             double current_fps = 0.0;
@@ -193,7 +189,7 @@ private:
     const rclcpp::QoS &pub_qos_profile_;
     boblib::utils::pubsub::TopicManager &topic_manager_;
 
-    boblib::utils::Profiler profiler_;
+    boblib::utils::Profiler &profiler_;
 
     rclcpp::Publisher<bob_interfaces::msg::Tracking>::SharedPtr pub_tracker_tracking_;
     rclcpp::Publisher<bob_interfaces::msg::Tracking>::SharedPtr pub_tracker_tracking_resized_;
@@ -202,4 +198,6 @@ private:
     std::shared_ptr<boblib::utils::pubsub::PubSub<Detection>> detector_pubsub_ptr_;
 
     std::unique_ptr<boblib::utils::FpsTracker> tracker_fps_tracker_ptr_;
+
+    size_t prof_tracker_id_;
 };
