@@ -58,7 +58,10 @@ public:
             prof_simulator_id_ = profiler_.add_region("Simulator", prof_camera_worker_id_);
             prof_mask_id_ = profiler_.add_region("Privacy Mask", prof_camera_worker_id_);
             prof_prepare_publish_id_ = profiler_.add_region("Prepare Publish", prof_camera_worker_id_);
-            prof_publish_id_ = profiler_.add_region("Publish", prof_camera_worker_id_);
+            prof_publish_id_ = profiler_.add_region("Publish Frame", prof_camera_worker_id_);
+            prof_publish_camera_info_id_ = profiler_.add_region("Publish Camera Info", prof_camera_worker_id_);
+            prof_publish_resized_resizing_id_ = profiler_.add_region("Publish Resized Resizing", prof_camera_worker_id_);
+            prof_publish_resized_msg_id_ = profiler_.add_region("Publish Resized Msg", prof_camera_worker_id_);
 
             camera_info_msg_ptr_ = std::make_shared<bob_camera::msg::CameraInfo>();
             camera_info_msg_ptr_->frame_height = 0;
@@ -359,10 +362,12 @@ private:
         {
             profiler_.start(prof_publish_id_);
             publish_frame(*publish_image->header_ptr, *publish_image->image_ptr);
+            profiler_.stop(prof_publish_id_);
             publish_resized_frame(*publish_image->header_ptr, *publish_image->image_ptr);
             // publish_image_info(*publish_image->header_ptr, *publish_image->image_ptr);
+            profiler_.start(prof_publish_camera_info_id_);
             publish_camera_info();
-            profiler_.stop(prof_publish_id_);
+            profiler_.stop(prof_publish_camera_info_id_);
         }
         catch (const std::exception &e)
         {
@@ -400,12 +405,18 @@ private:
             return;
         }
 
+        profiler_.start(prof_publish_resized_resizing_id_);
         boblib::base::Image resized_img(using_cuda_);
         const auto frame_width = static_cast<int>(camera_img.size().aspectRatio() * static_cast<double>(params_.resize_height));
         camera_img.resizeTo(resized_img, cv::Size(frame_width, params_.resize_height));
+        profiler_.stop(prof_publish_resized_resizing_id_);
+        profiler_.start(prof_publish_resized_msg_id_);
+        auto resized_frame_msg = PublishImage::fill_imagemsg_header(header, resized_img);
+        const size_t totalBytes = resized_img.total() * resized_img.elemSize();
+        resized_frame_msg.data.assign(resized_img.data(), resized_img.data() + totalBytes);
 
-        auto resized_frame_msg = cv_bridge::CvImage(header, ImageUtils::type_to_encoding(resized_img.type()), resized_img.toMat()).toImageMsg();
-        image_resized_publisher_->publish(*resized_frame_msg);
+        image_resized_publisher_->publish(resized_frame_msg);
+        profiler_.stop(prof_publish_resized_msg_id_);
     }
 
     void start_capture() noexcept
@@ -648,4 +659,7 @@ private:
     size_t prof_mask_id_;
     size_t prof_prepare_publish_id_;
     size_t prof_publish_id_;
+    size_t prof_publish_camera_info_id_;
+    size_t prof_publish_resized_resizing_id_;
+    size_t prof_publish_resized_msg_id_;
 };
