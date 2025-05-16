@@ -53,13 +53,19 @@ public:
             is_open_ = false;
             is_camera_info_auto_ = false;
 
+            prof_camera_worker_id_ = profiler_.add_region("Camera Worker");
+            prof_acquire_image_id_ = profiler_.add_region("Aquire Image", prof_camera_worker_id_);
+            prof_simulator_id_ = profiler_.add_region("Simulator", prof_camera_worker_id_);
+            prof_mask_id_ = profiler_.add_region("Privacy Mask", prof_camera_worker_id_);
+            prof_prepare_publish_id_ = profiler_.add_region("Prepare Publish", prof_camera_worker_id_);
+            prof_publish_id_ = profiler_.add_region("Publish", prof_camera_worker_id_);
+
             camera_info_msg_ptr_ = std::make_shared<bob_camera::msg::CameraInfo>();
             camera_info_msg_ptr_->frame_height = 0;
             camera_info_msg_ptr_->frame_width = 0;
             camera_info_msg_ptr_->fps = 0;
             using_cuda_ = params_.use_cuda ? boblib::base::Utils::has_cuda() : false;
             privacy_mask_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_);
-            camera_fps_tracker_ptr_ = std::make_unique<boblib::utils::FpsTracker>(params_.profiling, 5);
 
             circuit_breaker_ptr_ = std::make_unique<CircuitBreaker>(CIRCUIT_BREAKER_MAX_RETRIES, CIRCUIT_BREAKER_INITIAL_TIMEOUT, CIRCUIT_BREAKER_MAX_TIMEOUT);
 
@@ -298,21 +304,29 @@ private:
 
             try
             {
+                // This block will acquire the image apply the simulation and then the privacy mask
+                profiler_.start(prof_acquire_image_id_);
                 auto camera_img_ptr = std::make_shared<boblib::base::Image>(using_cuda_);
 
-                // This block will acquire the image apply the simulation and then the privacy mask
                 if (!acquire_image(*camera_img_ptr))
                 {
+                    profiler_.stop(prof_acquire_image_id_);
                     continue;
                 }
+                profiler_.stop(prof_acquire_image_id_);
 
+                profiler_.start(prof_simulator_id_);
                 if (params_.camera.simulator.enable)
                 {
                     object_simulator_ptr_->move(*camera_img_ptr);
                 }
+                profiler_.stop(prof_simulator_id_);
 
+                profiler_.start(prof_mask_id_);
                 apply_mask(*camera_img_ptr);
+                profiler_.stop(prof_mask_id_);
 
+                profiler_.start(prof_prepare_publish_id_);
                 auto header_ptr = std::make_shared<std_msgs::msg::Header>();
                 header_ptr->stamp = node_.now();
                 header_ptr->frame_id = ParameterNode::generate_uuid();
@@ -320,13 +334,7 @@ private:
                 fill_camera_info(*header_ptr, *camera_img_ptr);
 
                 publish_pubsub_ptr_->publish(PublishImage(header_ptr, camera_img_ptr, camera_info_msg_ptr_));
-
-                camera_fps_tracker_ptr_->add_frame();
-                double current_fps = 0.0;
-                if (camera_fps_tracker_ptr_->get_fps_if_ready(current_fps))
-                {
-                    std::cout << "capture_loop: FPS: " << current_fps << std::endl;
-                }
+                profiler_.stop(prof_prepare_publish_id_);
 
                 // Only limiting fps if it is video and the limit_fps param is set
                 if (params_.camera.limit_fps && (params_.camera.source_type == CameraBgsParams::SourceType::VIDEO_FILE))
@@ -339,11 +347,6 @@ private:
                 node_.log_send_error("CameraWorker: capture_loop: Exception: %s", e.what());
                 rcutils_reset_error();
             }
-            catch (...)
-            {
-                node_.log_send_error("CameraWorker: capture_loop: Unknown exception");
-                rcutils_reset_error();
-            }
         }
         node_.log_send_info("CameraWorker: Leaving capture_loop");
 
@@ -354,19 +357,16 @@ private:
     {
         try
         {
+            profiler_.start(prof_publish_id_);
             publish_frame(*publish_image->header_ptr, *publish_image->image_ptr);
             publish_resized_frame(*publish_image->header_ptr, *publish_image->image_ptr);
             // publish_image_info(*publish_image->header_ptr, *publish_image->image_ptr);
             publish_camera_info();
+            profiler_.stop(prof_publish_id_);
         }
         catch (const std::exception &e)
         {
             node_.log_send_error("CameraWorker: publish_images: Exception: %s", e.what());
-            rcutils_reset_error();
-        }
-        catch (...)
-        {
-            node_.log_send_error("CameraWorker: publish_images: Unknown exception");
             rcutils_reset_error();
         }
     }
@@ -637,9 +637,15 @@ private:
     bool cache_full_{false};
     size_t current_test_idx_{0};
 
-    std::unique_ptr<boblib::utils::FpsTracker> camera_fps_tracker_ptr_;
     std::chrono::steady_clock::time_point next_speed_test_time_;
     std::chrono::milliseconds speed_test_frame_duration_{0};
 
     boblib::utils::Profiler &profiler_;
+
+    size_t prof_camera_worker_id_;
+    size_t prof_acquire_image_id_;
+    size_t prof_simulator_id_;
+    size_t prof_mask_id_;
+    size_t prof_prepare_publish_id_;
+    size_t prof_publish_id_;
 };

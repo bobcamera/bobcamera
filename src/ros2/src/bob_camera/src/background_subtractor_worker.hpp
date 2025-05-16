@@ -50,10 +50,10 @@ public:
 
     void init()
     {
-        prof_img_callback_id_ = profiler_.add_region("BGS: Image Callback");
-        prof_convert_color_id_ = profiler_.add_region("BGS: Convert Color");
-        prof_bgs_id_ = profiler_.add_region("BGS: Background Subtractor");
-        prof_blobs_id_ = profiler_.add_region("BGS: Blobs");
+        prof_bgs_worker_id_ = profiler_.add_region("BGS Worker");
+        prof_convert_color_id_ = profiler_.add_region("Convert Color", prof_bgs_worker_id_);
+        prof_bgs_id_ = profiler_.add_region("Background Subtractor", prof_bgs_worker_id_);
+        prof_blobs_id_ = profiler_.add_region("Blobs", prof_bgs_worker_id_);
 
         using_cuda_ = params_.use_cuda ? boblib::base::Utils::has_cuda() : false;
 
@@ -61,8 +61,6 @@ public:
         detection_mask_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_);
 
         mask_worker_ptr_->init(params_.bgs.mask.timer_seconds, params_.bgs.mask.filename);
-
-        bgs_fps_tracker_ptr_ = std::make_unique<boblib::utils::FpsTracker>(params_.profiling, 5);
 
         image_publisher_ptr_ = node_.create_publisher<sensor_msgs::msg::Image>(params_.topics.bgs_image_publish_topic, qos_publish_profile_);
         image_resized_publisher_ptr_ = node_.create_publisher<sensor_msgs::msg::Image>(params_.topics.bgs_image_publish_topic + "/resized", qos_publish_profile_);
@@ -111,11 +109,6 @@ public:
         catch (const std::exception &e)
         {
             node_.log_send_error("init_bgs: Exception: %s", e.what());
-            rcutils_reset_error();
-        }
-        catch (...)
-        {
-            node_.log_send_error("init_bgs: Unknown exception");
             rcutils_reset_error();
         }
 
@@ -195,11 +188,6 @@ public:
             node_.log_send_error("init_sensitivity: Exception: %s", e.what());
             rcutils_reset_error();
         }
-        catch (...)
-        {
-            node_.log_send_error("init_sensitivity: Unknown exception");
-            rcutils_reset_error();
-        }
 
         ready_ = true;
         cv_ready_.notify_all();
@@ -210,7 +198,6 @@ public:
     {
         try
         {
-            profiler_.start(prof_img_callback_id_);
             if (camera_pubsub_ptr_->queue_size() > 1)
             {
                 node_.log_info("Publish Queue size: %d", camera_pubsub_ptr_->queue_size() - 1);
@@ -259,15 +246,6 @@ public:
             cv_processing_.notify_all();
 
             process_pubsub_ptr_->publish(PublishImage(publish_image->header_ptr, std::move(bgs_img_ptr), publish_image->camera_info_ptr));
-
-            profiler_.stop(prof_img_callback_id_);
-
-            bgs_fps_tracker_ptr_->add_frame();
-            double current_fps = 0.0;
-            if (bgs_fps_tracker_ptr_->get_fps_if_ready(current_fps))
-            {
-                std::cout << "bgs_loop: FPS: " << current_fps << std::endl;
-            }
         }
         catch (const std::exception &e)
         {
@@ -465,9 +443,7 @@ private:
     // profiling fields
     boblib::utils::Profiler &profiler_;
 
-    std::unique_ptr<boblib::utils::FpsTracker> bgs_fps_tracker_ptr_;
-
-    size_t prof_img_callback_id_;
+    size_t prof_bgs_worker_id_;
     size_t prof_convert_color_id_;
     size_t prof_bgs_id_;
     size_t prof_blobs_id_;

@@ -40,9 +40,7 @@ public:
 
     void init()
     {
-        prof_tracker_id_ = profiler_.add_region("Tracker: Tracking");
-
-        tracker_fps_tracker_ptr_ = std::make_unique<boblib::utils::FpsTracker>(params_.profiling, 5);
+        prof_tracker_id_ = profiler_.add_region("Tracker Worker");
 
         tracking_pubsub_ptr_ = topic_manager_.get_topic<bob_interfaces::msg::Tracking>(params_.topics.tracking_publisher_topic);
 
@@ -63,13 +61,6 @@ private:
 
             publish_tracking(detection);
             profiler_.stop(prof_tracker_id_);
-
-            tracker_fps_tracker_ptr_->add_frame();
-            double current_fps = 0.0;
-            if (tracker_fps_tracker_ptr_->get_fps_if_ready(current_fps))
-            {
-                std::cout << "tracker_loop: FPS: " << current_fps << std::endl;
-            }
         }
         catch (const std::exception &cve)
         {
@@ -196,8 +187,6 @@ private:
     SORT::Tracker video_tracker_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<bob_interfaces::msg::Tracking>> tracking_pubsub_ptr_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<Detection>> detector_pubsub_ptr_;
-
-    std::unique_ptr<boblib::utils::FpsTracker> tracker_fps_tracker_ptr_;
 
     size_t prof_tracker_id_;
 };

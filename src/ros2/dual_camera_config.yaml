@@ -7,7 +7,7 @@ variables:
   extra_saving_seconds: 2
   image_compression_quality: 50
   use_cuda: false #Leave it false as it is not working
-  profiling: false
+  profiling: true
   use_recording: true
   display_enabled: false
   camera1_enabled: true

@@ -1,5 +1,6 @@
 #include "profiler.hpp"
 #include <iomanip>
+#include <sstream>
 
 namespace boblib::utils
 {
@@ -25,14 +26,25 @@ namespace boblib::utils
         }
     }
 
-    size_t Profiler::add_region(std::string_view region) noexcept
+    size_t Profiler::add_region(std::string_view region, size_t parent_id) noexcept
     {
-        std::lock_guard<std::mutex> lock(mutex_);
-        size_t region_id = profiler_data_.size();
-        profiler_data_[region_id].name = region;
-        profiler_data_[region_id].region_id = region_id;
-        max_name_length_ = std::max(max_name_length_, static_cast<int>(region.length()));
-        return region_id;
+        std::scoped_lock lock(mutex_);
+        size_t new_id = profiler_data_.size() + 1;
+        ProfilerData d;
+        d.region_id = new_id;
+        d.name = std::string(region);
+        d.parent_id = parent_id;
+        profiler_data_[new_id] = std::move(d);
+
+        if (parent_id != 0)
+        {
+            auto it = profiler_data_.find(parent_id);
+            if (it != profiler_data_.end())
+            {
+                it->second.children.push_back(new_id);
+            }
+        }
+        return new_id;
     }
 
     void Profiler::start(size_t region_id) noexcept
@@ -59,13 +71,23 @@ namespace boblib::utils
         {
             return;
         }
+
         auto &data = profiler_data_[region_id];
-        data.stop_time = Clock::now();
+
+        if (data.start_time.time_since_epoch().count() == 0)
+        {
+            return;
+        }
+
+        auto now = Clock::now();
+        data.stop_time = now;
         if (data.stop_time > stop_time_)
         {
             stop_time_ = data.stop_time;
         }
-        data.duration += data.stop_time - data.start_time;
+
+        data.duration += (data.stop_time - data.start_time);
+        data.start_time = TimePoint{};
         data.count++;
     }
 
@@ -99,83 +121,88 @@ namespace boblib::utils
 
     std::string Profiler::report() const noexcept
     {
-        std::lock_guard<std::mutex> lock(mutex_);
-        if (!enabled_)
+        std::scoped_lock lock(mutex_);
+        std::ostringstream out;
+
+        out << "Profiler Report\n" << "=============================\n";
+        for (auto const& [id, root] : profiler_data_)
         {
-            return {};
+            if (root.parent_id != 0)
+            {
+                continue;
+            }
+
+            // collect only nodes with data
+            std::vector<const ProfilerData*> kids;
+            for (auto cid : root.children)
+            {
+                auto it = profiler_data_.find(cid);
+                if (it != profiler_data_.end() && it->second.count > 0)
+                {
+                    kids.push_back(&it->second);
+                }
+            }
+            if (kids.empty()) 
+            {
+                out << report_line(&root, 0, 0, 0.0);
+                continue;
+            }
+
+            // total in μs
+            double total_us = 0.0;
+            for (auto d : kids)
+            {
+                double dur_us = std::chrono::duration<double, std::micro>(d->duration).count();
+                total_us += dur_us;
+            }
+
+            // compute name column width
+            int name_w = root.name.size() + 2; // 2 for the ident level
+            for (auto d : kids)
+            {
+                name_w = std::max(name_w, (int)d->name.size());
+            }
+
+            if (root.count > 0)
+            {
+                out << report_line(&root, 0, name_w, total_us);
+            }
+            else
+            {
+                out << root.name << "\n";
+            }
+            // print each child
+            for (auto d : kids)
+            {
+                out << report_line(d, 1, name_w, total_us);
+            }
         }
-        // Reserve a reasonable initial size for the report
-        std::ostringstream oss;
-        oss.str().reserve(profiler_data_.size() * 200); // Estimate 200 chars per entry
 
-        // Create a vector of entries that can be sorted by key
-        std::vector<std::pair<size_t, const ProfilerData *>> sorted_entries;
-        sorted_entries.reserve(profiler_data_.size());
-
-        for (const auto &entry : profiler_data_)
-        {
-            sorted_entries.push_back({entry.first, &entry.second});
-        }
-
-        // Sort by key
-        std::sort(sorted_entries.begin(), sorted_entries.end(),
-                  [](const auto &a, const auto &b)
-                  { return a.first < b.first; });
-
-        // Output in sorted order
-        for (const auto &entry : sorted_entries)
-        {
-            oss << '\n'
-                << report_individual(*entry.second);
-        }
-        
-        return oss.str();
+        return out.str();
     }
 
-    std::string Profiler::report_individual(const ProfilerData &data) const noexcept
+    std::string Profiler::report_line(const ProfilerData *d,
+                                      int indent_level,
+                                      int name_width,
+                                      double total_us) const noexcept
     {
-        std::ostringstream oss;
-        auto totalDuration = stop_time_ - start_time_;
+        std::ostringstream out;
+        std::string indent(indent_level * 2, ' ');
 
-        // Calculate values first to avoid multiple calls
-        double avg_ns = data.avg_time_in_ns();
-        double avg_us = data.avg_time_in_us();
-        double fps = data.fps();
-        double percentage = (data.duration / totalDuration) * 100.0;
+        double dur_us = std::chrono::duration<double, std::micro>(d->duration).count();
+        double avg_us = dur_us / d->count;
+        double pct    = total_us > 0
+                        ? (dur_us / total_us) * 100.0
+                        : 0.0;
 
-        // Set formatting flags
-        oss << std::fixed;
+        out << indent
+            << std::left   << std::setw(name_width) << d->name << " | "
+            << "count: "   << std::right << std::setw(6) << d->count << " | "
+            << "avg(us): " << std::right << std::setw(10) << std::fixed << std::setprecision(4) << avg_us << " | "
+            << "%: "       << std::right << std::setw(5) << std::fixed << std::setprecision(2) << pct << "\n";
 
-        // Format name with right alignment in a field of 15 characters
-        oss << '[' << std::setw(max_name_length_) << std::right << (!data.name.empty() ? data.name : std::to_string(data.region_id)) << "]: ";
-
-        // Format numeric values with consistent width and precision
-        oss << "Avg.Time(ns): " << std::setw(9) << std::right << std::setprecision(0) << avg_ns << ", ";
-        oss << "Avg.Time(us): " << std::setw(9) << std::right << std::setprecision(2) << avg_us << ", ";
-        oss << "Count: " << std::setw(4) << std::right << data.count << ", ";
-        oss << "FPS: " << std::setw(7) << std::right << std::setprecision(2) << fps << ", ";
-        oss << "%: " << std::setw(5) << std::right << std::setprecision(2) << percentage;
-
-        return oss.str();
+        return out.str();
     }
-
-    // bool Profiler::report_if_greater(double time_in_seconds, std::string &the_report) noexcept
-    // {
-    //     std::lock_guard<std::mutex> lock(mutex_);
-    //     if (!enabled_)
-    //     {
-    //         return false;
-    //     }
-
-    //     const double elapsed_seconds = (stop_time_ - start_time_).count() * 1e-9;
-    //     if (elapsed_seconds >= time_in_seconds)
-    //     {
-    //         the_report = report();
-    //         reset();
-    //         return true;
-    //     }
-    //     return false;
-    // }
 
     void Profiler::monitor_thread(std::stop_token stoken)
     {

@@ -6,6 +6,7 @@
 #include <chrono>
 #include <mutex>
 #include <thread>
+#include <vector>     // <-- add
 
 namespace boblib::utils
 {
@@ -17,6 +18,9 @@ namespace boblib::utils
     {
         size_t region_id;
         std::string name;
+        size_t parent_id{};            // new
+        std::vector<size_t> children;  // new
+
         TimePoint start_time;
         TimePoint stop_time;
         Duration duration;
@@ -63,7 +67,8 @@ namespace boblib::utils
 
         void set_enabled(bool enabled) noexcept;
 
-        size_t add_region(std::string_view region) noexcept;
+        // now takes optional parent_id (0 == root)
+        size_t add_region(std::string_view region, size_t parent_id = 0) noexcept;
 
         void start(size_t region_id) noexcept;
 
@@ -77,8 +82,6 @@ namespace boblib::utils
 
         std::string report() const noexcept;
 
-        //bool report_if_greater(double time_in_seconds, std::string &the_report) noexcept;
-
     private:
         int report_time_seconds_;
         bool enabled_;
@@ -86,10 +89,13 @@ namespace boblib::utils
         TimePoint start_time_;
         TimePoint stop_time_;
         int max_name_length_;
-        mutable std::mutex mutex_;  // protect all shared state
+        mutable std::mutex mutex_;
         std::jthread monitor_thread_;
 
-        std::string report_individual(const ProfilerData &data) const noexcept;
+        std::string report_line(const ProfilerData *d,
+                                int indent_level,
+                                int name_width,
+                                double total_us) const noexcept;
         void monitor_thread(std::stop_token stoken);
     };
 }

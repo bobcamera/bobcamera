@@ -45,11 +45,10 @@ public:
 
     void init()
     {
-        prof_image_id_ = profiler_.add_region("Save: Image");
-        prof_heatmap_id_ = profiler_.add_region("Save: Heatmap");
-        prof_json_id_ = profiler_.add_region("Save: Json");
-
-        fps_tracker_ptr_ = std::make_unique<boblib::utils::FpsTracker>(params_.profiling, 5);
+        prof_save_worker_id_ = profiler_.add_region("Save Worker");
+        prof_image_id_ = profiler_.add_region("Image", prof_save_worker_id_);
+        prof_heatmap_id_ = profiler_.add_region("Heatmap", prof_save_worker_id_);
+        prof_json_id_ = profiler_.add_region("Json", prof_save_worker_id_);
 
         recording_event_pubsub_ptr_ = topic_manager_.get_topic<bob_interfaces::msg::RecordingEvent>(params_.topics.recording_event_publisher_topic);
         recording_event_pubsub_ptr_->subscribe<CameraSaveWorker, &CameraSaveWorker::recording_event>(this);
@@ -181,13 +180,6 @@ private:
             {
                 return;
             }
-            fps_tracker_ptr_->add_frame();
-            double current_fps = 0.0;
-            if (fps_tracker_ptr_->get_fps_if_ready(current_fps))
-            {
-                std::cout << "image_callback: FPS: " << current_fps << std::endl;
-            }
-
             if (image_pubsub_ptr_->queue_size() > 0)
             {
                 node_.log_info("CameraSaveWorker: image_pubsub_ptr_ queue size: %zu", image_pubsub_ptr_->queue_size());
@@ -279,7 +271,6 @@ private:
     bob_camera::msg::CameraInfo last_camera_info_;
     bob_interfaces::msg::RecordingEvent last_recording_event_;
 
-    std::unique_ptr<boblib::utils::FpsTracker> fps_tracker_ptr_;
     boblib::utils::Profiler &profiler_;
 
     std::shared_ptr<boblib::utils::pubsub::PubSub<PublishImage>> image_pubsub_ptr_;
@@ -287,6 +278,7 @@ private:
     std::shared_ptr<boblib::utils::pubsub::PubSub<bob_interfaces::msg::RecordingEvent>> recording_event_pubsub_ptr_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<bob_interfaces::msg::Tracking>> tracking_pubsub_ptr_;
 
+    size_t prof_save_worker_id_;
     size_t prof_image_id_;
     size_t prof_heatmap_id_;
     size_t prof_json_id_;
