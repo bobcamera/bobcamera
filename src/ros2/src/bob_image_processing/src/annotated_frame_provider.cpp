@@ -38,9 +38,9 @@ private:
     void init()
     {
         prof_annotated_id_ = profiler_.add_region("Annotated Frame Provider");
-        prof_convert_color_id_ = profiler_.add_region("AFP: Convert Color");
-        prof_create_frame_id_ = profiler_.add_region("AFP: Create Frame");
-        prof_publish_id_ = profiler_.add_region("AFP: Publish Frame");
+        prof_convert_color_id_ = profiler_.add_region("AFP: Convert Color", prof_annotated_id_);
+        prof_create_frame_id_ = profiler_.add_region("AFP: Create Frame", prof_annotated_id_);
+        prof_publish_id_ = profiler_.add_region("AFP: Publish Frame", prof_annotated_id_);
 
         pub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::Reliable);
         pub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
@@ -54,7 +54,7 @@ private:
 
         declare_node_parameters();
 
-        profiler_.set_enabled(false);
+        profiler_.set_enabled(true);
 
         compressed_image_msg_.format = "jpeg";
 
@@ -101,7 +101,7 @@ private:
                     annotated_frame_creator_settings_ = parse_json_to_map(param.as_string());
                 }),
             ParameterNode::ActionParam(
-                rclcpp::Parameter("resize_height", 960),
+                rclcpp::Parameter("resize_height", 1024),
                 [this](const rclcpp::Parameter &param)
                 {
                     resize_height_ = static_cast<int>(param.as_int());
@@ -132,7 +132,6 @@ private:
     {
         try
         {
-            profiler_.start(prof_annotated_id_);
             profiler_.start(prof_convert_color_id_);
             cv::Mat img;
             ImageUtils::convert_image_msg(image_msg, img, false);
@@ -146,7 +145,6 @@ private:
 
             publish_resized_frame(image_msg, img);
             profiler_.stop(prof_publish_id_);
-            profiler_.stop(prof_annotated_id_);
 
             fps_tracker_ptr_->add_frame();
             double current_fps = 0.0;

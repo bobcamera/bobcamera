@@ -19,11 +19,11 @@ namespace boblib::base
     public:
         Image(bool use_cuda = true) noexcept;
 
-        Image(const Image & img) noexcept;
+        Image(const Image &img) noexcept;
 
-        Image(Image&& img) noexcept;
+        Image(Image &&img) noexcept;
 
-        Image(const cv::Mat &image) noexcept;
+        explicit Image(const cv::Mat &image) noexcept;
 
         ~Image() noexcept;
 

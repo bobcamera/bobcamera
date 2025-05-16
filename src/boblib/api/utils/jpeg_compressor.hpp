@@ -15,7 +15,7 @@ namespace boblib::utils
 
         /// encode `img` into `out_buffer` as JPEG
         /// returns true on success, false on failure
-        bool compress(const cv::Mat &img, std::vector<uint8_t> &out_buffer);
+        bool compress(const cv::Mat &img, std::vector<uint8_t> &out_buffer) noexcept;
 
     private:
         tjhandle handle_;

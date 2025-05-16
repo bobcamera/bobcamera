@@ -5,7 +5,10 @@ namespace boblib::utils
 {
 
     JpegCompressor::JpegCompressor(int quality, TJSAMP subsampling) noexcept
-        : handle_(tjInitCompress()), quality_(quality), subsampling_(subsampling), jpeg_max_size_(0)
+        : handle_(tjInitCompress())
+        , quality_(quality)
+        , subsampling_(subsampling)
+        , jpeg_max_size_(0)
     {
     }
 
@@ -18,7 +21,7 @@ namespace boblib::utils
     }
 
     bool JpegCompressor::compress(const cv::Mat &img,
-                                  std::vector<uint8_t> &out_buffer)
+                                  std::vector<uint8_t> &out_buffer) noexcept
     {
         if (!handle_ || img.empty())
         {
@@ -29,17 +32,10 @@ namespace boblib::utils
         int pf;
         switch (img.channels())
         {
-        case 1:
-            pf = TJPF_GRAY;
-            break;
-        case 3:
-            pf = TJPF_BGR;
-            break;
-        case 4:
-            pf = TJPF_BGRA;
-            break;
-        default:
-            return false;
+        case 1: pf = TJPF_GRAY; break;
+        case 3: pf = TJPF_BGR; break;
+        case 4: pf = TJPF_BGRA; break;
+        default: return false;
         }
 
         // Calculate the maximum buffer size needed

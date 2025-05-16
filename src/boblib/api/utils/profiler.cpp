@@ -139,7 +139,7 @@ namespace boblib::utils
         out << boblib::utils::console_colors::BRIGHT_GREEN << boblib::utils::console_colors::BOLD
             << "Profiler Report" << boblib::utils::console_colors::RESET << "\n"
             << boblib::utils::console_colors::BRIGHT_GREEN << boblib::utils::console_colors::BOLD
-            << std::string(99, '=')
+            << std::string(name_w + 76, '=')
             << boblib::utils::console_colors::RESET << "\n";
 
         for (auto const& [id, root] : profiler_data_)
@@ -171,7 +171,7 @@ namespace boblib::utils
             {
                 double root_pct = total_us > 0 ? (local_total_us / total_us) * 100.0 : 0.0;
                 out << boblib::utils::console_colors::YELLOW
-                    << std::left << std::setw(81) << root.name
+                    << std::left << std::setw(name_w + 58) << root.name
                     << boblib::utils::console_colors::RESET
                     << " | " << boblib::utils::console_colors::BOLD << "% total: "
                     << boblib::utils::console_colors::YELLOW << std::right << std::setw(6) << std::fixed << std::setprecision(2) << root_pct
@@ -184,7 +184,7 @@ namespace boblib::utils
             }
         }
         out << boblib::utils::console_colors::BRIGHT_GREEN << boblib::utils::console_colors::BOLD
-            << std::string(99, '=')
+            << std::string(name_w + 76, '=')
             << boblib::utils::console_colors::RESET << "\n";
 
         return out.str();

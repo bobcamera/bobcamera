@@ -405,16 +405,18 @@ private:
             return;
         }
 
+        // Alocating the data for the resized image directly in the message so we don't have to copy it
         profiler_.start(prof_publish_resized_resizing_id_);
-        boblib::base::Image resized_img(using_cuda_);
         const auto frame_width = static_cast<int>(camera_img.size().aspectRatio() * static_cast<double>(params_.resize_height));
-        camera_img.resizeTo(resized_img, cv::Size(frame_width, params_.resize_height));
+        const cv::Size frame_size(frame_width, params_.resize_height);
+        auto resized_frame_msg = PublishImage::fill_imagemsg_header(header, frame_size, camera_img.type());
+        const size_t total_bytes = frame_size.area() * camera_img.elemSize();
+        resized_frame_msg.data.resize(total_bytes);
+        cv::Mat resized_frame(frame_size, camera_img.type(), resized_frame_msg.data.data());
+        cv::resize(camera_img.toMat(), resized_frame, frame_size, 0, 0, cv::INTER_NEAREST);
         profiler_.stop(prof_publish_resized_resizing_id_);
-        profiler_.start(prof_publish_resized_msg_id_);
-        auto resized_frame_msg = PublishImage::fill_imagemsg_header(header, resized_img);
-        const size_t totalBytes = resized_img.total() * resized_img.elemSize();
-        resized_frame_msg.data.assign(resized_img.data(), resized_img.data() + totalBytes);
 
+        profiler_.start(prof_publish_resized_msg_id_);
         image_resized_publisher_->publish(resized_frame_msg);
         profiler_.stop(prof_publish_resized_msg_id_);
     }
