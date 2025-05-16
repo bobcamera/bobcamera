@@ -6,7 +6,9 @@
 #include <chrono>
 #include <mutex>
 #include <thread>
-#include <vector>     // <-- add
+#include <vector>
+
+#include "console_colors.hpp"
 
 namespace boblib::utils
 {

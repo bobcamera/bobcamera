@@ -136,8 +136,11 @@ namespace boblib::utils
         // 2) make a single global column width (add 2 for indent padding)
         int name_w = static_cast<int>(max_len) + 2;
 
-        out << "Profiler Report\n"
-            << "===============================================\n";
+        out << boblib::utils::console_colors::BRIGHT_GREEN << boblib::utils::console_colors::BOLD
+            << "Profiler Report" << boblib::utils::console_colors::RESET << "\n"
+            << boblib::utils::console_colors::BRIGHT_GREEN << boblib::utils::console_colors::BOLD
+            << std::string(99, '=')
+            << boblib::utils::console_colors::RESET << "\n";
 
         for (auto const& [id, root] : profiler_data_)
         {
@@ -167,8 +170,12 @@ namespace boblib::utils
             else
             {
                 double root_pct = total_us > 0 ? (local_total_us / total_us) * 100.0 : 0.0;
-                out << std::left << std::setw(81) << root.name 
-                    << " | % total: " << std::right << std::setw(6) << std::fixed << std::setprecision(2) << root_pct << "\n";
+                out << boblib::utils::console_colors::YELLOW
+                    << std::left << std::setw(81) << root.name
+                    << boblib::utils::console_colors::RESET
+                    << " | " << boblib::utils::console_colors::BOLD << "% total: "
+                    << boblib::utils::console_colors::YELLOW << std::right << std::setw(6) << std::fixed << std::setprecision(2) << root_pct
+                    << boblib::utils::console_colors::RESET << "\n";
             }
 
             for (auto d : kids)
@@ -176,6 +183,9 @@ namespace boblib::utils
                 out << report_line(d, 1, name_w, local_total_us, total_us);
             }
         }
+        out << boblib::utils::console_colors::BRIGHT_GREEN << boblib::utils::console_colors::BOLD
+            << std::string(99, '=')
+            << boblib::utils::console_colors::RESET << "\n";
 
         return out.str();
     }
@@ -193,13 +203,16 @@ namespace boblib::utils
         double avg_us = dur_us / d->count;
         double local_pct = local_total_us > 0 ? (dur_us / local_total_us) * 100.0 : 0.0;
         double total_pct = total_us > 0 ? (dur_us / total_us) * 100.0: 0.0;
+        bool is_root = d->parent_id == 0;
+        auto color = is_root ? boblib::utils::console_colors::BRIGHT_YELLOW : boblib::utils::console_colors::BRIGHT_CYAN;
 
         out << indent
-            << std::left   << std::setw(name_width) << d->name << " | "
-            << "count: "   << std::right << std::setw(6) << d->count << " | "
-            << "avg(us): " << std::right << std::setw(10) << std::fixed << std::setprecision(4) << avg_us << " | "
-            << "% local: " << std::right << std::setw(6) << std::fixed << std::setprecision(2) << local_pct << " | " 
-            << "% total: " << std::right << std::setw(6) << std::fixed << std::setprecision(2) << total_pct 
+            << color << std::left << std::setw(name_width) << d->name << boblib::utils::console_colors::RESET
+            << " | " << boblib::utils::console_colors::BOLD << "count: " << color << std::right << std::setw(6) << d->count << boblib::utils::console_colors::RESET
+            << " | " << boblib::utils::console_colors::BOLD << "avg(us): " << color << std::right << std::setw(10) << std::fixed << std::setprecision(4) << avg_us << boblib::utils::console_colors::RESET
+            << " | " << boblib::utils::console_colors::BOLD << "% local: " << color << std::right << std::setw(6) << std::fixed << std::setprecision(2) << local_pct << boblib::utils::console_colors::RESET
+            << " | " << boblib::utils::console_colors::BOLD << "% total: " << color << std::right << std::setw(6) << std::fixed << std::setprecision(2) << total_pct << boblib::utils::console_colors::RESET
+            << boblib::utils::console_colors::RESET
             << "\n";
 
         return out.str();
