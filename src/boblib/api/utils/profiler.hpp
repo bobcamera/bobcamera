@@ -33,12 +33,12 @@ namespace boblib::utils
     class Profiler final
     {
     public:
-        Profiler(int report_time_seconds = 5, bool enabled = true) noexcept;
+        Profiler(std::string_view name, int report_time_seconds = 5, bool enabled = true) noexcept;
         ~Profiler() noexcept = default;
 
         void set_enabled(bool enabled) noexcept;
 
-        // now takes optional parent_id (0 == root)
+        // takes optional parent_id (0 == root)
         size_t add_region(std::string_view region, size_t parent_id = 0) noexcept;
 
         void start(size_t region_id) noexcept;
@@ -54,6 +54,7 @@ namespace boblib::utils
         std::string report() const noexcept;
 
     private:
+        std::string name_;
         int report_time_seconds_;
         bool enabled_;
         DataMap profiler_data_;

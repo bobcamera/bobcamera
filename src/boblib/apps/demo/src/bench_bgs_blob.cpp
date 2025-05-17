@@ -100,7 +100,7 @@ int main(int argc, const char **argv)
         std::cout << "Image type not supported" << std::endl;
         return -1;
     }
-    boblib::utils::Profiler profiler;
+    boblib::utils::Profiler profiler("Benchmark BGS", 5, true);
 
     boblib::base::Image bgsMaskImg;
 

@@ -33,8 +33,8 @@ public:
         , params_(params)
         , pub_qos_profile_(pub_qos_profile)
         , topic_manager_(topic_manager)
-        , video_tracker_(node.get_logger())
         , profiler_(profiler)
+        , video_tracker_(node.get_logger())
     {
     }
 
@@ -182,12 +182,12 @@ private:
     CameraBgsParams &params_;
     const rclcpp::QoS &pub_qos_profile_;
     boblib::utils::pubsub::TopicManager &topic_manager_;
-
     boblib::utils::Profiler &profiler_;
+
+    SORT::Tracker video_tracker_;
 
     rclcpp::Publisher<bob_interfaces::msg::Tracking>::SharedPtr pub_tracker_tracking_;
     rclcpp::Publisher<bob_interfaces::msg::Tracking>::SharedPtr pub_tracker_tracking_resized_;
-    SORT::Tracker video_tracker_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<bob_interfaces::msg::Tracking>> tracking_pubsub_ptr_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<Detection>> detector_pubsub_ptr_;
 

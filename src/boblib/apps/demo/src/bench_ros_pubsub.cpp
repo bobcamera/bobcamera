@@ -16,14 +16,12 @@
 #include <cv_bridge/cv_bridge.hpp>
 
 #include "../../api/utils/pubsub/PubSub.hpp"
+#include "./../../api/utils/profiler.hpp"
 
 // alias clocks
 using SteadyClock = std::chrono::steady_clock;
 using MicroSecs = std::chrono::microseconds;
 using SystemClock = std::chrono::system_clock;
-
-// measure timestamps and latencies using system clock
-static rclcpp::Clock ros_clock(RCL_SYSTEM_TIME);
 
 /* ---------- global stats ----------------------------------------- */
 std::atomic<int> g_frames_published{0};
@@ -33,26 +31,48 @@ std::atomic<int> g_latency_samples{0};
 
 void frameCallback(const sensor_msgs::msg::Image::SharedPtr msg)
 {
-    // compute message timestamp in microseconds
-    int64_t msg_time_us = static_cast<int64_t>(msg->header.stamp.sec) * 1000000
-                        + static_cast<int64_t>(msg->header.stamp.nanosec) / 1000;
-    // current system time in microseconds
-    int64_t now_us = std::chrono::duration_cast<MicroSecs>(
-                        SystemClock::now().time_since_epoch()).count();
-    g_sum_latency_us += (now_us - msg_time_us);
-    ++g_latency_samples;
-    ++g_frames_processed;
+  using namespace std::chrono;
+
+  // grab now (ns since SteadyClock epoch)
+  int64_t now_ns = duration_cast<nanoseconds>(
+    SteadyClock::now().time_since_epoch()).count();
+
+  // reconstruct sent timestamp from header
+  int64_t sent_ns =
+    int64_t(msg->header.stamp.sec) * 1000000000LL +
+    int64_t(msg->header.stamp.nanosec);
+
+  int64_t latency_us = (now_ns - sent_ns) / 1000LL;
+
+  g_sum_latency_us += latency_us;
+  ++g_latency_samples;
+  ++g_frames_processed;
 }
 
 int main(int argc, const char **argv)
 {
+    boblib::utils::Profiler profiler("Benchmark ROS2 PubSub", 5, true);
+    size_t prof_ros_id = profiler.add_region("ROS2 Publish");
+
     // ---- init ROS2 ----
     rclcpp::init(argc, argv);
+
+    // Print the RMW implementation identifier
+    auto rmw_identifier = rmw_get_implementation_identifier();
+    if (rmw_identifier)
+    {
+        std::cout << "Using RMW implementation: " << rmw_identifier << std::endl;
+    }
+    else
+    {
+        std::cout << "Could not retrieve RMW implementation identifier." << std::endl;
+    }
+
     // create ROS2 node with intra-process communication enabled for zero-copy transport
     auto node_opts = rclcpp::NodeOptions().use_intra_process_comms(true);
     auto ros_node = rclcpp::Node::make_shared("demo_pubsub", node_opts);
 
-    rclcpp::QoS qos_profile(10);
+    rclcpp::QoS qos_profile(100);
     qos_profile.reliability(rclcpp::ReliabilityPolicy::BestEffort);
     qos_profile.durability(rclcpp::DurabilityPolicy::Volatile);
     qos_profile.history(rclcpp::HistoryPolicy::KeepLast);
@@ -112,11 +132,26 @@ int main(int argc, const char **argv)
     {
         auto & cv_msg = msgs[frameCount & (BUF - 1)];
 
-        auto tp = SystemClock::now().time_since_epoch();
-        cv_msg->header.stamp.sec = std::chrono::duration_cast<std::chrono::seconds>(tp).count();
-        cv_msg->header.stamp.nanosec = std::chrono::duration_cast<std::chrono::nanoseconds>(tp).count() % 1000000000;
-        // publish using shared_ptr to leverage zero-copy intra-process
-        ros_pub->publish(*cv_msg);
+        profiler.start(prof_ros_id);
+        auto loaned = ros_pub->borrow_loaned_message();
+        auto & msg = loaned.get(); // get raw pointer to the loaned message
+        msg.header = cv_msg->header;
+        msg.height = cv_msg->height;
+        msg.width = cv_msg->width;
+        msg.encoding = cv_msg->encoding;
+        msg.step = cv_msg->step;
+        msg.data = cv_msg->data;
+        {
+          using namespace std::chrono;
+          // stamp with SteadyClock now
+          int64_t ns = duration_cast<nanoseconds>(
+            SteadyClock::now().time_since_epoch()).count();
+          msg.header.stamp.sec    = static_cast<int32_t>(ns / 1000000000LL);
+          msg.header.stamp.nanosec = static_cast<uint32_t>(ns % 1000000000LL);
+        }
+
+        ros_pub->publish(std::move(loaned));
+        profiler.stop(prof_ros_id);
         ++g_frames_published;
 
         const auto now = SteadyClock::now();

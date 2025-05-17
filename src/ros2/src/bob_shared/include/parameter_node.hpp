@@ -41,10 +41,9 @@ public:
         timer_init_ = create_wall_timer(std::chrono::seconds(timer_seconds_), [this](){ init(); });
     }
 
-    static std::string generate_uuid()
+    std::string generate_uuid() noexcept
     {
-        boost::uuids::random_generator uuid_generator;
-        return boost::uuids::to_string(uuid_generator());
+        return boost::uuids::to_string(uuid_generator_());
     }
 
     template <class T>
@@ -212,4 +211,5 @@ private:
     rclcpp::Publisher<bob_interfaces::msg::LogMessage>::SharedPtr log_publisher_;
     rclcpp::TimerBase::SharedPtr timer_init_;
     int timer_seconds_;
+    boost::uuids::random_generator uuid_generator_;
 };

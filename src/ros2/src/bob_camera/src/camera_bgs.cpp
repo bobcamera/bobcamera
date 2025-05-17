@@ -39,11 +39,13 @@ public:
 
         topic_manager_ = std::make_unique<boblib::utils::pubsub::TopicManager>(100);
 
-        bgs_worker_ptr_ = std::make_unique<BackgroundSubtractorWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_, profiler_);
-        camera_save_worker_ptr_ = std::make_unique<CameraSaveWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_, profiler_);
-        track_provider_worker_ptr_ = std::make_unique<TrackProviderWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_, profiler_);
-        record_manager_worker_ptr_ = std::make_unique<RecordManagerWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_, profiler_);
-        camera_worker_ptr_ = std::make_unique<CameraWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_, profiler_);
+        profiler_ptr_ = std::make_unique<boblib::utils::Profiler>("CameraBGS");
+
+        bgs_worker_ptr_ = std::make_unique<BackgroundSubtractorWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_, *profiler_ptr_);
+        camera_save_worker_ptr_ = std::make_unique<CameraSaveWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_, *profiler_ptr_);
+        track_provider_worker_ptr_ = std::make_unique<TrackProviderWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_, *profiler_ptr_);
+        record_manager_worker_ptr_ = std::make_unique<RecordManagerWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_, *profiler_ptr_);
+        camera_worker_ptr_ = std::make_unique<CameraWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_, *profiler_ptr_);
     }
 
     // Ensure child workers are destroyed when node is shut down
@@ -65,7 +67,7 @@ private:
         log_info("CameraBGS init");
         declare_node_parameters();
 
-        profiler_.set_enabled(camera_bgs_params_.profiling);
+        profiler_ptr_->set_enabled(camera_bgs_params_.profiling);
 
         bgs_worker_ptr_->init();
         camera_save_worker_ptr_->init();
@@ -421,7 +423,7 @@ private:
 
     rclcpp::QoS qos_profile_; 
 
-    boblib::utils::Profiler profiler_;
+    std::unique_ptr<boblib::utils::Profiler> profiler_ptr_;
 
     std::unique_ptr<CameraWorker> camera_worker_ptr_;
     std::unique_ptr<BackgroundSubtractorWorker> bgs_worker_ptr_;

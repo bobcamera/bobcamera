@@ -332,7 +332,7 @@ private:
                 profiler_.start(prof_prepare_publish_id_);
                 auto header_ptr = std::make_shared<std_msgs::msg::Header>();
                 header_ptr->stamp = node_.now();
-                header_ptr->frame_id = ParameterNode::generate_uuid();
+                header_ptr->frame_id = node_.generate_uuid();
 
                 fill_camera_info(*header_ptr, *camera_img_ptr);
 
@@ -407,17 +407,28 @@ private:
 
         // Alocating the data for the resized image directly in the message so we don't have to copy it
         profiler_.start(prof_publish_resized_resizing_id_);
+
         const auto frame_width = static_cast<int>(camera_img.size().aspectRatio() * static_cast<double>(params_.resize_height));
         const cv::Size frame_size(frame_width, params_.resize_height);
-        auto resized_frame_msg = PublishImage::fill_imagemsg_header(header, frame_size, camera_img.type());
         const size_t total_bytes = frame_size.area() * camera_img.elemSize();
+
+        auto loaned = image_resized_publisher_->borrow_loaned_message();
+        auto &resized_frame_msg = loaned.get();
+
+        resized_frame_msg.header = header;
+        resized_frame_msg.height = frame_size.height;
+        resized_frame_msg.width = frame_size.width;
+        resized_frame_msg.encoding = ImageUtils::type_to_encoding(camera_img.type());
+        resized_frame_msg.is_bigendian = (rcpputils::endian::native == rcpputils::endian::big);
+        resized_frame_msg.step = frame_size.width * camera_img.elemSize();
         resized_frame_msg.data.resize(total_bytes);
+
         cv::Mat resized_frame(frame_size, camera_img.type(), resized_frame_msg.data.data());
         cv::resize(camera_img.toMat(), resized_frame, frame_size, 0, 0, cv::INTER_NEAREST);
         profiler_.stop(prof_publish_resized_resizing_id_);
 
         profiler_.start(prof_publish_resized_msg_id_);
-        image_resized_publisher_->publish(resized_frame_msg);
+        image_resized_publisher_->publish(std::move(resized_frame_msg));
         profiler_.stop(prof_publish_resized_msg_id_);
     }
 

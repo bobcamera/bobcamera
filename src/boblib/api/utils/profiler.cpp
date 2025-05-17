@@ -4,8 +4,9 @@
 
 namespace boblib::utils
 {
-    Profiler::Profiler(int report_time_seconds, bool enabled) noexcept
-        : report_time_seconds_(report_time_seconds)
+    Profiler::Profiler(std::string_view name, int report_time_seconds, bool enabled) noexcept
+        : name_(name)
+        , report_time_seconds_(report_time_seconds)
         , max_name_length_(0)
     {
         set_enabled(enabled);
@@ -137,9 +138,9 @@ namespace boblib::utils
         int name_w = static_cast<int>(max_len) + 2;
 
         out << boblib::utils::console_colors::BRIGHT_GREEN << boblib::utils::console_colors::BOLD
-            << "Profiler Report" << boblib::utils::console_colors::RESET << "\n"
-            << boblib::utils::console_colors::BRIGHT_GREEN << boblib::utils::console_colors::BOLD
-            << std::string(name_w + 76, '=')
+            << name_ << " Report" << boblib::utils::console_colors::RESET << "\n"
+            << boblib::utils::console_colors::GREEN
+            << std::string(name_w + 78, '=')
             << boblib::utils::console_colors::RESET << "\n";
 
         for (auto const& [id, root] : profiler_data_)
@@ -171,7 +172,7 @@ namespace boblib::utils
             {
                 double root_pct = total_us > 0 ? (local_total_us / total_us) * 100.0 : 0.0;
                 out << boblib::utils::console_colors::YELLOW
-                    << std::left << std::setw(name_w + 58) << root.name
+                    << std::left << std::setw(name_w + 60) << root.name
                     << boblib::utils::console_colors::RESET
                     << " | " << boblib::utils::console_colors::BOLD << "% total: "
                     << boblib::utils::console_colors::YELLOW << std::right << std::setw(6) << std::fixed << std::setprecision(2) << root_pct
@@ -183,8 +184,8 @@ namespace boblib::utils
                 out << report_line(d, 1, name_w, local_total_us, total_us);
             }
         }
-        out << boblib::utils::console_colors::BRIGHT_GREEN << boblib::utils::console_colors::BOLD
-            << std::string(name_w + 76, '=')
+        out << boblib::utils::console_colors::GREEN
+            << std::string(name_w + 78, '=')
             << boblib::utils::console_colors::RESET << "\n";
 
         return out.str();
@@ -208,7 +209,7 @@ namespace boblib::utils
 
         out << indent
             << color << std::left << std::setw(name_width) << d->name << boblib::utils::console_colors::RESET
-            << " | " << boblib::utils::console_colors::BOLD << "count: " << color << std::right << std::setw(6) << d->count << boblib::utils::console_colors::RESET
+            << " | " << boblib::utils::console_colors::BOLD << "count: " << color << std::right << std::setw(8) << d->count << boblib::utils::console_colors::RESET
             << " | " << boblib::utils::console_colors::BOLD << "avg(us): " << color << std::right << std::setw(10) << std::fixed << std::setprecision(4) << avg_us << boblib::utils::console_colors::RESET
             << " | " << boblib::utils::console_colors::BOLD << "% local: " << color << std::right << std::setw(6) << std::fixed << std::setprecision(2) << local_pct << boblib::utils::console_colors::RESET
             << " | " << boblib::utils::console_colors::BOLD << "% total: " << color << std::right << std::setw(6) << std::fixed << std::setprecision(2) << total_pct << boblib::utils::console_colors::RESET

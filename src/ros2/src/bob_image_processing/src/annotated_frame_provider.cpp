@@ -56,8 +56,6 @@ private:
 
         profiler_.set_enabled(true);
 
-        compressed_image_msg_.format = "jpeg";
-
         fps_tracker_ptr_ = std::make_unique<boblib::utils::FpsTracker>(false, 5);
 
         annotated_frame_creator_ptr_ = std::make_unique<AnnotatedFrameCreator>(annotated_frame_creator_settings_);
@@ -181,12 +179,13 @@ private:
 
                 if (pub_annotated_compressed_frame_->get_subscription_count() > 0)
                 {
-                    compressed_image_msg_.header = annotated_frame_msg->header;
-                    compressed_image_msg_.data.reserve(resized_img.total() * resized_img.elemSize() / 2);
-
-                    jpeg_compressor_ptr_->compress(resized_img, compressed_image_msg_.data);
-
-                    pub_annotated_compressed_frame_->publish(compressed_image_msg_);
+                    auto loaned = pub_annotated_compressed_frame_->borrow_loaned_message();
+                    auto &resized_frame_msg = loaned.get();
+                    resized_frame_msg.header = annotated_frame_msg->header;
+                    resized_frame_msg.format = "jpeg";
+                    resized_frame_msg.data.reserve(resized_img.total() * resized_img.elemSize() / 2);
+                    jpeg_compressor_ptr_->compress(resized_img, resized_frame_msg.data);
+                    pub_annotated_compressed_frame_->publish(std::move(resized_frame_msg));
                 }
             }
             else
@@ -195,11 +194,13 @@ private:
 
                 if (pub_annotated_compressed_frame_->get_subscription_count() > 0)
                 {
-                    compressed_image_msg_.header = annotated_frame_msg->header;
-
-                    jpeg_compressor_ptr_->compress(img, compressed_image_msg_.data);
-
-                    pub_annotated_compressed_frame_->publish(compressed_image_msg_);
+                    auto loaned = pub_annotated_compressed_frame_->borrow_loaned_message();
+                    auto &resized_frame_msg = loaned.get();
+                    resized_frame_msg.header = annotated_frame_msg->header;
+                    resized_frame_msg.format = "jpeg";
+                    resized_frame_msg.data.reserve(img.total() * img.elemSize() / 2);
+                    jpeg_compressor_ptr_->compress(img, resized_frame_msg.data);
+                    pub_annotated_compressed_frame_->publish(std::move(resized_frame_msg));
                 }
             }
         }
@@ -229,9 +230,7 @@ private:
     std::unique_ptr<boblib::utils::FpsTracker> fps_tracker_ptr_;
     int compression_quality_;
 
-    sensor_msgs::msg::CompressedImage compressed_image_msg_;
-
-    boblib::utils::Profiler profiler_;
+    boblib::utils::Profiler profiler_{"Annotated Frame Provider"};
 
     std::unique_ptr<boblib::utils::JpegCompressor> jpeg_compressor_ptr_;
 
