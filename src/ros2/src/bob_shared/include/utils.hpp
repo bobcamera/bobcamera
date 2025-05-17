@@ -70,7 +70,7 @@ std::tuple<int, int, int> extract_rgb(const std::string &str)
     return {r, g, b};
 }
 
-std::map<std::string, std::string> parse_json_to_map(const std::string & jsonString)
+std::unordered_map<std::string, std::string> parse_json_to_map(const std::string &jsonString)
 {
     // if (jsonString.empty())
     // {
@@ -91,7 +91,7 @@ std::map<std::string, std::string> parse_json_to_map(const std::string & jsonStr
     }
 
     // Create a std::map to hold the key-value pairs
-    std::map<std::string, std::string> result;
+    std::unordered_map<std::string, std::string> result;
 
     // Iterate over the JSON object's members
     for (const auto &key : root.getMemberNames())

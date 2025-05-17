@@ -293,7 +293,9 @@ private:
         {
             return;
         }
-        auto bgs_msg = PublishImage::fill_imagemsg_header(*header, bgs_img);
+        auto loaned = image_publisher_ptr_->borrow_loaned_message();
+        auto &bgs_msg = loaned.get();
+        ImageUtils::fill_imagemsg_header(bgs_msg , * header, bgs_img);
         const size_t totalBytes = bgs_img.total() * bgs_img.elemSize();
         bgs_msg.data.assign(bgs_img.data(), bgs_img.data() + totalBytes);
 

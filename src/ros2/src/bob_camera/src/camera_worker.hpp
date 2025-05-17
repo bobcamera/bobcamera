@@ -391,11 +391,13 @@ private:
         {
             return;
         }
-        auto camera_msg = PublishImage::fill_imagemsg_header(header, camera_img);
+
+        auto loaned = image_publisher_->borrow_loaned_message();
+        auto &camera_msg = loaned.get();
+        ImageUtils::fill_imagemsg_header(camera_msg, header, camera_img);
         const size_t totalBytes = camera_img.total() * camera_img.elemSize();
         camera_msg.data.assign(camera_img.data(), camera_img.data() + totalBytes);
-
-        image_publisher_->publish(camera_msg);
+        image_publisher_->publish(std::move(camera_msg));
     }
 
     void publish_resized_frame(const std_msgs::msg::Header &header, const boblib::base::Image &camera_img) const
@@ -414,17 +416,12 @@ private:
 
         auto loaned = image_resized_publisher_->borrow_loaned_message();
         auto &resized_frame_msg = loaned.get();
-
-        resized_frame_msg.header = header;
-        resized_frame_msg.height = frame_size.height;
-        resized_frame_msg.width = frame_size.width;
-        resized_frame_msg.encoding = ImageUtils::type_to_encoding(camera_img.type());
-        resized_frame_msg.is_bigendian = (rcpputils::endian::native == rcpputils::endian::big);
-        resized_frame_msg.step = frame_size.width * camera_img.elemSize();
+        ImageUtils::fill_imagemsg_header(resized_frame_msg, header, frame_size, camera_img.type());
         resized_frame_msg.data.resize(total_bytes);
 
         cv::Mat resized_frame(frame_size, camera_img.type(), resized_frame_msg.data.data());
         cv::resize(camera_img.toMat(), resized_frame, frame_size, 0, 0, cv::INTER_NEAREST);
+
         profiler_.stop(prof_publish_resized_resizing_id_);
 
         profiler_.start(prof_publish_resized_msg_id_);

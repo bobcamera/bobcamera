@@ -44,11 +44,11 @@ private:
         auto rmw_identifier = rmw_get_implementation_identifier();
         if (rmw_identifier)
         {
-            log_info("Using RMW implementation: %s", rmw_identifier);
+            log_info("Using ROS RMW implementation: %s", rmw_identifier);
         }
         else
         {
-            log_info("Could not retrieve RMW implementation identifier.");
+            log_info("Could not retrieve ROS RMW implementation identifier.");
         }
     }
 };

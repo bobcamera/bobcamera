@@ -23,7 +23,9 @@ class AnnotatedFrameProvider : public ParameterNode
 public:
     COMPOSITION_PUBLIC
     explicit AnnotatedFrameProvider(const rclcpp::NodeOptions &options)
-        : ParameterNode("annotated_frame_provider_node", options), pub_qos_profile_(10), sub_qos_profile_(10)
+        : ParameterNode("annotated_frame_provider_node", options)
+        , pub_qos_profile_(10)
+        , sub_qos_profile_(10)
     {
     }
 
@@ -169,7 +171,7 @@ private:
             {
                 cv::Mat resized_img;
                 const auto frame_width = static_cast<int>(img.size().aspectRatio() * static_cast<double>(resize_height_));
-                cv::resize(img, resized_img, cv::Size(frame_width, resize_height_));
+                cv::resize(img, resized_img, cv::Size(frame_width, resize_height_), 0, 0, cv::INTER_NEAREST);
 
                 if (image_resized_publisher_->get_subscription_count() > 0)
                 {
@@ -219,7 +221,7 @@ private:
 
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_annotated_frame_;
     std::unique_ptr<AnnotatedFrameCreator> annotated_frame_creator_ptr_;
-    std::map<std::string, std::string> annotated_frame_creator_settings_;
+    std::unordered_map<std::string, std::string> annotated_frame_creator_settings_;
 
     bool enable_tracking_status_ = true;
 
