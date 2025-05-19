@@ -2,6 +2,8 @@
 
 #include <stddef.h>
 #include <string>
+#include <unordered_map>
+#include <vector>
 
 #include <rclcpp/rclcpp.hpp>
 
@@ -68,12 +70,14 @@ struct CameraBgsParams
         std::string image_resized_publish_topic;
         std::string camera_settings_client_topic;
         std::string tracking_publisher_topic;
+        std::string tracker_state_publisher_topic;
         std::string detection_publish_topic;
         std::string detection_state_publish_topic;
         std::string bgs_image_publish_topic;
         std::string recording_event_publisher_topic;
         std::string recording_request_service_topic;
         std::string recording_state_publisher_topic;
+        std::string annotated_frame_publisher_topic;
     };
 
     struct RecordingParams
@@ -83,6 +87,12 @@ struct CameraBgsParams
         int seconds_save{2};
         std::string recordings_directory{""};
         std::string prefix{""};
+    };
+
+    struct AnnotatedFrameParams
+    {
+        bool enable_tracking_status_message{false};
+        std::unordered_map<std::string, std::string> visualiser_settings;
     };
 
     struct BgsParams
@@ -97,10 +107,12 @@ struct CameraBgsParams
 
     bool use_cuda{true};
     int resize_height{0};
+    int compression_quality{75};
     bool profiling{false};
 
     CameraParams camera;
     TopicsParams topics;
     RecordingParams recording;
     BgsParams bgs;
+    AnnotatedFrameParams annotated_frame;
 };

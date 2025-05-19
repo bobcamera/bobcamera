@@ -58,7 +58,7 @@ public:
 
         recording_event_pubsub_ptr_ = topic_manager_.get_topic<bob_interfaces::msg::RecordingEvent>(params_.topics.recording_event_publisher_topic);
 
-        tracking_pubsub_ptr_ = topic_manager_.get_topic<bob_interfaces::msg::Tracking>(params_.topics.tracking_publisher_topic);
+        tracking_pubsub_ptr_ = topic_manager_.get_topic<bob_camera::Tracking>(params_.topics.tracking_publisher_topic);
         tracking_pubsub_ptr_->subscribe<RecordManagerWorker, &RecordManagerWorker::tracking_info_callback>(this);
 
         camera_info_pubsub_ptr_ = topic_manager_.get_topic<bob_camera::msg::CameraInfo>(params_.topics.camera_info_publish_topic);
@@ -109,7 +109,7 @@ private:
         last_camera_info_ = *camera_info_msg;
     }
 
-    void tracking_info_callback(const bob_interfaces::msg::Tracking::SharedPtr &tracking_msg) noexcept
+    void tracking_info_callback(const std::shared_ptr<bob_camera::Tracking> &tracking_msg) noexcept
     {
         if (!params_.recording.enabled || last_camera_info_.fps == 0)
         {
@@ -133,7 +133,7 @@ private:
                     current_state_ = RecordingStateEnum::BetweenEvents;
 
                     video_fps_ = static_cast<double>(last_camera_info_.fps);
-                    base_filename_ = generate_filename(tracking_msg->header.stamp);
+                    base_filename_ = generate_filename(tracking_msg->header_ptr->stamp);
                     prev_frame_size_.width = last_camera_info_.frame_width;
                     prev_frame_size_.height = last_camera_info_.frame_height;
 
@@ -146,7 +146,7 @@ private:
                     node_.log_send_info("Starting track recording into: %s", dated_directory_.c_str());
 
                     bob_interfaces::msg::RecordingEvent event;
-                    event.header = tracking_msg->header;
+                    event.header = *tracking_msg->header_ptr;
                     event.recording = recording_;
                     event.recording_path = dated_directory_;
                     event.filename = base_filename_;
@@ -171,7 +171,7 @@ private:
                     current_state_ = RecordingStateEnum::BeforeStart;
 
                     bob_interfaces::msg::RecordingEvent event;
-                    event.header = tracking_msg->header;
+                    event.header = *tracking_msg->header_ptr;
                     event.recording = recording_;
                     event.recording_path = dated_directory_;
                     event.filename = base_filename_;
@@ -197,7 +197,7 @@ private:
                     node_.log_send_info("Requested: Ending track recording...");
 
                     bob_interfaces::msg::RecordingEvent event;
-                    event.header = tracking_msg->header;
+                    event.header = *tracking_msg->header_ptr;
                     event.recording = recording_;
                     event.recording_path = dated_directory_;
                     node_.publish_if_subscriber(event_publisher_, event);
@@ -229,7 +229,7 @@ private:
 
     const rclcpp::QoS &pub_qos_profile_;
 
-    std::shared_ptr<boblib::utils::pubsub::PubSub<bob_interfaces::msg::Tracking>> tracking_pubsub_ptr_;
+    std::shared_ptr<boblib::utils::pubsub::PubSub<bob_camera::Tracking>> tracking_pubsub_ptr_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<bob_camera::msg::CameraInfo>> camera_info_pubsub_ptr_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<bob_interfaces::msg::RecordingEvent>> recording_event_pubsub_ptr_;
 

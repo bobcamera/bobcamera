@@ -31,7 +31,7 @@ public:
                               , boblib::utils::Profiler &profiler)
         : node_(node)
         , params_(params)
-        , sub_qos_profile_(sub_qos_profile)
+        , pub_qos_profile_(sub_qos_profile)
         , topic_manager_(topic_manager)
         , profiler_(profiler)
     {
@@ -53,7 +53,7 @@ public:
         recording_event_pubsub_ptr_ = topic_manager_.get_topic<bob_interfaces::msg::RecordingEvent>(params_.topics.recording_event_publisher_topic);
         recording_event_pubsub_ptr_->subscribe<CameraSaveWorker, &CameraSaveWorker::recording_event>(this);
 
-        tracking_pubsub_ptr_ = topic_manager_.get_topic<bob_interfaces::msg::Tracking>(params_.topics.tracking_publisher_topic);
+        tracking_pubsub_ptr_ = topic_manager_.get_topic<bob_camera::Tracking>(params_.topics.tracking_publisher_topic);
         tracking_pubsub_ptr_->subscribe<CameraSaveWorker, &CameraSaveWorker::tracking_callback>(this);
 
         image_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.topics.image_publish_topic + "_publish");
@@ -219,7 +219,7 @@ private:
         }
     }
 
-    void tracking_callback(const bob_interfaces::msg::Tracking::SharedPtr &tracking_msg) noexcept
+    void tracking_callback(const std::shared_ptr<bob_camera::Tracking> &tracking_msg) noexcept
     {
         try
         {
@@ -258,8 +258,9 @@ private:
 
     ParameterNode &node_;
     CameraBgsParams &params_;
-    const rclcpp::QoS &sub_qos_profile_;
+    const rclcpp::QoS &pub_qos_profile_;
     boblib::utils::pubsub::TopicManager &topic_manager_;
+    boblib::utils::Profiler &profiler_;
 
     std::unique_ptr<ImageRecorder> img_recorder_;
     std::unique_ptr<JsonRecorder> json_recorder_;
@@ -271,12 +272,10 @@ private:
     bob_camera::msg::CameraInfo last_camera_info_;
     bob_interfaces::msg::RecordingEvent last_recording_event_;
 
-    boblib::utils::Profiler &profiler_;
-
     std::shared_ptr<boblib::utils::pubsub::PubSub<PublishImage>> image_pubsub_ptr_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<PublishImage>> bgs_pubsub_ptr_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<bob_interfaces::msg::RecordingEvent>> recording_event_pubsub_ptr_;
-    std::shared_ptr<boblib::utils::pubsub::PubSub<bob_interfaces::msg::Tracking>> tracking_pubsub_ptr_;
+    std::shared_ptr<boblib::utils::pubsub::PubSub<bob_camera::Tracking>> tracking_pubsub_ptr_;
 
     size_t prof_save_worker_id_;
     size_t prof_image_id_;

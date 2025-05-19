@@ -8,27 +8,25 @@
 
 struct Detection
 {
+    using ImagePtr = std::shared_ptr<boblib::base::Image>;
     using HeaderPtr = std::shared_ptr<std_msgs::msg::Header>;
     using BboxPtr = std::shared_ptr<std::vector<cv::Rect>>;
 
     Detection() = default;
 
     Detection(HeaderPtr header,
+              ImagePtr image,
               BboxPtr bbox,
-              int32_t image_width,
-              int32_t image_height,
               float fps)
         : header_ptr(std::move(header))
+        , image_ptr(std::move(image))
         , bbox_ptr(std::move(bbox))
-        , image_width(image_width)
-        , image_height(image_height)
         , fps(fps)
     {
     }
 
     HeaderPtr header_ptr;
+    ImagePtr image_ptr;
     BboxPtr bbox_ptr;
-    int32_t image_width;
-    int32_t image_height;
     float fps;
 };

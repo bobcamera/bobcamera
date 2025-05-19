@@ -239,7 +239,7 @@ public:
             bgs_ptr_->apply(gray_img, *bgs_img_ptr, mask);
             profiler_.stop(prof_bgs_id_);
             profiler_.start(prof_blobs_id_);
-            do_detection(publish_image->header_ptr, *bgs_img_ptr, publish_image->camera_info_ptr->fps);
+            do_detection(publish_image, *bgs_img_ptr, publish_image->camera_info_ptr->fps);
             profiler_.stop(prof_blobs_id_);
 
             processing_ = false;
@@ -272,7 +272,7 @@ private:
             const auto &header = publish_image->header_ptr;
             auto &bgs_img = *publish_image->image_ptr;
 
-            publish_frame(header, bgs_img);
+            ImageUtils::publish_image(image_publisher_ptr_, *header, bgs_img.toMat());
             publish_resized_frame(header, bgs_img);
         }
         catch (const std::exception &e)
@@ -280,26 +280,6 @@ private:
             node_.log_send_error("BGSWorker: process_images: Exception: %s", e.what());
             rcutils_reset_error();
         }
-        catch (...)
-        {
-            node_.log_send_error("BGSWorker: process_images: Unknown exception");
-            rcutils_reset_error();
-        }
-    }
-
-    inline void publish_frame(const std_msgs::msg::Header::SharedPtr &header, boblib::base::Image &bgs_img) noexcept
-    {
-        if (image_publisher_ptr_->get_subscription_count() <= 0)
-        {
-            return;
-        }
-        auto loaned = image_publisher_ptr_->borrow_loaned_message();
-        auto &bgs_msg = loaned.get();
-        ImageUtils::fill_imagemsg_header(bgs_msg , * header, bgs_img);
-        const size_t totalBytes = bgs_img.total() * bgs_img.elemSize();
-        bgs_msg.data.assign(bgs_img.data(), bgs_img.data() + totalBytes);
-
-        image_publisher_ptr_->publish(bgs_msg);
     }
 
     inline void publish_resized_frame(const std_msgs::msg::Header::SharedPtr &header, const boblib::base::Image &bgs_img) const
@@ -314,11 +294,10 @@ private:
         const auto frame_width = static_cast<int>(bgs_img.size().aspectRatio() * static_cast<double>(params_.resize_height));
         bgs_img.resizeTo(resized_img, cv::Size(frame_width, params_.resize_height));
 
-        auto resized_frame_msg = cv_bridge::CvImage(*header, ImageUtils::type_to_encoding(resized_img.type()), resized_img.toMat()).toImageMsg();
-        image_resized_publisher_ptr_->publish(*resized_frame_msg);
+        ImageUtils::publish_image(image_resized_publisher_ptr_, *header, resized_img.toMat());
     }
 
-    inline void do_detection(const std_msgs::msg::Header::SharedPtr &header, boblib::base::Image &bgs_img, float fps)
+    inline void do_detection(const std::shared_ptr<PublishImage> &publish_image, boblib::base::Image &bgs_img, float fps)
     {
         // Apply median filter if enabled to reduce noise
         if (median_filter_)
@@ -330,31 +309,29 @@ private:
         auto bboxes = std::make_shared<std::vector<cv::Rect>>();
         const auto det_result = blob_detector_ptr_->detect(bgs_img, *bboxes);
 
-        // Sending ROS messages if there are subscribers
-        if ((state_publisher_ptr_->get_subscription_count() > 0) 
-            || (detection_publisher_ptr_->get_subscription_count() > 0))
+        if (state_publisher_ptr_->get_subscription_count() > 0)
         {
-            // Initialize detector state and bounding box array messages
             bob_interfaces::msg::DetectorState state;
             state.sensitivity = params_.bgs.sensitivity;
             state.max_blobs_reached = det_result == boblib::blobs::DetectionResult::MaxBlobsReached;
+            state_publisher_ptr_->publish(state);
+        }
 
+        if (detection_publisher_ptr_->get_subscription_count() > 0)
+        {
             bob_interfaces::msg::DetectorBBoxArray bbox2D_array;
-            bbox2D_array.header = *header;
+            bbox2D_array.header = *publish_image->header_ptr;
             bbox2D_array.image_width = bgs_img.size().width;
             bbox2D_array.image_height = bgs_img.size().height;
-
-            if (!state.max_blobs_reached)
+            if (det_result != boblib::blobs::DetectionResult::MaxBlobsReached)
             {
                 add_bboxes(bbox2D_array, *bboxes);
             }
 
-            // Publish results if there are subscribers
-            state_publisher_ptr_->publish(state);
             detection_publisher_ptr_->publish(bbox2D_array);
         }
 
-        detector_pubsub_ptr_->publish(Detection(header, bboxes, bgs_img.size().width, bgs_img.size().height, fps));
+        detector_pubsub_ptr_->publish(Detection(publish_image->header_ptr, publish_image->image_ptr, bboxes, fps));
     }
 
     inline void add_bboxes(bob_interfaces::msg::DetectorBBoxArray &bbox2D_array, const std::vector<cv::Rect> &bboxes) noexcept

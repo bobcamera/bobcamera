@@ -361,7 +361,7 @@ private:
         try
         {
             profiler_.start(prof_publish_id_);
-            publish_frame(*publish_image->header_ptr, *publish_image->image_ptr);
+            ImageUtils::publish_image(image_publisher_, *publish_image->header_ptr, publish_image->image_ptr->toMat());
             profiler_.stop(prof_publish_id_);
             publish_resized_frame(*publish_image->header_ptr, *publish_image->image_ptr);
             // publish_image_info(*publish_image->header_ptr, *publish_image->image_ptr);
@@ -385,24 +385,9 @@ private:
         img.apply_mask(*privacy_mask_ptr_);
     }
 
-    inline void publish_frame(const std_msgs::msg::Header &header, const boblib::base::Image &camera_img)
-    {
-        if (image_publisher_->get_subscription_count() <= 0)
-        {
-            return;
-        }
-
-        auto loaned = image_publisher_->borrow_loaned_message();
-        auto &camera_msg = loaned.get();
-        ImageUtils::fill_imagemsg_header(camera_msg, header, camera_img);
-        const size_t totalBytes = camera_img.total() * camera_img.elemSize();
-        camera_msg.data.assign(camera_img.data(), camera_img.data() + totalBytes);
-        image_publisher_->publish(std::move(camera_msg));
-    }
-
     void publish_resized_frame(const std_msgs::msg::Header &header, const boblib::base::Image &camera_img) const
     {
-        if (!image_resized_publisher_ || (params_.resize_height <= 0) || (image_resized_publisher_->get_subscription_count() <= 0))
+        if ((params_.resize_height <= 0) || (image_resized_publisher_->get_subscription_count() <= 0))
         {
             return;
         }

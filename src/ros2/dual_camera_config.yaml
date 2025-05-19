@@ -8,7 +8,7 @@ variables:
   image_compression_quality: 50
   use_cuda: false #Leave it false as it is not working
   profiling: true
-  use_recording: true
+  use_recording: false
   display_enabled: false
   camera1_enabled: true
   camera2_enabled: false
@@ -77,8 +77,10 @@ advanced_config:
     bgs_mask_override_service_topic: 'bob/mask/detection/override/camera1'
     recording_event_publisher_topic: 'bob/camera1/recording/event'
     tracker_publisher_topic: 'bob/camera1/tracker/tracking'
+    tracker_state_publisher_topic: 'bob/camera1/tracker/tracking_state'
     recording_request_service_topic: 'bob/recording/update/camera1'
     recording_state_publisher_topic: 'bob/camera1/recording/state'
+    annotated_frame_publisher_topic: 'bob/camera1/annotated'
 
   camera2_node:
     privacy_mask_file: 'assets/masks/camera2-privacy-mask.jpg'
@@ -94,8 +96,10 @@ advanced_config:
     bgs_mask_override_service_topic: 'bob/mask/detection/override/camera2'
     recording_event_publisher_topic: 'bob/camera2/recording/event'
     tracker_publisher_topic: 'bob/camera2/tracker/tracking'
+    tracker_state_publisher_topic: 'bob/camera2/tracker/tracking_state'
     recording_request_service_topic: 'bob/recording/update/camera2'
     recording_state_publisher_topic: 'bob/camera2/recording/state'
+    annotated_frame_publisher_topic: 'bob/camera2/annotated'
 
   base_camera_node:
     use_cuda: $use_cuda
@@ -111,6 +115,9 @@ advanced_config:
     recording_codec: 'avc1'
     recording_seconds_save: $extra_saving_seconds
     recordings_directory: 'assets/recordings/'
+    compression_quality: $image_compression_quality
+    enable_tracking_status_message: false
+    visualiser_settings: '{"bbox_line_thickness": "2", "font_scale_width": "0", "font_scale_width": "0", "font_scale": "1.0", "zoom_factor": "2.0", "enable_cropped_tracks": "true", "font_colour": "{50,170,50}", "prediction_colour": "{255,0,50}"}'
     bgs_json_params: '[
                     { "name": "low",
                       "sensitivity": {
@@ -150,32 +157,6 @@ advanced_config:
                         "median_filter": true}}
                   ]'
 
-  base_annotated_frame_provider_node:
-    tracking_status_message: false
-    resize_height: $resize_height
-    compression_quality: $image_compression_quality
-    visualiser_settings: '{"bbox_line_thickness": "2", "font_scale_width": "0", "font_scale_width": "0", "font_scale": "1.0", "zoom_factor": "2.0", "enable_cropped_tracks": "true", "font_colour": "{50,170,50}", "prediction_colour": "{255,0,50}"}'
-
-  camera1_annotated_frame_provider_node:
-    copy: base_annotated_frame_provider_node
-    annotated_frame_publisher_topic: 'bob/camera1/annotated'
-    camera_frame_topic: 'bob/camera1/original/resized'
-    tracking_topic: 'bob/camera1/tracker/tracking/resized'
-
-  camera2_annotated_frame_provider_node:
-    copy: base_annotated_frame_provider_node
-    annotated_frame_publisher_topic: 'bob/camera2/annotated'
-    camera_frame_topic: 'bob/camera2/original/resized'
-    tracking_topic: 'bob/camera2/tracker/tracking/resized'
-
-  camera1_annotated_frame_compressor_node:
-    compressed_frame_subscriber_topic: 'bob/camera1/annotated/resized'
-    compression_quality: $image_compression_quality
-
-  camera2_annotated_frame_compressor_node:
-    compressed_frame_subscriber_topic: 'bob/camera2/annotated/resized'
-    compression_quality: $image_compression_quality
-
   camera1_original_compressor_node:
     compressed_frame_subscriber_topic: 'bob/camera1/original/resized'
     compression_quality: $image_compression_quality
@@ -213,7 +194,7 @@ advanced_config:
   camera1_monitoring_status_aggregator_node:
     observer_tracker_aggregation_interval: 1
     sub_detector_state_topic: 'bob/camera1/detection/detector_state'
-    sub_tracking_state_topic: 'bob/camera1/tracker/tracking'
+    sub_tracking_state_topic: 'bob/camera1/tracker/tracking_state'
     sub_recording_state_topic: 'bob/camera1/recording/state'
     sub_environment_day_night_topic: 'bob/camera1/observer/day_night_classifier'
     sub_cloud_estimation_topic: 'bob/camera1/observer/cloud_estimation'
@@ -222,7 +203,7 @@ advanced_config:
   camera2_monitoring_status_aggregator_node:
     observer_tracker_aggregation_interval: 1
     sub_detector_state_topic: 'bob/camera2/detection/detector_state'
-    sub_tracking_state_topic: 'bob/camera2/tracker/tracking'
+    sub_tracking_state_topic: 'bob/camera2/tracker/tracking_state'
     sub_recording_state_topic: 'bob/camera2/recording/state'
     sub_environment_day_night_topic: 'bob/camera2/observer/day_night_classifier'
     sub_cloud_estimation_topic: 'bob/camera2/observer/cloud_estimation'
@@ -324,10 +305,6 @@ launch:
           name: camera1_node
           remappings: []
         - package: bob_image_processing
-          plugin: AnnotatedFrameProvider
-          name: camera1_annotated_frame_provider_node
-          remappings: []
-        - package: bob_image_processing
           plugin: FrameCompressor
           name: camera1_original_compressor_node
           remappings: []
@@ -344,10 +321,6 @@ launch:
         - package: bob_camera
           plugin: CameraBGS
           name: camera2_node
-          remappings: []
-        - package: bob_image_processing
-          plugin: AnnotatedFrameProvider
-          name: camera2_annotated_frame_provider_node
           remappings: []
         - package: bob_image_processing
           plugin: FrameCompressor

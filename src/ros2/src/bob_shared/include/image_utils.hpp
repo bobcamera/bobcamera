@@ -10,6 +10,7 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include "../base/Image.hpp"
+#include "../utils/jpeg_compressor.hpp"
 
 class ImageUtils 
 {
@@ -104,7 +105,7 @@ public:
         msg.is_bigendian = (rcpputils::endian::native == rcpputils::endian::big);
         msg.step = img_size.width * CV_ELEM_SIZE(type);
     }
-
+    
     // ------------------------------------------------------------------
     //  Helper to fill a ROS Image message header from our Image
     // ------------------------------------------------------------------
@@ -119,5 +120,55 @@ public:
         msg.encoding = ImageUtils::type_to_encoding(camera_img.type());
         msg.is_bigendian = (rcpputils::endian::native == rcpputils::endian::big);
         msg.step = camera_img.size().width * camera_img.elemSize();
+    }
+
+    // ------------------------------------------------------------------
+    //  Helper to fill a ROS Image message header from our Image
+    // ------------------------------------------------------------------
+    static void fill_imagemsg_header(
+        sensor_msgs::msg::Image &msg,
+        const std_msgs::msg::Header &header,
+        const cv::Mat &camera_img)
+    {
+        msg.header = header;
+        msg.height = camera_img.size().height;
+        msg.width = camera_img.size().width;
+        msg.encoding = ImageUtils::type_to_encoding(camera_img.type());
+        msg.is_bigendian = (rcpputils::endian::native == rcpputils::endian::big);
+        msg.step = camera_img.size().width * camera_img.elemSize();
+    }
+
+    static void publish_image(
+        const std::shared_ptr<rclcpp::Publisher<sensor_msgs::msg::Image>> &publisher,
+        const std_msgs::msg::Header &header,
+        const cv::Mat &img)
+    {
+        if (publisher->get_subscription_count() > 0)
+        {
+            auto loaned = publisher->borrow_loaned_message();
+            auto &camera_msg = loaned.get();
+            ImageUtils::fill_imagemsg_header(camera_msg, header, img);
+            const size_t totalBytes = img.total() * img.elemSize();
+            camera_msg.data.assign(img.data, img.data + totalBytes);
+            publisher->publish(std::move(camera_msg));
+        }
+    }
+
+    static void publish_compressed_image(
+        const std::shared_ptr<rclcpp::Publisher<sensor_msgs::msg::CompressedImage>> &publisher,
+        boblib::utils::JpegCompressor &jpeg_compressor,
+        const std_msgs::msg::Header &header,
+        const cv::Mat &img)
+    {
+        if (publisher->get_subscription_count() > 0)
+        {
+            auto loaned = publisher->borrow_loaned_message();
+            auto &resized_frame_msg = loaned.get();
+            resized_frame_msg.header = header;
+            resized_frame_msg.format = "jpeg";
+            resized_frame_msg.data.reserve(img.total() * img.elemSize() / 2);
+            jpeg_compressor.compress(img, resized_frame_msg.data);
+            publisher->publish(std::move(resized_frame_msg));
+        }
     }
 };

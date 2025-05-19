@@ -8,6 +8,7 @@
 #include <rclcpp_components/register_node_macro.hpp>
 
 #include <parameter_node.hpp>
+#include <utils.hpp>
 #include <image_utils.hpp>
 #include <visibility_control.h>
 
@@ -23,6 +24,7 @@
 #include "background_subtractor_worker.hpp"
 #include "track_provider_worker.hpp"
 #include "record_manager_worker.hpp"
+#include "annotated_frame_worker.hpp"
 
 class CameraBGS final
     : public ParameterNode
@@ -45,6 +47,7 @@ public:
         camera_save_worker_ptr_ = std::make_unique<CameraSaveWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_, *profiler_ptr_);
         track_provider_worker_ptr_ = std::make_unique<TrackProviderWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_, *profiler_ptr_);
         record_manager_worker_ptr_ = std::make_unique<RecordManagerWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_, *profiler_ptr_);
+        annotated_frame_worker_ptr_ = std::make_unique<AnnotatedFrameWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_, *profiler_ptr_);
         camera_worker_ptr_ = std::make_unique<CameraWorker>(*this, camera_bgs_params_, qos_profile_, *topic_manager_, *profiler_ptr_);
     }
 
@@ -73,6 +76,7 @@ private:
         camera_save_worker_ptr_->init();
         track_provider_worker_ptr_->init();
         record_manager_worker_ptr_->init();
+        annotated_frame_worker_ptr_->init();
         camera_worker_ptr_->init();
     }
 
@@ -162,6 +166,18 @@ private:
                     [this](const rclcpp::Parameter &param)
                     {
                         camera_bgs_params_.topics.tracking_publisher_topic = param.as_string();
+                    }),
+                ParameterNode::ActionParam(
+                    rclcpp::Parameter("tracker_state_publisher_topic", "bob/tracker/tracking_state"),
+                    [this](const rclcpp::Parameter &param)
+                    {
+                        camera_bgs_params_.topics.tracker_state_publisher_topic = param.as_string();
+                    }),
+                ParameterNode::ActionParam(
+                    rclcpp::Parameter("annotated_frame_publisher_topic", "bob/frames/annotated"),
+                    [this](const rclcpp::Parameter &param)
+                    {
+                        camera_bgs_params_.topics.annotated_frame_publisher_topic = param.as_string();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("use_cuda", true),
@@ -387,6 +403,24 @@ private:
                     {
                         camera_bgs_params_.camera.speed_test_fps = static_cast<int>(param.as_int());
                     }),
+                ParameterNode::ActionParam(
+                    rclcpp::Parameter("enable_tracking_status_message", true),
+                    [this](const rclcpp::Parameter &param)
+                    {
+                        camera_bgs_params_.annotated_frame.enable_tracking_status_message = param.as_bool();
+                    }),
+                ParameterNode::ActionParam(
+                    rclcpp::Parameter("visualiser_settings", ""),
+                    [this](const rclcpp::Parameter &param)
+                    {
+                        camera_bgs_params_.annotated_frame.visualiser_settings = parse_json_to_map(param.as_string());
+                    }),
+                ParameterNode::ActionParam(
+                    rclcpp::Parameter("compression_quality", 50),
+                    [this](const rclcpp::Parameter &param)
+                    {
+                        camera_bgs_params_.compression_quality = static_cast<int>(param.as_int());
+                    }),
             };
         add_action_parameters(params);
     }
@@ -430,6 +464,7 @@ private:
     std::unique_ptr<CameraSaveWorker> camera_save_worker_ptr_;
     std::unique_ptr<TrackProviderWorker> track_provider_worker_ptr_;
     std::unique_ptr<RecordManagerWorker> record_manager_worker_ptr_;
+    std::unique_ptr<AnnotatedFrameWorker> annotated_frame_worker_ptr_;
 
     std::unique_ptr<boblib::utils::pubsub::TopicManager> topic_manager_;
 

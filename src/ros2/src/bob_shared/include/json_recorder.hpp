@@ -7,6 +7,7 @@
 #include <sensor_msgs/msg/image.hpp>
 #include "bob_interfaces/msg/tracking.hpp"
 #include "bob_camera/msg/camera_info.hpp"
+#include "../../bob_camera/src/tracking.hpp"
 
 class JsonRecorder
 {
@@ -90,16 +91,16 @@ public:
         return false;
     }
 
-    static Json::Value build_json_value(const bob_interfaces::msg::Tracking::SharedPtr & tracking_msg,
+    static Json::Value build_json_value(const std::shared_ptr<bob_camera::Tracking> & tracking_msg,
                                         bool include_detections) noexcept
     {
         Json::Value jsonValue;
 
-        auto time_stamp = rclcpp::Time(tracking_msg->header.stamp);
+        auto time_stamp = rclcpp::Time(tracking_msg->header_ptr->stamp);
         int64_t time_in_nanosecs = time_stamp.nanoseconds();
 
         jsonValue["time_ns"] = time_in_nanosecs;
-        jsonValue["frame_id"] = tracking_msg->header.frame_id;
+        jsonValue["frame_id"] = tracking_msg->header_ptr->frame_id;
         jsonValue["trackable"] = tracking_msg->state.trackable;
 
         if (include_detections) 

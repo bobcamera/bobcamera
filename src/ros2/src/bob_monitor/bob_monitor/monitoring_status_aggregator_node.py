@@ -58,7 +58,7 @@ class MonitoringStatusAggregatorNode(Node):
     self.get_logger().info(f'{self.get_name()} node is up and running.')
    
   def tracking_state_callback(self, msg_tracking:Tracking):
-    self.msg_tracking_state = msg_tracking.state
+    self.msg_tracking_state = msg_tracking
 
   def recording_state_callback(self, msg_recording_state:RecordingState):
     self.msg_recording_state = msg_recording_state

@@ -2,6 +2,7 @@
 
 #include <string>
 #include <algorithm>
+#include <json/json.h>
 
 std::string to_lowercase(const std::string &str)
 {
