@@ -4,7 +4,7 @@ import numpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy, QoSHistoryPolicy
 from bob_shared.node_runner import NodeRunner
-from bob_interfaces.msg import Tracking, RecordingState, DetectorState, MonitoringStatus, ObserverDayNight, ObserverCloudEstimation
+from bob_interfaces.msg import Tracking, TrackingState, RecordingState, DetectorState, MonitoringStatus, ObserverDayNight, ObserverCloudEstimation
 
 class MonitoringStatusAggregatorNode(Node):
 
@@ -47,7 +47,7 @@ class MonitoringStatusAggregatorNode(Node):
 
     # setup services, publishers and subscribers    
     self.sub_detector_state = self.create_subscription(DetectorState, self.sub_detector_state_topic, self.detector_state_callback, subscriber_qos_profile)
-    self.sub_tracking_state = self.create_subscription(Tracking, self.sub_tracking_state_topic, self.tracking_state_callback, subscriber_qos_profile)
+    self.sub_tracking_state = self.create_subscription(TrackingState, self.sub_tracking_state_topic, self.tracking_state_callback, subscriber_qos_profile)
     self.sub_recording_state = self.create_subscription(RecordingState, self.sub_recording_state_topic, self.recording_state_callback, subscriber_qos_profile)
 
     self.sub_environment_day_night = self.create_subscription(ObserverDayNight, self.sub_environment_day_night_topic, self.day_night_callback, subscriber_qos_profile)
