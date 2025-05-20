@@ -90,7 +90,24 @@ namespace boblib::video
             return false;
         width_ = codec_ctx_->width;
         height_ = codec_ctx_->height;
-        fps_ = av_q2d(video_stream_->r_frame_rate);
+
+        // Try multiple sources for FPS
+        fps_ = 0.0;
+        // 1. Try avg_frame_rate first (often more accurate for RTSP)
+        if (video_stream_->avg_frame_rate.num != 0 && video_stream_->avg_frame_rate.den != 0) {
+            fps_ = av_q2d(video_stream_->avg_frame_rate);
+        }
+        // 2. Fall back to r_frame_rate if avg_frame_rate is invalid
+        if (fps_ <= 0.0 || fps_ > 1000.0) {
+            fps_ = av_q2d(video_stream_->r_frame_rate);
+        }
+        // 3. Check if the value is reasonable
+        if (fps_ <= 0.0 || fps_ > 1000.0) {
+            // Set a reasonable default if both values are invalid
+            fps_ = 30.0;
+            std::cerr << "[WARN] Could not determine valid FPS from stream, using default: " << fps_ << std::endl;
+        }
+
         is_opened_ = true;
 
         // after avformat_find_stream_info() and before returning:

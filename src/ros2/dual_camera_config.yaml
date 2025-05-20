@@ -7,7 +7,7 @@ variables:
   extra_saving_seconds: 2
   image_compression_quality: 50
   use_cuda: false #Leave it false as it is not working
-  profiling: true
+  profiling: false
   use_recording: false
   display_enabled: false
   camera1_enabled: true
@@ -30,7 +30,7 @@ basic_config:
       - '/workspaces/bobcamera/media/fisheye_videos/mikeg-30min.mp4'
     speed_test: false            # True to run the speed test, False otherwise
     test_frames: 500            # Number of frames to test the speed
-    speed_test_fps: 60          # FPS to test the speed
+    speed_test_fps: 90          # FPS to test the speed
 
   camera2_node:
     copy: base_camera_node
@@ -44,7 +44,7 @@ basic_config:
       - '/workspaces/bobcamera/media/fisheye_videos/mikeg-30min.mp4'
     speed_test: false            # True to run the speed test, False otherwise
     test_frames: 300            # Number of frames to test the speed
-    speed_test_fps: 60          # FPS to test the speed
+    speed_test_fps: 85          # FPS to test the speed
     
   multi_frame_viewer_node:
     topics: 
