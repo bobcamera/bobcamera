@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <thread>
+#include <mutex>
 
 #include <boblib/api/video/VideoReader.hpp>
 #include <boblib/api/base/SynchronizedQueue.hpp>
@@ -40,6 +41,10 @@ public:
     ~CameraSaveWorker() noexcept
     {
         node_.log_info("CameraSaveWorker destructor");
+        recording_event_pubsub_ptr_.reset();
+        image_pubsub_ptr_.reset();
+        bgs_pubsub_ptr_.reset();
+        tracking_pubsub_ptr_.reset();
         close_recorders();
     }
 
@@ -66,17 +71,14 @@ public:
 private:
     void close_recorders()
     {
+        std::lock_guard<std::recursive_mutex> lk(recording_mutex_);
         if (!recording_)
         {
             return;
         }
         node_.log_info("Closing recorders");
+        recording_ = false;
 
-        if (video_recorder_ptr_)
-        {
-            node_.log_info("Closing video");
-            video_recorder_ptr_->close_video();
-        }
         if (img_recorder_)
         {
             std::string full_path = last_recording_event_.recording_path +
@@ -94,11 +96,16 @@ private:
             json_recorder_->add_to_buffer(json_camera_info, true);
             json_recorder_->write_buffer_to_file(json_full_path);
         }
-        recording_ = false;
+        if (video_recorder_ptr_)
+        {
+            node_.log_info("Closing video");
+            video_recorder_ptr_->close_video();
+        }
     }
 
     void open_recorders()
     {
+        std::lock_guard<std::recursive_mutex> lk(recording_mutex_);
         if (recording_ || !last_recording_event_.recording)
         {
             return;
@@ -155,6 +162,7 @@ private:
 
     void bgs_image_callback(const std::shared_ptr<PublishImage> &camera_publish) noexcept
     {
+        std::lock_guard<std::recursive_mutex> lk(recording_mutex_);
         try
         {
             if (!params_.recording.enabled || !recording_)
@@ -174,6 +182,7 @@ private:
 
     void record_image(const std::shared_ptr<PublishImage> &camera_publish) noexcept
     {
+        std::lock_guard<std::recursive_mutex> lk(recording_mutex_);
         try
         {
             if (!params_.recording.enabled)
@@ -221,6 +230,7 @@ private:
 
     void tracking_callback(const std::shared_ptr<bob_camera::Tracking> &tracking_msg) noexcept
     {
+        std::lock_guard<std::recursive_mutex> lk(recording_mutex_);
         try
         {
             if (!params_.recording.enabled)
@@ -267,6 +277,8 @@ private:
     std::unique_ptr<VideoRecorder> video_recorder_ptr_;
 
     bool recording_{false};
+    mutable std::recursive_mutex recording_mutex_;
+
     float fps_{-1.0f};
     boblib::base::Image last_camera_img_;
     bob_camera::msg::CameraInfo last_camera_info_;
