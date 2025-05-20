@@ -18,7 +18,7 @@
 class AnnotatedFrameCreator
 {
 public:
-    AnnotatedFrameCreator(std::map<std::string, std::string> settings)
+    AnnotatedFrameCreator(std::unordered_map<std::string, std::string> settings)
         : settings_(settings),
           logger_(rclcpp::get_logger("annotated_frame_creator")),
           prediction_colour_(255, 0, 0)
@@ -33,14 +33,15 @@ public:
         const auto &[pr, pg, pb] = (settings_.contains("prediction_colour") ? extract_rgb(settings_["prediction_colour"]) : std::tuple<int, int, int>{255, 0, 0});
         prediction_colour_ = cv::Scalar(pr, pg, pb);
     }
-    //[{"bbox_line_thickness", "1"},{"font_scale_width", "0"},{"font_scale_width", "0"},{"font_scale", "1.0"},{"zoom_factor", "2.0"},{"enable_cropped_tracks", "true"},{"font_colour","{50,170,50}"},{"prediction_colour","{255,0,50}"}]
+    
     void create_frame(const cv::Mat &annotated_frame,
                       const bob_interfaces::msg::Tracking &msg_tracking,
                       bool enable_tracking_status)
     {
         int cropped_track_counter = 0;
-        std::map<int, cv::Rect> detections;
-        std::map<std::string, bob_interfaces::msg::TrackPoint> final_trajectory_points;
+        std::unordered_map<int, cv::Rect> detections;
+        detections.reserve(msg_tracking.detections.size());
+        //std::unordered_map<std::string, bob_interfaces::msg::TrackPoint> final_trajectory_points;
 
         const cv::Size frame_size = annotated_frame.size();
         const int total_height = frame_size.height;
@@ -91,7 +92,7 @@ public:
                             int cropped_size = static_cast<int>(std::min(total_width, total_height) * cropped_percentage);
 
                             cv::Mat resized_cropped_image;
-                            cv::resize(cropped_image, resized_cropped_image, cv::Size(cropped_size, cropped_size));
+                            cv::resize(cropped_image, resized_cropped_image, cv::Size(cropped_size, cropped_size), 0, 0, cv::INTER_NEAREST);
 
                             int cropped_image_x_position = 10 + (cropped_track_counter * (cropped_size + 10));
                             int cropped_image_y_position = total_height - cropped_size - 10;
@@ -182,12 +183,12 @@ private:
         return fontScale;
     }
 
-    inline cv::Rect get_sized_bbox(vision_msgs::msg::BoundingBox2D bbox_msg)
+    inline cv::Rect get_sized_bbox(const bob_interfaces::msg::DetectorBBox &bbox_msg)
     {
-        const int x = static_cast<int>(bbox_msg.center.position.x - (bbox_msg.size_x / 2));
-        const int y = static_cast<int>(bbox_msg.center.position.y - (bbox_msg.size_y / 2));
-        const int w = static_cast<int>(bbox_msg.size_x);
-        const int h = static_cast<int>(bbox_msg.size_y);
+        const int x = static_cast<int>(bbox_msg.x);
+        const int y = static_cast<int>(bbox_msg.y);
+        const int w = static_cast<int>(bbox_msg.width);
+        const int h = static_cast<int>(bbox_msg.height);
 
         const int size = std::max(w, h) + 15;
         const int x1 = x + (w / 2) - (size / 2);
@@ -210,7 +211,7 @@ private:
         }
     }
 
-    std::map<std::string, std::string> settings_;
+    std::unordered_map<std::string, std::string> settings_;
     rclcpp::Logger logger_;
 
     cv::Scalar font_colour_;

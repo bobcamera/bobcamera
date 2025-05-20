@@ -2,11 +2,31 @@
 
 
 # boblib bgs test
-add_executable(boblib_bgs_test "src/demo_bgs.cpp")
-target_include_directories(boblib_bgs_test PUBLIC "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/api/include>")
-target_link_libraries(boblib_bgs_test PUBLIC "${OpenCV_LIBS}" boblib)
-set_target_properties(boblib_bgs_test PROPERTIES FOLDER "apps")
-install(TARGETS boblib_bgs_test RUNTIME DESTINATION "bin" COMPONENT "apps")
+add_executable(bench_bob_pubsub "src/bench_bob_pubsub.cpp")
+target_include_directories(bench_bob_pubsub PUBLIC "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/api/include>")
+target_link_libraries(bench_bob_pubsub PRIVATE "${OpenCV_LIBS}" boblib)
+set_target_properties(bench_bob_pubsub PROPERTIES FOLDER "apps")
+install(TARGETS bench_bob_pubsub RUNTIME DESTINATION "bin" COMPONENT "apps")
+
+# boblib bgs test
+find_package(rclcpp REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(cv_bridge REQUIRED)
+
+add_executable(bench_ros_pubsub "src/bench_ros_pubsub.cpp")
+target_include_directories(bench_ros_pubsub PUBLIC "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/api/include>")
+target_link_libraries(bench_ros_pubsub PRIVATE boblib "${OpenCV_LIBS}" rclcpp::rclcpp cv_bridge::cv_bridge)
+set_target_properties(bench_ros_pubsub PROPERTIES FOLDER "apps")
+# turn off interprocedural optimization (LTO) for this target
+set_target_properties(bench_ros_pubsub PROPERTIES INTERPROCEDURAL_OPTIMIZATION OFF)
+install(TARGETS bench_ros_pubsub RUNTIME DESTINATION "bin" COMPONENT "apps")
+
+# boblib_video
+add_executable(bench_bgs_blob "src/bench_bgs_blob.cpp")
+target_include_directories(bench_bgs_blob PUBLIC "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/api/include>")
+target_link_libraries(bench_bgs_blob PUBLIC "${OpenCV_LIBS}" boblib)
+set_target_properties(bench_bgs_blob PROPERTIES FOLDER "apps")
+install(TARGETS bench_bgs_blob RUNTIME DESTINATION "bin" COMPONENT "apps")
 
 # boblib hikvision test
 # add_executable(boblib_hik_test "src/demo_hik.cpp")
@@ -14,13 +34,6 @@ install(TARGETS boblib_bgs_test RUNTIME DESTINATION "bin" COMPONENT "apps")
 # target_link_libraries(boblib_hik_test PUBLIC "${OpenCV_LIBS}" boblib avcodec avutil swscale hcnetsdk)
 # set_target_properties(boblib_hik_test PROPERTIES FOLDER "apps")
 # install(TARGETS boblib_hik_test RUNTIME DESTINATION "bin" COMPONENT "apps")
-
-# # boblib_video
-# add_executable(boblib_demo_video "src/demo_main.cpp")
-# target_include_directories(boblib_demo_video PUBLIC "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/api/include>")
-# target_link_libraries(boblib_demo_video PUBLIC "${OpenCV_LIBS}" boblib)
-# set_target_properties(boblib_demo_video PROPERTIES FOLDER "apps")
-# install(TARGETS boblib_demo_video RUNTIME DESTINATION "bin" COMPONENT "apps")
 
 # if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 #     target_link_libraries(boblib_demo_video PRIVATE TBB::tbb)
@@ -42,3 +55,6 @@ install(TARGETS boblib_bgs_test RUNTIME DESTINATION "bin" COMPONENT "apps")
 #     message(STATUS "Copying Video Dahua-20220901-184734.mp4")
 #     configure_file(${VIDEOTEST} "${CMAKE_BINARY_DIR}/bin/Dahua-20220901-184734.mp4" COPYONLY)
 # endif ()
+
+# to get the shared library dependencies
+#ldd bench_ros_pubsub   | awk '/=>/ { print $3 }'

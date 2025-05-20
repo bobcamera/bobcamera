@@ -23,4 +23,4 @@ cp -r ./install/bob_monitor/share/bob_monitor/ver20 ./assets/wsdl
 cp $1 ./assets/config/app_config.yaml
 
 # Launch the application
-./launcher.sh dynamic_launch.py
+./ros_launcher.sh dynamic_launch.py

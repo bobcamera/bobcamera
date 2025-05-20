@@ -1,3 +1,5 @@
+#pragma once
+
 #include <filesystem>
 #include <fstream>
 #include <json/json.h>
@@ -5,6 +7,7 @@
 #include <sensor_msgs/msg/image.hpp>
 #include "bob_interfaces/msg/tracking.hpp"
 #include "bob_camera/msg/camera_info.hpp"
+#include "../../bob_camera/src/tracking.hpp"
 
 class JsonRecorder
 {
@@ -14,7 +17,12 @@ public:
     {
     }
 
-    void add_to_pre_buffer(const Json::Value & jsonValue, bool prepend = false) 
+    void reset() noexcept
+    {
+        json_buffer_.clear();
+    }
+
+    void add_to_pre_buffer(const Json::Value & jsonValue, bool prepend = false) noexcept
     {
         if (prepend) 
         {
@@ -31,7 +39,7 @@ public:
         }
     }
 
-    void add_to_buffer(const Json::Value& jsonValue, bool prepend = false) 
+    void add_to_buffer(const Json::Value& jsonValue, bool prepend = false) noexcept
     {
         if (prepend) 
         {
@@ -43,7 +51,7 @@ public:
         }
     }
 
-    bool write_buffer_to_file(const std::string & filename) 
+    bool write_buffer_to_file(const std::string & filename) noexcept
     {
         if (!json_buffer_.empty()) 
         {
@@ -75,23 +83,24 @@ public:
             
             file << "]" << std::endl;
             file.close();
-            json_buffer_.clear();
+            reset();
+            
             return true;
         }
 
         return false;
     }
 
-    static Json::Value build_json_value(const bob_interfaces::msg::Tracking::SharedPtr & tracking_msg,
-                                        bool include_detections) 
+    static Json::Value build_json_value(const std::shared_ptr<bob_camera::Tracking> & tracking_msg,
+                                        bool include_detections) noexcept
     {
         Json::Value jsonValue;
 
-        auto time_stamp = rclcpp::Time(tracking_msg->header.stamp);
+        auto time_stamp = rclcpp::Time(tracking_msg->header_ptr->stamp);
         int64_t time_in_nanosecs = time_stamp.nanoseconds();
 
         jsonValue["time_ns"] = time_in_nanosecs;
-        jsonValue["frame_id"] = tracking_msg->header.frame_id;
+        jsonValue["frame_id"] = tracking_msg->header_ptr->frame_id;
         jsonValue["trackable"] = tracking_msg->state.trackable;
 
         if (include_detections) 
@@ -104,10 +113,10 @@ public:
                 jsonDetection["state"] = detection.state;
 
                 Json::Value jsonBbox;
-                jsonBbox["x"] = detection.bbox.center.position.x;
-                jsonBbox["y"] = detection.bbox.center.position.y;
-                jsonBbox["width"] = detection.bbox.size_x;
-                jsonBbox["height"] = detection.bbox.size_y;
+                jsonBbox["x"] = detection.bbox.x;
+                jsonBbox["y"] = detection.bbox.y;
+                jsonBbox["width"] = detection.bbox.width;
+                jsonBbox["height"] = detection.bbox.height;
                 jsonDetection["bbox"] = jsonBbox;
                 jsonDetectionsArray.append(jsonDetection);
             }
@@ -117,20 +126,20 @@ public:
         return jsonValue;
     }
 
-    static Json::Value build_json_camera_info(const bob_camera::msg::CameraInfo::SharedPtr& camera_info_msg) 
+    static Json::Value build_json_camera_info(const bob_camera::msg::CameraInfo &camera_info_msg) noexcept
     { 
         Json::Value jsonValue;
         Json::Value jsonCameraInfo;
-        jsonCameraInfo["id"] = camera_info_msg->id;
-        jsonCameraInfo["manufacturer"] = camera_info_msg->manufacturer;
-        jsonCameraInfo["model"] = camera_info_msg->model;
-        jsonCameraInfo["serial_num"] = camera_info_msg->serial_num;
-        jsonCameraInfo["firmware_version"] = camera_info_msg->firmware_version;
-        jsonCameraInfo["num_configurations"] = camera_info_msg->num_configurations;
-        jsonCameraInfo["encoding"] = camera_info_msg->encoding;
-        jsonCameraInfo["frame_width"] = camera_info_msg->frame_width;
-        jsonCameraInfo["frame_height"] = camera_info_msg->frame_height;
-        jsonCameraInfo["fps"] = camera_info_msg->fps;
+        jsonCameraInfo["id"] = camera_info_msg.id;
+        jsonCameraInfo["manufacturer"] = camera_info_msg.manufacturer;
+        jsonCameraInfo["model"] = camera_info_msg.model;
+        jsonCameraInfo["serial_num"] = camera_info_msg.serial_num;
+        jsonCameraInfo["firmware_version"] = camera_info_msg.firmware_version;
+        jsonCameraInfo["num_configurations"] = camera_info_msg.num_configurations;
+        jsonCameraInfo["encoding"] = camera_info_msg.encoding;
+        jsonCameraInfo["frame_width"] = camera_info_msg.frame_width;
+        jsonCameraInfo["frame_height"] = camera_info_msg.frame_height;
+        jsonCameraInfo["fps"] = camera_info_msg.fps;
         jsonValue["camera_info"] = jsonCameraInfo;
 
         return jsonValue;

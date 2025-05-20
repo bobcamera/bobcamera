@@ -41,16 +41,15 @@ public:
         timer_init_ = create_wall_timer(std::chrono::seconds(timer_seconds_), [this](){ init(); });
     }
 
-    static std::string generate_uuid()
+    std::string generate_uuid() noexcept
     {
-        boost::uuids::random_generator uuid_generator;
-        return boost::uuids::to_string(uuid_generator());
+        return boost::uuids::to_string(uuid_generator_());
     }
 
     template <class T>
     inline void publish_if_subscriber(rclcpp::Publisher<T>::SharedPtr publisher, T message) const
     {
-        if (!publisher || (count_subscribers(publisher->get_topic_name()) <= 0))
+        if (!publisher || publisher->get_subscription_count() <= 0)
         {
             return;
         }
@@ -212,4 +211,5 @@ private:
     rclcpp::Publisher<bob_interfaces::msg::LogMessage>::SharedPtr log_publisher_;
     rclcpp::TimerBase::SharedPtr timer_init_;
     int timer_seconds_;
+    boost::uuids::random_generator uuid_generator_;
 };

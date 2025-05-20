@@ -15,7 +15,6 @@ namespace boblib::bgs
 
     Vibe::~Vibe()
     {
-        free_memory();
     }
 
     void Vibe::initialize(const boblib::base::Image &_init_img)
@@ -72,10 +71,6 @@ namespace boblib::bgs
 
     void Vibe::process(const boblib::base::Image &_image, boblib::base::Image &_fg_mask, const boblib::base::Image &_detect_mask, int _num_process)
     {
-        if (using_cuda_)
-        {
-            process_cuda(_image, _fg_mask, _detect_mask);
-        }
         auto &fg_mask = _fg_mask.toMat();
         Img img_split(_image.data(), ImgSize(_image));
         Img mask_partial(fg_mask.data, ImgSize(fg_mask));
@@ -96,6 +91,7 @@ namespace boblib::bgs
             if (img_split.size.bytes_per_channel == 1)
             {
                 apply1<uint8_t>(img_split, mask_partial, detect_mask_partial, _num_process);
+                //apply1_avx2_u8(img_split, mask_partial, detect_mask_partial, _num_process);
             }
             else
             {
@@ -185,23 +181,24 @@ namespace boblib::bgs
         _fg_mask.clear();
 
         const int32_t n_color_dist_threshold = sizeof(T) == 1 ? m_params.threshold_mono : m_params.threshold_mono16;
+        const T *img_ptr = _image.ptr<T>();
+        const T *mask_ptr = has_detect_mask ? _detect_mask.ptr<T>() : nullptr;
+        uint8_t *fg_ptr = _fg_mask.data;
 
         size_t pix_offset{0};
         for (int y{0}; y < _image.size.height; ++y)
         {
             for (int x{0}; x < _image.size.width; ++x, ++pix_offset)
             {
-                if (has_detect_mask && (_detect_mask.ptr<T>()[pix_offset] == 0))
+                if (has_detect_mask && (mask_ptr[pix_offset] == 0))
                 {
                     continue;
                 }
 
-                uint32_t n_good_samples_count{0},
-                    n_sample_idx{0};
+                const T pix_data{img_ptr[pix_offset]};
 
-                const T pix_data{_image.ptr<T>()[pix_offset]};
-
-                while (n_sample_idx < m_params.bg_samples)
+                uint32_t n_good_samples_count{0};
+                for (size_t n_sample_idx = 0; n_sample_idx < m_params.bg_samples; ++n_sample_idx)
                 {
                     if (std::abs((int32_t)_bg_img[n_sample_idx]->ptr<T>()[pix_offset] - (int32_t)pix_data) < n_color_dist_threshold)
                     {
@@ -211,11 +208,10 @@ namespace boblib::bgs
                             break;
                         }
                     }
-                    ++n_sample_idx;
                 }
                 if (n_good_samples_count < m_params.required_bg_samples)
                 {
-                    _fg_mask.data[pix_offset] = UCHAR_MAX;
+                    fg_ptr[pix_offset] = UCHAR_MAX;
                 }
                 else
                 {
@@ -261,81 +257,141 @@ namespace boblib::bgs
         avg_bg_img.convertTo(_bg_image, CV_8U);
     }
 
-    void Vibe::free_memory()
+#include <immintrin.h>
+
+    void Vibe::apply1_avx2_u8(const Img &_image,
+                              Img &_fg_mask,
+                              const Img &_detect_mask,
+                              int _num_process)
     {
-        // if (memory_allocated)
-        // {
-        //     // Free the device memory for d_bg_img_samples
-        //     cudaFree(d_bg_img_samples);
-        //     d_bg_img_samples = nullptr;
-        //     memory_allocated = false;
-        // }
-    }
+        auto &_bg_img = m_bg_img_samples[_num_process];
+        auto &thread_rng = m_random_generators[_num_process];
+        const auto has_detect_mask = !_detect_mask.empty();
 
-    void Vibe::allocate_memory_if_needed(const boblib::base::Image &)
-    {
-        // if (!memory_allocated)
-        // {
-        //     // Allocate device memory for d_bg_img_samples (array of pointers)
-        //     cudaMalloc(&d_bg_img_samples, m_bg_img_samples.size() * sizeof(uchar *));
+        _fg_mask.clear();
 
-        //     // Allocate memory for each Img on the device and collect their pointers
-        //     std::vector<uchar *> h_bg_img_samples(m_bg_img_samples.size());
+        const int32_t n_color_dist_threshold = m_params.threshold_mono;
+        const uint8_t *img_ptr = _image.ptr<uint8_t>();
+        const uint8_t *mask_ptr = has_detect_mask ? _detect_mask.ptr<uint8_t>() : nullptr;
+        uint8_t *fg_ptr = _fg_mask.data;
 
-        //     for (size_t i = 0; i < m_bg_img_samples.size(); ++i)
-        //     {
-        //         m_bg_img_samples[i] = std::make_unique<cv::cuda::GpuMat>(_image.size(), _image.type());
-        //         h_bg_img_samples[i] = m_bg_img_samples[i]->ptr<uchar>();
-        //     }
+        const int width = _image.size.width;
+        const int height = _image.size.height;
+        const size_t bg_samples = m_params.bg_samples;
+        const uint32_t required_bg_samples = m_params.required_bg_samples;
+        const uint32_t and_learning_rate = m_params.and_learning_rate;
 
-        //     // Copy the array of pointers from host to device
-        //     cudaMemcpy(d_bg_img_samples, h_bg_img_samples.data(), m_bg_img_samples.size() * sizeof(uchar *), cudaMemcpyHostToDevice);
+        // Prepare background pointers for faster access
+        alignas(32) std::vector<const uint8_t *> bg_ptrs(bg_samples);
+        for (size_t s = 0; s < bg_samples; ++s)
+        {
+            bg_ptrs[s] = _bg_img[s]->ptr<uint8_t>();
+        }
 
-        //     memory_allocated = true; // Mark memory as allocated
-        // }
-    }
+        // Threshold vector for SIMD comparison
+        __m256i threshold_vec = _mm256_set1_epi8(static_cast<char>(n_color_dist_threshold));
 
-    // __global__ void vibeKernel(const uchar *d_image, uchar *d_fg_mask, const uchar *d_detect_mask, uchar **d_bg_img_samples,
-    //                            int img_width, int img_height, int n_color_dist_threshold, int bg_samples,
-    //                            int required_bg_samples, int and_learning_rate, bool has_detect_mask, uint32_t *rand_states);
+//#pragma omp parallel for schedule(dynamic) if (_image.size.width * _image.size.height > 100000)
+        for (int y = 0; y < height; ++y)
+        {
+            // Process row
+            for (int x = 0; x < width; ++x)
+            {
+                size_t pix_offset = y * width + x;
 
-    void Vibe::process_cuda(const boblib::base::Image &_image, boblib::base::Image &_fg_mask, const boblib::base::Image &_detect_mask)
-    {
-        // const int img_width = _image.size().width;
-        // const int img_height = _image.size().height;
-        // const int n_color_dist_threshold = m_params.threshold_mono;
-        // const bool has_detect_mask = !_detect_mask.empty();
+                // Skip masked pixels
+                if (has_detect_mask && (mask_ptr[pix_offset] == 0))
+                {
+                    continue;
+                }
 
-        // // Allocate memory if it hasn't been allocated yet
-        // allocate_memory_if_needed(_image);
+                const uint8_t pix_data = img_ptr[pix_offset];
 
-        // // Set up CUDA grid and block dimensions
-        // dim3 blockDim(16, 16);
-        // dim3 gridDim((img_width + blockDim.x - 1) / blockDim.x, (img_height + blockDim.y - 1) / blockDim.y);
+                // Try scalar processing first for the first few samples to benefit from early exit
+                uint32_t n_good_samples_count = 0;
+                size_t n_sample_idx = 0;
 
-        // // Allocate and initialize RNG states
-        // uint32_t *d_rand_states;
-        // cudaMalloc(&d_rand_states, img_width * img_height * sizeof(uint32_t));
-        // uint32_t *h_rand_states = new uint32_t[img_width * img_height];
-        // for (int i = 0; i < img_width * img_height; ++i)
-        // {
-        //     h_rand_states[i] = i * 123456789; // Initialize with a seed
-        // }
-        // cudaMemcpy(d_rand_states, h_rand_states, img_width * img_height * sizeof(uint32_t), cudaMemcpyHostToDevice);
-        // delete[] h_rand_states;
+                // Process first 8 samples with scalar code - often enough to make a decision
+                const size_t scalar_samples = std::min(bg_samples, size_t(8));
+                for (; n_sample_idx < scalar_samples; ++n_sample_idx)
+                {
+                    if (std::abs((int)bg_ptrs[n_sample_idx][pix_offset] - (int)pix_data) < n_color_dist_threshold)
+                    {
+                        ++n_good_samples_count;
+                        if (n_good_samples_count >= required_bg_samples)
+                        {
+                            break; // Early exit if we have enough matches
+                        }
+                    }
+                }
 
-        // // Launch the kernel
-        // vibeKernel<<<gridDim, blockDim>>>(_image.ptr<uchar>(), _fg_mask.ptr<uchar>(),
-        //                                   has_detect_mask ? _detect_mask.ptr<uchar>() : nullptr,
-        //                                   d_bg_img_samples, img_width, img_height,
-        //                                   n_color_dist_threshold, m_params.bg_samples,
-        //                                   m_params.required_bg_samples, m_params.and_learning_rate,
-        //                                   has_detect_mask, d_rand_states);
+                // If we don't have enough matches and there are more samples, use SIMD
+                if (n_good_samples_count < required_bg_samples && n_sample_idx < bg_samples)
+                {
+                    // Create pixel vector once for all comparisons
+                    __m256i pixel_vec = _mm256_set1_epi8(static_cast<char>(pix_data));
 
-        // // Wait for kernel execution to finish
-        // cudaDeviceSynchronize();
+                    // Process remaining samples in chunks of 32
+                    alignas(32) uint8_t local_sample_values[32];
 
-        // // Free RNG state memory
-        // cudaFree(d_rand_states);
+                    while (n_sample_idx + 32 <= bg_samples && n_good_samples_count < required_bg_samples)
+                    {
+// Fast gather - directly load into local buffer with fewer branches
+//#pragma unroll(8)
+                        for (int i = 0; i < 32; i += 4)
+                        {
+                            local_sample_values[i] = bg_ptrs[n_sample_idx + i][pix_offset];
+                            local_sample_values[i + 1] = bg_ptrs[n_sample_idx + i + 1][pix_offset];
+                            local_sample_values[i + 2] = bg_ptrs[n_sample_idx + i + 2][pix_offset];
+                            local_sample_values[i + 3] = bg_ptrs[n_sample_idx + i + 3][pix_offset];
+                        }
+
+                        // Process 32 samples in parallel
+                        __m256i bg_vals = _mm256_load_si256(reinterpret_cast<__m256i *>(local_sample_values));
+                        __m256i diff = _mm256_or_si256(
+                            _mm256_subs_epu8(pixel_vec, bg_vals), // pixel > bg
+                            _mm256_subs_epu8(bg_vals, pixel_vec)  // bg > pixel
+                        );
+                        __m256i cmp_mask = _mm256_cmpgt_epi8(threshold_vec, diff);
+                        uint32_t matches = _mm_popcnt_u32(_mm256_movemask_epi8(cmp_mask));
+
+                        n_good_samples_count += matches;
+                        n_sample_idx += 32;
+                    }
+
+                    // Handle remaining samples with scalar code
+                    while (n_sample_idx < bg_samples && n_good_samples_count < required_bg_samples)
+                    {
+                        if (std::abs((int)bg_ptrs[n_sample_idx][pix_offset] - (int)pix_data) < n_color_dist_threshold)
+                        {
+                            ++n_good_samples_count;
+                        }
+                        ++n_sample_idx;
+                    }
+                }
+
+                // Update foreground mask and model
+                if (n_good_samples_count < required_bg_samples)
+                {
+                    fg_ptr[pix_offset] = UCHAR_MAX;
+                }
+                else
+                {
+                    // Use thread_rng for consistent random numbers
+                    if ((thread_rng.fast() & and_learning_rate) == 0)
+                    {
+                        uint32_t model_idx = thread_rng.fast() & and_learning_rate;
+                        _bg_img[model_idx]->ptr<uint8_t>()[pix_offset] = pix_data;
+                    }
+
+                    if ((thread_rng.fast() & and_learning_rate) == 0)
+                    {
+                        const int neigh_data = get_neighbor_position_3x3(x, y, _image.size, thread_rng.fast());
+                        uint32_t model_idx = thread_rng.fast() & and_learning_rate;
+                        _bg_img[model_idx]->ptr<uint8_t>()[neigh_data] = pix_data;
+                    }
+                }
+            }
+        }
     }
 }

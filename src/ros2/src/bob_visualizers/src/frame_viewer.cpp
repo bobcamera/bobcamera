@@ -117,7 +117,22 @@ private:
 
         try 
         {
-            cv::Mat img = cv::imdecode(cv::Mat(image_msg->data), cv::IMREAD_COLOR);
+            auto current_time = std::chrono::steady_clock::now();
+            frame_count++;
+
+            // Update FPS calculation every N frames for stability
+            if (frame_count % fps_update_interval == 0)
+            {
+                auto time_diff = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                     current_time - last_time)
+                                     .count() /
+                                 1000.0;
+                fps = fps_update_interval / time_diff;
+                last_time = current_time;
+                log_info("FPS: %.2f", fps);
+            }
+
+            auto img = cv::imdecode(cv::Mat(image_msg->data), cv::IMREAD_COLOR);
             if (img.empty()) 
             {
                 log_error("Decoding failed.");
@@ -136,6 +151,20 @@ private:
     {
         try 
         {
+            auto current_time = std::chrono::steady_clock::now();
+            frame_count++;
+
+            // Update FPS calculation every N frames for stability
+            if (frame_count % fps_update_interval == 0)
+            {
+                auto time_diff = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                     current_time - last_time)
+                                     .count() /
+                                 1000.0;
+                fps = fps_update_interval / time_diff;
+                last_time = current_time;
+                log_info("FPS: %.2f", fps);
+            }
             cv::Mat img;
             ImageUtils::convert_image_msg(image_msg, img, true);
             display_image(img);
@@ -180,6 +209,11 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr image_subscription_compressed_;
     std::vector<std::string> topics_;
     int current_topic_;
+
+    std::chrono::steady_clock::time_point last_time = std::chrono::steady_clock::now();
+    double fps = 0.0;
+    int frame_count = 0;
+    const int fps_update_interval = 60;
 };
 
 RCLCPP_COMPONENTS_REGISTER_NODE(FrameViewer)

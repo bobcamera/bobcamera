@@ -1,0 +1,15 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "start and wait ROS2 launch",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "-c",
+        "./launch_dynamic.sh dual_camera_config.yaml &\n  sleep 5"
+      ],
+      "problemMatcher": []
+    }
+  ]
+}

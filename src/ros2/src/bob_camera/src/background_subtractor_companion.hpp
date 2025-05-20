@@ -6,9 +6,8 @@
 #include <map>
 #include <json/json.h>
 
-class Sensitivity 
+struct Sensitivity 
 {
-public:
     int vibe_threshold;
     int vibe_bg_samples;
     int vibe_required_bg_samples;

@@ -1,3 +1,5 @@
+#pragma once
+
 #include <opencv2/opencv.hpp>
 
 #include <array>
@@ -18,7 +20,7 @@ struct TrackPoint
     }
 };
 
-class ImageRecorder 
+class ImageRecorder final
 {
 public:
     explicit ImageRecorder(int pre_buffer_size) 
@@ -28,20 +30,20 @@ public:
         draw_trajectories_enabled_ = true;
     }
 
-    void accumulate_mask(const cv::Mat & fg_mask, const cv::Size & frame_size) 
+    void accumulate_mask(const cv::Mat & fg_mask) 
     {
-        if (heatmap_accumulator_.empty()) 
+        if (heatmap_accumulator_.empty() ||
+            heatmap_accumulator_.size() != fg_mask.size() ||
+            heatmap_accumulator_.type() != fg_mask.type() ||
+            heatmap_accumulator_.channels() != fg_mask.channels())
         {
-            heatmap_accumulator_ = cv::Mat::zeros(frame_size, fg_mask.type());
+            heatmap_accumulator_ = cv::Mat::zeros(fg_mask.size(), fg_mask.type());
         }
 
-        cv::Mat shifted_fg_mask = cv::Mat::zeros(frame_size, fg_mask.type());
-
-        fg_mask.copyTo(shifted_fg_mask);
-        cv::add(heatmap_accumulator_, shifted_fg_mask, heatmap_accumulator_);
+        cv::add(heatmap_accumulator_, fg_mask, heatmap_accumulator_);
     }
 
-    void reset() 
+    void reset() noexcept
     {
         heatmap_accumulator_ = cv::Mat();
         track_trajectories_.clear();
@@ -70,12 +72,12 @@ public:
         return cv::imwrite(full_path, frame_for_drawing_);
     }
 
-    void update_frame_for_drawing(const cv::Mat & img) 
+    void update_frame_for_drawing(const cv::Mat &img) noexcept
     {
         frame_for_drawing_ = img.clone();
     }
 
-    void add_to_pre_buffer(const cv::Mat& img)
+    void add_to_pre_buffer(const cv::Mat &img) noexcept
     {
         if (pre_buffer_ptr_->size() >= max_pre_buffer_size_) 
         {
@@ -84,26 +86,26 @@ public:
         pre_buffer_ptr_->push_back(img.clone());
     }
 
-    void accumulate_pre_buffer_images() 
+    void accumulate_pre_buffer_images() noexcept
     {
         for (const auto& img : *pre_buffer_ptr_) 
         {
-            accumulate_mask(img, img.size());
+            accumulate_mask(img);
         }
         pre_buffer_ptr_->clear();
     }
 
-    void store_trajectory_point(int detection_id, const cv::Point & point, double area)
+    void store_trajectory_point(int detection_id, const cv::Point &point, double area) noexcept
     {
         track_trajectories_[detection_id].emplace_back(point, area);
     }
 
-    void set_draw_trajectories_enabled(bool enabled) 
+    void set_draw_trajectories_enabled(bool enabled) noexcept
     {
         draw_trajectories_enabled_ = enabled;
     }
 
-    bool is_draw_trajectories_enabled() const 
+    bool is_draw_trajectories_enabled() const noexcept
     {
         return draw_trajectories_enabled_;
     }

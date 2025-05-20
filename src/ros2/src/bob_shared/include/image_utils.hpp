@@ -10,6 +10,7 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include "../base/Image.hpp"
+#include "../utils/jpeg_compressor.hpp"
 
 class ImageUtils 
 {
@@ -90,111 +91,84 @@ public:
                 throw std::runtime_error("Unsupported image format");
         }
     }
-};
 
-class RosCvImageMsg
-{
-public:
-    RosCvImageMsg(const boblib::base::Image & image, bool copy_img)
+    // ------------------------------------------------------------------
+    //  Helper to fill a ROS Image message header from our Size and type
+    // ------------------------------------------------------------------
+    static void fill_imagemsg_header(
+        sensor_msgs::msg::Image &msg, const std_msgs::msg::Header &header, const cv::Size &img_size, const int type)
     {
-        create_image_msg(image, copy_img);
-    }
-
-    RosCvImageMsg(int width, int height, int type, bool use_cuda)
-    {
-        create_image_msg(width, height, type, use_cuda);
-    }
-
-    std_msgs::msg::Header & get_header() const
-    {
-        return msg_ptr_->header;
-    }
-
-    void set_header(const std_msgs::msg::Header & header)
-    {
-        msg_ptr_->header = header;
-    }
-
-    void set_header(const rclcpp::Time & time, const std::string & id)
-    {
-        msg_ptr_->header.stamp = time;
-        msg_ptr_->header.frame_id = id;
+        msg.header = header;
+        msg.height = img_size.height;
+        msg.width = img_size.width;
+        msg.encoding = ImageUtils::type_to_encoding(type);
+        msg.is_bigendian = (rcpputils::endian::native == rcpputils::endian::big);
+        msg.step = img_size.width * CV_ELEM_SIZE(type);
     }
     
-    boblib::base::Image & get_image() const
+    // ------------------------------------------------------------------
+    //  Helper to fill a ROS Image message header from our Image
+    // ------------------------------------------------------------------
+    static void fill_imagemsg_header(
+        sensor_msgs::msg::Image &msg,
+        const std_msgs::msg::Header &header,
+        const boblib::base::Image &camera_img)
     {
-        return *image_ptr_;
+        msg.header = header;
+        msg.height = camera_img.size().height;
+        msg.width = camera_img.size().width;
+        msg.encoding = ImageUtils::type_to_encoding(camera_img.type());
+        msg.is_bigendian = (rcpputils::endian::native == rcpputils::endian::big);
+        msg.step = camera_img.size().width * camera_img.elemSize();
     }
 
-    const sensor_msgs::msg::Image & get_msg()
+    // ------------------------------------------------------------------
+    //  Helper to fill a ROS Image message header from our Image
+    // ------------------------------------------------------------------
+    static void fill_imagemsg_header(
+        sensor_msgs::msg::Image &msg,
+        const std_msgs::msg::Header &header,
+        const cv::Mat &camera_img)
     {
-        if ((image_msg_size_ != image_ptr_->size()) || (image_type_ != image_ptr_->type()))
+        msg.header = header;
+        msg.height = camera_img.size().height;
+        msg.width = camera_img.size().width;
+        msg.encoding = ImageUtils::type_to_encoding(camera_img.type());
+        msg.is_bigendian = (rcpputils::endian::native == rcpputils::endian::big);
+        msg.step = camera_img.size().width * camera_img.elemSize();
+    }
+
+    static void publish_image(
+        const std::shared_ptr<rclcpp::Publisher<sensor_msgs::msg::Image>> &publisher,
+        const std_msgs::msg::Header &header,
+        const cv::Mat &img)
+    {
+        if (publisher->get_subscription_count() > 0)
         {
-            image_msg_size_ = image_ptr_->size();
-            image_type_ = image_ptr_->type();
-            msg_ptr_->height = image_ptr_->size().height;
-            msg_ptr_->width = image_ptr_->size().width;
-            msg_ptr_->encoding = ImageUtils::type_to_encoding(image_type_);
-            msg_ptr_->is_bigendian = (rcpputils::endian::native == rcpputils::endian::big);
-            msg_ptr_->step = image_ptr_->size().width * image_ptr_->elemSize();
-        }
-        const size_t totalBytes = image_ptr_->total() * image_ptr_->elemSize();
-        msg_ptr_->data.assign(image_ptr_->data(), image_ptr_->data() + totalBytes);
-        return *msg_ptr_;
-    }
-
-    static std::unique_ptr<RosCvImageMsg> create(int width, int height, int type, bool use_cuda)
-    {
-        return std::make_unique<RosCvImageMsg>(width, height, type, use_cuda);
-    }
-
-    static std::unique_ptr<RosCvImageMsg> create(const cv::Mat & img, bool copy_img, bool use_cuda)
-    {
-        auto img_msg = std::make_unique<RosCvImageMsg>(img.size().width, img.size().height, img.type(), use_cuda);
-        if (copy_img)
-        {
-            img_msg->get_image().create(img);
-        }
-        return img_msg;
-    }
-
-private:
-    sensor_msgs::msg::Image::SharedPtr msg_ptr_;
-    std::unique_ptr<boblib::base::Image> image_ptr_;
-    cv::Size image_msg_size_;
-    int image_type_;
-
-    inline void create_image_msg(const boblib::base::Image & image, bool copy_img)
-    {
-        image_msg_size_ = image.size();
-        image_type_ = image.type();
-        msg_ptr_ = std::make_shared<sensor_msgs::msg::Image>();
-
-        image_ptr_ = std::make_unique<boblib::base::Image>(image.get_using_cuda());
-        image_ptr_->create(image_msg_size_, image_type_);
-        msg_ptr_->height = image.size().height;
-        msg_ptr_->width = image.size().width;
-        msg_ptr_->encoding = ImageUtils::type_to_encoding(image_type_);
-        msg_ptr_->is_bigendian = (rcpputils::endian::native == rcpputils::endian::big);
-        msg_ptr_->step = image.size().width * image.elemSize();
-        if (copy_img)
-        {
-            image.copyTo(*image_ptr_);
+            auto loaned = publisher->borrow_loaned_message();
+            auto &camera_msg = loaned.get();
+            ImageUtils::fill_imagemsg_header(camera_msg, header, img);
+            const size_t totalBytes = img.total() * img.elemSize();
+            camera_msg.data.assign(img.data, img.data + totalBytes);
+            publisher->publish(std::move(camera_msg));
         }
     }
 
-    inline void create_image_msg(int width, int height, int type, bool use_cuda)
+    static void publish_compressed_image(
+        const std::shared_ptr<rclcpp::Publisher<sensor_msgs::msg::CompressedImage>> &publisher,
+        boblib::utils::JpegCompressor &jpeg_compressor,
+        const std_msgs::msg::Header &header,
+        const cv::Mat &img)
     {
-        image_msg_size_ = cv::Size(width, height);
-        image_type_ = type;
-        msg_ptr_ = std::make_shared<sensor_msgs::msg::Image>();
-
-        image_ptr_ = std::make_unique<boblib::base::Image>(use_cuda);
-        image_ptr_->create(image_msg_size_, image_type_);
-        msg_ptr_->height = height;
-        msg_ptr_->width = width;
-        msg_ptr_->encoding = ImageUtils::type_to_encoding(type);
-        msg_ptr_->is_bigendian = (rcpputils::endian::native == rcpputils::endian::big);
-        msg_ptr_->step = width * image_ptr_->elemSize();
+        if (publisher->get_subscription_count() > 0)
+        {
+            auto loaned = publisher->borrow_loaned_message();
+            auto &resized_frame_msg = loaned.get();
+            resized_frame_msg.header = header;
+            resized_frame_msg.format = "jpeg";
+            resized_frame_msg.data.reserve(img.total() * img.elemSize() / 2);
+            jpeg_compressor.compress(img, resized_frame_msg.data);
+            publisher->publish(std::move(resized_frame_msg));
+        }
     }
 };

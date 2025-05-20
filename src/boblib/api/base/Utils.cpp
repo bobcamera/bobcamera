@@ -39,23 +39,19 @@ std::string Utils::get_ocl_info()
         cv::ocl::setUseOpenCL(true);
         if (cv::ocl::useOpenCL())
         {
-            // Get OpenCL context and device information
-            cv::ocl::Context context;
-            if (context.create(cv::ocl::Device::TYPE_ALL))
+            // grab the thread-local default context (auto-initialises if needed)
+            cv::ocl::Context context = cv::ocl::Context::getDefault(true);
+            size_t numDevices = context.ndevices();
+            oss << "Number of OpenCL devices: " << numDevices << "\n";
+            for (size_t i = 0; i < numDevices; ++i)
             {
-                oss << "Number of OpenCL devices: " << context.ndevices() << "\n";
-
-                for (size_t i = 0; i < context.ndevices(); ++i)
-                {
-                    cv::ocl::Device device = context.device(i);
-                    oss << " Device name: " << device.name() << "\n";
-                    oss << "      Vendor: " << device.vendorName() << "\n";
-                    oss << "     version: " << device.OpenCL_C_Version() << "\n";
-                }
-            }
-            else
-            {
-                return "Failed to create OpenCL context.";
+                cv::ocl::Device dev = context.device(i);
+                oss << "* Device name: " << dev.name() << "\n" 
+                    << "       Vendor: " 
+                    << dev.vendorName() << "\n" 
+                    << "      version: " 
+                    << dev.OpenCL_C_Version() << "\n";
+                
             }
         }
         else

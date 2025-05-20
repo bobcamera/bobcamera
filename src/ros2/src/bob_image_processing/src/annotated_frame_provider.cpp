@@ -14,13 +14,18 @@
 #include <visibility_control.h>
 #include <json/json.h>
 #include "annotated_frame/annotated_frame_creator.hpp"
+#include <boblib/api/utils/fps_tracker.hpp>
+#include <boblib/api/utils/profiler.hpp>
+#include <boblib/api/utils/jpeg_compressor.hpp>
 
 class AnnotatedFrameProvider : public ParameterNode
 {
 public:
     COMPOSITION_PUBLIC
     explicit AnnotatedFrameProvider(const rclcpp::NodeOptions &options)
-        : ParameterNode("annotated_frame_provider_node", options), pub_qos_profile_(10), sub_qos_profile_(10)
+        : ParameterNode("annotated_frame_provider_node", options)
+        , pub_qos_profile_(10)
+        , sub_qos_profile_(10)
     {
     }
 
@@ -34,17 +39,26 @@ public:
 private:
     void init()
     {
-        pub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
+        prof_annotated_id_ = profiler_.add_region("Annotated Frame Provider");
+        prof_convert_color_id_ = profiler_.add_region("AFP: Convert Color", prof_annotated_id_);
+        prof_create_frame_id_ = profiler_.add_region("AFP: Create Frame", prof_annotated_id_);
+        prof_publish_id_ = profiler_.add_region("AFP: Publish Frame", prof_annotated_id_);
+
+        pub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::Reliable);
         pub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
         pub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
 
-        sub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
+        sub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::Reliable);
         sub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
         sub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
 
         enable_tracking_status_ = true;
 
         declare_node_parameters();
+
+        profiler_.set_enabled(true);
+
+        fps_tracker_ptr_ = std::make_unique<boblib::utils::FpsTracker>(false, 5);
 
         annotated_frame_creator_ptr_ = std::make_unique<AnnotatedFrameCreator>(annotated_frame_creator_settings_);
 
@@ -87,19 +101,27 @@ private:
                     annotated_frame_creator_settings_ = parse_json_to_map(param.as_string());
                 }),
             ParameterNode::ActionParam(
-                rclcpp::Parameter("resize_height", 960),
+                rclcpp::Parameter("resize_height", 1024),
                 [this](const rclcpp::Parameter &param)
                 {
                     resize_height_ = static_cast<int>(param.as_int());
                     if (resize_height_ > 0)
                     {
                         image_resized_publisher_ = create_publisher<sensor_msgs::msg::Image>(image_resized_publish_topic_, pub_qos_profile_);
+                        pub_annotated_compressed_frame_ = create_publisher<sensor_msgs::msg::CompressedImage>(image_resized_publish_topic_ + "/compressed", pub_qos_profile_);
                     }
                     else
                     {
                         image_resized_publisher_.reset();
                         log_send_info("Resizer topic disabled");
                     }
+                }),
+            ParameterNode::ActionParam(
+                rclcpp::Parameter("compression_quality", 75),
+                [this](const rclcpp::Parameter &param)
+                {
+                    compression_quality_ = static_cast<int>(param.as_int());
+                    jpeg_compressor_ptr_ = std::make_unique<boblib::utils::JpegCompressor>(compression_quality_);
                 }),
         };
         add_action_parameters(params);
@@ -110,14 +132,26 @@ private:
     {
         try
         {
+            profiler_.start(prof_convert_color_id_);
             cv::Mat img;
-            ImageUtils::convert_image_msg(image_msg, img, true);
+            ImageUtils::convert_image_msg(image_msg, img, false);
+            profiler_.stop(prof_convert_color_id_);
+            profiler_.start(prof_create_frame_id_);
 
             annotated_frame_creator_ptr_->create_frame(img, *tracking, enable_tracking_status_);
-
-            pub_annotated_frame_->publish(*image_msg);
+            profiler_.stop(prof_create_frame_id_);
+            profiler_.start(prof_publish_id_);
+            publish_if_subscriber(pub_annotated_frame_, *image_msg);
 
             publish_resized_frame(image_msg, img);
+            profiler_.stop(prof_publish_id_);
+
+            fps_tracker_ptr_->add_frame();
+            double current_fps = 0.0;
+            if (fps_tracker_ptr_->get_fps_if_ready(current_fps))
+            {
+                log_info("annotated: FPS: %g", current_fps);
+            }
         }
         catch (const std::exception &e)
         {
@@ -125,26 +159,51 @@ private:
         }
     }
 
-    void publish_resized_frame(const sensor_msgs::msg::Image::SharedPtr &annotated_frame_msg, const cv::Mat &img) const
+    void publish_resized_frame(const sensor_msgs::msg::Image::SharedPtr &annotated_frame_msg, const cv::Mat &img)
     {
         try
         {
-            if (!image_resized_publisher_ || (resize_height_ <= 0) || (count_subscribers(image_resized_publish_topic_) <= 0))
+            if (resize_height_ <= 0)
             {
                 return;
             }
-            if ((resize_height_ > 0) && (resize_height_ != img.size().height))
+            if (resize_height_ != img.size().height)
             {
                 cv::Mat resized_img;
                 const auto frame_width = static_cast<int>(img.size().aspectRatio() * static_cast<double>(resize_height_));
-                cv::resize(img, resized_img, cv::Size(frame_width, resize_height_));
+                cv::resize(img, resized_img, cv::Size(frame_width, resize_height_), 0, 0, cv::INTER_NEAREST);
 
-                auto resized_frame_msg = cv_bridge::CvImage(annotated_frame_msg->header, annotated_frame_msg->encoding, resized_img).toImageMsg();
-                image_resized_publisher_->publish(*resized_frame_msg);
+                if (image_resized_publisher_->get_subscription_count() > 0)
+                {
+                    auto resized_frame_msg = cv_bridge::CvImage(annotated_frame_msg->header, annotated_frame_msg->encoding, resized_img).toImageMsg();
+                    image_resized_publisher_->publish(*resized_frame_msg);
+                }
+
+                if (pub_annotated_compressed_frame_->get_subscription_count() > 0)
+                {
+                    auto loaned = pub_annotated_compressed_frame_->borrow_loaned_message();
+                    auto &resized_frame_msg = loaned.get();
+                    resized_frame_msg.header = annotated_frame_msg->header;
+                    resized_frame_msg.format = "jpeg";
+                    resized_frame_msg.data.reserve(resized_img.total() * resized_img.elemSize() / 2);
+                    jpeg_compressor_ptr_->compress(resized_img, resized_frame_msg.data);
+                    pub_annotated_compressed_frame_->publish(std::move(resized_frame_msg));
+                }
             }
             else
             {
-                image_resized_publisher_->publish(*annotated_frame_msg);
+                publish_if_subscriber(image_resized_publisher_, *annotated_frame_msg);
+
+                if (pub_annotated_compressed_frame_->get_subscription_count() > 0)
+                {
+                    auto loaned = pub_annotated_compressed_frame_->borrow_loaned_message();
+                    auto &resized_frame_msg = loaned.get();
+                    resized_frame_msg.header = annotated_frame_msg->header;
+                    resized_frame_msg.format = "jpeg";
+                    resized_frame_msg.data.reserve(img.total() * img.elemSize() / 2);
+                    jpeg_compressor_ptr_->compress(img, resized_frame_msg.data);
+                    pub_annotated_compressed_frame_->publish(std::move(resized_frame_msg));
+                }
             }
         }
         catch (const std::exception &e)
@@ -162,13 +221,25 @@ private:
 
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_annotated_frame_;
     std::unique_ptr<AnnotatedFrameCreator> annotated_frame_creator_ptr_;
-    std::map<std::string, std::string> annotated_frame_creator_settings_;
+    std::unordered_map<std::string, std::string> annotated_frame_creator_settings_;
 
     bool enable_tracking_status_ = true;
 
     int resize_height_ = 960;
     std::string image_resized_publish_topic_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_resized_publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr pub_annotated_compressed_frame_;
+    std::unique_ptr<boblib::utils::FpsTracker> fps_tracker_ptr_;
+    int compression_quality_;
+
+    boblib::utils::Profiler profiler_{"Annotated Frame Provider"};
+
+    std::unique_ptr<boblib::utils::JpegCompressor> jpeg_compressor_ptr_;
+
+    size_t prof_annotated_id_;
+    size_t prof_convert_color_id_;
+    size_t prof_create_frame_id_;
+    size_t prof_publish_id_;
 };
 
 RCLCPP_COMPONENTS_REGISTER_NODE(AnnotatedFrameProvider)

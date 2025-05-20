@@ -1,15 +1,29 @@
 #pragma once
 
-#include <boblib/api/base/Image.hpp>
+#include <memory>
+#include <rcpputils/endian.hpp>
+#include <std_msgs/msg/header.hpp>
 #include <sensor_msgs/msg/image.hpp>
+#include <boblib/api/base/Image.hpp>
 
 struct PublishImage
 {
-    PublishImage(sensor_msgs::msg::Image &&_Image_msg, boblib::base::Image &&_Image)
-        : Image_msg(std::move(_Image_msg)), Image(std::move(_Image))
+    using ImagePtr = std::shared_ptr<boblib::base::Image>;
+    using HeaderPtr = std::shared_ptr<std_msgs::msg::Header>;
+    using CameraInfoPtr = std::shared_ptr<bob_camera::msg::CameraInfo>;
+
+    PublishImage() = default;
+
+    PublishImage(HeaderPtr header,
+                 ImagePtr image,
+                 CameraInfoPtr camera_info)
+        : header_ptr(std::move(header))
+        , image_ptr(std::move(image))
+        , camera_info_ptr(std::move(camera_info))
     {
     }
 
-    sensor_msgs::msg::Image Image_msg;
-    boblib::base::Image Image;
+    HeaderPtr header_ptr;
+    ImagePtr image_ptr;
+    CameraInfoPtr camera_info_ptr;
 };

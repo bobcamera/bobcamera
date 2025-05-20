@@ -1,7 +1,4 @@
-string host
-int32 port
-string user
-string password
+string uri
 ---
 bool success
 string manufacturer

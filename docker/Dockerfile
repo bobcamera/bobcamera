@@ -62,7 +62,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
         # libavcodec-extra60 libavformat-extra60 libswscale7 \
         # locales tzdata sudo bash-completion libtbb-dev \
         # pip pipx \
-        libjsoncpp-dev \
+        libjsoncpp-dev libturbojpeg-dev \
         libgstreamer-plugins-base1.0-0 libgstreamer-plugins-good1.0-0 libgstreamer-plugins-bad1.0-0 \
         libboost-python-dev libboost-system-dev locales \
         ros-${ROS_DISTRO}-vision-msgs ros-${ROS_DISTRO}-image-transport \
@@ -177,7 +177,7 @@ COPY --from=bob-ros2-build /opt/ros2_ws/install/ /opt/ros2_ws/install/
 
 # install dependencies
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
-    libtbb12 libqt5opengl5 libqt5test5 libdc1394-25 libjsoncpp-dev pip \
+    libtbb12 libqt5opengl5 libqt5test5 libdc1394-25 libjsoncpp-dev pip libturbojpeg-dev \
     gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-vaapi \
     locales tzdata sudo bash-completion \
     libhdf5-dev libatlas-base-dev \

@@ -1,13 +1,22 @@
 cmake_minimum_required(VERSION 3.5)
 
-# project(boblib LANGUAGES CXX CUDA)
-project(boblib LANGUAGES CXX)
+find_package(TurboJPEG REQUIRED)
 
-# set(CMAKE_CUDA_ARCHITECTURES 75)
+find_package(CUDA QUIET)
+if (CUDA_FOUND)
+#if (EXISTS "${OpenCV_INCLUDE_DIRS}/opencv2/core/cuda.hpp")
+    SET(OPEN_CV_WITH_CUDA ON)
+    message(STATUS "OpenCV was built with CUDA support!")
+    project(boblib LANGUAGES CXX CUDA)
+    set(CMAKE_CUDA_ARCHITECTURES 75)
+    include_directories(${CUDA_INCLUDE_DIRS})
+else()
+    message(STATUS "OpenCV was not built with CUDA support")
+    project(boblib LANGUAGES CXX)
+endif()
 
 include_directories(${OpenCV_INCLUDE_DIRS})
 include_directories($ENV{QHYCCD_SDK_INCLUDE_DIRS})
-# include_directories(${CUDA_INCLUDE_DIRS})
 
 if(MSVC)
     target_compile_options(boblib PRIVATE /EHsc)
@@ -18,12 +27,15 @@ file(GLOB_RECURSE LIB_SOURCES_CU "*.cu")
 
 add_library(boblib STATIC ${LIB_SOURCES_CPP} ${LIB_SOURCES_CU})
 
-target_link_libraries(boblib PRIVATE "${OpenCV_LIBS}" qhyccd)
+target_link_libraries(boblib PRIVATE "${OpenCV_LIBS}" qhyccd turbojpeg)
 
-# set_target_properties(boblib PROPERTIES
-#     CUDA_SEPARABLE_COMPILATION ON
-#     CUDA_STANDARD 20
-# )
+if (CUDA_FOUND)
+    target_compile_definitions(boblib PRIVATE HAVE_CUDA)
+    set_target_properties(boblib PROPERTIES
+        CUDA_SEPARABLE_COMPILATION ON
+        CUDA_STANDARD 20
+    )
+endif()
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_link_libraries(boblib PRIVATE TBB::tbb)

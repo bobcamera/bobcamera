@@ -4,44 +4,56 @@
 #include <string>
 
 #include <opencv2/opencv.hpp>
-// #include <opencv2/core/cuda.hpp>
-// #include <opencv2/cudacodec.hpp>
+#ifdef HAVE_CUDA
+#include <opencv2/core/cuda.hpp>
+#include <opencv2/cudacodec.hpp>
+#endif
 
 #include "../base/Image.hpp"
+#include "ffmpeg_video_reader.hpp"
 
 namespace boblib::video
 {
-    class VideoReader
+    class VideoReader final
     {
     public:
         VideoReader(int usb_camera_id, const std::vector<int> & params = {});
 
         VideoReader(const std::string & camera_uri, bool use_cuda = true, const std::vector<int> & params = {});
 
-        ~VideoReader();
+        ~VideoReader() noexcept;
 
-        bool read(boblib::base::Image & image);
+        bool read(boblib::base::Image &image) noexcept;
 
-        bool set(int parameter_id, double value);
+        int get_width() const noexcept;
+        int get_height() const noexcept;
+        double get_fps() const noexcept;
+        bool set_resolution(int width, int height) noexcept;
+        std::vector<std::pair<int, int>> list_camera_resolutions() const noexcept;
 
-        bool get(int parameter_id, double & value) const;
+        bool is_open() const noexcept;
 
-        bool is_open() const;
+        bool using_cuda() const noexcept;
 
-        bool using_cuda() const;
+        void release() noexcept;
 
-        void release();
+        std::string get_codec_name() const noexcept;
+        std::string get_decoder_name() const noexcept;
+        std::string get_pixel_format_name() const noexcept;
 
     private:
+        inline void create_video_capture() noexcept;
 
-        inline void create_video_capture();
-
+        bool use_opencv_{false};
         bool using_cuda_;
         bool is_usb_;
         int usb_camera_id_{-1};
         const std::string camera_uri_;
         const std::vector<int> & params_;
         std::unique_ptr<cv::VideoCapture> video_capture_ptr_;
-        // cv::Ptr<cv::cudacodec::VideoReader> cuda_video_reader_ptr_;
+#ifdef HAVE_CUDA
+        cv::Ptr<cv::cudacodec::VideoReader> cuda_video_reader_ptr_;
+#endif
+        std::unique_ptr<FFmpegVideoReader> ffmpeg_video_reader_ptr_;
     };
 }

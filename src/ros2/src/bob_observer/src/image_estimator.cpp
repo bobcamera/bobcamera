@@ -100,7 +100,7 @@ private:
     
     void init()
     {
-        sub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::BestEffort);
+        sub_qos_profile_.reliability(rclcpp::ReliabilityPolicy::Reliable);
         sub_qos_profile_.durability(rclcpp::DurabilityPolicy::Volatile);
         sub_qos_profile_.history(rclcpp::HistoryPolicy::KeepLast);
 
@@ -154,6 +154,12 @@ private:
 
     void timer_callback()
     {
+        if (image_.empty())
+        {
+            log_info("Image is empty, skip processing");
+            return;
+        }
+        log_info("Processing image");
         day_night_classifier();
         cloud_sampler();
     }
@@ -163,7 +169,7 @@ private:
         try
         {
             auto [result, average_brightness] = day_night_classifier_worker_ptr_->estimate(image_, observer_day_night_brightness_threshold_);
-            log_debug("Day/Night classifier --> %d, %d", (int)result, average_brightness);
+            log_info("Day/Night classifier --> %d, %d", (int)result, average_brightness);
             day_night_ = result;
 
             auto day_night_msg = bob_interfaces::msg::ObserverDayNight();
@@ -179,11 +185,6 @@ private:
 
     void cloud_sampler()
     {
-        if (image_.empty())
-        {
-            return;
-        }
-
         try
         {
             double estimation = std::numeric_limits<double>::quiet_NaN();
@@ -194,19 +195,19 @@ private:
                 case DayNightEnum::Day:
                 {
                     std::tie(estimation, distribution) = day_cloud_estimator_worker_ptr_->estimate(image_);
-                    log_debug("Day time cloud estimation --> %f", estimation);
+                    log_info("Day time cloud estimation --> %f", estimation);
                 }
                 break;
 
                 case DayNightEnum::Night:
                 {
                     std::tie(estimation, distribution) = night_cloud_estimator_worker_ptr_->estimate(image_);
-                    log_debug("Night time cloud estimation --> %f", estimation);
+                    log_info("Night time cloud estimation --> %f", estimation);
                 }
                 break;
 
                 default:
-                    log_debug("Unknown Day/Night classifier, ignore for now");
+                    log_info("Unknown Day/Night classifier, ignore for now");
                     return;
             }
 

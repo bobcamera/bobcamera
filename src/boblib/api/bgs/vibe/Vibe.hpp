@@ -26,10 +26,6 @@ namespace boblib::bgs
         virtual void initialize(const boblib::base::Image & oInitImg);
         virtual void process(const boblib::base::Image & _image, boblib::base::Image & _fgmask, const boblib::base::Image & _detectMask, int _numProcess);
 
-        void allocate_memory_if_needed(const boblib::base::Image &_image);
-        void free_memory();
-        void process_cuda(const boblib::base::Image & _image, boblib::base::Image & _fgmask, const boblib::base::Image & _detectMask);
-
         VibeParams m_params;
 
         std::unique_ptr<ImgSize> m_orig_img_size;
@@ -44,5 +40,10 @@ namespace boblib::bgs
         void apply1(const Img &_image, Img &_fg_mask, const Img & _detect_mask, int _num_process);
         template<class T>
         void apply3(const Img &_image, Img &_fg_mask, const Img & _detect_mask, int _num_process);
+
+        void apply1_avx2_u8(const Img &_image,
+            Img &_fg_mask,
+            const Img &_detect_mask,
+            int _num_process);
     };
 }
