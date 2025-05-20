@@ -8,8 +8,8 @@ variables:
   image_compression_quality: 50
   use_cuda: false #Leave it false as it is not working
   profiling: false
-  use_recording: false
-  display_enabled: false
+  use_recording: true
+  display_enabled: true
   camera1_enabled: true
   camera2_enabled: false
 

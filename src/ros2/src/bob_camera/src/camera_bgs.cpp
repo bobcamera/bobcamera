@@ -55,6 +55,12 @@ public:
     ~CameraBGS() override
     {
         log_info("CameraBGS destructor");
+        camera_save_worker_ptr_.reset();
+        bgs_worker_ptr_.reset();
+        track_provider_worker_ptr_.reset();
+        record_manager_worker_ptr_.reset();
+        annotated_frame_worker_ptr_.reset();
+        camera_worker_ptr_.reset();
     }
 
     void on_configure()
