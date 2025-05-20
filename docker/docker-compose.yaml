@@ -1,4 +1,4 @@
-version: '3.8'
+# This docker-compose file is used to run the bobcamera web and ros2 nodes in a containerized environment.
 services:
   web:
     image: bobcamera/bob-web-prod:1.7.1
@@ -12,14 +12,13 @@ services:
 
   bob:
     image: bobcamera/bob-ros2-prod:1.7.1
+    privileged: true
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
       - "9090:9090"
     environment:  # add in .env
       - BOB_LOGLEVEL=${BOB_LOGLEVEL:-INFO}
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=all
     volumes: 
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro    

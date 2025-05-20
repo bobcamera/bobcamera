@@ -1,4 +1,4 @@
-version: '3.8'
+# This docker-compose file is used to run the bobcamera web and ros2 nodes in a containerized environment.
 services:
   web:
     image: bobcamera/bob-web-prod:1.7.1
@@ -10,10 +10,12 @@ services:
       - bob
 
   bob:
-    image: bobcamera/bob-ros2-prod-cuda:1.7.1
+    image: bobcamera/bob-ros2-prod:1.7.1
     extra_hosts:
       - "host.docker.internal:host-gateway"
     runtime: nvidia
+    gpus: all
+    privileged: true
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=all
