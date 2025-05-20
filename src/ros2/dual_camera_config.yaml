@@ -81,6 +81,7 @@ advanced_config:
     recording_request_service_topic: 'bob/recording/update/camera1'
     recording_state_publisher_topic: 'bob/camera1/recording/state'
     annotated_frame_publisher_topic: 'bob/camera1/annotated'
+    sample_frame_publisher_topic: 'bob/camera1/original/sample'
 
   camera2_node:
     privacy_mask_file: 'assets/masks/camera2-privacy-mask.jpg'
@@ -100,6 +101,7 @@ advanced_config:
     recording_request_service_topic: 'bob/recording/update/camera2'
     recording_state_publisher_topic: 'bob/camera2/recording/state'
     annotated_frame_publisher_topic: 'bob/camera2/annotated'
+    sample_frame_publisher_topic: 'bob/camera2/original/sample'
 
   base_camera_node:
     use_cuda: $use_cuda
@@ -118,6 +120,9 @@ advanced_config:
     compression_quality: $image_compression_quality
     enable_tracking_status_message: false
     visualiser_settings: '{"bbox_line_thickness": "2", "font_scale_width": "0", "font_scale_width": "0", "font_scale": "1.0", "zoom_factor": "2.0", "enable_cropped_tracks": "true", "font_colour": "{50,170,50}", "prediction_colour": "{255,0,50}"}'
+    sample_enabled: true
+    sample_interval: 30
+    sample_height: 512
     bgs_json_params: '[
                     { "name": "low",
                       "sensitivity": {
@@ -174,19 +179,19 @@ advanced_config:
     compression_quality: $image_compression_quality
 
   camera1_image_estimator_node:
-    camera_subscription_topic: 'bob/camera1/original/resized'
+    camera_subscription_topic: 'bob/camera1/original/sample'
     cloud_estimation_publish_topic: 'bob/camera1/observer/cloud_estimation'
     day_night_publish_topic: 'bob/camera1/observer/day_night_classifier'
-    observer_timer_interval: 30
+    observer_timer_interval: 60
     observer_day_night_brightness_threshold: 95
     mask_timer_seconds: 5
     mask_file: 'assets/masks/camera1-detection-mask.jpg'
 
   camera2_image_estimator_node:
-    camera_subscription_topic: 'bob/camera2/original/resized'
+    camera_subscription_topic: 'bob/camera2/original/sample'
     cloud_estimation_publish_topic: 'bob/camera2/observer/cloud_estimation'
     day_night_publish_topic: 'bob/camera2/observer/day_night_classifier'
-    observer_timer_interval: 30
+    observer_timer_interval: 60
     observer_day_night_brightness_threshold: 95
     mask_timer_seconds: 5
     mask_file: 'assets/masks/camera2-detection-mask.jpg'

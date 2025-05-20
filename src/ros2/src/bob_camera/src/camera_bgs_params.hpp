@@ -78,6 +78,7 @@ struct CameraBgsParams
         std::string recording_request_service_topic;
         std::string recording_state_publisher_topic;
         std::string annotated_frame_publisher_topic;
+        std::string sample_frame_publisher_topic;
     };
 
     struct RecordingParams
@@ -105,6 +106,13 @@ struct CameraBgsParams
         MaskParams mask;
     };
 
+    struct SampleFrameParams
+    {
+        bool enabled{false};
+        int interval{30};
+        int height{512};
+    };
+
     bool use_cuda{true};
     int resize_height{0};
     int compression_quality{75};
@@ -115,4 +123,5 @@ struct CameraBgsParams
     RecordingParams recording;
     BgsParams bgs;
     AnnotatedFrameParams annotated_frame;
+    SampleFrameParams sample_frame;
 };

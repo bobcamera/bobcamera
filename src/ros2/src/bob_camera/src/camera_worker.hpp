@@ -62,12 +62,18 @@ public:
             prof_publish_camera_info_id_ = profiler_.add_region("Publish Camera Info", prof_camera_worker_id_);
             prof_publish_resized_resizing_id_ = profiler_.add_region("Publish Resized Resizing", prof_camera_worker_id_);
             prof_publish_resized_msg_id_ = profiler_.add_region("Publish Resized Msg", prof_camera_worker_id_);
+            prof_sample_resize_id_ = profiler_.add_region("Sample Resize", prof_camera_worker_id_);
+            prof_sample_publish_id_ = profiler_.add_region("Sample Publish", prof_camera_worker_id_);
 
             camera_info_msg_ptr_ = std::make_shared<bob_camera::msg::CameraInfo>();
             camera_info_msg_ptr_->frame_height = 0;
             camera_info_msg_ptr_->frame_width = 0;
             camera_info_msg_ptr_->fps = 0;
             using_cuda_ = params_.use_cuda ? boblib::base::Utils::has_cuda() : false;
+
+            update_interval_ = std::chrono::duration<double>(params_.sample_frame.interval);
+            last_update_time_ = std::chrono::high_resolution_clock::now();
+
             privacy_mask_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_);
 
             circuit_breaker_ptr_ = std::make_unique<CircuitBreaker>(CIRCUIT_BREAKER_MAX_RETRIES, CIRCUIT_BREAKER_INITIAL_TIMEOUT, CIRCUIT_BREAKER_MAX_TIMEOUT);
@@ -80,6 +86,10 @@ public:
             // TODO: Create a function to change the topics dynamically
             image_publisher_ = node_.create_publisher<sensor_msgs::msg::Image>(params_.topics.image_publish_topic, qos_publish_profile_);
             image_resized_publisher_ = node_.create_publisher<sensor_msgs::msg::Image>(params_.topics.image_resized_publish_topic, qos_publish_profile_);
+            if (params_.sample_frame.enabled)
+            {
+                image_sample_publisher_ = node_.create_publisher<sensor_msgs::msg::Image>(params_.topics.sample_frame_publisher_topic, qos_publish_profile_);
+            }
             image_info_publisher_ = node_.create_publisher<bob_camera::msg::ImageInfo>(params_.topics.image_info_publish_topic, qos_publish_profile_);
             camera_info_publisher_ = node_.create_publisher<bob_camera::msg::CameraInfo>(params_.topics.camera_info_publish_topic, qos_publish_profile_);
 
@@ -368,11 +378,46 @@ private:
             profiler_.start(prof_publish_camera_info_id_);
             publish_camera_info();
             profiler_.stop(prof_publish_camera_info_id_);
+            publish_sample(publish_image);
         }
         catch (const std::exception &e)
         {
             node_.log_send_error("CameraWorker: publish_images: Exception: %s", e.what());
             rcutils_reset_error();
+        }
+    }
+
+    void publish_sample(const std::shared_ptr<PublishImage> &publish_image) noexcept
+    {
+        if (!params_.sample_frame.enabled)
+        {
+            return;
+        }
+        auto now = std::chrono::high_resolution_clock::now();
+        auto time_since_last_update = now - last_update_time_;
+        if (time_since_last_update >= update_interval_)
+        {
+            last_update_time_ = now;
+
+            profiler_.start(prof_sample_resize_id_);
+            auto &camera_img = *publish_image->image_ptr;
+
+            const auto frame_width = static_cast<int>(camera_img.size().aspectRatio() * static_cast<double>(params_.sample_frame.height));
+            const cv::Size frame_size(frame_width, params_.sample_frame.height);
+            const size_t total_bytes = frame_size.area() * camera_img.elemSize();
+
+            auto loaned = image_resized_publisher_->borrow_loaned_message();
+            auto &resized_frame_msg = loaned.get();
+            ImageUtils::fill_imagemsg_header(resized_frame_msg, *publish_image->header_ptr, frame_size, camera_img.type());
+            resized_frame_msg.data.resize(total_bytes);
+
+            cv::Mat resized_frame(frame_size, camera_img.type(), resized_frame_msg.data.data());
+            cv::resize(camera_img.toMat(), resized_frame, frame_size, 0, 0, cv::INTER_NEAREST);
+            profiler_.stop(prof_sample_resize_id_);
+
+            profiler_.start(prof_sample_publish_id_);
+            image_sample_publisher_->publish(std::move(resized_frame_msg));
+            profiler_.stop(prof_sample_publish_id_);
         }
     }
 
@@ -607,6 +652,8 @@ private:
 
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_resized_publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_sample_publisher_;
+
     rclcpp::Publisher<bob_camera::msg::ImageInfo>::SharedPtr image_info_publisher_;
     rclcpp::Publisher<bob_camera::msg::CameraInfo>::SharedPtr camera_info_publisher_;
     rclcpp::Client<bob_interfaces::srv::CameraSettings>::SharedPtr camera_settings_client_;
@@ -657,4 +704,9 @@ private:
     size_t prof_publish_camera_info_id_;
     size_t prof_publish_resized_resizing_id_;
     size_t prof_publish_resized_msg_id_;
+    size_t prof_sample_resize_id_;
+    size_t prof_sample_publish_id_;
+
+    std::chrono::high_resolution_clock::time_point last_update_time_;
+    std::chrono::duration<double> update_interval_;
 };

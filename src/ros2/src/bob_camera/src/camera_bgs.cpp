@@ -180,6 +180,12 @@ private:
                         camera_bgs_params_.topics.annotated_frame_publisher_topic = param.as_string();
                     }),
                 ParameterNode::ActionParam(
+                    rclcpp::Parameter("sample_frame_publisher_topic", "bob/frames/sample"),
+                    [this](const rclcpp::Parameter &param)
+                    {
+                        camera_bgs_params_.topics.sample_frame_publisher_topic = param.as_string();
+                    }),
+                ParameterNode::ActionParam(
                     rclcpp::Parameter("use_cuda", true),
                     [this](const rclcpp::Parameter &param)
                     {
@@ -420,6 +426,24 @@ private:
                     [this](const rclcpp::Parameter &param)
                     {
                         camera_bgs_params_.compression_quality = static_cast<int>(param.as_int());
+                    }),
+                ParameterNode::ActionParam(
+                    rclcpp::Parameter("sample_interval", 30),
+                    [this](const rclcpp::Parameter &param)
+                    {
+                        camera_bgs_params_.sample_frame.interval = static_cast<int>(param.as_int());
+                    }),
+                ParameterNode::ActionParam(
+                    rclcpp::Parameter("sample_height", 512),
+                    [this](const rclcpp::Parameter &param)
+                    {
+                        camera_bgs_params_.sample_frame.height = static_cast<int>(param.as_int());
+                    }),
+                ParameterNode::ActionParam(
+                    rclcpp::Parameter("sample_enabled", false),
+                    [this](const rclcpp::Parameter &param)
+                    {
+                        camera_bgs_params_.sample_frame.enabled = param.as_bool();
                     }),
             };
         add_action_parameters(params);
