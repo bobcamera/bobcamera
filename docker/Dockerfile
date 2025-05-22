@@ -112,7 +112,7 @@ COPY src/boblib /workspaces/bobcamera/src/boblib
 WORKDIR /workspaces/bobcamera/src/ros2
 RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash \
     && source /opt/ros2_ws/install/setup.bash \
-    && mkdir -p cd ../boblib/build \
+    && mkdir -p ../boblib/build \
     && cd ../boblib/build \
     && cmake -DCMAKE_INSTALL_PREFIX=/usr/local .. \
     && cmake --build . -j$(nproc) \

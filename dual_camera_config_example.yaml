@@ -2,16 +2,16 @@
 # Variables to use in nodes
 #########################################################################
 variables:
-  resize_height: 1024
-  logging_type: screen
-  extra_saving_seconds: 2
-  image_compression_quality: 50
-  use_cuda: false #Leave it false as it is not working
-  profiling: false
-  use_recording: false
-  display_enabled: false
-  camera1_enabled: true
-  camera2_enabled: false
+  resize_height: 1024         # Height to resize the image for display, 0 to disable resize
+  logging_type: screen        # Type of logging for the nodes, screen | log | both
+  extra_saving_seconds: 2     # Extra seconds to save the recording after the event is finished
+  image_compression_quality: 50 # Image compression quality for the compressed image, 0 to 100 (higher=better compression, slower)
+  use_cuda: false             # Leave it false as it is not working
+  profiling: false            # true to enable profiling display, false otherwise
+  use_recording: true         # true to enable recording, false otherwise
+  display_enabled: false      # (suggested to leave it false) true to enable opencv display, false otherwise
+  camera1_enabled: true       # true to enable camera1, false otherwise
+  camera2_enabled: false      # true to enable camera2, false otherwise
 
 #########################################################################
 # Basic configuration for nodes
@@ -19,32 +19,32 @@ variables:
 #########################################################################
 basic_config:
   camera1_node:
-    copy: base_camera_node
-    recording_prefix: 'directional4k'
+    copy: base_camera_node            # Copy the base camera node configuration
+    recording_prefix: 'directional4k' # Prefix name for the recording files
     source_type: 'RTSP_STREAM'        # USB_CAMERA | VIDEO_FILE | RTSP_STREAM
-    rtsp_uri: 'rtsp://bob:Bobuser$01@192.168.50.10:554/Streaming/Channels/101'
-    camera_id: 0                      # Id of the camera in the /dev directory for USB Camera
+    rtsp_uri: 'rtsp://bob:Bobuser$01@192.168.50.10:554/Streaming/Channels/101' # RTSP URI for the camera
+    camera_id: 0                      # Id of the camera in the /dev directory if using USB_CAMERA
     usb_camera_resolution: [640, 480] # Resolution for USB Camera [WIDTH, HEIGHT]
     videos:                           # List of videos to display in sequence if source_type is VIDEO_FILE
       - '/workspaces/bobcamera/media/fisheye_videos/mike-drone.mp4'
       - '/workspaces/bobcamera/media/fisheye_videos/mikeg-30min.mp4'
-    speed_test: false            # True to run the speed test, False otherwise
-    test_frames: 500            # Number of frames to test the speed
-    speed_test_fps: 90          # FPS to test the speed
+    speed_test: false                 # true to run the speed test, false otherwise
+    test_frames: 500                  # Number of frames to test the speed
+    speed_test_fps: 90                # FPS to test the speed
 
   camera2_node:
-    copy: base_camera_node
-    recording_prefix: 'allsky'
+    copy: base_camera_node            # Copy the base camera node configuration
+    recording_prefix: 'allsky'        # Prefix name for the recording files
     source_type: 'RTSP_STREAM'        # USB_CAMERA | VIDEO_FILE | RTSP_STREAM
-    rtsp_uri: 'rtsp://bob:Bobuser$01@192.168.50.11:554/Streaming/Channels/101'
-    camera_id: 0                      # Id of the camera in the /dev directory for USB Camera
+    rtsp_uri: 'rtsp://bob:Bobuser$01@192.168.50.11:554/Streaming/Channels/101' # RTSP URI for the camera
+    camera_id: 0                      # Id of the camera in the /dev directory if using USB_CAMERA
     usb_camera_resolution: [640, 480] # Resolution for USB Camera [WIDTH, HEIGHT]
     videos:                           # List of videos to display in sequence if source_type is VIDEO_FILE
       - '/workspaces/bobcamera/media/fisheye_videos/mike-drone.mp4'
       - '/workspaces/bobcamera/media/fisheye_videos/mikeg-30min.mp4'
-    speed_test: false            # True to run the speed test, False otherwise
-    test_frames: 300            # Number of frames to test the speed
-    speed_test_fps: 85          # FPS to test the speed
+    speed_test: false                 # true to run the speed test, false otherwise
+    test_frames: 300                  # Number of frames to test the speed
+    speed_test_fps: 85                # FPS to test the speed
     
   multi_frame_viewer_node:
     topics: 
@@ -58,8 +58,7 @@ basic_config:
 
 #########################################################################
 # Advanced configuration for nodes
-#   Nodes more advanced configuration to have fine control over the nodes
-#   behavior
+#   Advanced configuration to have fine control over the nodes behavior
 # !!! CHANGING BELOW CAN BREAK BOB, PLAY WITH CAUTION !!!
 #########################################################################
 advanced_config:

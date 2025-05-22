@@ -9,7 +9,15 @@
 #include <concepts>
 #include <array>
 #include <cstddef>
-#include <immintrin.h> // for _mm_pause
+
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
+#include <immintrin.h>
+static inline void cpu_relax() noexcept { _mm_pause(); }
+#elif defined(__aarch64__) || defined(__ARM_ARCH)
+static inline void cpu_relax() noexcept { __asm__ __volatile__("yield" ::: "memory"); }
+#else
+static inline void cpu_relax() noexcept { std::this_thread::yield(); }
+#endif
 
 namespace boblib::utils::pubsub
 {
@@ -151,7 +159,8 @@ namespace boblib::utils::pubsub
                           }
                           else
                           {
-                              for (int i = 0; i < kSpin; ++i) _mm_pause();
+                              for (int i = 0; i < kSpin; ++i)
+                                cpu_relax();
                               std::this_thread::yield();
                           }
                       } })
@@ -185,7 +194,7 @@ namespace boblib::utils::pubsub
                 {
                     // exponential pause then yield
                     for (int i = 0; i < backoff; ++i)
-                        _mm_pause();
+                        cpu_relax();
                     backoff = std::min(backoff << 1, kSpin);
                     if (backoff == kSpin)
                         std::this_thread::yield();

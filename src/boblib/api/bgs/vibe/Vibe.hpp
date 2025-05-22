@@ -40,10 +40,5 @@ namespace boblib::bgs
         void apply1(const Img &_image, Img &_fg_mask, const Img & _detect_mask, int _num_process);
         template<class T>
         void apply3(const Img &_image, Img &_fg_mask, const Img & _detect_mask, int _num_process);
-
-        void apply1_avx2_u8(const Img &_image,
-            Img &_fg_mask,
-            const Img &_detect_mask,
-            int _num_process);
     };
 }
