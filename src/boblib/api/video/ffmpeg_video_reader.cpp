@@ -63,12 +63,12 @@ namespace boblib::video
 
         // use TCP for RTSP
         av_dict_set(&opts, "rtsp_transport", "tcp", 0);
-        // increase probe buffer to 1 MiB
-        av_dict_set(&opts, "probesize", "1048576", 0);
-        // analyze up to 2 seconds of data
-        av_dict_set(&opts, "analyzeduration", "2000000", 0);
-        // network read timeout 2 s
-        av_dict_set(&opts, "stimeout", "2000000", 0);
+        // probe buffer 10 MiB
+        av_dict_set(&opts, "probesize", "10485760", 0);
+        // analyze up to 4 seconds of data
+        av_dict_set(&opts, "analyzeduration", "4000000", 0);
+        // network read timeout 4s
+        av_dict_set(&opts, "stimeout", "5000000", 0);
         if (avformat_open_input(&fmt_ctx_, src.c_str(), input_format, &opts) < 0)
         {
             av_dict_free(&opts);

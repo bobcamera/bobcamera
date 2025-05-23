@@ -100,7 +100,7 @@ private:
         }
         image_subscription_compressed_.reset();
         image_subscription_.reset();
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        std::this_thread::sleep_for(std::chrono::milliseconds(2000));
         log_warn("Topic '%s' not found, retries: %d", specific_topic_name.c_str(), retries);
         if (++retries > max_retries)
         {
