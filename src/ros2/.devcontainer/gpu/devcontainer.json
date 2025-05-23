@@ -9,14 +9,22 @@
 	},
 	"remoteUser": "ros",
 	"runArgs": [
+		"--gpus",
+		"all",
+		"--runtime=nvidia",
+		"-e NVIDIA_DRIVER_CAPABILITIES=all",
 		"--privileged",
 		"--network=host",
 		"--pid=host",
 		"--cap-add=SYS_PTRACE",
-		"--volume=/tmp/.X11-unix:/tmp/.X11-unix"
+		"--volume=/tmp/.X11-unix:/tmp/.X11-unix",
+		"--group-add",
+		"video"
 	],
 	"containerEnv": {
 		"DISPLAY": "${localEnv:DISPLAY}",
+		"NVIDIA_DRIVER_CAPABILITIES": "compute,utility,video",
+		"NVIDIA_VISIBLE_DEVICES": "all"
 	},
 	"customizations": {
 		"vscode": {
