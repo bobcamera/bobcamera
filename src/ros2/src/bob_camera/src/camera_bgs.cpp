@@ -78,6 +78,8 @@ private:
 
         profiler_ptr_->set_enabled(camera_bgs_params_.profiling);
 
+        //topic_manager_->set_monitoring(camera_bgs_params_.profiling, 10);
+
         bgs_worker_ptr_->init();
         camera_save_worker_ptr_->init();
         track_provider_worker_ptr_->init();

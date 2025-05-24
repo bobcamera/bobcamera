@@ -77,35 +77,68 @@ namespace boblib::utils::pubsub
             explicit CircularBuffer(std::size_t requested)
                 : capacity(next_power_of_two(requested)),
                   buffer(std::make_unique<Slot[]>(capacity)),
-                  mask(capacity - 1)
+                  mask(capacity - 1),
+                  dropped_count(0)
             {
                 for (std::size_t i = 0; i < capacity; ++i)
                     buffer[i].seq.store(i, std::memory_order_relaxed);
             }
 
-            bool push(T &&item) noexcept
+            // push an item into the ring buffer, dropping oldest if full
+            // returns true if successful, false if item was dropped
+            void push(T &&item) noexcept
             {
                 const auto head_idx = head.v.load(std::memory_order_relaxed);
                 Slot &s = buffer[head_idx & mask];
+                
                 if (s.seq.load(std::memory_order_acquire) != head_idx)
-                    return false; // full
+                {
+                    // Buffer is full - drop the oldest item
+                    const auto tail_idx = tail.v.load(std::memory_order_relaxed);
+                    Slot &tail_slot = buffer[tail_idx & mask];
+                    
+                    // Force pop the oldest item
+                    if (tail_slot.seq.load(std::memory_order_acquire) == tail_idx + 1)
+                    {
+                        tail_slot.get().~T();
+                        tail_slot.seq.store(tail_idx + capacity, std::memory_order_release);
+                        tail.v.store(tail_idx + 1, std::memory_order_relaxed);
+                        dropped_count.fetch_add(1, std::memory_order_relaxed);
+                    }
+                }
+                
+                // Now push the new item
                 new (&s.storage) T(std::move(item));
                 s.seq.store(head_idx + 1, std::memory_order_release);
                 head.v.store(head_idx + 1, std::memory_order_relaxed);
-                return true;
             }
 
-            // <<< new: copy‑push overload for copyable T (eg shared_ptr<Msg>) >>>
-            bool push(const T &item) noexcept
+            // copy‑push overload for copyable T (eg shared_ptr<Msg>)
+            void push(const T &item) noexcept
             {
                 const auto head_idx = head.v.load(std::memory_order_relaxed);
                 Slot &s = buffer[head_idx & mask];
+                
                 if (s.seq.load(std::memory_order_acquire) != head_idx)
-                    return false; // full
+                {
+                    // Buffer is full - drop the oldest item
+                    const auto tail_idx = tail.v.load(std::memory_order_relaxed);
+                    Slot &tail_slot = buffer[tail_idx & mask];
+                    
+                    // Force pop the oldest item
+                    if (tail_slot.seq.load(std::memory_order_acquire) == tail_idx + 1)
+                    {
+                        tail_slot.get().~T();
+                        tail_slot.seq.store(tail_idx + capacity, std::memory_order_release);
+                        tail.v.store(tail_idx + 1, std::memory_order_relaxed);
+                        dropped_count.fetch_add(1, std::memory_order_relaxed);
+                    }
+                }
+                
+                // Now push the new item
                 new (&s.storage) T(item);
                 s.seq.store(head_idx + 1, std::memory_order_release);
                 head.v.store(head_idx + 1, std::memory_order_relaxed);
-                return true;
             }
 
             std::optional<T> try_pop_item() noexcept
@@ -130,10 +163,21 @@ namespace boblib::utils::pubsub
                 return head_idx - tail_idx;
             }
 
+            [[nodiscard]] std::size_t get_dropped_count() const noexcept
+            {
+                return dropped_count.load(std::memory_order_relaxed);
+            }
+
+            void reset_dropped_count() noexcept
+            {
+                dropped_count.store(0, std::memory_order_relaxed);
+            }
+
             const std::size_t capacity;
             std::unique_ptr<Slot[]> buffer;
             const std::size_t mask;
             PaddedAtomic head, tail;
+            std::atomic<std::size_t> dropped_count;
         };
 
         using Callback = void (*)(const T &, void *);
@@ -149,21 +193,22 @@ namespace boblib::utils::pubsub
             Subscriber(Callback f, void *c, std::size_t qsize)
                 : fn(f), ctx(c), local_q(qsize),
                   thr([this](std::stop_token stop)
-                      {
-                      constexpr int kSpin = 64;
-                      while (!stop.stop_requested())
-                      {
-                          if (auto opt = local_q.try_pop_item())
-                          {
-                              fn(*opt, ctx);
-                          }
-                          else
-                          {
-                              for (int i = 0; i < kSpin; ++i)
-                                cpu_relax();
-                              std::this_thread::yield();
-                          }
-                      } })
+                    {
+                        constexpr int kSpin = 64;
+                        while (!stop.stop_requested())
+                        {
+                            if (auto opt = local_q.try_pop_item())
+                            {
+                                fn(*opt, ctx);
+                            }
+                            else
+                            {
+                                for (int i = 0; i < kSpin; ++i)
+                                    cpu_relax();
+                                std::this_thread::yield();
+                            }
+                        } 
+                    })
             {
             }
         };
@@ -225,15 +270,15 @@ namespace boblib::utils::pubsub
         }
 
         // overload for raw M → we wrap in shared_ptr
-        bool publish(M &&raw) noexcept
+        void publish(M &&raw) noexcept
         {
-            return queue.push(std::make_shared<M>(std::move(raw)));
+            queue.push(std::make_shared<M>(std::move(raw)));
         }
 
         // overload for when you already have a shared_ptr<M>
-        bool publish(const T &msg) noexcept
+        void publish(const T &msg) noexcept
         {
-            return queue.push(msg);
+            queue.push(msg);
         }
 
         // ---------------------------- subscribe
@@ -276,12 +321,14 @@ namespace boblib::utils::pubsub
         // ---------------------------- stats
         [[nodiscard]] std::size_t queue_size() const noexcept
         {
-           return queue.queue_size();
+            return queue.queue_size();
         }
 
         // ---------------------------- stats
         [[nodiscard]] std::size_t queue_capacity() const noexcept { return queue.capacity; }
         [[nodiscard]] std::size_t subscriber_count() const noexcept { return active_cnt.load(); }
+        [[nodiscard]] std::size_t dropped_count() const noexcept { return queue.get_dropped_count(); }
+        void reset_dropped_count() noexcept { queue.reset_dropped_count(); }
     };
 
 } // namespace boblib::utils::pubsub
