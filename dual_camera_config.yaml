@@ -5,7 +5,7 @@ basic_variables:
   profiling: false            # true to enable profiling display, false otherwise
   use_recording: true         # true to enable recording, false otherwise
   camera1_enabled: true       # true to enable camera1, fals.e otherwise
-  camera2_enabled: true      # true to enable camera2, false otherwise
+  camera2_enabled: false      # true to enable camera2, false otherwise
 
 ###################################################################################
 ## Basic configuration for nodes
@@ -88,6 +88,7 @@ advanced_config:
 
   base_camera_node:
     use_cuda: $use_cuda
+    video_use_opencv: false       # true to use OpenCV for video processing, false to use custom ffmpeg processing
     profiling: $profiling
     resize_height: $resize_height # 0 to disable resize publish
     simulator: False              # True for including simulated objects, False otherwise

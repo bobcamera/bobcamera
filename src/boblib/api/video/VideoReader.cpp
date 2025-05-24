@@ -2,20 +2,22 @@
 
 using namespace boblib::video;
 
-VideoReader::VideoReader(int usb_camera_id, const std::vector<int> & params)
-: using_cuda_(false)
-, is_usb_(true)
-, usb_camera_id_(usb_camera_id)
-, params_(params)
+VideoReader::VideoReader(int usb_camera_id, bool use_opencv, const std::vector<int> & params)
+    : use_opencv_(use_opencv)
+    , using_cuda_(false)
+    , is_usb_(true)
+    , usb_camera_id_(usb_camera_id)
+    , params_(params)
 {
     create_video_capture();
 }
 
-VideoReader::VideoReader(const std::string & camera_uri, bool use_cuda, const std::vector<int> & params)
-: using_cuda_(use_cuda ? boblib::base::Utils::has_cuda() : false)
-, is_usb_(false)
-, camera_uri_(camera_uri)
-, params_(params)
+VideoReader::VideoReader(const std::string & camera_uri, bool use_opencv, bool use_cuda, const std::vector<int> & params)
+    : use_opencv_(use_opencv)
+    , using_cuda_(use_cuda ? boblib::base::Utils::has_cuda() : false)
+    , is_usb_(false)
+    , camera_uri_(camera_uri)
+    , params_(params)
 {
     create_video_capture();
 }
@@ -128,7 +130,9 @@ std::string VideoReader::get_codec_name() const noexcept
     {
         return ffmpeg_video_reader_ptr_->get_codec_name();
     }
-    return {};
+    auto fourcc_int = static_cast<int>(video_capture_ptr_->get(cv::CAP_PROP_FOURCC));
+    const char *fourcc_chars = reinterpret_cast<const char *>(&fourcc_int);
+    return std::string(fourcc_chars, 4);
 }
 
 std::string VideoReader::get_decoder_name() const noexcept
@@ -137,7 +141,8 @@ std::string VideoReader::get_decoder_name() const noexcept
     {
         return ffmpeg_video_reader_ptr_->get_decoder_name();
     }
-    return {};
+
+    return video_capture_ptr_ ? video_capture_ptr_->getBackendName() : "Unknown";
 }
 
 std::string VideoReader::get_pixel_format_name() const noexcept
@@ -146,7 +151,60 @@ std::string VideoReader::get_pixel_format_name() const noexcept
     {
         return ffmpeg_video_reader_ptr_->get_pixel_format_name();
     }
-    return {};
+    auto pixel_format_int = static_cast<int>(video_capture_ptr_->get(cv::CAP_PROP_CODEC_PIXEL_FORMAT));
+
+    // First try to decode as FOURCC (4-character code)
+    if (pixel_format_int > 1000) // Likely a FOURCC value
+    {
+        char fourcc_chars[5] = {0}; // 4 chars + null terminator
+        fourcc_chars[0] = static_cast<char>(pixel_format_int & 0xFF);
+        fourcc_chars[1] = static_cast<char>((pixel_format_int >> 8) & 0xFF);
+        fourcc_chars[2] = static_cast<char>((pixel_format_int >> 16) & 0xFF);
+        fourcc_chars[3] = static_cast<char>((pixel_format_int >> 24) & 0xFF);
+        return std::string(fourcc_chars);
+    }
+    // Map common OpenCV pixel format values to readable names
+    switch (pixel_format_int)
+    {
+        case 0: return "YUV420P";
+        case 1: return "YUYV422";
+        case 2: return "RGB24";
+        case 3: return "BGR24";
+        case 4: return "YUV422P";
+        case 5: return "YUV444P";
+        case 6: return "YUV410P";
+        case 7: return "YUV411P";
+        case 8: return "GRAY8";
+        case 9: return "MONOWHITE";
+        case 10: return "MONOBLACK";
+        case 11: return "PAL8";
+        case 12: return "YUVJ420P";
+        case 13: return "YUVJ422P";
+        case 14: return "YUVJ444P";
+        case 15: return "XVMC_MPEG2_MC";
+        case 16: return "XVMC_MPEG2_IDCT";
+        case 17: return "UYVY422";
+        case 18: return "UYYVYY411";
+        case 19: return "BGR8";
+        case 20: return "BGR4";
+        case 21: return "BGR4_BYTE";
+        case 22: return "RGB8";
+        case 23: return "RGB4";
+        case 24: return "RGB4_BYTE";
+        case 25: return "NV12";
+        case 26: return "NV21";
+        case 27: return "ARGB";
+        case 28: return "RGBA";
+        case 29: return "ABGR";
+        case 30: return "BGRA";
+        case 31: return "GRAY16BE";
+        case 32: return "GRAY16LE";
+        case 33: return "YUV440P";
+        case 34: return "YUVJ440P";
+        case 35: return "YUVA420P";
+        case -1: return "Unknown/Not Set";
+        default: return "Unknown (" + std::to_string(pixel_format_int) + ")";
+    }
 }
 
 int VideoReader::get_width() const noexcept

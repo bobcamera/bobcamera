@@ -17,9 +17,9 @@ namespace boblib::video
     class VideoReader final
     {
     public:
-        VideoReader(int usb_camera_id, const std::vector<int> & params = {});
+        VideoReader(int usb_camera_id, bool use_opencv = false, const std::vector<int> & params = {});
 
-        VideoReader(const std::string & camera_uri, bool use_cuda = true, const std::vector<int> & params = {});
+        VideoReader(const std::string &camera_uri, bool use_opencv = false, bool use_cuda = true, const std::vector<int> &params = {});
 
         ~VideoReader() noexcept;
 
