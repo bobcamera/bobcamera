@@ -16,6 +16,14 @@ namespace boblib::video
         , m_frameBuffer(nullptr)
         , m_ioBufferSize(1024 * 1024 * 4)
     {
+        if (m_options.debug)
+        {
+            av_log_set_level(AV_LOG_INFO);
+        }
+        else
+        {
+            av_log_set_level(AV_LOG_QUIET);
+        }
 
         // Initialize FFmpeg if needed
         static std::once_flag initFlag;
@@ -172,13 +180,14 @@ namespace boblib::video
         auto duration = std::chrono::duration_cast<std::chrono::seconds>(
                             std::chrono::steady_clock::now() - m_startTime)
                             .count();
-
-        return {
-            m_framesReceived,
-            m_framesWritten,
-            m_frameQueue.size(),
-            (duration > 0 ? static_cast<double>(m_framesWritten) / duration : 0.0),
-            m_totalProcessingTime > 0 && m_framesWritten > 0 ? m_totalProcessingTime / m_framesWritten : 0.0};
+        return 
+            {
+                m_framesReceived,
+                m_framesWritten,
+                m_frameQueue.size(),
+                (duration > 0 ? static_cast<double>(m_framesWritten) / duration : 0.0),
+                m_totalProcessingTime > 0 && m_framesWritten > 0 ? m_totalProcessingTime / m_framesWritten : 0.0
+            };
     }
 
     // pull all the heavy lifting into this helper
@@ -188,7 +197,9 @@ namespace boblib::video
         if (avformat_alloc_output_context2(&m_formatContext, nullptr, nullptr, m_options.outputPath.c_str()) < 0)
         {
             if (m_options.debug)
+            {
                 std::cerr << "[" << codec->name << "] Could not create output context" << std::endl;
+            }
             return false;
         }
 
@@ -197,7 +208,9 @@ namespace boblib::video
         if (!m_stream)
         {
             if (m_options.debug)
+            {
                 std::cerr << "[" << codec->name << "] Could not allocate stream" << std::endl;
+            }
             return false;
         }
 
@@ -205,7 +218,9 @@ namespace boblib::video
         if (!m_codecContext)
         {
             if (m_options.debug)
+            {
                 std::cerr << "[" << codec->name << "] Could not alloc context" << std::endl;
+            }
             return false;
         }
         // If this is a VAAPI encoder, create device & frames context
@@ -217,7 +232,9 @@ namespace boblib::video
                                        nullptr, nullptr, 0) < 0)
             {
                 if (m_options.debug)
+                {
                     std::cerr << "[" << codec->name << "] Failed to create VAAPI device" << std::endl;
+                }
                 return false;
             }
             m_codecContext->hw_device_ctx = av_buffer_ref(hw_dev_ctx);
@@ -230,7 +247,9 @@ namespace boblib::video
             if (!hw_frames_ref)
             {
                 if (m_options.debug)
+                {
                     std::cerr << "[" << codec->name << "] Could not alloc HW frames ctx" << std::endl;
+                }
                 return false;
             }
             AVHWFramesContext *frames_ctx =
@@ -245,7 +264,9 @@ namespace boblib::video
             if (av_hwframe_ctx_init(hw_frames_ref) < 0)
             {
                 if (m_options.debug)
+                {
                     std::cerr << "[" << codec->name << "] Could not init HW frames ctx" << std::endl;
+                }
                 return false;
             }
             m_codecContext->hw_frames_ctx = av_buffer_ref(hw_frames_ref);
@@ -268,7 +289,9 @@ namespace boblib::video
             break;
         default:
             if (m_options.debug)
+            {
                 std::cerr << "[" << codec->name << "] unsupported codec id" << std::endl;
+            }
             return false;
         }
 
@@ -303,22 +326,34 @@ namespace boblib::video
             if (chosen == AV_PIX_FMT_NONE)
             {
                 if (m_options.debug)
+                {
                     std::cerr << "[" << codec->name << "] No supported pixel format" << std::endl;
+                }
                 return false;
             }
             m_codecContext->pix_fmt = chosen;
         }
 
         if (m_options.bitrate > 0)
+        {
             m_codecContext->bit_rate = m_options.bitrate;
+        }
         if (m_options.threads > 0)
+        {
             m_codecContext->thread_count = m_options.threads;
+        }
         if (m_options.gop_size > 0)
+        {
             m_codecContext->gop_size = m_options.gop_size;
+        }
         if (strstr(codec->name, "264") || strstr(codec->name, "265"))
+        {
             av_opt_set(m_codecContext->priv_data, "crf", std::to_string(m_options.quality).c_str(), 0);
+        }
         if (!m_options.preset.empty())
+        {
             av_opt_set(m_codecContext->priv_data, "preset", m_options.preset.c_str(), 0);
+        }
         if (!m_options.extraOptions.empty())
         {
             std::stringstream ss(m_options.extraOptions);
@@ -336,13 +371,17 @@ namespace boblib::video
         if (avcodec_open2(m_codecContext, codec, nullptr) < 0)
         {
             if (m_options.debug)
+            {
                 std::cerr << "[" << codec->name << "] Could not open codec" << std::endl;
+            }
             return false;
         }
         if (avcodec_parameters_from_context(m_stream->codecpar, m_codecContext) < 0)
         {
             if (m_options.debug)
+            {
                 std::cerr << "[" << codec->name << "] Could not copy params" << std::endl;
+            }
             return false;
         }
         m_frame = av_frame_alloc();
@@ -352,20 +391,26 @@ namespace boblib::video
         if (av_frame_get_buffer(m_frame, 32) < 0)
         {
             if (m_options.debug)
+            {
                 std::cerr << "[" << codec->name << "] Could not alloc frame buffer" << std::endl;
+            }
             return false;
         }
         if (!(m_formatContext->oformat->flags & AVFMT_NOFILE) &&
             avio_open(&m_formatContext->pb, m_options.outputPath.c_str(), AVIO_FLAG_WRITE) < 0)
         {
             if (m_options.debug)
+            {
                 std::cerr << "[" << codec->name << "] Could not open " << m_options.outputPath << std::endl;
+            }
             return false;
         }
         if (avformat_write_header(m_formatContext, nullptr) < 0)
         {
             if (m_options.debug)
+            {
                 std::cerr << "[" << codec->name << "] Error writing header" << std::endl;
+            }
             return false;
         }
 
@@ -378,11 +423,11 @@ namespace boblib::video
         std::vector<std::string> hwList;
         if (m_options.useHardwareAcceleration)
         {
-            if (m_options.codec == "libx264" || m_options.codec == "h264")
+            if (m_options.codec == Options::CodecType::H264)
             {
                 hwList = {"h264_nvenc", "h264_qsv", "h264_amf", "h264_v4l2m2m", "h264_vaapi"};
             }
-            else if (m_options.codec == "libx265" || m_options.codec == "hevc")
+            else
             {
                 hwList = {"hevc_nvenc", "hevc_qsv", "hevc_amf", "hevc_v4l2m2m", "hevc_vaapi"};
             }
@@ -393,38 +438,47 @@ namespace boblib::video
         {
             const AVCodec *c = avcodec_find_encoder_by_name(name.c_str());
             if (!c)
+            {
                 continue;
+            }
             cleanup(); // wipe any partial state
             if (init_with_codec(c, width, height))
             {
                 if (m_options.debug)
+                {
                     std::cout << "Using hardware accelerated encoder: " << c->long_name << std::endl;
+                }
                 m_codecLongName = c->long_name;
                 return true;
             }
         }
 
         // fallback to software
-        std::string swName = (m_options.codec == "h264" ? "libx264" : m_options.codec == "hevc" ? "libx265"
-                                                                                                : m_options.codec);
+        std::string swName = m_options.codec == Options::CodecType::H264 ? "libx264" : "libx265";
         const AVCodec *sw = avcodec_find_encoder_by_name(swName.c_str());
         if (!sw)
         {
             if (m_options.debug)
+            {
                 std::cerr << "Codec '" << swName << "' not found" << std::endl;
+            }
             return false;
         }
         cleanup();
         if (!init_with_codec(sw, width, height))
         {
             if (m_options.debug)
+            {
                 std::cerr << "Failed to initialize software encoder: " << swName << std::endl;
+            }
             return false;
         }
 
         m_codecLongName = sw->long_name;
         if (m_options.debug)
+        {
             std::cout << "Using software encoder: " << sw->long_name << std::endl;
+        }
 
         return true;
     }

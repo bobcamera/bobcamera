@@ -151,8 +151,8 @@ std::string VideoReader::get_pixel_format_name() const noexcept
     {
         return ffmpeg_video_reader_ptr_->get_pixel_format_name();
     }
-    auto pixel_format_int = static_cast<int>(video_capture_ptr_->get(cv::CAP_PROP_CODEC_PIXEL_FORMAT));
 
+    auto pixel_format_int = static_cast<int>(video_capture_ptr_->get(cv::CAP_PROP_CODEC_PIXEL_FORMAT));
     // First try to decode as FOURCC (4-character code)
     if (pixel_format_int > 1000) // Likely a FOURCC value
     {

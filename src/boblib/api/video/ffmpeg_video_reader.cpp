@@ -5,7 +5,7 @@
 #include <sys/ioctl.h>
 #include <sstream> // for std::ostringstream
 #include <linux/videodev2.h>
-#include <libavutil/pixfmt.h> // for av_get_pix_fmt_name()
+#include <libavutil/pixfmt.h>    // for av_get_pix_fmt_name()
 #include <libavcodec/avcodec.h>  // for avcodec_get_name()
 #include <libavutil/hwcontext.h> // for AVHWDeviceContext & av_hwdevice_get_type_name()
 
@@ -78,31 +78,40 @@ namespace boblib::video
 
         fmt_ctx_->flags |= AVFMT_FLAG_NONBLOCK;
         if (avformat_find_stream_info(fmt_ctx_, nullptr) < 0)
+        {
             return false;
+        }
 
         // locate first video stream
         video_stream_index_ = av_find_best_stream(fmt_ctx_, AVMEDIA_TYPE_VIDEO, -1, -1, &decoder_, 0);
         if (video_stream_index_ < 0)
+        {
             return false;
+        }
         video_stream_ = fmt_ctx_->streams[video_stream_index_];
 
         if (!init_decoder())
+        {
             return false;
+        }
         width_ = codec_ctx_->width;
         height_ = codec_ctx_->height;
 
         // Try multiple sources for FPS
         fps_ = 0.0;
         // 1. Try avg_frame_rate first (often more accurate for RTSP)
-        if (video_stream_->avg_frame_rate.num != 0 && video_stream_->avg_frame_rate.den != 0) {
+        if (video_stream_->avg_frame_rate.num != 0 && video_stream_->avg_frame_rate.den != 0)
+        {
             fps_ = av_q2d(video_stream_->avg_frame_rate);
         }
         // 2. Fall back to r_frame_rate if avg_frame_rate is invalid
-        if (fps_ <= 0.0 || fps_ > 1000.0) {
+        if (fps_ <= 0.0 || fps_ > 1000.0)
+        {
             fps_ = av_q2d(video_stream_->r_frame_rate);
         }
         // 3. Check if the value is reasonable
-        if (fps_ <= 0.0 || fps_ > 1000.0) {
+        if (fps_ <= 0.0 || fps_ > 1000.0)
+        {
             // Set a reasonable default if both values are invalid
             fps_ = 30.0;
             std::cerr << "[WARN] Could not determine valid FPS from stream, using default: " << fps_ << std::endl;
@@ -151,7 +160,9 @@ namespace boblib::video
             {
                 ret = avcodec_receive_frame(codec_ctx_, frame_);
                 if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
+                {
                     break;
+                }
                 if (ret < 0)
                 {
                     std::cerr << "[ERROR] receive_frame error " << ret << std::endl;
@@ -185,19 +196,33 @@ namespace boblib::video
     void FFmpegVideoReader::close()
     {
         if (fmt_ctx_)
+        {
             avformat_close_input(&fmt_ctx_);
+        }
         if (codec_ctx_)
+        {
             avcodec_free_context(&codec_ctx_);
+        }
         if (hw_device_ctx_)
+        {
             av_buffer_unref(&hw_device_ctx_);
+        }
         if (frame_)
+        {
             av_frame_free(&frame_);
+        }
         if (sw_frame_)
+        {
             av_frame_free(&sw_frame_);
+        }
         if (pkt_)
+        {
             av_packet_free(&pkt_);
+        }
         if (sws_ctx_)
+        {
             sws_freeContext(sws_ctx_);
+        }
         fmt_ctx_ = nullptr;
         codec_ctx_ = nullptr;
         sws_ctx_ = nullptr;
@@ -248,8 +273,12 @@ namespace boblib::video
                     {
                         auto *self = static_cast<FFmpegVideoReader *>(ctx->opaque);
                         for (; *pix != AV_PIX_FMT_NONE; ++pix)
+                        {
                             if (*pix == self->hw_pix_fmt_)
+                            {
                                 return *pix;
+                            }
+                        }
                         return pix[0];
                     };
                     break;
@@ -289,7 +318,9 @@ namespace boblib::video
         if (!sws_ctx_ || src->width != width_ || src->height != height_)
         {
             if (sws_ctx_)
+            {
                 sws_freeContext(sws_ctx_);
+            }
             sws_ctx_ = sws_getContext(src->width, src->height, static_cast<AVPixelFormat>(src->format),
                                       src->width, src->height, AV_PIX_FMT_BGR24,
                                       SWS_BILINEAR, nullptr, nullptr, nullptr);
@@ -305,7 +336,10 @@ namespace boblib::video
 
     std::string FFmpegVideoReader::get_codec_name() const
     {
-        if (!video_stream_) return {};
+        if (!video_stream_)
+        {
+            return {};
+        }
         return avcodec_get_name(video_stream_->codecpar->codec_id);
     }
 
@@ -343,10 +377,10 @@ namespace boblib::video
     {
         // prefer hw_pix_fmt_ if used, otherwise codec_ctx_->pix_fmt
         AVPixelFormat pf = codec_ctx_
-            ? (codec_ctx_->sw_pix_fmt == AV_PIX_FMT_NONE
-                  ? codec_ctx_->pix_fmt
-                  : codec_ctx_->sw_pix_fmt)
-            : AV_PIX_FMT_NONE;
+                               ? (codec_ctx_->sw_pix_fmt == AV_PIX_FMT_NONE
+                                      ? codec_ctx_->pix_fmt
+                                      : codec_ctx_->sw_pix_fmt)
+                               : AV_PIX_FMT_NONE;
         const char *name = av_get_pix_fmt_name(pf);
         return name ? name : std::string{};
     }
@@ -359,7 +393,9 @@ namespace boblib::video
         }
         auto resolutions = list_camera_resolutions();
         if (resolutions.empty())
+        {
             return false;
+        }
         for (const auto &res : resolutions)
         {
             if (res.first == width && res.second == height)
@@ -375,7 +411,9 @@ namespace boblib::video
         std::vector<std::pair<int, int>> resolutions;
         int fd = ::open(src_.c_str(), O_RDWR);
         if (fd < 0)
+        {
             return resolutions;
+        }
 
         // enumerate all pixel formats
         v4l2_fmtdesc fmtdesc = {};
@@ -393,19 +431,21 @@ namespace boblib::video
             {
                 if (frmsize.type == V4L2_FRMSIZE_TYPE_DISCRETE)
                 {
-                    resolutions.emplace_back(
-                        frmsize.discrete.width,
-                        frmsize.discrete.height);
+                    resolutions.emplace_back(frmsize.discrete.width, frmsize.discrete.height);
                 }
                 else if (frmsize.type == V4L2_FRMSIZE_TYPE_STEPWISE)
                 {
                     for (unsigned h = frmsize.stepwise.min_height;
                          h <= frmsize.stepwise.max_height;
                          h += frmsize.stepwise.step_height)
+                    {
                         for (unsigned w = frmsize.stepwise.min_width;
                              w <= frmsize.stepwise.max_width;
                              w += frmsize.stepwise.step_width)
+                        {
                             resolutions.emplace_back(w, h);
+                        }
+                    }
                 }
             }
         }
@@ -413,4 +453,4 @@ namespace boblib::video
         ::close(fd);
         return resolutions;
     }
-}  // namespace boblib::video
+} // namespace boblib::video

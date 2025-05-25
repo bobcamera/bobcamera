@@ -19,10 +19,9 @@ namespace boblib::utils::pubsub
     {
     public:
         virtual ~TopicBase() = default;
-        virtual size_t subscriber_count() const noexcept = 0;
+        virtual QueueStats get_queue_stats() const noexcept = 0;
         virtual size_t queue_size() const noexcept = 0;
-        virtual size_t queue_capacity() const noexcept = 0;
-        virtual size_t dropped_count() const noexcept = 0;
+        virtual std::size_t dropped_count() const noexcept = 0;
     };
 
     // Concrete implementation for specific message types
@@ -36,10 +35,18 @@ namespace boblib::utils::pubsub
         explicit TypedTopic(std::shared_ptr<PubSub<T>> p) 
             : pubsub(std::move(p)) {}
 
-        size_t subscriber_count() const noexcept override { return pubsub->subscriber_count(); }
-        size_t queue_size() const noexcept override { return pubsub->queue_size(); }
-        size_t queue_capacity() const noexcept override { return pubsub->queue_capacity(); }
-        size_t dropped_count() const noexcept override { return pubsub->dropped_count(); }
+        QueueStats get_queue_stats() const noexcept override
+        {
+            return pubsub->get_queue_stats();
+        }
+        size_t queue_size() const noexcept override 
+        { 
+            return pubsub->queue_size(); 
+        }
+        std::size_t dropped_count() const noexcept override
+        {
+            return pubsub->dropped_count();
+        }
     };
 
     // transparent hasher that can take either std::string or std::string_view
@@ -115,14 +122,8 @@ namespace boblib::utils::pubsub
             return 0;
         }
 
-        // Get the number of subscribers for a topic
-        size_t subscriber_count(std::string_view n) const noexcept;
-
         // Get queue size for a specific topic
         size_t queue_size(std::string_view n) const noexcept;
-
-        // Get queue capacity for a specific topic
-        size_t queue_capacity(std::string_view n) const noexcept;
 
     private:
         // Struct to hold topic data

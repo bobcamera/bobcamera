@@ -8,6 +8,7 @@
 #include <type_traits>
 #include <concepts>
 #include <array>
+#include <vector>
 #include <cstddef>
 
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
@@ -44,6 +45,15 @@ namespace boblib::utils::pubsub
         return ++n;
     }
 
+    struct QueueStats
+    {
+        std::size_t central_queue_size;
+        std::size_t total_subscriber_queue_size;
+        std::size_t max_subscriber_queue_size;
+        std::size_t min_subscriber_queue_size;
+        std::size_t active_subscribers;
+    };
+    
     // ------------------------------------------------------------------ PubSub
     template <typename M, std::size_t MaxSubscribers = 5>
         requires CopyableOrMovable<M>
@@ -90,13 +100,13 @@ namespace boblib::utils::pubsub
             {
                 const auto head_idx = head.v.load(std::memory_order_relaxed);
                 Slot &s = buffer[head_idx & mask];
-                
+
                 if (s.seq.load(std::memory_order_acquire) != head_idx)
                 {
                     // Buffer is full - drop the oldest item
                     const auto tail_idx = tail.v.load(std::memory_order_relaxed);
                     Slot &tail_slot = buffer[tail_idx & mask];
-                    
+
                     // Force pop the oldest item
                     if (tail_slot.seq.load(std::memory_order_acquire) == tail_idx + 1)
                     {
@@ -106,7 +116,7 @@ namespace boblib::utils::pubsub
                         dropped_count.fetch_add(1, std::memory_order_relaxed);
                     }
                 }
-                
+
                 // Now push the new item
                 new (&s.storage) T(std::move(item));
                 s.seq.store(head_idx + 1, std::memory_order_release);
@@ -118,13 +128,13 @@ namespace boblib::utils::pubsub
             {
                 const auto head_idx = head.v.load(std::memory_order_relaxed);
                 Slot &s = buffer[head_idx & mask];
-                
+
                 if (s.seq.load(std::memory_order_acquire) != head_idx)
                 {
                     // Buffer is full - drop the oldest item
                     const auto tail_idx = tail.v.load(std::memory_order_relaxed);
                     Slot &tail_slot = buffer[tail_idx & mask];
-                    
+
                     // Force pop the oldest item
                     if (tail_slot.seq.load(std::memory_order_acquire) == tail_idx + 1)
                     {
@@ -134,7 +144,7 @@ namespace boblib::utils::pubsub
                         dropped_count.fetch_add(1, std::memory_order_relaxed);
                     }
                 }
-                
+
                 // Now push the new item
                 new (&s.storage) T(item);
                 s.seq.store(head_idx + 1, std::memory_order_release);
@@ -157,10 +167,16 @@ namespace boblib::utils::pubsub
             // ---------------------------- stats
             [[nodiscard]] std::size_t queue_size() const noexcept
             {
-                // number of items in this ring = head − tail
+                // Properly handle wraparound for circular buffer
                 auto head_idx = head.v.load(std::memory_order_acquire);
                 auto tail_idx = tail.v.load(std::memory_order_acquire);
-                return head_idx - tail_idx;
+
+                // Since we use a power-of-2 capacity, we can safely subtract
+                // and the result will be correct even with wraparound
+                auto size = head_idx - tail_idx;
+
+                // Clamp to capacity to handle any race conditions
+                return std::min(size, capacity);
             }
 
             [[nodiscard]] std::size_t get_dropped_count() const noexcept
@@ -193,7 +209,7 @@ namespace boblib::utils::pubsub
             Subscriber(Callback f, void *c, std::size_t qsize)
                 : fn(f), ctx(c), local_q(qsize),
                   thr([this](std::stop_token stop)
-                    {
+                      {
                         constexpr int kSpin = 64;
                         while (!stop.stop_requested())
                         {
@@ -207,8 +223,7 @@ namespace boblib::utils::pubsub
                                     cpu_relax();
                                 std::this_thread::yield();
                             }
-                        } 
-                    })
+                        } })
             {
             }
         };
@@ -319,16 +334,105 @@ namespace boblib::utils::pubsub
         }
 
         // ---------------------------- stats
-        [[nodiscard]] std::size_t queue_size() const noexcept
+        [[nodiscard]] std::size_t central_queue_size() const noexcept { return queue.queue_size(); }
+        [[nodiscard]] std::size_t total_subscriber_queue_size() const noexcept
         {
-            return queue.queue_size();
+            std::size_t total_size = 0;
+            auto cnt = active_cnt.load(std::memory_order_acquire);
+
+            for (std::size_t i = 0; i < cnt; ++i)
+            {
+                if (subscribers[i].has_value())
+                {
+                    total_size += subscribers[i]->local_q.queue_size();
+                }
+            }
+
+            return total_size;
         }
 
-        // ---------------------------- stats
-        [[nodiscard]] std::size_t queue_capacity() const noexcept { return queue.capacity; }
-        [[nodiscard]] std::size_t subscriber_count() const noexcept { return active_cnt.load(); }
-        [[nodiscard]] std::size_t dropped_count() const noexcept { return queue.get_dropped_count(); }
-        void reset_dropped_count() noexcept { queue.reset_dropped_count(); }
+        [[nodiscard]] std::size_t max_subscriber_queue_size() const noexcept
+        {
+            std::size_t max_size = 0;
+            auto cnt = active_cnt.load(std::memory_order_acquire);
+
+            for (std::size_t i = 0; i < cnt; ++i)
+            {
+                if (subscribers[i].has_value())
+                {
+                    max_size = std::max(max_size, subscribers[i]->local_q.queue_size());
+                }
+            }
+
+            return max_size;
+        }
+
+        [[nodiscard]] std::size_t dropped_count() const noexcept
+        {
+            auto total_dropped = queue.get_dropped_count();
+            auto cnt = active_cnt.load(std::memory_order_acquire);
+
+            // Add dropped counts from all active subscriber queues
+            for (std::size_t i = 0; i < cnt; ++i)
+            {
+                if (subscribers[i].has_value())
+                {
+                    total_dropped += subscribers[i]->local_q.get_dropped_count();
+                }
+            }
+
+            return total_dropped;
+        }
+
+        void reset_dropped_count() noexcept
+        {
+            queue.reset_dropped_count();
+            auto cnt = active_cnt.load(std::memory_order_acquire);
+
+            // Reset dropped counts for all active subscriber queues
+            for (std::size_t i = 0; i < cnt; ++i)
+            {
+                if (subscribers[i].has_value())
+                {
+                    subscribers[i]->local_q.reset_dropped_count();
+                }
+            }
+        }
+
+        // ---------------------------- detailed stats
+        [[nodiscard]] QueueStats get_queue_stats() const noexcept
+        {
+            auto cnt = active_cnt.load(std::memory_order_acquire);
+
+            QueueStats stats{};
+            stats.central_queue_size = queue.queue_size();
+            stats.active_subscribers = cnt;
+            stats.min_subscriber_queue_size = SIZE_MAX;
+
+            for (std::size_t i = 0; i < cnt; ++i)
+            {
+                if (subscribers[i].has_value())
+                {
+                    auto sub_size = subscribers[i]->local_q.queue_size();
+                    stats.total_subscriber_queue_size += sub_size;
+                    stats.max_subscriber_queue_size = std::max(stats.max_subscriber_queue_size, sub_size);
+                    stats.min_subscriber_queue_size = std::min(stats.min_subscriber_queue_size, sub_size);
+                }
+            }
+
+            if (cnt == 0)
+            {
+                stats.min_subscriber_queue_size = 0;
+            }
+
+            return stats;
+        }
+
+        // Keep simple interface for backward compatibility
+        [[nodiscard]] std::size_t queue_size() const noexcept
+        {
+            return get_queue_stats().total_subscriber_queue_size;
+        }
     };
 
 } // namespace boblib::utils::pubsub

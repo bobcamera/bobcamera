@@ -31,8 +31,13 @@ namespace boblib::video
     public:
         struct Options
         {
+            enum class CodecType
+            {
+                H264,
+                HEVC
+            };
             std::string outputPath;              // Output file path
-            std::string codec = "h264";          // Encoder to use (libx264, h264_nvenc, hevc_nvenc, etc.)
+            CodecType codec = CodecType::H264;   // Encoder to use (libx264, h264_nvenc, hevc_nvenc, etc.)
             int width = 0;                       // Will be set from first frame if 0
             int height = 0;                      // Will be set from first frame if 0
             int bitrate = 0;                     // In bits/s, 0 for default

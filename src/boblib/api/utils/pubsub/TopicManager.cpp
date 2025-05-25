@@ -54,22 +54,10 @@ namespace boblib::utils::pubsub
         return topics.size();
     }
 
-    // Get the number of subscribers for a topic
-    size_t TopicManager::subscriber_count(std::string_view n) const noexcept
-    { 
-        return with_topic(n, &TopicBase::subscriber_count); 
-    }
-
     // Get queue size for a specific topic
     size_t TopicManager::queue_size(std::string_view n) const noexcept
     { 
         return with_topic(n, &TopicBase::queue_size); 
-    }
-
-    // Get queue capacity for a specific topic
-    size_t TopicManager::queue_capacity(std::string_view n) const noexcept
-    { 
-        return with_topic(n, &TopicBase::queue_capacity); 
     }
 
     void TopicManager::monitor_thread(std::stop_token stoken) noexcept
@@ -88,22 +76,28 @@ namespace boblib::utils::pubsub
             out << boblib::utils::console_colors::BRIGHT_GREEN << boblib::utils::console_colors::BOLD
                 << "Topics Report" << boblib::utils::console_colors::RESET << "\n"
                 << boblib::utils::console_colors::GREEN
-                << std::string(bigger_name_size_ + 69, '=')
+                << std::string(bigger_name_size_ + 65, '=')
                 << boblib::utils::console_colors::RESET << "\n";
+            
             for (const auto& [topic_name, topic_data] : topics)
             {
+                auto stats = topic_data.topic->get_queue_stats();
+                
                 out << boblib::utils::console_colors::BOLD << "Topic: " << boblib::utils::console_colors::RESET
                     << boblib::utils::console_colors::BRIGHT_CYAN << std::left << std::setw(bigger_name_size_) << topic_name << boblib::utils::console_colors::RESET
-                    << " | " << boblib::utils::console_colors::BOLD << "Subscribers: " << boblib::utils::console_colors::RESET
-                    << boblib::utils::console_colors::BRIGHT_CYAN << std::right << std::setw(3) << topic_data.topic->subscriber_count() << boblib::utils::console_colors::RESET
-                    << " | " << boblib::utils::console_colors::BOLD << "Queue Size: " << boblib::utils::console_colors::RESET
-                    << boblib::utils::console_colors::BRIGHT_CYAN << std::right << std::setw(4) << topic_data.topic->queue_size() << boblib::utils::console_colors::RESET
-                    << " | " << boblib::utils::console_colors::BOLD << "Dropped Frames: " << boblib::utils::console_colors::RESET
+                    << " | " << boblib::utils::console_colors::BOLD << "Subs: " << boblib::utils::console_colors::RESET
+                    << boblib::utils::console_colors::BRIGHT_CYAN << std::right << std::setw(2) << stats.active_subscribers << boblib::utils::console_colors::RESET
+                    << " | " << boblib::utils::console_colors::BOLD << "Total Q: " << boblib::utils::console_colors::RESET
+                    << boblib::utils::console_colors::BRIGHT_CYAN << std::right << std::setw(4) << stats.total_subscriber_queue_size << boblib::utils::console_colors::RESET
+                    << " | " << boblib::utils::console_colors::BOLD << "Max Q: " << boblib::utils::console_colors::RESET
+                    << boblib::utils::console_colors::BRIGHT_CYAN << std::right << std::setw(4) << stats.max_subscriber_queue_size << boblib::utils::console_colors::RESET
+                    << " | " << boblib::utils::console_colors::BOLD << "Dropped: " << boblib::utils::console_colors::RESET
                     << boblib::utils::console_colors::BRIGHT_CYAN << std::right << std::setw(5) << topic_data.topic->dropped_count() << boblib::utils::console_colors::RESET
                     << std::endl;
             }
+            
             out << boblib::utils::console_colors::GREEN
-                << std::string(bigger_name_size_ + 69, '=')
+                << std::string(bigger_name_size_ + 65, '=')
                 << boblib::utils::console_colors::RESET << "\n";
 
             std::cout << out.str() << std::endl;
