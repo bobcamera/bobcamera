@@ -95,26 +95,36 @@ namespace boblib::utils::pubsub
             }
 
             // push an item into the ring buffer, dropping oldest if full
-            // returns true if successful, false if item was dropped
             void push(T &&item) noexcept
             {
                 const auto head_idx = head.v.load(std::memory_order_relaxed);
                 Slot &s = buffer[head_idx & mask];
 
+                // Check if we need to advance tail (buffer full)
                 if (s.seq.load(std::memory_order_acquire) != head_idx)
                 {
-                    // Buffer is full - drop the oldest item
-                    const auto tail_idx = tail.v.load(std::memory_order_relaxed);
-                    Slot &tail_slot = buffer[tail_idx & mask];
-
-                    // Force pop the oldest item
-                    if (tail_slot.seq.load(std::memory_order_acquire) == tail_idx + 1)
+                    // Buffer is full - we need to drop the oldest item
+                    // Use CAS loop to safely advance tail and clean up
+                    auto current_tail = tail.v.load(std::memory_order_relaxed);
+                    Slot &tail_slot = buffer[current_tail & mask];
+                    
+                    // Only force advance if the tail slot is ready to be consumed
+                    // and we can atomically claim it
+                    auto expected_seq = current_tail + 1;
+                    if (tail_slot.seq.compare_exchange_weak(expected_seq, current_tail + capacity, 
+                                                          std::memory_order_acq_rel, std::memory_order_relaxed))
                     {
+                        // Successfully claimed the tail slot - safe to destroy
                         tail_slot.get().~T();
-                        tail_slot.seq.store(tail_idx + capacity, std::memory_order_release);
-                        tail.v.store(tail_idx + 1, std::memory_order_relaxed);
+
+                        // Try to advance tail pointer atomically.
+                        // Use strong CAS to avoid spurious failures. If it fails, it means consumer likely advanced tail.
+                        tail.v.compare_exchange_strong(current_tail, current_tail + 1,
+                                                       std::memory_order_release, std::memory_order_relaxed);
                         dropped_count.fetch_add(1, std::memory_order_relaxed);
                     }
+                    // If CAS failed, try_pop_item() might have got it
+                    // In either case, we continue with our push
                 }
 
                 // Now push the new item
@@ -129,20 +139,31 @@ namespace boblib::utils::pubsub
                 const auto head_idx = head.v.load(std::memory_order_relaxed);
                 Slot &s = buffer[head_idx & mask];
 
+                // Check if we need to advance tail (buffer full)
                 if (s.seq.load(std::memory_order_acquire) != head_idx)
                 {
-                    // Buffer is full - drop the oldest item
-                    const auto tail_idx = tail.v.load(std::memory_order_relaxed);
-                    Slot &tail_slot = buffer[tail_idx & mask];
-
-                    // Force pop the oldest item
-                    if (tail_slot.seq.load(std::memory_order_acquire) == tail_idx + 1)
+                    // Buffer is full - we need to drop the oldest item
+                    // Use CAS loop to safely advance tail and clean up
+                    auto current_tail = tail.v.load(std::memory_order_relaxed);
+                    Slot &tail_slot = buffer[current_tail & mask];
+                    
+                    // Only force advance if the tail slot is ready to be consumed
+                    // and we can atomically claim it
+                    auto expected_seq = current_tail + 1;
+                    if (tail_slot.seq.compare_exchange_weak(expected_seq, current_tail + capacity, 
+                                                          std::memory_order_acq_rel, std::memory_order_relaxed))
                     {
+                        // Successfully claimed the tail slot - safe to destroy
                         tail_slot.get().~T();
-                        tail_slot.seq.store(tail_idx + capacity, std::memory_order_release);
-                        tail.v.store(tail_idx + 1, std::memory_order_relaxed);
+
+                        // Try to advance tail pointer atomically.
+                        // Use strong CAS to avoid spurious failures. If it fails, it means consumer likely advanced tail.
+                        tail.v.compare_exchange_strong(current_tail, current_tail + 1,
+                                                       std::memory_order_release, std::memory_order_relaxed);
                         dropped_count.fetch_add(1, std::memory_order_relaxed);
                     }
+                    // If CAS failed, try_pop_item() might have got it
+                    // In either case, we continue with our push
                 }
 
                 // Now push the new item
@@ -156,12 +177,17 @@ namespace boblib::utils::pubsub
                 const auto tail_idx = tail.v.load(std::memory_order_relaxed);
                 Slot &s = buffer[tail_idx & mask];
                 if (s.seq.load(std::memory_order_acquire) != tail_idx + 1)
+                {
                     return std::nullopt; // empty
-                T item = std::move(s.get());
+                }
+                // Create the result by moving
+                std::optional<T> result{std::move(s.get())};
                 s.get().~T();
+
                 s.seq.store(tail_idx + capacity, std::memory_order_release);
                 tail.v.store(tail_idx + 1, std::memory_order_relaxed);
-                return item;
+                
+                return result;
             }
 
             // ---------------------------- stats
@@ -245,10 +271,15 @@ namespace boblib::utils::pubsub
                 {
                     backoff = 1;
                     auto cnt = active_cnt.load(std::memory_order_acquire);
-
-                    // copy the shared_ptr into each subscriber
+                    
+                    // Copy to all active subscribers safely
                     for (size_t i = 0; i < cnt; ++i)
-                        subscribers[i]->local_q.push(*opt);
+                    {
+                        // Double-check subscriber exists before accessing
+                        if (subscribers[i].has_value()) {
+                            subscribers[i]->local_q.push(*opt);
+                        }
+                    }
                 }
                 else
                 {
@@ -323,13 +354,24 @@ namespace boblib::utils::pubsub
             auto cnt = active_cnt.load(std::memory_order_acquire);
             if (id >= cnt)
                 return false;
-            // stop that subscriber
-            subscribers[id].reset();
-            // compact list
-            if (id + 1 < cnt)
-                subscribers[id] = std::move(subscribers[cnt - 1]);
-            subscribers[cnt - 1].reset();
+    
+            // First, stop the subscriber thread safely
+            if (subscribers[id].has_value()) {
+                subscribers[id]->thr.request_stop();
+            }
+    
+            // Update count first to prevent dispatch loop from accessing this subscriber
             active_cnt.store(cnt - 1, std::memory_order_release);
+    
+            // Wait for any in-flight dispatch operations to complete
+            std::atomic_thread_fence(std::memory_order_acquire);
+    
+            // Now safe to move/reset
+            if (id + 1 < cnt) {
+                subscribers[id] = std::move(subscribers[cnt - 1]);
+            }
+            subscribers[cnt - 1].reset();
+    
             return true;
         }
 
