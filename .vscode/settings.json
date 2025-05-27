@@ -1,5 +1,6 @@
 {
     "files.associations": {
         "vector": "cpp"
-    }
+    },
+    "cmake.sourceDirectory": "/home/fabio/src/bobcamera/src/ros2/build/rosbridge_test_msgs/rosbridge_test_msgs__py"
 }

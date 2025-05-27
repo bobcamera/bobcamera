@@ -47,6 +47,7 @@ struct CameraBgsParams
     struct CameraParams
     {
         SourceType source_type{SourceType::UNKNOWN};
+        bool use_opencv;
         int camera_id;
         std::string rtsp_uri;
         std::string onvif_uri;

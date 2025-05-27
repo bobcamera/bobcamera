@@ -10,7 +10,7 @@
 #endif
 
 #include "../base/Image.hpp"
-
+#include "ffmpeg_video_writer.hpp"
 
 namespace boblib::video
 {
@@ -24,7 +24,7 @@ namespace boblib::video
     class VideoWriter final
     {
     public:
-        VideoWriter(const std::string &fileName, const cv::Size &frame_size, boblib::video::Codec codec, double fps, bool use_cuda = true) noexcept;
+        VideoWriter(const std::string &fileName, const cv::Size &frame_size, boblib::video::Codec codec, double fps, bool use_opencv = false, bool use_cuda = true) noexcept;
 
         ~VideoWriter() noexcept;
 
@@ -45,6 +45,7 @@ namespace boblib::video
     private:
         inline void create_video_writer() noexcept;
 
+        bool use_opencv_{false};
         const bool using_cuda_;
         const std::string &fileName_;
         const boblib::video::Codec codec_;
@@ -54,5 +55,6 @@ namespace boblib::video
         cv::Ptr<cv::cudacodec::VideoWriter> cuda_video_writer_ptr_;
 #endif
         std::unique_ptr<cv::VideoWriter> video_writer_ptr_;
+        std::unique_ptr<FFmpegVideoWriter> ffmpeg_video_writer_ptr_;
     };
 }

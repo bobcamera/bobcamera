@@ -78,6 +78,8 @@ private:
 
         profiler_ptr_->set_enabled(camera_bgs_params_.profiling);
 
+        topic_manager_->set_monitoring(camera_bgs_params_.profiling, 10);
+
         bgs_worker_ptr_->init();
         camera_save_worker_ptr_->init();
         track_provider_worker_ptr_->init();
@@ -450,6 +452,12 @@ private:
                     [this](const rclcpp::Parameter &param)
                     {
                         camera_bgs_params_.sample_frame.enabled = param.as_bool();
+                    }),
+                ParameterNode::ActionParam(
+                    rclcpp::Parameter("video_use_opencv", false),
+                    [this](const rclcpp::Parameter &param)
+                    {
+                        camera_bgs_params_.camera.use_opencv = param.as_bool();
                     }),
             };
         add_action_parameters(params);

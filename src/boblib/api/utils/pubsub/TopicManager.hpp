@@ -5,6 +5,7 @@
 #include <memory>
 #include <unordered_map>
 #include <mutex>
+#include <thread>
 #include <typeindex>
 #include <shared_mutex>
 #include <functional>
@@ -18,9 +19,9 @@ namespace boblib::utils::pubsub
     {
     public:
         virtual ~TopicBase() = default;
-        virtual size_t subscriber_count() const = 0;
-        virtual size_t queue_size() const = 0;
-        virtual size_t queue_capacity() const = 0;
+        virtual QueueStats get_queue_stats() const noexcept = 0;
+        virtual size_t queue_size() const noexcept = 0;
+        virtual std::size_t dropped_count() const noexcept = 0;
     };
 
     // Concrete implementation for specific message types
@@ -31,11 +32,21 @@ namespace boblib::utils::pubsub
         std::shared_ptr<PubSub<T>> pubsub;
 
     public:
-        explicit TypedTopic(std::shared_ptr<PubSub<T>> p) : pubsub(std::move(p)) {}
+        explicit TypedTopic(std::shared_ptr<PubSub<T>> p) 
+            : pubsub(std::move(p)) {}
 
-        size_t subscriber_count() const override { return pubsub->subscriber_count(); }
-        size_t queue_size() const override { return pubsub->queue_size(); }
-        size_t queue_capacity() const override { return pubsub->queue_capacity(); }
+        QueueStats get_queue_stats() const noexcept override
+        {
+            return pubsub->get_queue_stats();
+        }
+        size_t queue_size() const noexcept override 
+        { 
+            return pubsub->queue_size(); 
+        }
+        std::size_t dropped_count() const noexcept override
+        {
+            return pubsub->dropped_count();
+        }
     };
 
     // transparent hasher that can take either std::string or std::string_view
@@ -43,47 +54,14 @@ namespace boblib::utils::pubsub
     {
         using is_transparent = void; // enables heterogeneous lookup
 
-        size_t operator()(std::string_view sv) const noexcept
-        {
-            return std::hash<std::string_view>{}(sv);
-        }
-        size_t operator()(const std::string &s) const noexcept
-        {
-            return std::hash<std::string_view>{}(s);
-        }
+        size_t operator()(std::string_view sv) const noexcept;
+
+        size_t operator()(const std::string &s) const noexcept;
     };
 
     // TopicManager class to manage multiple topics with different message types
     class TopicManager
     {
-    private:
-        // Struct to hold topic data
-        struct TopicData
-        {
-            std::unique_ptr<TopicBase> topic;
-            std::type_index type_id;
-            std::shared_ptr<void> pubsub;  // Store the PubSub instance directly
-
-            TopicData(std::unique_ptr<TopicBase> t, std::type_index id, std::shared_ptr<void> p)
-                : topic(std::move(t)), type_id(id), pubsub(std::move(p)) 
-            {}
-        };
-
-        // Map from topic name to topic data
-        std::unordered_map<
-            std::string,
-            TopicData,
-            TransparentStringHash, // heterogeneous hash
-            std::equal_to<>        // transparent equals
-            >
-            topics;
-
-        // Mutex to protect the topics map
-        mutable std::shared_mutex topics_mutex;
-
-        // Default queue size and timeout for new topics
-        size_t default_queue_size;
-
     public:
         TopicManager(const TopicManager &) = delete;
         TopicManager &operator=(const TopicManager &) = delete;
@@ -91,9 +69,7 @@ namespace boblib::utils::pubsub
         TopicManager &operator=(TopicManager &&) = default;
 
         // Constructor with default values
-        explicit TopicManager(size_t queue_size = 100)
-            : default_queue_size(queue_size) 
-        {}
+        explicit TopicManager(size_t queue_size = 100, bool enable_monitoring = true, int report_time_seconds = 10);
 
         // Get or create a PubSub instance for a topic with specific type
         template <typename T>
@@ -112,6 +88,7 @@ namespace boblib::utils::pubsub
                     topic_name,
                     TopicData(std::move(typed_topic), typeid(T), pubsub));
                 it = new_it;
+                bigger_name_size_ = std::max(bigger_name_size_, topic_name.size());
                 return pubsub;
             }
             else if (it->second.type_id != typeid(T))
@@ -124,19 +101,15 @@ namespace boblib::utils::pubsub
             return std::static_pointer_cast<PubSub<T>>(it->second.pubsub);
         }
 
+        // set monitoring for topics
+        // If enabled, it will start a monitoring thread that reports the status of topics
+        void set_monitoring(bool enable, int report_time_seconds = 10) noexcept;
+
         // Check if a topic exists
-        bool topic_exists(std::string_view topic_name) const
-        {
-            std::shared_lock lock(topics_mutex);
-            return topics.find(topic_name) != topics.end();
-        }
+        bool topic_exists(std::string_view topic_name) const noexcept;
 
         // Get the current number of topics
-        size_t topic_count() const
-        {
-            std::shared_lock lock(topics_mutex);
-            return topics.size();
-        }
+        size_t topic_count() const noexcept;
 
         template <typename F>
         size_t with_topic(std::string_view name, F fn) const
@@ -149,13 +122,40 @@ namespace boblib::utils::pubsub
             return 0;
         }
 
-        // Get the number of subscribers for a topic
-        size_t subscriber_count(std::string_view n) const { return with_topic(n, &TopicBase::subscriber_count); }
-
         // Get queue size for a specific topic
-        size_t queue_size(std::string_view n) const { return with_topic(n, &TopicBase::queue_size); }
+        size_t queue_size(std::string_view n) const noexcept;
 
-        // Get queue capacity for a specific topic
-        size_t queue_capacity(std::string_view n) const { return with_topic(n, &TopicBase::queue_capacity); }
+    private:
+        // Struct to hold topic data
+        struct TopicData
+        {
+            std::unique_ptr<TopicBase> topic;
+            std::type_index type_id;
+            std::shared_ptr<void> pubsub; // Store the PubSub instance directly
+
+            TopicData(std::unique_ptr<TopicBase> t, std::type_index id, std::shared_ptr<void> p);
+        };
+
+        // Map from topic name to topic data
+        std::unordered_map<
+            std::string,
+            TopicData,
+            TransparentStringHash, // heterogeneous hash
+            std::equal_to<>        // transparent equals
+            >
+            topics;
+
+        // Mutex to protect the topics map
+        mutable std::shared_mutex topics_mutex;
+
+        // Default queue size and timeout for new topics
+        size_t default_queue_size;
+
+        size_t bigger_name_size_ = 0; // for monitoring purposes
+        bool enable_monitoring_;
+        int report_time_seconds_;
+        std::jthread monitor_thread_;
+
+        void monitor_thread(std::stop_token stoken) noexcept;
     };
 } // namespace boblib::utils::pubsub

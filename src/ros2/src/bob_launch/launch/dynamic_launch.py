@@ -23,9 +23,10 @@ def parse_yaml(file_path):
 
 
 def subst_variables(config, params):
+    yaml_variables = config['basic_variables'] | config['advanced_variables']
     for key, value in params.items():
         if isinstance(value, str) and value.startswith('$'):
-            params[key] = config['variables'].get(value[1:])
+            params[key] = yaml_variables.get(value[1:])
     
 
 def get_node_parameters(config, node_name):

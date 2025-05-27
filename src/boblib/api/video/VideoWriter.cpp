@@ -3,8 +3,9 @@
 
 using namespace boblib::video;
 
-VideoWriter::VideoWriter(const std::string &fileName, const cv::Size &frame_size, boblib::video::Codec codec, double fps, bool use_cuda) noexcept
-    : using_cuda_(use_cuda ? boblib::base::Utils::has_cuda() : false)
+VideoWriter::VideoWriter(const std::string &fileName, const cv::Size &frame_size, boblib::video::Codec codec, double fps, bool use_opencv, bool use_cuda) noexcept
+    : use_opencv_(use_opencv)
+    , using_cuda_(use_cuda ? boblib::base::Utils::has_cuda() : false)
     , fileName_(fileName)
     , codec_(codec)
     , fps_(fps)
@@ -20,6 +21,11 @@ VideoWriter::~VideoWriter() noexcept
 
 void VideoWriter::write(const cv::Mat &image) noexcept
 {
+    if (!use_opencv_)
+    {
+        ffmpeg_video_writer_ptr_->write_frame(image);
+        return;
+    }
 #ifdef HAVE_CUDA
     if (using_cuda_)
     {
@@ -36,6 +42,12 @@ void VideoWriter::write(const cv::Mat &image) noexcept
 
 void VideoWriter::write(const boblib::base::Image &image) noexcept
 {
+    if (!use_opencv_)
+    {
+        ffmpeg_video_writer_ptr_->write_frame(image.toMat());
+        return;
+    }
+
 #ifdef HAVE_CUDA
     if (using_cuda_)
     {
@@ -50,6 +62,12 @@ void VideoWriter::write(const boblib::base::Image &image) noexcept
 
 void VideoWriter::release() noexcept
 {
+    if (!use_opencv_)
+    {
+        ffmpeg_video_writer_ptr_->stop();
+        ffmpeg_video_writer_ptr_.reset();
+        return;
+    }
 #ifdef HAVE_CUDA
     if (using_cuda_)
     {
@@ -64,16 +82,31 @@ void VideoWriter::release() noexcept
 
 bool VideoWriter::is_open() const noexcept
 {
-    return using_cuda_ ? true : video_writer_ptr_->isOpened();
+    return !use_opencv_ || using_cuda_ ? true : video_writer_ptr_->isOpened();
 }
 
 bool VideoWriter::using_cuda() const noexcept
 {
-    return using_cuda_;
+    return use_opencv_ && using_cuda_;
 }
 
 inline void VideoWriter::create_video_writer() noexcept
 {
+    if (!use_opencv_)
+    {
+        auto options = FFmpegVideoWriter::Options();
+        options.outputPath = fileName_;
+        options.codec = codec_ == boblib::video::Codec::HEVC ? FFmpegVideoWriter::Options::CodecType::HEVC
+                                                             : FFmpegVideoWriter::Options::CodecType::H264; // Default to H264 if AVC1 is used
+        options.width = frame_size_.width;
+        options.height = frame_size_.height;
+        options.fps = fps_;
+        options.useHardwareAcceleration = true;
+        ffmpeg_video_writer_ptr_ = std::make_unique<FFmpegVideoWriter>(options);
+        ffmpeg_video_writer_ptr_->start();
+        return;
+    }
+
 #ifdef HAVE_CUDA
     if (using_cuda_)
     {
@@ -125,6 +158,10 @@ inline void VideoWriter::create_video_writer() noexcept
 
 std::string VideoWriter::get_backend_name() const noexcept
 {
+    if (!use_opencv_)
+    {
+        return ffmpeg_video_writer_ptr_->get_codec_name();
+    }
     return video_writer_ptr_->getBackendName();
 }
 

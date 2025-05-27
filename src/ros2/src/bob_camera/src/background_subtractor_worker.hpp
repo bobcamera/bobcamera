@@ -198,11 +198,6 @@ public:
     {
         try
         {
-            if (camera_pubsub_ptr_->queue_size() > 1)
-            {
-                node_.log_info("Publish Queue size: %d", camera_pubsub_ptr_->queue_size() - 1);
-            }
-
             std::unique_lock lock(mutex_);
             cv_ready_.wait(lock, [this]
                            { return ready_; });
@@ -264,11 +259,6 @@ private:
     {
         try
         {
-            if (process_pubsub_ptr_->queue_size() > 1)
-            {
-                node_.log_info("Process Queue size: %d", process_pubsub_ptr_->queue_size() - 1);
-            }
-
             const auto &header = publish_image->header_ptr;
             auto &bgs_img = *publish_image->image_ptr;
 

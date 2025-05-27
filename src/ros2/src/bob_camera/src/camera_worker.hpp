@@ -145,7 +145,7 @@ public:
             case CameraBgsParams::SourceType::USB_CAMERA:
             {
                 node_.log_send_info("Trying to open camera %d", params_.camera.camera_id);
-                video_reader_ptr_ = std::make_unique<boblib::video::VideoReader>(params_.camera.camera_id);
+                video_reader_ptr_ = std::make_unique<boblib::video::VideoReader>(params_.camera.camera_id, params_.camera.use_opencv);
                 set_camera_resolution();
             }
             break;
@@ -154,14 +154,14 @@ public:
             {
                 const auto video_path = params_.camera.videos[current_video_idx_];
                 node_.log_send_info("Trying to open video '%s'", video_path.c_str());
-                video_reader_ptr_ = std::make_unique<boblib::video::VideoReader>(video_path, using_cuda_);
+                video_reader_ptr_ = std::make_unique<boblib::video::VideoReader>(video_path, params_.camera.use_opencv, using_cuda_);
             }
             break;
 
             case CameraBgsParams::SourceType::RTSP_STREAM:
             {
                 node_.log_send_info("Trying to open RTSP Stream '%s'", params_.camera.rtsp_uri.c_str());
-                video_reader_ptr_ = std::make_unique<boblib::video::VideoReader>(params_.camera.rtsp_uri, using_cuda_);
+                video_reader_ptr_ = std::make_unique<boblib::video::VideoReader>(params_.camera.rtsp_uri, params_.camera.use_opencv, using_cuda_);
             }
             break;
 

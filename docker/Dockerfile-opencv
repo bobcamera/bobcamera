@@ -6,6 +6,9 @@
 # docker buildx build --progress=plain --push --platform linux/amd64,linux/arm64 -f ./docker/Dockerfile-opencv . -t bobcamera/bob-opencv-cuda:1.5.9 -t bobcamera/bob-opencv-cuda:latest --target opencv-cuda
 # docker buildx build --progress=plain --push --platform linux/amd64,linux/arm64 -f ./docker/Dockerfile-opencv . -t bobcamera/bob-opencv:1.5.9 -t bobcamera/bob-opencv:latest --target opencv
 
+#docker buildx build --progress=plain --push --platform linux/arm64 -f ./docker/Dockerfile-opencv . -t bobcamera/bob-opencv:1.5.9 -t bobcamera/bob-opencv:latest --target opencv
+
+
 FROM bobcamera/bob-base:latest AS opencv
 #FROM bobcamera/bob-base-cuda:latest AS opencv-cuda
 ENV OPENCV_VERSION=4.10.0
@@ -47,8 +50,8 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
     && unzip opencv-$OPENCV_VERSION.zip \
     && unzip opencv_contrib-$OPENCV_VERSION.zip \
     && rm -f opencv-$OPENCV_VERSION.zip \
-    && rm -f opencv_contrib-$OPENCV_VERSION.zip \
-    && cd /tmp/opencv-$OPENCV_VERSION && mkdir build \
+    && rm -f opencv_contrib-$OPENCV_VERSION.zip
+    RUN cd /tmp/opencv-$OPENCV_VERSION && mkdir build \
     && cd build \
     && cmake -DCMAKE_CXX_FLAGS="-Wc++17-extensions" \
         -D CMAKE_BUILD_TYPE=RELEASE \
@@ -82,7 +85,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
         -D WITH_FFMPEG=ON \
         ..
 RUN cd /tmp/opencv-$OPENCV_VERSION/build \
-    && make -j $(nproc) \
+    && make -j 12 \
     && make install \
     && sh -c 'echo "/usr/local/lib" >> /etc/ld.so.conf.d/opencv.conf' && ldconfig \
     && sh -c 'echo "/usr/lib/wsl/lib" >> /etc/ld.so.conf.d/wsl.conf' && ldconfig \

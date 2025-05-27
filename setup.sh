@@ -40,11 +40,11 @@ sleep 2
 
 YAML_FILE="${USER}.yaml"
 if [ ! -f "$YAML_FILE" ]; then
-    cp ex_config_video.yaml "$YAML_FILE"
+    cp dual_camera_config.yaml "$YAML_FILE"
     echo "$YAML_FILE has been created."
 else
     echo "$YAML_FILE already exists."
 fi
 
 # Run the config script
-# ./config.sh
+./config.sh
