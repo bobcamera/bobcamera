@@ -2,24 +2,43 @@
 ## Variables to use in nodes
 ###################################################################################
 basic_variables:
-  profiling: true            # true to enable profiling display, false otherwise
+  profiling: false            # true to enable profiling display, false otherwise
   use_recording: true         # true to enable recording, false otherwise
   camera1_enabled: true       # true to enable camera1, fals.e otherwise
-  camera2_enabled: true      # true to enable camera2, false otherwise
+  camera2_enabled: false      # true to enable camera2, false otherwise
 
 ###################################################################################
 ## Basic configuration for nodes
 ##   This is the basic configuration, where most of the users need to worry
 ###################################################################################
 basic_config:
-
+  # Example of RTSP camera configuration
+  # Comment the following lines to use other than RTSP camera
   camera1_node:
     recording_prefix: 'directional4k' # Prefix name for the recording files
     source_type: 'RTSP_STREAM'        # USB_CAMERA | VIDEO_FILE | RTSP_STREAM
     rtsp_uri: 'rtsp://bob:Bobuser$01@192.168.50.10:554/Streaming/Channels/101' # RTSP URI for the camera
-    
+
+  # Example of USB camera configuration
+  # Uncomment the following lines to use a USB camera instead of RTSP
+  # camera1_node:
+  #   recording_prefix: 'usb_camera_1'  # Prefix name for the recording files
+  #   source_type: 'USB_CAMERA'         # USB_CAMERA | VIDEO_FILE | RTSP_STREAM
+  #   camera_id: 0                      # Id of the camera in the /dev directory if using USB_CAMERA
+  #   usb_camera_resolution: [640, 480] # Resolution for USB Camera [WIDTH, HEIGHT]
+
+  # Example of video file configuration
+  # Uncomment the following lines to use a video file instead of RTSP
+  # camera1_node:
+  #   recording_prefix: 'video_test'    # Prefix name for the recording files
+  #   source_type: 'VIDEO_FILE'         # USB_CAMERA | VIDEO_FILE | RTSP_STREAM
+  #   videos:                           # List of videos to display in sequence if source_type is VIDEO_FILE
+  #     - '/workspaces/bobcamera/media/fisheye_videos/mike-drone.mp4'
+  #     - '/workspaces/bobcamera/media/fisheye_videos/mikeg-30min.mp4'
+
+  # Configuration for the second camera
   camera2_node:
-    recording_prefix: 'allsky' # Prefix name for the recording files
+    recording_prefix: 'allsky'        # Prefix name for the recording files
     source_type: 'RTSP_STREAM'        # USB_CAMERA | VIDEO_FILE | RTSP_STREAM
     rtsp_uri: 'rtsp://bob:Bobuser$01@192.168.50.11:554/Streaming/Channels/101' # RTSP URI for the camera
     

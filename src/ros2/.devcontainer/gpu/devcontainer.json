@@ -23,7 +23,7 @@
 	],
 	"containerEnv": {
 		"DISPLAY": "${localEnv:DISPLAY}",
-		"NVIDIA_DRIVER_CAPABILITIES": "compute,utility,video",
+		"NVIDIA_DRIVER_CAPABILITIES": "compute,utility,video,display",
 		"NVIDIA_VISIBLE_DEVICES": "all"
 	},
 	"customizations": {

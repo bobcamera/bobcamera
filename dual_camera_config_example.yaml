@@ -107,6 +107,7 @@ advanced_config:
 
   base_camera_node:
     use_cuda: $use_cuda
+    video_use_opencv: false       # true to use OpenCV for video processing, false to use custom ffmpeg processing
     profiling: $profiling
     resize_height: $resize_height # 0 to disable resize publish
     simulator: False              # True for including simulated objects, False otherwise

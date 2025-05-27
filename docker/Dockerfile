@@ -144,7 +144,7 @@ COPY --from=bob-ros2-build /workspaces/bobcamera/src/ros2/version.txt /workspace
 # Copy the compiled libs
 COPY --from=bob-ros2-build /usr/local/lib /usr/local/lib
 COPY --from=bob-ros2-build /usr/lib/python3 /usr/lib/python3
-COPY --from=bob-ros2-build /usr/lib/x86_64-linux-gnu/libOpenCL* /usr/lib/x86_64-linux-gnu
+#COPY --from=bob-ros2-build /usr/lib/x86_64-linux-gnu/libOpenCL* /usr/lib/x86_64-linux-gnu
 COPY --from=qhy /opt/sdk_qhy /opt/sdk_qhy/
 #COPY media/fisheye_videos /workspaces/bobcamera/media/fisheye_videos
 COPY --from=bob-ros2-build /workspaces/bobcamera/src/ros2/install /workspaces/bobcamera/src/ros2/install

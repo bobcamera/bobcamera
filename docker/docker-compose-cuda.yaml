@@ -1,7 +1,7 @@
 # This docker-compose file is used to run the bobcamera web and ros2 nodes in a containerized environment.
 services:
   web:
-    image: bobcamera/bob-web-prod:1.7.1
+    image: bobcamera/bob-web-prod:1.7.3
     ports:
       - "8080:80"
     volumes: 

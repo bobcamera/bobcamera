@@ -17,12 +17,12 @@ basic_config:
     recording_prefix: 'directional4k' # Prefix name for the recording files
     source_type: 'RTSP_STREAM'        # USB_CAMERA | VIDEO_FILE | RTSP_STREAM
     rtsp_uri: 'rtsp://bob:Bobuser$01@192.168.50.10:554/Streaming/Channels/101' # RTSP URI for the camera
-    
+
   camera2_node:
-    recording_prefix: 'allsky' # Prefix name for the recording files
+    recording_prefix: 'allsky'        # Prefix name for the recording files
     source_type: 'RTSP_STREAM'        # USB_CAMERA | VIDEO_FILE | RTSP_STREAM
     rtsp_uri: 'rtsp://bob:Bobuser$01@192.168.50.11:554/Streaming/Channels/101' # RTSP URI for the camera
-    
+
 
 ###################################################################################
 ## Advanced configuration for nodes

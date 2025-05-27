@@ -88,6 +88,13 @@ else
     echo "Failed to update version number - ROS2 .devcontainer Dockerfile."
 fi
 
+# Replace version number in boblib dev Dockerfile
+if sed -i "s/FROM bobcamera\/bob-ros2-dev:$web_version/FROM bobcamera\/bob-ros2-dev:$version_number/" src/boblib/.devcontainer/Dockerfile; then
+    echo "Version number successfully updated - BOBLIB .devcontainer Dockerfile."
+else
+    echo "Failed to update version number - BOBLIB .devcontainer Dockerfile."
+fi
+
 echo $version_number > version.txt
 echo $version_number > ./src/ros2/version.txt
 
@@ -126,7 +133,7 @@ rm -r ./src/ros2/assets/wsdl/*
 #     -t bobcamera/bob-boblibapp:latest \
 #     --target boblib-app
 
-docker build \
+docker buildx build \
     --progress=plain \
     --push \
     --platform linux/amd64,linux/arm64 \
@@ -143,7 +150,7 @@ docker build \
 #     -t bobcamera/bob-ros2-build:latest \
 #     --target bob-ros2-build
 
-docker build \
+docker buildx build \
     --progress=plain \
     --push \
     --platform linux/amd64,linux/arm64 \
@@ -161,7 +168,7 @@ docker build \
 #     -t bobcamera/bob-ros2-prod-cuda:latest \
 #     --target bob-ros2-prod-cuda
 
-docker build \
+docker buildx build \
     --progress=plain \
     --push \
     --platform linux/amd64,linux/arm64 \
