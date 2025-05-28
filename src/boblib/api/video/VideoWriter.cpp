@@ -64,7 +64,10 @@ void VideoWriter::release() noexcept
 {
     if (!use_opencv_)
     {
-        ffmpeg_video_writer_ptr_->stop();
+        if (!ffmpeg_video_writer_ptr_)
+        {
+            return;
+        }
         ffmpeg_video_writer_ptr_.reset();
         return;
     }
@@ -82,7 +85,8 @@ void VideoWriter::release() noexcept
 
 bool VideoWriter::is_open() const noexcept
 {
-    return !use_opencv_ || using_cuda_ ? true : video_writer_ptr_->isOpened();
+    return !use_opencv_ ? (ffmpeg_video_writer_ptr_ != nullptr)
+                        : (using_cuda_ ? true : video_writer_ptr_->isOpened());
 }
 
 bool VideoWriter::using_cuda() const noexcept
