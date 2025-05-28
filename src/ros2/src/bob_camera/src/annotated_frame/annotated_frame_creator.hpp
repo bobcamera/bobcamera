@@ -74,8 +74,6 @@ public:
             {
                 cv::Rect bbox = get_sized_bbox(detection.bbox);
                 detections[detection.id] = bbox;
-                cv::Point p1(bbox.x, bbox.y);
-                cv::Point p2(bbox.x + bbox.width, bbox.y + bbox.height);
 
                 cv::Scalar color = _color(tracking_state);
 
@@ -113,6 +111,8 @@ public:
                         cropped_track_counter++;
                     }
                 }
+                cv::Point p1(detection.bbox.x, detection.bbox.y);
+                cv::Point p2(detection.bbox.x + detection.bbox.width, detection.bbox.y + detection.bbox.height);
                 cv::rectangle(annotated_frame, p1, p2, color, bbox_line_thickness_, 1);
                 cv::putText(annotated_frame, std::to_string(id), cv::Point(p1.x, p1.y - 4), cv::FONT_HERSHEY_SIMPLEX, font_scale_, color, 1);
                 // cv::ellipse(annotated_frame, ellipse, cv::Scalar(255, 0, 0), 1, cv::LINE_8);
@@ -184,6 +184,14 @@ private:
         return fontScale;
     }
 
+    /**
+     * Converts a bounding box to a square bounding box centered on the original rectangle.
+     * Takes the larger dimension (width or height), adds 15 pixels of padding, and creates
+     * a square with equal width and height centered on the original bbox center.
+     *
+     * @param bbox_msg Input bounding box to be converted
+     * @return Square bounding box with dimensions based on max(width, height) + 15 pixels
+     */
     inline cv::Rect get_sized_bbox(const cv::Rect &bbox_msg)
     {
         const int x = static_cast<int>(bbox_msg.x);

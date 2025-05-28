@@ -3,7 +3,6 @@
 #include <opencv2/core.hpp>
 #include "../include/kalman_filter.h"
 #include "../../bob_shared/include/tracking_state.hpp"
-#include <rclcpp/rclcpp.hpp>
 
 // Define constants for state and observation dimensions
 constexpr int TRACK_STATE_DIM = 8; // x, y, w, h, vx, vy, vw, vh
@@ -14,7 +13,7 @@ class Track
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    explicit Track(rclcpp::Logger logger = rclcpp::get_logger("track_logger"));
+    explicit Track(int id);
     ~Track() = default;
 
     void init(const cv::Rect &bbox) noexcept;
@@ -40,6 +39,7 @@ private:
     [[nodiscard]] static cv::Rect convert_state_to_bbox(const Eigen::Matrix<double, TRACK_STATE_DIM, 1> &state) noexcept;
     void assignStaticKF() noexcept;
 
+    int id_;
     SORT::KalmanFilter<TRACK_STATE_DIM, TRACK_OBS_DIM> kf_;
     TrackingStateEnum tracking_state_;
     std::vector<std::pair<cv::Point, TrackingStateEnum>> center_points_;
@@ -48,8 +48,6 @@ private:
     int stationary_track_counter_;
     int coast_cycles_;
     int hit_streak_;
-    int id_;
     int min_hits_;
-    rclcpp::Logger logger_;
     cv::Rect last_bbox_;
 };

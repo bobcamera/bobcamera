@@ -58,15 +58,14 @@ void Track::assignStaticKF() noexcept
     kf_.R_ = static_KF_R;
 }
 
-Track::Track(rclcpp::Logger logger)
-    : tracking_state_(ProvisionaryTarget),
+Track::Track(int id)
+    : id_(id),
+      tracking_state_(ProvisionaryTarget),
       track_stationary_threshold_(25),
       stationary_track_counter_(0),
       coast_cycles_(0),
       hit_streak_(0),
-      id_(0),
-      min_hits_(2),
-      logger_(logger)
+      min_hits_(2)
 {
     // Estimate typical size, e.g., 100 points. Adjust if needed.
     constexpr size_t estimated_points = 100; 
@@ -101,14 +100,7 @@ void Track::predict() noexcept
     }
     else
     {
-        if (hit_streak_ >= min_hits_)
-        {
-            tracking_state_ = ActiveTarget;
-        }
-        else
-        {
-            tracking_state_ = ProvisionaryTarget;
-        }
+        tracking_state_ = hit_streak_ >= min_hits_ ? ActiveTarget : ProvisionaryTarget;
     }
 
     auto predicted_bbox = get_bbox();
@@ -164,8 +156,7 @@ std::tuple<double, double, double> Track::get_ellipse() const noexcept
 
 /**
  * Takes a bounding box in the form [x, y, width, height] and returns z in the form
- * [x, y, s, r] where x,y is the centre of the box and s is the scale/area and r is
- * the aspect ratio
+ * [center_x, center_y, width, height] where center_x, center_y is the centre of the box
  *
  * @param bbox
  * @return
@@ -182,8 +173,8 @@ Eigen::Matrix<double, TRACK_OBS_DIM, 1> Track::convert_bbox_to_observation(const
 }
 
 /**
- * Takes a bounding box in the centre form [x,y,s,r] and returns it in the form
- * [x1,y1,x2,y2] where x1,y1 is the top left and x2,y2 is the bottom right
+ * Takes a state vector in the form [center_x, center_y, width, height, v_cx, v_cy, v_width, v_height] 
+ * and returns a bounding box in the form [x, y, width, height] where x,y is the top left corner
  *
  * @param state
  * @return
