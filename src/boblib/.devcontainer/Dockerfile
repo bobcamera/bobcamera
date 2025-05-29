@@ -1,1 +1,1 @@
-FROM bobcamera/bob-ros2-dev:1.7.4
+FROM bobcamera/bob-ros2-dev:1.7.5

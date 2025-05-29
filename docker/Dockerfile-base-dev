@@ -2,7 +2,7 @@
 #docker buildx build --progress=plain --push --platform linux/amd64 -f ./docker/Dockerfile-base-dev . -t bobcamera/bob-base-cuda:1.5.9 -t bobcamera/bob-base-cuda:latest --target base-cuda
 #docker buildx build --progress=plain --push --platform linux/amd64,linux/arm64 -f ./docker/Dockerfile-base-dev . -t bobcamera/bob-base:1.5.9 -t bobcamera/bob-base:latest --target base
 
-FROM ubuntu:noble as base
+FROM ubuntu:noble AS base
 #FROM nvidia/cuda:12.5.1-devel-ubuntu24.04 AS base-cuda
 
 # setup environment

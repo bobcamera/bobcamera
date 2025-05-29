@@ -45,7 +45,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends wget tar \
 ###################################################################
 # MWG: This docker stage is used to build the ros2 dev environment
 ###################################################################
-FROM bobcamera/bob-opencv:1.5.9 AS bob-ros2-dev
+FROM bobcamera/bob-opencv:1.7.5 AS bob-ros2-dev
 ENV PYTHONPATH=$PYTHONPATH:/usr/lib/python3/dist-packages/cv2/python-3.12/:/usr/local/lib/python3.12/dist-packages/
 ENV PATH=$PATH:/root/.local/bin
 ENV DEBIAN_FRONTEND=noninteractive
@@ -58,12 +58,8 @@ ARG USER_GID=$USER_UID
 COPY --from=qhy /opt/sdk_qhy /opt/sdk_qhy/
 COPY version.txt src/ros2/
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
-        # libtbb12 libqt5opengl5 libqt5test5 libdc1394-25 \
-        # libavcodec-extra60 libavformat-extra60 libswscale7 \
-        # locales tzdata sudo bash-completion libtbb-dev \
-        # pip pipx \
         libjsoncpp-dev libturbojpeg-dev \
-        libgstreamer-plugins-base1.0-0 libgstreamer-plugins-good1.0-0 libgstreamer-plugins-bad1.0-0 \
+        #libgstreamer-plugins-base1.0-0 libgstreamer-plugins-good1.0-0 libgstreamer-plugins-bad1.0-0 \
         libboost-python-dev libboost-system-dev locales \
         ros-${ROS_DISTRO}-vision-msgs ros-${ROS_DISTRO}-image-transport \
         python3-pillow python3-pymongo python3-tornado python3-cairosvg \
@@ -178,7 +174,7 @@ COPY --from=bob-ros2-build /opt/ros2_ws/install/ /opt/ros2_ws/install/
 # install dependencies
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     libtbb12 libqt5opengl5 libqt5test5 libdc1394-25 libjsoncpp-dev pip libturbojpeg-dev \
-    gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-vaapi \
+    #gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-vaapi \
     locales tzdata sudo bash-completion \
     libhdf5-dev libatlas-base-dev \
     libboost-python-dev libboost-system-dev libtbb-dev \        
