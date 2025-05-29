@@ -2,7 +2,7 @@
 ## Variables to use in nodes
 ###################################################################################
 basic_variables:
-  profiling: false            # true to enable profiling display, false otherwise
+  profiling: true            # true to enable profiling display, false otherwise
   use_recording: true         # true to enable recording, false otherwise
   camera1_enabled: true       # true to enable camera1, fals.e otherwise
   camera2_enabled: false      # true to enable camera2, false otherwise
@@ -54,7 +54,7 @@ advanced_variables:
   extra_saving_seconds: 1       # Extra seconds to save the recording after the event is finished
   image_compression_quality: 50 # Image compression quality for the compressed image, 0 to 100 (higher=better compression, slower)
   use_cuda: false               # Leave it false as it is not working
-  display_enabled: false        # (suggested to leave it false) true to enable opencv display, false otherwise
+  display_enabled: true        # (suggested to leave it false) true to enable opencv display, false otherwise
 
 advanced_config:
   camera1_node:
