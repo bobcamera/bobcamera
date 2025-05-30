@@ -89,12 +89,10 @@ private:
         }
         if (json_recorder_)
         {
-            auto json_full_path = last_recording_event_.recording_path + "/json/" + last_recording_event_.filename + ".json";
-            node_.log_send_info("Writing JSON to: %s", json_full_path.c_str());
-
+            node_.log_send_info("Writing JSON to: %s", json_recorder_->get_output_file().c_str());
             auto json_camera_info = JsonRecorder::build_json_camera_info(last_camera_info_);
             json_recorder_->add_to_buffer(json_camera_info, true);
-            json_recorder_->write_buffer_to_file(json_full_path);
+            json_recorder_->close();
         }
         if (video_recorder_ptr_)
         {
@@ -132,7 +130,8 @@ private:
         if (json_recorder_)
         {
             node_.log_send_info("Creating new json recorder");
-            json_recorder_->reset();
+            auto json_full_path = last_recording_event_.recording_path + "/json/" + last_recording_event_.filename + ".json";
+            json_recorder_ ->open(json_full_path);
         }
 
         recording_ = true;
@@ -235,7 +234,7 @@ private:
             }
 
             profiler_.start(prof_json_id_);
-            auto json_data = JsonRecorder::build_json_value(tracking_msg, false);
+            auto json_data = JsonRecorder::build_json_value(tracking_msg, true);
             if (recording_)
             {
                 for (const auto &detection : tracking_msg->detections)

@@ -180,6 +180,11 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     libboost-python-dev libboost-system-dev libtbb-dev \        
     ros-${ROS_DISTRO}-vision-msgs ros-${ROS_DISTRO}-image-transport \
     python3-pillow python3-pymongo python3-tornado python3-cairosvg \
+    libva-dev libva-drm2 libva-x11-2 libva-glx2 \
+    libjpeg-dev libpng-dev libtiff-dev \
+    libv4l-dev libxvidcore-dev libx264-dev \
+    ffmpeg libavutil-dev libavfilter-dev libavdevice-dev \
+    libavcodec-dev libavformat-dev libswscale-dev \
     # Install ONVIF library so we can get camera details using the ONVIF protocol
     && mv /usr/lib/python3.12/EXTERNALLY-MANAGED /usr/lib/python3.12/EXTERNALLY-MANAGED.old \
     && pip install --upgrade onvif2_zeep \
