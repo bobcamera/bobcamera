@@ -99,7 +99,12 @@ inline void VideoReader::create_video_capture() noexcept
     if (!use_opencv_)
     {
         ffmpeg_video_reader_ptr_ = std::make_unique<FFmpegVideoReader>();
-        ffmpeg_video_reader_ptr_->open(camera_uri_);
+        bool is_open = ffmpeg_video_reader_ptr_->open(camera_uri_);
+        if (!is_open)
+        {
+            std::cerr << "Failed to open FFmpeg video reader" << std::endl;
+            ffmpeg_video_reader_ptr_.reset();
+        }
         return;
     }
 
