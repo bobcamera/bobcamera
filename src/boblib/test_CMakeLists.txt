@@ -1,0 +1,29 @@
+cmake_minimum_required(VERSION 3.16)
+
+# Find required packages
+find_package(PkgConfig REQUIRED)
+find_package(OpenCV REQUIRED)
+
+# Find FFmpeg components
+pkg_check_modules(LIBAV REQUIRED IMPORTED_TARGET
+    libavformat
+    libavcodec
+    libavutil
+    libswscale
+)
+
+# Create test executable
+add_executable(test_video_reader test_video_reader.cpp)
+
+# Link libraries
+target_link_libraries(test_video_reader
+    boblib
+    ${OpenCV_LIBS}
+    PkgConfig::LIBAV
+)
+
+# Include directories
+target_include_directories(test_video_reader PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${OpenCV_INCLUDE_DIRS}
+)

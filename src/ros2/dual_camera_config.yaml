@@ -2,8 +2,8 @@
 ## Variables to use in nodes
 ###################################################################################
 basic_variables:
-  profiling: true            # true to enable profiling display, false otherwise
-  use_recording: true         # true to enable recording, false otherwise
+  profiling: false            # true to enable profiling display, false otherwise
+  use_recording: false         # true to enable recording, false otherwise
   camera1_enabled: true       # true to enable camera1, fals.e otherwise
   camera2_enabled: false      # true to enable camera2, false otherwise
 

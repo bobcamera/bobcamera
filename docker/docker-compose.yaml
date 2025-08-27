@@ -1,7 +1,7 @@
 # This docker-compose file is used to run the bobcamera web and ros2 nodes in a containerized environment.
 services:
   web:
-    image: bobcamera/bob-web-prod:1.7.5
+    image: bobcamera/bob-web-prod:1.7.7
     ports:
       - "8080:80"
   # If you want to view demo recordings, comment out the volume section below.      
@@ -11,7 +11,7 @@ services:
       - bob
 
   bob:
-    image: bobcamera/bob-ros2-prod:1.7.5
+    image: bobcamera/bob-ros2-prod:1.7.7
     privileged: true
     extra_hosts:
       - "host.docker.internal:host-gateway"

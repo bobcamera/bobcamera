@@ -63,7 +63,8 @@ endif()
 if (NOT WIN32)
     add_definitions(-O3)
     add_definitions(-march=native)
-
+    
+    add_compile_options(-mno-avx512f)
     add_definitions(-Wall)
     add_definitions(-Wno-deprecated)
     add_definitions(-Wextra)

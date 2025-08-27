@@ -8,6 +8,7 @@
 #include <libavutil/pixfmt.h>    // for av_get_pix_fmt_name()
 #include <libavcodec/avcodec.h>  // for avcodec_get_name()
 #include <libavutil/hwcontext.h> // for AVHWDeviceContext & av_hwdevice_get_type_name()
+#include <cstdlib>               // for getenv
 
 namespace boblib::video
 {
@@ -171,7 +172,7 @@ namespace boblib::video
                 }
 
                 AVFrame *use = frame_;
-                if (frame_->format == hw_pix_fmt_)
+                if (hw_pix_fmt_ != AV_PIX_FMT_NONE && frame_->format == hw_pix_fmt_)
                 {
                     if (av_hwframe_transfer_data(sw_frame_, frame_, 0) < 0)
                     {
@@ -258,37 +259,52 @@ namespace boblib::video
         }
 
         codec_ctx_->opaque = this;
-        for (int i = 0;; ++i)
+        
+        // Only try hardware acceleration if enabled
+        bool hw_success = false;
+        if (hw_accel_enabled_)
         {
-            const AVCodecHWConfig *cfg = avcodec_get_hw_config(decoder_, i);
-            if (!cfg)
-                break;
-            if (cfg->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX)
+            for (int i = 0;; ++i)
             {
-                if (init_hw_device(cfg->device_type))
-                {
-                    hw_pix_fmt_ = cfg->pix_fmt;
-                    codec_ctx_->get_format = [](AVCodecContext *ctx,
-                                                const AVPixelFormat *pix)
-                    {
-                        auto *self = static_cast<FFmpegVideoReader *>(ctx->opaque);
-                        for (; *pix != AV_PIX_FMT_NONE; ++pix)
-                        {
-                            if (*pix == self->hw_pix_fmt_)
-                            {
-                                return *pix;
-                            }
-                        }
-                        return pix[0];
-                    };
+                const AVCodecHWConfig *cfg = avcodec_get_hw_config(decoder_, i);
+                if (!cfg)
                     break;
-                }
-                else
+                if (cfg->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX)
                 {
-                    std::cerr << "[WARN] init_hw_device("
-                              << cfg->device_type << ") failed" << std::endl;
+                    if (init_hw_device(cfg->device_type))
+                    {
+                        hw_pix_fmt_ = cfg->pix_fmt;
+                        codec_ctx_->get_format = [](AVCodecContext *ctx,
+                                                    const AVPixelFormat *pix)
+                        {
+                            auto *self = static_cast<FFmpegVideoReader *>(ctx->opaque);
+                            for (; *pix != AV_PIX_FMT_NONE; ++pix)
+                            {
+                                if (*pix == self->hw_pix_fmt_)
+                                {
+                                    return *pix;
+                                }
+                            }
+                            return pix[0];
+                        };
+                        hw_success = true;
+                        std::cout << "[INFO] Hardware acceleration enabled with device type: " 
+                                  << av_hwdevice_get_type_name(cfg->device_type) << std::endl;
+                        break;
+                    }
+                    else
+                    {
+                        std::cerr << "[WARN] init_hw_device("
+                                  << cfg->device_type << ") failed" << std::endl;
+                    }
                 }
             }
+        }
+        
+        if (!hw_success)
+        {
+            std::cout << "[INFO] Using software decoding" << std::endl;
+            hw_pix_fmt_ = AV_PIX_FMT_NONE;
         }
 
         if (avcodec_open2(codec_ctx_, decoder_, nullptr) < 0)
@@ -303,13 +319,46 @@ namespace boblib::video
     {
         if (type == AV_HWDEVICE_TYPE_NONE)
             return false;
-        if (av_hwdevice_ctx_create(&hw_device_ctx_, type, nullptr, nullptr, 0) < 0)
+            
+        // Avoid trying certain hardware acceleration types in known problematic environments
+        const char* type_name = av_hwdevice_get_type_name(type);
+        
+        // Skip CUDA if we're likely in a container without NVIDIA drivers
+        if (type == AV_HWDEVICE_TYPE_CUDA)
         {
-            std::cerr << "[ERROR] av_hwdevice_ctx_create failed" << std::endl;
+            // Try to detect if CUDA is available
+            if (access("/usr/lib/x86_64-linux-gnu/libcuda.so.1", F_OK) != 0 &&
+                access("/usr/lib64/libcuda.so.1", F_OK) != 0)
+            {
+                std::cerr << "[INFO] Skipping CUDA hardware acceleration (libcuda.so.1 not found)" << std::endl;
+                return false;
+            }
+        }
+        
+        // Skip VAAPI if we're in a headless environment
+        if (type == AV_HWDEVICE_TYPE_VAAPI)
+        {
+            if (!getenv("DISPLAY") && !getenv("WAYLAND_DISPLAY"))
+            {
+                std::cerr << "[INFO] Skipping VAAPI hardware acceleration (no display environment)" << std::endl;
+                return false;
+            }
+        }
+        
+        int ret = av_hwdevice_ctx_create(&hw_device_ctx_, type, nullptr, nullptr, 0);
+        if (ret < 0)
+        {
+            char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
+            av_strerror(ret, errbuf, sizeof(errbuf));
+            std::cerr << "[WARN] Failed to create " << (type_name ? type_name : "unknown") 
+                      << " hardware device: " << errbuf << std::endl;
             hw_device_ctx_ = nullptr;
             return false;
         }
+        
         codec_ctx_->hw_device_ctx = av_buffer_ref(hw_device_ctx_);
+        std::cout << "[INFO] Successfully initialized " << (type_name ? type_name : "unknown") 
+                  << " hardware acceleration" << std::endl;
         return true;
     }
 
