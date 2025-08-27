@@ -36,6 +36,9 @@ namespace boblib::video
         /// close the video source and free all resources
         void close();
 
+        /// enable/disable hardware acceleration (default: true)
+        void set_hardware_acceleration(bool enabled) { hw_accel_enabled_ = enabled; }
+
         /// read next frame; returns true if a frame was read (false ⇒ EOF)
         bool read(cv::Mat &out);
 
@@ -78,6 +81,7 @@ namespace boblib::video
         double fps_{0};
         AVPixelFormat hw_pix_fmt_{AV_PIX_FMT_NONE};
         bool is_opened_{false};
+        bool hw_accel_enabled_{true};
         int64_t probe_start_us_{0};
 
         static int interrupt_cb(void *opaque)
