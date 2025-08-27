@@ -18,16 +18,6 @@ namespace boblib::video
         allocate_resources();
     }
 
-    FFmpegVideoReader::FFmpegVideoReader(const std::string &src)
-        : FFmpegVideoReader()
-    {
-        if (!open(src))
-        {
-            std::cerr << "Failed to open source: " << src << std::endl;
-            throw std::runtime_error("Failed to open source");
-        }
-    }
-
     FFmpegVideoReader::~FFmpegVideoReader()
     {
         close();
