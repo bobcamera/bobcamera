@@ -48,77 +48,55 @@ public:
     ~CameraWorker() noexcept
     {
         node_.log_info("CameraWorker destructor");
-        stop_capture();
+        cleanup();
     }
+
+    // Move constructor
+    CameraWorker(CameraWorker&& other) noexcept = delete;
+    
+    // Move assignment operator
+    CameraWorker& operator=(CameraWorker&& other) noexcept = delete;
+    
+    // Copy constructor and assignment operator are deleted
+    CameraWorker(const CameraWorker&) = delete;
+    CameraWorker& operator=(const CameraWorker&) = delete;
 
     void init()
     {
-        // Initialize all state variables first
-        current_video_idx_ = 0;
-        run_.store(false);
-        fps_ = UNKNOWN_DEVICE_FPS;
-        mask_enabled_ = false;
-        is_open_ = false;
-        is_camera_info_auto_ = false;
-        using_cuda_ = params_.use_cuda ? boblib::base::Utils::has_cuda() : false;
+        std::lock_guard<std::recursive_mutex> lock(state_mutex_);
         
-        try
-        {
-            initialize_profiler_regions();
-
-            // Initialize camera info message
-            camera_info_msg_ptr_ = std::make_shared<bob_camera::msg::CameraInfo>();
-            camera_info_msg_ptr_->frame_height = 0;
-            camera_info_msg_ptr_->frame_width = 0;
-            camera_info_msg_ptr_->fps = 0;
-
-            // Initialize timing
-            update_interval_ = std::chrono::duration<double>(params_.sample_frame.interval);
-            last_update_time_ = std::chrono::high_resolution_clock::now();
-
-            // Initialize components that can throw
-            privacy_mask_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_);
-            circuit_breaker_ptr_ = std::make_unique<CircuitBreaker>(CIRCUIT_BREAKER_MAX_RETRIES, CIRCUIT_BREAKER_INITIAL_TIMEOUT, CIRCUIT_BREAKER_MAX_TIMEOUT);
-
-            if (params_.camera.simulator.enable)
-            {
-                object_simulator_ptr_ = std::make_unique<ObjectSimulator>(params_.camera.simulator.num_objects);
-            }
-
-            // Initialize publishers - these can throw
-            image_publisher_ = node_.create_publisher<sensor_msgs::msg::Image>(params_.topics.image_publish_topic, qos_publish_profile_);
-            image_resized_publisher_ = node_.create_publisher<sensor_msgs::msg::Image>(params_.topics.image_resized_publish_topic, qos_publish_profile_);
-            if (params_.sample_frame.enabled)
-            {
-                image_sample_publisher_ = node_.create_publisher<sensor_msgs::msg::Image>(params_.topics.sample_frame_publisher_topic, qos_publish_profile_);
-            }
-            image_info_publisher_ = node_.create_publisher<bob_camera::msg::ImageInfo>(params_.topics.image_info_publish_topic, qos_publish_profile_);
-            camera_info_publisher_ = node_.create_publisher<bob_camera::msg::CameraInfo>(params_.topics.camera_info_publish_topic, qos_publish_profile_);
-
-            camera_settings_client_ = node_.create_client<bob_interfaces::srv::CameraSettings>(params_.topics.camera_settings_client_topic);
-
-            // Initialize pubsub
-            publish_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.topics.image_publish_topic + "_publish");
-            publish_pubsub_ptr_->subscribe<CameraWorker, &CameraWorker::publish_image>(this);
-
-            camera_info_pubsub_ptr_ = topic_manager_.get_topic<bob_camera::msg::CameraInfo>(params_.topics.camera_info_publish_topic);
-
-            // Initialize mask worker
-            mask_worker_ptr_->init(params_.camera.privacy_mask.timer_seconds, params_.camera.privacy_mask.filename);
-
-            // Mark as initialized only after all initialization succeeds
-            is_initialized_ = true;
-
-            // Start camera operations
-            open_camera();
-            start_capture();
+        if (is_initialized_.load()) {
+            node_.log_warn("CameraWorker already initialized");
+            return;
         }
-        catch (const std::exception &e)
-        {
-            // Clean up on failure
-            is_initialized_ = false;
-            stop_capture();
-            node_.log_error("camera_worker: init: Exception: %s", e.what());
+
+        try {
+            initialize_state();
+            initialize_profiler_regions();
+            initialize_components();
+            initialize_publishers();
+            initialize_pubsub();
+            initialize_mask_worker();
+            
+            // Mark as initialized only after all initialization succeeds
+            is_initialized_.store(true);
+            
+            // Start camera operations
+            if (!open_camera()) {
+                throw std::runtime_error("Failed to open camera during initialization");
+            }
+            start_capture();
+            
+            node_.log_info("CameraWorker initialized successfully");
+        }
+        catch (const std::exception &e) {
+            cleanup_on_init_failure();
+            node_.log_error("CameraWorker init failed: %s", e.what());
+            throw;
+        }
+        catch (...) {
+            cleanup_on_init_failure();
+            node_.log_error("CameraWorker init failed: unknown exception");
             throw;
         }
     }
@@ -133,12 +111,12 @@ public:
 
     [[nodiscard]] bool is_initialized() const noexcept
     {
-        return is_initialized_;
+        return is_initialized_.load();
     }
 
     [[nodiscard]] bool is_open() const noexcept
     {
-        return is_open_;
+        return is_open_.load();
     }
 
     bool open_camera()
@@ -153,7 +131,7 @@ public:
         {
             // Reset previous video reader
             video_reader_ptr_.reset();
-            is_open_ = false;
+            is_open_.store(false);
 
             switch (params_.camera.source_type)
             {
@@ -170,21 +148,22 @@ public:
 
             case CameraBgsParams::SourceType::VIDEO_FILE:
             {
-                if (current_video_idx_ >= params_.camera.videos.size())
+                const uint32_t current_idx = current_video_idx_.load();
+                if (current_idx >= params_.camera.videos.size())
                 {
-                    node_.log_send_error("Invalid video index: %u", current_video_idx_);
+                    node_.log_send_error("Invalid video index: %u", current_idx);
                     return false;
                 }
-                const auto video_path = params_.camera.videos[current_video_idx_];
+                const auto video_path = params_.camera.videos[current_idx];
                 node_.log_send_info("Trying to open video '%s'", video_path.c_str());
-                video_reader_ptr_ = std::make_unique<boblib::video::VideoReader>(video_path, params_.camera.use_opencv, using_cuda_);
+                video_reader_ptr_ = std::make_unique<boblib::video::VideoReader>(video_path, params_.camera.use_opencv, using_cuda_.load());
             }
             break;
 
             case CameraBgsParams::SourceType::RTSP_STREAM:
             {
                 node_.log_send_info("Trying to open RTSP Stream '%s'", params_.camera.rtsp_uri.c_str());
-                video_reader_ptr_ = std::make_unique<boblib::video::VideoReader>(params_.camera.rtsp_uri, params_.camera.use_opencv, using_cuda_);
+                video_reader_ptr_ = std::make_unique<boblib::video::VideoReader>(params_.camera.rtsp_uri, params_.camera.use_opencv, using_cuda_.load());
             }
             break;
 
@@ -204,8 +183,8 @@ public:
                 node_.log_send_info("Using CUDA for decoding.");
             }
 
-            is_open_ = video_reader_ptr_->is_open();
-            if (is_open_)
+            is_open_.store(video_reader_ptr_->is_open());
+            if (is_open_.load())
             {
                 node_.log_send_info("Stream is open.");
                 update_capture_info();
@@ -219,13 +198,13 @@ public:
                 video_reader_ptr_.reset();
             }
 
-            return is_open_;
+            return is_open_.load();
         }
         catch (const std::exception &ex)
         {
             node_.log_error("open_camera: exception %s", ex.what());
             video_reader_ptr_.reset();
-            is_open_ = false;
+            is_open_.store(false);
             return false;
         }
     }
@@ -246,9 +225,130 @@ private:
         prof_sample_publish_id_ = profiler_.add_region("Sample Publish", prof_camera_worker_id_);
     }
 
+    void initialize_state() 
+    {
+        // Initialize all state variables first
+        current_video_idx_.store(0);
+        run_.store(false);
+        fps_ = UNKNOWN_DEVICE_FPS;
+        mask_enabled_.store(false);
+        is_open_.store(false);
+        is_camera_info_auto_.store(false);
+        using_cuda_.store(params_.use_cuda ? boblib::base::Utils::has_cuda() : false);
+        cache_full_.store(false);
+        current_test_idx_.store(0);
+    }
+
+    void initialize_components()
+    {
+        // Initialize camera info message
+        camera_info_msg_ptr_ = std::make_shared<bob_camera::msg::CameraInfo>();
+        camera_info_msg_ptr_->frame_height = 0;
+        camera_info_msg_ptr_->frame_width = 0;
+        camera_info_msg_ptr_->fps = 0;
+
+        // Initialize timing
+        update_interval_ = std::chrono::duration<double>(params_.sample_frame.interval);
+        last_update_time_ = std::chrono::high_resolution_clock::now();
+
+        // Initialize components that can throw
+        privacy_mask_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_.load());
+        circuit_breaker_ptr_ = std::make_unique<CircuitBreaker>(
+            CIRCUIT_BREAKER_MAX_RETRIES, 
+            CIRCUIT_BREAKER_INITIAL_TIMEOUT, 
+            CIRCUIT_BREAKER_MAX_TIMEOUT
+        );
+
+        if (params_.camera.simulator.enable) {
+            object_simulator_ptr_ = std::make_unique<ObjectSimulator>(params_.camera.simulator.num_objects);
+        }
+    }
+
+    void initialize_publishers()
+    {
+        // Initialize publishers - these can throw
+        image_publisher_ = node_.create_publisher<sensor_msgs::msg::Image>(
+            params_.topics.image_publish_topic, qos_publish_profile_);
+        image_resized_publisher_ = node_.create_publisher<sensor_msgs::msg::Image>(
+            params_.topics.image_resized_publish_topic, qos_publish_profile_);
+        
+        if (params_.sample_frame.enabled) {
+            image_sample_publisher_ = node_.create_publisher<sensor_msgs::msg::Image>(
+                params_.topics.sample_frame_publisher_topic, qos_publish_profile_);
+        }
+        
+        image_info_publisher_ = node_.create_publisher<bob_camera::msg::ImageInfo>(
+            params_.topics.image_info_publish_topic, qos_publish_profile_);
+        camera_info_publisher_ = node_.create_publisher<bob_camera::msg::CameraInfo>(
+            params_.topics.camera_info_publish_topic, qos_publish_profile_);
+
+        camera_settings_client_ = node_.create_client<bob_interfaces::srv::CameraSettings>(
+            params_.topics.camera_settings_client_topic);
+    }
+
+    void initialize_pubsub()
+    {
+        // Initialize pubsub
+        publish_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(
+            params_.topics.image_publish_topic + "_publish");
+        publish_pubsub_ptr_->subscribe<CameraWorker, &CameraWorker::publish_image>(this);
+
+        camera_info_pubsub_ptr_ = topic_manager_.get_topic<bob_camera::msg::CameraInfo>(
+            params_.topics.camera_info_publish_topic);
+    }
+
+    void initialize_mask_worker()
+    {
+        // Initialize mask worker
+        mask_worker_ptr_->init(params_.camera.privacy_mask.timer_seconds, 
+                              params_.camera.privacy_mask.filename);
+    }
+
+    void cleanup() noexcept
+    {
+        try {
+            stop_capture();
+            
+            // Reset unique_ptrs in reverse order of creation
+            object_simulator_ptr_.reset();
+            circuit_breaker_ptr_.reset();
+            privacy_mask_ptr_.reset();
+            speed_test_images_ptr_.reset();
+            loop_rate_ptr_.reset();
+            video_reader_ptr_.reset();
+            
+            // Reset shared_ptrs
+            camera_info_msg_ptr_.reset();
+            
+            // Reset publishers and clients
+            image_publisher_.reset();
+            image_resized_publisher_.reset();
+            image_sample_publisher_.reset();
+            image_info_publisher_.reset();
+            camera_info_publisher_.reset();
+            camera_settings_client_.reset();
+            
+            // Reset pubsub
+            publish_pubsub_ptr_.reset();
+            camera_info_pubsub_ptr_.reset();
+            
+            // Reset state
+            is_initialized_.store(false);
+        }
+        catch (...) {
+            // Swallow all exceptions in cleanup
+        }
+    }
+
+    void cleanup_on_init_failure() noexcept
+    {
+        is_initialized_.store(false);
+        cleanup();
+    }
+
     void update_capture_info()
     {
-        if (is_open_)
+        if (is_open_.load())
         {
             fps_ = static_cast<float>(video_reader_ptr_->get_fps());
             const int cv_camera_width = video_reader_ptr_->get_width();
@@ -269,7 +369,7 @@ private:
     void cache_test(boblib::base::Image &camera_img)
     {
         if (!params_.camera.speed_test 
-            || (params_.camera.speed_test && cache_full_))
+            || (params_.camera.speed_test && cache_full_.load()))
         {
             return;
         }
@@ -282,10 +382,10 @@ private:
         speed_test_images_ptr_->push_back(camera_img);
         if (speed_test_images_ptr_->size() >= params_.camera.test_frames)
         {
-            cache_full_ = true;
-            current_test_idx_ = 0;
+            cache_full_.store(true);
+            current_test_idx_.store(0);
             // compute frame duration and init next‐time
-            speed_test_frame_duration_ = std::chrono::milliseconds(1000 / std::max(1, params_.camera.speed_test_fps));
+            speed_test_frame_duration_ = std::chrono::milliseconds(MILLISECONDS_PER_SECOND / std::max(1, params_.camera.speed_test_fps));
             next_speed_test_time_ = std::chrono::steady_clock::now();
             node_.log_send_info("Speed test cache is full, size: %zu", speed_test_images_ptr_->size());
         }
@@ -295,10 +395,12 @@ private:
     {
         try
         {
-            if (params_.camera.speed_test && cache_full_)
+            if (params_.camera.speed_test && cache_full_.load())
             {
-                camera_img = (*speed_test_images_ptr_)[current_test_idx_];
-                current_test_idx_ = (current_test_idx_ + 1) % params_.camera.test_frames;
+                const size_t current_idx = current_test_idx_.load();
+                camera_img = (*speed_test_images_ptr_)[current_idx];
+                const size_t next_idx = (current_idx + 1) % params_.camera.test_frames;
+                current_test_idx_.store(next_idx);
 
                 // steady-clock sleep-until
                 auto now = std::chrono::steady_clock::now();
@@ -322,7 +424,9 @@ private:
             {
                 if (params_.camera.source_type == CameraBgsParams::SourceType::VIDEO_FILE)
                 {
-                    current_video_idx_ = current_video_idx_ >= (params_.camera.videos.size() - 1) ? 0 : current_video_idx_ + 1;
+                    const uint32_t current_idx = current_video_idx_.load();
+                    const uint32_t next_idx = current_idx >= (params_.camera.videos.size() - 1) ? 0 : current_idx + 1;
+                    current_video_idx_.store(next_idx);
                     if (!open_camera())
                     {
                         circuit_breaker_ptr_->record_failure();
@@ -364,7 +468,7 @@ private:
             {
                 // This block will acquire the image apply the simulation and then the privacy mask
                 profiler_.start(prof_acquire_image_id_);
-                auto camera_img_ptr = std::make_shared<boblib::base::Image>(using_cuda_);
+                auto camera_img_ptr = std::make_shared<boblib::base::Image>(using_cuda_.load());
 
                 if (!acquire_image(*camera_img_ptr))
                 {
@@ -468,7 +572,7 @@ private:
 
     inline void apply_mask(boblib::base::Image &img)
     {
-        if (!mask_enabled_ || !params_.camera.privacy_mask.enable_override)
+        if (!mask_enabled_.load() || !params_.camera.privacy_mask.enable_override)
         {
             return;
         }
@@ -506,53 +610,62 @@ private:
 
     void start_capture() noexcept
     {
-        std::lock_guard<std::mutex> lock(state_mutex_);
-        if (!run_.load())
-        {
-            run_.store(true);
-            capture_thread_ = std::thread(&CameraWorker::capture_loop, this);
+        std::lock_guard<std::recursive_mutex> lock(state_mutex_);
+        try {
+            if (!run_.load() && !capture_thread_.joinable()) {
+                run_.store(true);
+                capture_thread_ = std::thread(&CameraWorker::capture_loop, this);
+                node_.log_info("Camera capture thread started");
+            } else {
+                node_.log_warn("Camera capture already running");
+            }
+        }
+        catch (const std::exception& e) {
+            node_.log_error("Failed to start capture thread: %s", e.what());
+            run_.store(false);
         }
     }
 
     void stop_capture() noexcept
     {
-        {
-            std::lock_guard<std::mutex> lock(state_mutex_);
+        try {
+            // Signal thread to stop
             run_.store(false);
+            
+            // Wait for thread to finish
+            std::thread capture_thread_local;
+            {
+                std::lock_guard<std::recursive_mutex> lock(state_mutex_);
+                if (capture_thread_.joinable()) {
+                    capture_thread_local = std::move(capture_thread_);
+                }
+            }
+            
+            // Join outside of mutex to avoid deadlock
+            if (capture_thread_local.joinable()) {
+                capture_thread_local.join();
+                node_.log_info("Camera capture thread stopped");
+            }
         }
-
-        if (capture_thread_.joinable())
-        {
-            capture_thread_.join();
+        catch (const std::exception& e) {
+            node_.log_error("Error stopping capture thread: %s", e.what());
+        }
+        catch (...) {
+            node_.log_error("Unknown error stopping capture thread");
         }
     }
 
     bool set_camera_resolution()
     {
-        static const std::vector<std::pair<int, int>> resolutions =
-            {
-                {3840, 2160}, // 4K UHD
-                {2560, 1440}, // QHD, WQHD, 2K
-                {1920, 1080}, // Full HD
-                {1600, 900},  // HD+
-                {1280, 720},  // HD
-                {1024, 768},  // XGA
-                {800, 600},   // SVGA
-                {640, 480},   // VGA
-                {320, 240}    // QVGA
-            };
-
-        // If we have the values defined, try setting
-        if ((params_.camera.usb_resolution.size() == 2) && (video_reader_ptr_->set_resolution(params_.camera.usb_resolution[0], params_.camera.usb_resolution[1])))
-        {
+        // Try user-defined resolution first
+        if ((params_.camera.usb_resolution.size() == 2) && 
+            (video_reader_ptr_->set_resolution(params_.camera.usb_resolution[0], params_.camera.usb_resolution[1]))) {
             return true;
         }
 
-        // If not, we set the highest resolution
-        for (const auto &[width, height] : resolutions)
-        {
-            if (video_reader_ptr_->set_resolution(width, height))
-            {
+        // Try supported resolutions in order of preference
+        for (const auto &[width, height] : USB_SUPPORTED_RESOLUTIONS) {
+            if (video_reader_ptr_->set_resolution(width, height)) {
                 node_.log_info("Setting resolution for %d x %d", width, height);
                 return true;
             }
@@ -635,7 +748,7 @@ private:
 
     void create_camera_info_msg()
     {
-        is_camera_info_auto_ = false;
+        is_camera_info_auto_.store(false);
         if (params_.camera.source_type == CameraBgsParams::SourceType::RTSP_STREAM)
         {
             auto update_camera_info = [this](const bob_interfaces::srv::CameraSettings::Response::SharedPtr &response)
@@ -650,7 +763,7 @@ private:
                 camera_info_msg_ptr_->frame_width = response->frame_width;
                 camera_info_msg_ptr_->frame_height = response->frame_height;
                 camera_info_msg_ptr_->fps = response->fps;
-                is_camera_info_auto_ = true;
+                is_camera_info_auto_.store(true);
                 loop_rate_ptr_ = std::make_unique<rclcpp::WallRate>(response->fps);
             };
             request_camera_settings(params_.camera.onvif_uri, update_camera_info);
@@ -669,9 +782,9 @@ private:
     {
         if (detection_mask_result == MaskWorker::MaskCheckType::Enable)
         {
-            if (!mask_enabled_)
+            if (!mask_enabled_.load())
             {
-                mask_enabled_ = true;
+                mask_enabled_.store(true);
                 node_.log_send_info("CameraWorker: Privacy Mask Enabled.");
             }
             else
@@ -680,20 +793,44 @@ private:
             }
             privacy_mask_ptr_->create(mask);
         }
-        else if ((detection_mask_result == MaskWorker::MaskCheckType::Disable) && mask_enabled_)
+        else if ((detection_mask_result == MaskWorker::MaskCheckType::Disable) && mask_enabled_.load())
         {
             node_.log_send_info("CameraWorker: Privacy Mask Disabled.");
-            mask_enabled_ = false;
+            mask_enabled_.store(false);
             privacy_mask_ptr_.reset();
         }
     }
 
+    // ==================== CONFIGURATION CONSTANTS ====================
+    
+    // Camera performance constants
     static constexpr double UNKNOWN_DEVICE_FPS = 30.0;
+    static constexpr int MILLISECONDS_PER_SECOND = 1000;
+    
+    // Circuit breaker configuration
     static constexpr int CIRCUIT_BREAKER_MAX_RETRIES = 10;
     static constexpr int CIRCUIT_BREAKER_INITIAL_TIMEOUT = 10;
     static constexpr int CIRCUIT_BREAKER_MAX_TIMEOUT = 10;
     static constexpr int CIRCUIT_BREAKER_SLEEP_MS = 1000;
+    
+    // Thread timing configuration  
     static constexpr int INITIALIZED_SLEEP_MS = 10;
+    static constexpr int ERROR_RECOVERY_SLEEP_MS = 10;
+    
+    // Camera resolution presets (ordered by preference)
+    static constexpr std::array<std::pair<int, int>, 9> USB_SUPPORTED_RESOLUTIONS = {{
+        {3840, 2160}, // 4K UHD
+        {2560, 1440}, // QHD, WQHD, 2K  
+        {1920, 1080}, // Full HD
+        {1600, 900},  // HD+
+        {1280, 720},  // HD
+        {1024, 768},  // XGA
+        {800, 600},   // SVGA
+        {640, 480},   // VGA
+        {320, 240}    // QVGA
+    }};
+
+    // ==================== MEMBER VARIABLES ====================
 
     ParameterNode &node_;
     CameraBgsParams &params_;
@@ -715,18 +852,18 @@ private:
 
     std::atomic<bool> run_{false};
     std::thread capture_thread_;
-    mutable std::mutex state_mutex_;
+    mutable std::recursive_mutex state_mutex_;
 
-    uint32_t current_video_idx_{0};
+    std::atomic<uint32_t> current_video_idx_{0};
 
     std::unique_ptr<rclcpp::WallRate> loop_rate_ptr_;
     float fps_{UNKNOWN_DEVICE_FPS};
-    bool is_open_{false};
-    bool is_camera_info_auto_{false};
-    bool is_initialized_{false};
+    std::atomic<bool> is_open_{false};
+    std::atomic<bool> is_camera_info_auto_{false};
+    std::atomic<bool> is_initialized_{false};
     std::unique_ptr<ObjectSimulator> object_simulator_ptr_;
 
-    bool mask_enabled_{false};
+    std::atomic<bool> mask_enabled_{false};
     std::unique_ptr<boblib::base::Image> privacy_mask_ptr_;
 
     std::unique_ptr<CircuitBreaker> circuit_breaker_ptr_;
@@ -734,14 +871,14 @@ private:
     rclcpp::Time initial_camera_connect_;
     rclcpp::Time last_camera_connect_;
 
-    bool using_cuda_{false};
+    std::atomic<bool> using_cuda_{false};
 
     std::shared_ptr<boblib::utils::pubsub::PubSub<PublishImage>> publish_pubsub_ptr_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<bob_camera::msg::CameraInfo>> camera_info_pubsub_ptr_;
 
     std::unique_ptr<std::vector<boblib::base::Image>> speed_test_images_ptr_;
-    bool cache_full_{false};
-    size_t current_test_idx_{0};
+    std::atomic<bool> cache_full_{false};
+    std::atomic<size_t> current_test_idx_{0};
 
     std::chrono::steady_clock::time_point next_speed_test_time_;
     std::chrono::milliseconds speed_test_frame_duration_{0};
