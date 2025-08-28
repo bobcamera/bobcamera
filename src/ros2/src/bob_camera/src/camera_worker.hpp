@@ -2,6 +2,8 @@
 
 #include <filesystem>
 #include <thread>
+#include <mutex>
+#include <atomic>
 
 #include <boblib/api/video/VideoReader.hpp>
 #include <boblib/api/utils/pubsub/TopicManager.hpp>
@@ -10,6 +12,13 @@
 #include <mask_worker.hpp>
 #include <circuit_breaker.hpp>
 #include <parameter_node.hpp>
+
+#include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/image.hpp>
+#include <std_msgs/msg/header.hpp>
+#include <bob_camera/msg/camera_info.hpp>
+#include <bob_camera/msg/image_info.hpp>
+#include <bob_interfaces/srv/camera_settings.hpp>
 
 #include "camera_bgs_params.hpp"
 #include "object_simulator.hpp"
@@ -44,38 +53,31 @@ public:
 
     void init()
     {
+        // Initialize all state variables first
+        current_video_idx_ = 0;
+        run_.store(false);
+        fps_ = UNKNOWN_DEVICE_FPS;
+        mask_enabled_ = false;
+        is_open_ = false;
+        is_camera_info_auto_ = false;
+        using_cuda_ = params_.use_cuda ? boblib::base::Utils::has_cuda() : false;
+        
         try
         {
-            current_video_idx_ = 0;
-            run_ = false;
-            fps_ = UNKNOWN_DEVICE_FPS;
-            mask_enabled_ = false;
-            is_open_ = false;
-            is_camera_info_auto_ = false;
+            initialize_profiler_regions();
 
-            prof_camera_worker_id_ = profiler_.add_region("Camera Worker");
-            prof_acquire_image_id_ = profiler_.add_region("Aquire Image", prof_camera_worker_id_);
-            prof_simulator_id_ = profiler_.add_region("Simulator", prof_camera_worker_id_);
-            prof_mask_id_ = profiler_.add_region("Privacy Mask", prof_camera_worker_id_);
-            prof_prepare_publish_id_ = profiler_.add_region("Prepare Publish", prof_camera_worker_id_);
-            prof_publish_id_ = profiler_.add_region("Publish Frame", prof_camera_worker_id_);
-            prof_publish_camera_info_id_ = profiler_.add_region("Publish Camera Info", prof_camera_worker_id_);
-            prof_publish_resized_resizing_id_ = profiler_.add_region("Publish Resized Resizing", prof_camera_worker_id_);
-            prof_publish_resized_msg_id_ = profiler_.add_region("Publish Resized Msg", prof_camera_worker_id_);
-            prof_sample_resize_id_ = profiler_.add_region("Sample Resize", prof_camera_worker_id_);
-            prof_sample_publish_id_ = profiler_.add_region("Sample Publish", prof_camera_worker_id_);
-
+            // Initialize camera info message
             camera_info_msg_ptr_ = std::make_shared<bob_camera::msg::CameraInfo>();
             camera_info_msg_ptr_->frame_height = 0;
             camera_info_msg_ptr_->frame_width = 0;
             camera_info_msg_ptr_->fps = 0;
-            using_cuda_ = params_.use_cuda ? boblib::base::Utils::has_cuda() : false;
 
+            // Initialize timing
             update_interval_ = std::chrono::duration<double>(params_.sample_frame.interval);
             last_update_time_ = std::chrono::high_resolution_clock::now();
 
+            // Initialize components that can throw
             privacy_mask_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_);
-
             circuit_breaker_ptr_ = std::make_unique<CircuitBreaker>(CIRCUIT_BREAKER_MAX_RETRIES, CIRCUIT_BREAKER_INITIAL_TIMEOUT, CIRCUIT_BREAKER_MAX_TIMEOUT);
 
             if (params_.camera.simulator.enable)
@@ -83,7 +85,7 @@ public:
                 object_simulator_ptr_ = std::make_unique<ObjectSimulator>(params_.camera.simulator.num_objects);
             }
 
-            // TODO: Create a function to change the topics dynamically
+            // Initialize publishers - these can throw
             image_publisher_ = node_.create_publisher<sensor_msgs::msg::Image>(params_.topics.image_publish_topic, qos_publish_profile_);
             image_resized_publisher_ = node_.create_publisher<sensor_msgs::msg::Image>(params_.topics.image_resized_publish_topic, qos_publish_profile_);
             if (params_.sample_frame.enabled)
@@ -95,20 +97,27 @@ public:
 
             camera_settings_client_ = node_.create_client<bob_interfaces::srv::CameraSettings>(params_.topics.camera_settings_client_topic);
 
+            // Initialize pubsub
             publish_pubsub_ptr_ = topic_manager_.get_topic<PublishImage>(params_.topics.image_publish_topic + "_publish");
             publish_pubsub_ptr_->subscribe<CameraWorker, &CameraWorker::publish_image>(this);
 
             camera_info_pubsub_ptr_ = topic_manager_.get_topic<bob_camera::msg::CameraInfo>(params_.topics.camera_info_publish_topic);
 
+            // Initialize mask worker
             mask_worker_ptr_->init(params_.camera.privacy_mask.timer_seconds, params_.camera.privacy_mask.filename);
 
+            // Mark as initialized only after all initialization succeeds
             is_initialized_ = true;
 
+            // Start camera operations
             open_camera();
             start_capture();
         }
         catch (const std::exception &e)
         {
+            // Clean up on failure
+            is_initialized_ = false;
+            stop_capture();
             node_.log_error("camera_worker: init: Exception: %s", e.what());
             throw;
         }
@@ -136,22 +145,36 @@ public:
     {
         if (!is_initialized())
         {
+            node_.log_error("open_camera: CameraWorker not initialized");
             return false;
         }
+
         try
         {
+            // Reset previous video reader
+            video_reader_ptr_.reset();
+            is_open_ = false;
+
             switch (params_.camera.source_type)
             {
             case CameraBgsParams::SourceType::USB_CAMERA:
             {
                 node_.log_send_info("Trying to open camera %d", params_.camera.camera_id);
                 video_reader_ptr_ = std::make_unique<boblib::video::VideoReader>(params_.camera.camera_id, params_.camera.use_opencv);
-                set_camera_resolution();
+                if (video_reader_ptr_->is_open())
+                {
+                    set_camera_resolution();
+                }
             }
             break;
 
             case CameraBgsParams::SourceType::VIDEO_FILE:
             {
+                if (current_video_idx_ >= params_.camera.videos.size())
+                {
+                    node_.log_send_error("Invalid video index: %u", current_video_idx_);
+                    return false;
+                }
                 const auto video_path = params_.camera.videos[current_video_idx_];
                 node_.log_send_info("Trying to open video '%s'", video_path.c_str());
                 video_reader_ptr_ = std::make_unique<boblib::video::VideoReader>(video_path, params_.camera.use_opencv, using_cuda_);
@@ -166,7 +189,13 @@ public:
             break;
 
             default:
-                node_.log_send_error("Unknown SOURCE_TYPE");
+                node_.log_send_error("Unknown SOURCE_TYPE: %d", static_cast<int>(params_.camera.source_type));
+                return false;
+            }
+
+            if (!video_reader_ptr_)
+            {
+                node_.log_send_error("Failed to create video reader");
                 return false;
             }
 
@@ -180,8 +209,9 @@ public:
             {
                 node_.log_send_info("Stream is open.");
                 update_capture_info();
-                last_camera_connect_ = node_.now();
-                initial_camera_connect_ = (initial_camera_connect_.seconds() == 0 && initial_camera_connect_.nanoseconds() == 0) ? last_camera_connect_ : initial_camera_connect_;
+                const auto now = node_.now();
+                last_camera_connect_ = now;
+                initial_camera_connect_ = (initial_camera_connect_.seconds() == 0 && initial_camera_connect_.nanoseconds() == 0) ? now : initial_camera_connect_;
             }
             else
             {
@@ -194,13 +224,28 @@ public:
         catch (const std::exception &ex)
         {
             node_.log_error("open_camera: exception %s", ex.what());
+            video_reader_ptr_.reset();
+            is_open_ = false;
+            return false;
         }
-
-        video_reader_ptr_.reset();
-        return false;
     }
 
 private:
+    void initialize_profiler_regions()
+    {
+        prof_camera_worker_id_ = profiler_.add_region("Camera Worker");
+        prof_acquire_image_id_ = profiler_.add_region("Acquire Image", prof_camera_worker_id_);
+        prof_simulator_id_ = profiler_.add_region("Simulator", prof_camera_worker_id_);
+        prof_mask_id_ = profiler_.add_region("Privacy Mask", prof_camera_worker_id_);
+        prof_prepare_publish_id_ = profiler_.add_region("Prepare Publish", prof_camera_worker_id_);
+        prof_publish_id_ = profiler_.add_region("Publish Frame", prof_camera_worker_id_);
+        prof_publish_camera_info_id_ = profiler_.add_region("Publish Camera Info", prof_camera_worker_id_);
+        prof_publish_resized_resizing_id_ = profiler_.add_region("Publish Resized Resizing", prof_camera_worker_id_);
+        prof_publish_resized_msg_id_ = profiler_.add_region("Publish Resized Msg", prof_camera_worker_id_);
+        prof_sample_resize_id_ = profiler_.add_region("Sample Resize", prof_camera_worker_id_);
+        prof_sample_publish_id_ = profiler_.add_region("Sample Publish", prof_camera_worker_id_);
+    }
+
     void update_capture_info()
     {
         if (is_open_)
@@ -307,7 +352,7 @@ private:
 
     void capture_loop()
     {
-        while (run_ && rclcpp::ok())
+        while (run_.load() && rclcpp::ok())
         {
             if (!is_initialized())
             {
@@ -461,13 +506,20 @@ private:
 
     void start_capture() noexcept
     {
-        run_ = true;
-        capture_thread_ = std::thread(&CameraWorker::capture_loop, this);
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        if (!run_.load())
+        {
+            run_.store(true);
+            capture_thread_ = std::thread(&CameraWorker::capture_loop, this);
+        }
     }
 
     void stop_capture() noexcept
     {
-        run_ = false;
+        {
+            std::lock_guard<std::mutex> lock(state_mutex_);
+            run_.store(false);
+        }
 
         if (capture_thread_.joinable())
         {
@@ -632,7 +684,7 @@ private:
         {
             node_.log_send_info("CameraWorker: Privacy Mask Disabled.");
             mask_enabled_ = false;
-            privacy_mask_ptr_.release();
+            privacy_mask_ptr_.reset();
         }
     }
 
@@ -661,8 +713,9 @@ private:
     std::unique_ptr<boblib::video::VideoReader> video_reader_ptr_;
     bob_camera::msg::CameraInfo::SharedPtr camera_info_msg_ptr_;
 
-    bool run_{false};
+    std::atomic<bool> run_{false};
     std::thread capture_thread_;
+    mutable std::mutex state_mutex_;
 
     uint32_t current_video_idx_{0};
 
