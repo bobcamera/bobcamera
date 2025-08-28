@@ -76,21 +76,26 @@ namespace boblib::video
         // Get current performance stats
         struct Stats
         {
-            size_t framesReceived;
-            size_t framesWritten;
-            size_t queueSize;
-            double fps;
-            double avgProcessingTimeMs;
+            size_t framesReceived{0};
+            size_t framesWritten{0};
+            size_t queueSize{0};
+            double fps{0.0};
+            double avgProcessingTimeMs{0.0};
+            bool isValid{false};
         };
 
         Stats get_stats() const;
 
+        // Check if writer is in valid state
+        bool is_valid() const noexcept;
+
     private:
         Options m_options;
-        std::atomic<bool> m_isRunning;
-        std::atomic<bool> m_isInitialized;
-        std::atomic<size_t> m_framesReceived;
-        std::atomic<size_t> m_framesWritten;
+        std::atomic<bool> m_isRunning{false};
+        std::atomic<bool> m_isInitialized{false};
+        std::atomic<bool> m_isValid{false};
+        std::atomic<size_t> m_framesReceived{0};
+        std::atomic<size_t> m_framesWritten{0};
 
         std::string m_codecLongName;
 
@@ -107,13 +112,14 @@ namespace boblib::video
         std::chrono::steady_clock::time_point m_startTime;
         std::atomic<double> m_totalProcessingTime;
 
-        // FFmpeg variables
-        AVFormatContext *m_formatContext;
-        AVCodecContext *m_codecContext;
-        AVStream *m_stream;
-        SwsContext *m_swsContext;
-        AVFrame *m_frame;
-        uint8_t *m_frameBuffer;
+        // FFmpeg variables (protected by cleanup mutex)
+        mutable std::mutex m_ffmpegMutex;
+        AVFormatContext *m_formatContext{nullptr};
+        AVCodecContext *m_codecContext{nullptr};
+        AVStream *m_stream{nullptr};
+        SwsContext *m_swsContext{nullptr};
+        AVFrame *m_frame{nullptr};
+        uint8_t *m_frameBuffer{nullptr};
         int m_ioBufferSize;
 
         // pull all the heavy lifting into this helper
@@ -128,7 +134,7 @@ namespace boblib::video
         // Finalize the video
         void finalize_video();
 
-        // Cleanup all FFmpeg resources
+        // Cleanup all FFmpeg resources (thread-safe)
         void cleanup();
 
         // Worker thread for processing frames
@@ -136,6 +142,9 @@ namespace boblib::video
 
         // Performance monitoring thread
         void monitor_thread();
+
+        // Validate internal state
+        bool validate_state() const noexcept;
     };
 }
 
