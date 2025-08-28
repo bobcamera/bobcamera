@@ -4,18 +4,26 @@ namespace boblib::video
 {
     FFmpegVideoWriter::FFmpegVideoWriter(const Options &options)
         : m_options(options)
-        , m_isRunning(false)
-        , m_framesReceived(0)
-        , m_framesWritten(0)
         , m_totalProcessingTime(0.0)
-        , m_formatContext(nullptr)
-        , m_codecContext(nullptr)
-        , m_stream(nullptr)
-        , m_swsContext(nullptr)
-        , m_frame(nullptr)
-        , m_frameBuffer(nullptr)
         , m_ioBufferSize(1024 * 1024 * 4)
     {
+        // Validate options early
+        if (m_options.outputPath.empty()) {
+            std::cerr << "[ERROR] Empty output path provided" << std::endl;
+            return;
+        }
+        
+        if (m_options.fps <= 0.0 || m_options.fps > 1000.0) {
+            std::cerr << "[ERROR] Invalid FPS: " << m_options.fps << std::endl;
+            return;
+        }
+        
+        if (m_options.width < 0 || m_options.height < 0 ||
+            m_options.width > 16384 || m_options.height > 16384) {
+            std::cerr << "[ERROR] Invalid dimensions: " << m_options.width << "x" << m_options.height << std::endl;
+            return;
+        }
+
         if (m_options.debug)
         {
             av_log_set_level(AV_LOG_INFO);
@@ -34,6 +42,8 @@ namespace boblib::video
                            av_register_all();
 #endif
                        });
+                       
+        m_isValid.store(true);
     }
 
     FFmpegVideoWriter::~FFmpegVideoWriter()
@@ -44,19 +54,32 @@ namespace boblib::video
 
     bool FFmpegVideoWriter::start()
     {
-        if (m_isRunning)
+        if (!m_isValid.load()) {
+            std::cerr << "[ERROR] FFmpegVideoWriter not in valid state" << std::endl;
+            return false;
+        }
+        
+        if (m_isRunning.load())
         {
+            if (m_options.debug) {
+                std::cerr << "[WARNING] FFmpegVideoWriter already running" << std::endl;
+            }
             return false;
         }
 
         // Create output directory if needed
-        fs::path outputPath(m_options.outputPath);
-        fs::create_directories(outputPath.parent_path());
+        try {
+            fs::path outputPath(m_options.outputPath);
+            fs::create_directories(outputPath.parent_path());
+        } catch (const std::exception& e) {
+            std::cerr << "[ERROR] Failed to create output directory: " << e.what() << std::endl;
+            return false;
+        }
 
         // Will initialize the actual encoder when we receive the first frame
         // (if width/height are not specified in options)
-        m_isRunning = true;
-        m_isInitialized = false;
+        m_isRunning.store(true);
+        m_isInitialized.store(false);
 
         // Immediate initialization when both dimensions are known
         if (m_options.width > 0 && m_options.height > 0)
@@ -64,22 +87,30 @@ namespace boblib::video
             if (!initialize_fFmpeg(m_options.width, m_options.height))
             {
                 std::cerr << "Failed to initialize FFmpeg on start" << std::endl;
-                m_isRunning = false;
+                m_isRunning.store(false);
+                m_isValid.store(false);
                 return false;
             }
-            m_isInitialized = true;
+            m_isInitialized.store(true);
         }
 
-        // Start worker threads
-        for (size_t i = 0; i < m_options.numWorkerThreads; ++i)
-        {
-            m_workerThreads.emplace_back(&FFmpegVideoWriter::processing_thread, this);
-        }
+        try {
+            // Start worker threads
+            for (size_t i = 0; i < m_options.numWorkerThreads; ++i)
+            {
+                m_workerThreads.emplace_back(&FFmpegVideoWriter::processing_thread, this);
+            }
 
-        // Start performance monitoring thread if enabled
-        if (m_options.logPerformance)
-        {
-            m_monitorThread = std::thread(&FFmpegVideoWriter::monitor_thread, this);
+            // Start performance monitoring thread if enabled
+            if (m_options.logPerformance)
+            {
+                m_monitorThread = std::thread(&FFmpegVideoWriter::monitor_thread, this);
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "[ERROR] Failed to start worker threads: " << e.what() << std::endl;
+            m_isRunning.store(false);
+            m_isValid.store(false);
+            return false;
         }
 
         m_startTime = std::chrono::steady_clock::now();
@@ -89,31 +120,35 @@ namespace boblib::video
     // Stop the writer and finalize the video
     void FFmpegVideoWriter::stop()
     {
-        if (!m_isRunning)
+        if (!m_isRunning.load())
         {
             return;
         }
 
         {
             std::unique_lock<std::mutex> lock(m_queueMutex);
-            m_isRunning = false;
+            m_isRunning.store(false);
             m_queueCondition.notify_all();
         }
 
         // Wait for all worker threads to finish
-        for (auto &thread : m_workerThreads)
-        {
-            if (thread.joinable())
+        try {
+            for (auto &thread : m_workerThreads)
             {
-                thread.join();
+                if (thread.joinable())
+                {
+                    thread.join();
+                }
             }
-        }
-        m_workerThreads.clear();
+            m_workerThreads.clear();
 
-        // Wait for monitor thread
-        if (m_monitorThread.joinable())
-        {
-            m_monitorThread.join();
+            // Wait for monitor thread
+            if (m_monitorThread.joinable())
+            {
+                m_monitorThread.join();
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "[ERROR] Exception while stopping threads: " << e.what() << std::endl;
         }
 
         // Print final stats
@@ -123,16 +158,20 @@ namespace boblib::video
                                 std::chrono::steady_clock::now() - m_startTime)
                                 .count();
             std::cout << "FFmpegVideoWriter final stats:" << std::endl;
-            std::cout << "  Total frames: " << m_framesReceived << std::endl;
-            std::cout << "  Frames written: " << m_framesWritten << std::endl;
-            std::cout << "  Average FPS: " << (duration > 0 ? m_framesWritten / duration : 0) << std::endl;
-            std::cout << "  Dropped frames: " << (m_framesReceived - m_framesWritten) << std::endl;
+            std::cout << "  Total frames: " << m_framesReceived.load() << std::endl;
+            std::cout << "  Frames written: " << m_framesWritten.load() << std::endl;
+            std::cout << "  Average FPS: " << (duration > 0 ? m_framesWritten.load() / duration : 0) << std::endl;
+            std::cout << "  Dropped frames: " << (m_framesReceived.load() - m_framesWritten.load()) << std::endl;
             std::cout << "  Average processing time per frame: "
-                      << (m_framesWritten > 0 ? m_totalProcessingTime / m_framesWritten : 0) << " ms" << std::endl;
+                      << (m_framesWritten.load() > 0 ? m_totalProcessingTime.load() / m_framesWritten.load() : 0) << " ms" << std::endl;
         }
 
         // Finalize the video
-        finalize_video();
+        try {
+            finalize_video();
+        } catch (const std::exception& e) {
+            std::cerr << "[ERROR] Exception during finalization: " << e.what() << std::endl;
+        }
     }
 
     std::string FFmpegVideoWriter::get_codec_name() const noexcept
@@ -143,16 +182,32 @@ namespace boblib::video
     // Write a frame to the video
     bool FFmpegVideoWriter::write_frame(const cv::Mat &frame)
     {
-        if (!m_isRunning)
+        if (!m_isValid.load() || !m_isRunning.load())
         {
+            if (m_options.debug) {
+                std::cerr << "[ERROR] Writer not in valid or running state" << std::endl;
+            }
+            return false;
+        }
+        
+        if (frame.empty()) {
+            if (m_options.debug) {
+                std::cerr << "[ERROR] Empty frame provided" << std::endl;
+            }
             return false;
         }
 
-        m_framesReceived++;
+        m_framesReceived.fetch_add(1);
 
         // Make a deep copy of the frame to ensure it persists
         cv::Mat frameCopy;
-        frame.copyTo(frameCopy);
+        try {
+            frame.copyTo(frameCopy);
+        } catch (const std::exception& e) {
+            std::cerr << "[ERROR] Failed to copy frame: " << e.what() << std::endl;
+            return false;
+        }
+        
         {
             std::unique_lock<std::mutex> lock(m_queueMutex);
 
@@ -180,19 +235,33 @@ namespace boblib::video
         auto duration = std::chrono::duration_cast<std::chrono::seconds>(
                             std::chrono::steady_clock::now() - m_startTime)
                             .count();
-        return 
-            {
-                m_framesReceived,
-                m_framesWritten,
-                m_frameQueue.size(),
-                (duration > 0 ? static_cast<double>(m_framesWritten) / duration : 0.0),
-                m_totalProcessingTime > 0 && m_framesWritten > 0 ? m_totalProcessingTime / m_framesWritten : 0.0
-            };
+        return Stats{
+            m_framesReceived.load(),
+            m_framesWritten.load(),
+            m_frameQueue.size(),
+            (duration > 0 ? static_cast<double>(m_framesWritten.load()) / duration : 0.0),
+            m_totalProcessingTime.load() > 0 && m_framesWritten.load() > 0 ? 
+                m_totalProcessingTime.load() / m_framesWritten.load() : 0.0,
+            m_isValid.load()
+        };
+    }
+    
+    bool FFmpegVideoWriter::is_valid() const noexcept
+    {
+        return m_isValid.load();
     }
 
-    // pull all the heavy lifting into this helper
     bool FFmpegVideoWriter::init_with_codec(const AVCodec *codec, int width, int height)
     {
+        if (!codec || width <= 0 || height <= 0) {
+            if (m_options.debug) {
+                std::cerr << "[ERROR] Invalid parameters for codec initialization" << std::endl;
+            }
+            return false;
+        }
+        
+        std::lock_guard<std::mutex> lock(m_ffmpegMutex);
+        
         // Create output format context
         if (avformat_alloc_output_context2(&m_formatContext, nullptr, nullptr, m_options.outputPath.c_str()) < 0)
         {
@@ -223,6 +292,7 @@ namespace boblib::video
             }
             return false;
         }
+        
         // If this is a VAAPI encoder, create device & frames context
         if (strstr(codec->name, "vaapi"))
         {
@@ -238,12 +308,13 @@ namespace boblib::video
                 return false;
             }
             m_codecContext->hw_device_ctx = av_buffer_ref(hw_dev_ctx);
+            av_buffer_unref(&hw_dev_ctx); // Release our reference
 
             // Force VAAPI pixel format
             m_codecContext->pix_fmt = AV_PIX_FMT_VAAPI;
 
             // Allocate HW frames context
-            AVBufferRef *hw_frames_ref = av_hwframe_ctx_alloc(hw_dev_ctx);
+            AVBufferRef *hw_frames_ref = av_hwframe_ctx_alloc(m_codecContext->hw_device_ctx);
             if (!hw_frames_ref)
             {
                 if (m_options.debug)
@@ -267,9 +338,11 @@ namespace boblib::video
                 {
                     std::cerr << "[" << codec->name << "] Could not init HW frames ctx" << std::endl;
                 }
+                av_buffer_unref(&hw_frames_ref);
                 return false;
             }
             m_codecContext->hw_frames_ctx = av_buffer_ref(hw_frames_ref);
+            av_buffer_unref(&hw_frames_ref); // Release our reference
         }
 
         // set parameters (width/height/fmt/bitrate/threads/gop/crf/preset/extraOptions…)
@@ -419,6 +492,14 @@ namespace boblib::video
 
     bool FFmpegVideoWriter::initialize_fFmpeg(int width, int height)
     {
+        if (width <= 0 || height <= 0) {
+            if (m_options.debug) {
+                std::cerr << "[ERROR] Invalid dimensions for FFmpeg initialization: " 
+                          << width << "x" << height << std::endl;
+            }
+            return false;
+        }
+        
         // build HW candidate list
         std::vector<std::string> hwList;
         if (m_options.useHardwareAcceleration)
@@ -462,6 +543,7 @@ namespace boblib::video
             {
                 std::cerr << "Codec '" << swName << "' not found" << std::endl;
             }
+            m_isValid.store(false);
             return false;
         }
         cleanup();
@@ -471,6 +553,7 @@ namespace boblib::video
             {
                 std::cerr << "Failed to initialize software encoder: " << swName << std::endl;
             }
+            m_isValid.store(false);
             return false;
         }
 
@@ -486,6 +569,13 @@ namespace boblib::video
     // Convert cv::Mat to FFmpeg frame
     bool FFmpegVideoWriter::convert_frame(const cv::Mat &input, AVFrame *output)
     {
+        if (input.empty() || !output) {
+            if (m_options.debug) {
+                std::cerr << "[ERROR] Invalid input for frame conversion" << std::endl;
+            }
+            return false;
+        }
+        
         // Determine source pixel format
         AVPixelFormat srcFormat;
         if (input.channels() == 1)
@@ -506,7 +596,7 @@ namespace boblib::video
             return false;
         }
 
-        // Initialize SwsContext if needed
+        // Initialize SwsContext if needed (not thread-safe, but only called from worker thread)
         if (!m_swsContext)
         {
             m_swsContext = sws_getContext(
@@ -532,8 +622,14 @@ namespace boblib::video
         const int srcStride[4] = {static_cast<int>(input.step[0]), 0, 0, 0};
         uint8_t *srcData[4] = {input.data, nullptr, nullptr, nullptr};
 
-        sws_scale(m_swsContext, srcData, srcStride, 0, input.rows,
-                  output->data, output->linesize);
+        int result = sws_scale(m_swsContext, srcData, srcStride, 0, input.rows,
+                              output->data, output->linesize);
+        
+        if (result != m_codecContext->height) {
+            std::cerr << "SwsScale failed: expected " << m_codecContext->height 
+                      << " lines, got " << result << std::endl;
+            return false;
+        }
 
         return true;
     }
@@ -541,62 +637,89 @@ namespace boblib::video
     // Finalize the video
     void FFmpegVideoWriter::finalize_video()
     {
-        if (!m_isInitialized)
+        std::lock_guard<std::mutex> lock(m_ffmpegMutex);
+        
+        if (!m_isInitialized.load())
         {
             return;
         }
 
-        // Write trailer
-        if (m_formatContext)
-        {
-            av_write_trailer(m_formatContext);
+        try {
+            // Write trailer
+            if (m_formatContext)
+            {
+                int ret = av_write_trailer(m_formatContext);
+                if (ret < 0 && m_options.debug) {
+                    char errBuf[AV_ERROR_MAX_STRING_SIZE];
+                    av_strerror(ret, errBuf, AV_ERROR_MAX_STRING_SIZE);
+                    std::cerr << "[WARNING] Error writing trailer: " << errBuf << std::endl;
+                }
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "[ERROR] Exception writing trailer: " << e.what() << std::endl;
         }
 
         cleanup();
+    }
+    
+    bool FFmpegVideoWriter::validate_state() const noexcept
+    {
+        return m_isValid.load() && m_isRunning.load();
     }
 
     // Cleanup all FFmpeg resources
     void FFmpegVideoWriter::cleanup()
     {
-        // Clean up SwsContext
-        if (m_swsContext)
-        {
-            sws_freeContext(m_swsContext);
-            m_swsContext = nullptr;
-        }
+        std::lock_guard<std::mutex> lock(m_ffmpegMutex);
+        
+        try {
+            // Clean up SwsContext
+            if (m_swsContext)
+            {
+                sws_freeContext(m_swsContext);
+                m_swsContext = nullptr;
+            }
 
-        // Free the frame
-        if (m_frame)
-        {
-            av_frame_free(&m_frame);
-        }
+            // Free the frame
+            if (m_frame)
+            {
+                av_frame_free(&m_frame);
+                m_frame = nullptr;
+            }
 
-        // Close the codec
-        if (m_codecContext)
-        {
-            avcodec_free_context(&m_codecContext);
-        }
+            // Close the codec
+            if (m_codecContext)
+            {
+                avcodec_free_context(&m_codecContext);
+                m_codecContext = nullptr;
+            }
 
-        // Close the output file
-        if (m_formatContext && !(m_formatContext->oformat->flags & AVFMT_NOFILE))
-        {
-            avio_closep(&m_formatContext->pb);
-        }
+            // Close the output file
+            if (m_formatContext && !(m_formatContext->oformat->flags & AVFMT_NOFILE))
+            {
+                avio_closep(&m_formatContext->pb);
+            }
 
-        // Free the format context
-        if (m_formatContext)
-        {
-            avformat_free_context(m_formatContext);
-            m_formatContext = nullptr;
-        }
+            // Free the format context
+            if (m_formatContext)
+            {
+                avformat_free_context(m_formatContext);
+                m_formatContext = nullptr;
+            }
 
-        m_isInitialized = false;
+            m_stream = nullptr; // This is owned by format context, so just null it
+            m_isInitialized.store(false);
+        } catch (const std::exception& e) {
+            std::cerr << "[ERROR] Exception during FFmpeg cleanup: " << e.what() << std::endl;
+        } catch (...) {
+            std::cerr << "[ERROR] Unknown exception during FFmpeg cleanup" << std::endl;
+        }
     }
 
     // Worker thread for processing frames
     void FFmpegVideoWriter::processing_thread()
     {
-        while (m_isRunning)
+        while (validate_state())
         {
             cv::Mat frame;
 
@@ -604,9 +727,9 @@ namespace boblib::video
             {
                 std::unique_lock<std::mutex> lock(m_queueMutex);
                 m_queueCondition.wait(lock, [this]
-                                      { return !m_isRunning || !m_frameQueue.empty(); });
+                                      { return !m_isRunning.load() || !m_frameQueue.empty(); });
 
-                if (!m_isRunning && m_frameQueue.empty())
+                if (!m_isRunning.load() && m_frameQueue.empty())
                 {
                     break;
                 }
@@ -622,84 +745,102 @@ namespace boblib::video
             {
                 auto startTime = std::chrono::high_resolution_clock::now();
 
-                // Initialize FFmpeg if this is the first frame
-                if (!m_isInitialized)
-                {
-                    int width = m_options.width > 0 ? m_options.width : frame.cols;
-                    int height = m_options.height > 0 ? m_options.height : frame.rows;
-
-                    if (!initialize_fFmpeg(width, height))
+                try {
+                    // Initialize FFmpeg if this is the first frame
+                    if (!m_isInitialized.load())
                     {
-                        std::cerr << "Failed to initialize FFmpeg" << std::endl;
-                        m_isRunning = false;
+                        int width = m_options.width > 0 ? m_options.width : frame.cols;
+                        int height = m_options.height > 0 ? m_options.height : frame.rows;
+
+                        if (!initialize_fFmpeg(width, height))
+                        {
+                            std::cerr << "Failed to initialize FFmpeg" << std::endl;
+                            m_isRunning.store(false);
+                            m_isValid.store(false);
+                            break;
+                        }
+
+                        m_isInitialized.store(true);
+                    }
+
+                    // Validate codec context before use
+                    if (!m_codecContext || !m_frame) {
+                        std::cerr << "[ERROR] Invalid codec context or frame" << std::endl;
+                        m_isValid.store(false);
                         break;
                     }
 
-                    m_isInitialized = true;
-                }
-
-                // Convert the frame
-                if (!convert_frame(frame, m_frame))
-                {
-                    std::cerr << "Failed to convert frame" << std::endl;
-                    continue;
-                }
-
-                // Set the frame's timestamp
-                m_frame->pts = m_framesWritten;
-
-                // Encode the frame
-                int ret = avcodec_send_frame(m_codecContext, m_frame);
-                if (ret < 0)
-                {
-                    char errBuf[AV_ERROR_MAX_STRING_SIZE];
-                    av_strerror(ret, errBuf, AV_ERROR_MAX_STRING_SIZE);
-                    std::cerr << "Error sending frame for encoding: " << errBuf << std::endl;
-                    continue;
-                }
-
-                AVPacket pkt = {};
-                while (ret >= 0)
-                {
-                    ret = avcodec_receive_packet(m_codecContext, &pkt);
-
-                    if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
+                    // Convert the frame
+                    if (!convert_frame(frame, m_frame))
                     {
-                        break;
-                    }
-                    else if (ret < 0)
-                    {
-                        char errBuf[AV_ERROR_MAX_STRING_SIZE];
-                        av_strerror(ret, errBuf, AV_ERROR_MAX_STRING_SIZE);
-                        std::cerr << "Error during encoding: " << errBuf << std::endl;
-                        break;
+                        std::cerr << "Failed to convert frame" << std::endl;
+                        continue;
                     }
 
-                    // Rescale timestamp
-                    av_packet_rescale_ts(&pkt, m_codecContext->time_base, m_stream->time_base);
-                    pkt.stream_index = m_stream->index;
+                    // Set the frame's timestamp
+                    m_frame->pts = m_framesWritten.load();
 
-                    // Write the compressed frame to the media file
-                    ret = av_interleaved_write_frame(m_formatContext, &pkt);
+                    // Encode the frame
+                    int ret = avcodec_send_frame(m_codecContext, m_frame);
                     if (ret < 0)
                     {
                         char errBuf[AV_ERROR_MAX_STRING_SIZE];
                         av_strerror(ret, errBuf, AV_ERROR_MAX_STRING_SIZE);
-                        std::cerr << "Error while writing frame: " << errBuf << std::endl;
+                        std::cerr << "Error sending frame for encoding: " << errBuf << std::endl;
+                        continue;
                     }
+
+                    AVPacket pkt = {};
+                    while (ret >= 0)
+                    {
+                        ret = avcodec_receive_packet(m_codecContext, &pkt);
+
+                        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
+                        {
+                            break;
+                        }
+                        else if (ret < 0)
+                        {
+                            char errBuf[AV_ERROR_MAX_STRING_SIZE];
+                            av_strerror(ret, errBuf, AV_ERROR_MAX_STRING_SIZE);
+                            std::cerr << "Error during encoding: " << errBuf << std::endl;
+                            break;
+                        }
+
+                        // Rescale timestamp
+                        av_packet_rescale_ts(&pkt, m_codecContext->time_base, m_stream->time_base);
+                        pkt.stream_index = m_stream->index;
+
+                        // Write the compressed frame to the media file
+                        ret = av_interleaved_write_frame(m_formatContext, &pkt);
+                        if (ret < 0)
+                        {
+                            char errBuf[AV_ERROR_MAX_STRING_SIZE];
+                            av_strerror(ret, errBuf, AV_ERROR_MAX_STRING_SIZE);
+                            std::cerr << "Error while writing frame: " << errBuf << std::endl;
+                        }
+                    }
+
+                    av_packet_unref(&pkt);
+
+                    m_framesWritten.fetch_add(1);
+
+                    auto endTime = std::chrono::high_resolution_clock::now();
+                    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
+                                        endTime - startTime)
+                                        .count() /
+                                    1000.0;
+
+                    m_totalProcessingTime.store(m_totalProcessingTime.load() + duration);
+                } catch (const std::exception& e) {
+                    std::cerr << "[ERROR] Exception in processing thread: " << e.what() << std::endl;
+                    m_isValid.store(false);
+                    break;
+                } catch (...) {
+                    std::cerr << "[ERROR] Unknown exception in processing thread" << std::endl;
+                    m_isValid.store(false);
+                    break;
                 }
-
-                av_packet_unref(&pkt);
-
-                m_framesWritten++;
-
-                auto endTime = std::chrono::high_resolution_clock::now();
-                auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
-                                    endTime - startTime)
-                                    .count() /
-                                1000.0;
-
-                m_totalProcessingTime += duration;
             }
         }
 
@@ -711,41 +852,47 @@ namespace boblib::video
             m_frameQueue.pop();
             lock.unlock();
 
-            if (!frame.empty() && m_isInitialized)
+            if (!frame.empty() && m_isInitialized.load())
             {
-                // Convert the frame
-                if (convert_frame(frame, m_frame))
-                {
-                    // Set the frame's timestamp
-                    m_frame->pts = m_framesWritten;
-
-                    // Encode the frame
-                    int ret = avcodec_send_frame(m_codecContext, m_frame);
-                    if (ret >= 0)
+                try {
+                    // Convert the frame
+                    if (convert_frame(frame, m_frame))
                     {
-                        AVPacket pkt = {};
-                        while (ret >= 0)
+                        // Set the frame's timestamp
+                        m_frame->pts = m_framesWritten.load();
+
+                        // Encode the frame
+                        int ret = avcodec_send_frame(m_codecContext, m_frame);
+                        if (ret >= 0)
                         {
-                            ret = avcodec_receive_packet(m_codecContext, &pkt);
-
-                            if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
+                            AVPacket pkt = {};
+                            while (ret >= 0)
                             {
-                                break;
-                            }
-                            else if (ret >= 0)
-                            {
-                                // Rescale timestamp
-                                av_packet_rescale_ts(&pkt, m_codecContext->time_base, m_stream->time_base);
-                                pkt.stream_index = m_stream->index;
+                                ret = avcodec_receive_packet(m_codecContext, &pkt);
 
-                                // Write the compressed frame to the media file
-                                av_interleaved_write_frame(m_formatContext, &pkt);
+                                if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
+                                {
+                                    break;
+                                }
+                                else if (ret >= 0)
+                                {
+                                    // Rescale timestamp
+                                    av_packet_rescale_ts(&pkt, m_codecContext->time_base, m_stream->time_base);
+                                    pkt.stream_index = m_stream->index;
+
+                                    // Write the compressed frame to the media file
+                                    av_interleaved_write_frame(m_formatContext, &pkt);
+                                }
                             }
+
+                            av_packet_unref(&pkt);
+                            m_framesWritten.fetch_add(1);
                         }
-
-                        av_packet_unref(&pkt);
-                        m_framesWritten++;
                     }
+                } catch (const std::exception& e) {
+                    std::cerr << "[ERROR] Exception processing remaining frame: " << e.what() << std::endl;
+                } catch (...) {
+                    std::cerr << "[ERROR] Unknown exception processing remaining frame" << std::endl;
                 }
             }
 
@@ -753,33 +900,39 @@ namespace boblib::video
         }
 
         // Flush encoder
-        if (m_isInitialized && m_codecContext)
+        if (m_isInitialized.load() && m_codecContext)
         {
-            int ret = avcodec_send_frame(m_codecContext, nullptr);
-            if (ret >= 0)
-            {
-                AVPacket pkt = {};
-
-                while (ret >= 0)
+            try {
+                int ret = avcodec_send_frame(m_codecContext, nullptr);
+                if (ret >= 0)
                 {
-                    ret = avcodec_receive_packet(m_codecContext, &pkt);
+                    AVPacket pkt = {};
 
-                    if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
+                    while (ret >= 0)
                     {
-                        break;
-                    }
-                    else if (ret >= 0)
-                    {
-                        // Rescale timestamp
-                        av_packet_rescale_ts(&pkt, m_codecContext->time_base, m_stream->time_base);
-                        pkt.stream_index = m_stream->index;
+                        ret = avcodec_receive_packet(m_codecContext, &pkt);
 
-                        // Write the compressed frame to the media file
-                        av_interleaved_write_frame(m_formatContext, &pkt);
+                        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
+                        {
+                            break;
+                        }
+                        else if (ret >= 0)
+                        {
+                            // Rescale timestamp
+                            av_packet_rescale_ts(&pkt, m_codecContext->time_base, m_stream->time_base);
+                            pkt.stream_index = m_stream->index;
+
+                            // Write the compressed frame to the media file
+                            av_interleaved_write_frame(m_formatContext, &pkt);
+                        }
                     }
+
+                    av_packet_unref(&pkt);
                 }
-
-                av_packet_unref(&pkt);
+            } catch (const std::exception& e) {
+                std::cerr << "[ERROR] Exception flushing encoder: " << e.what() << std::endl;
+            } catch (...) {
+                std::cerr << "[ERROR] Unknown exception flushing encoder" << std::endl;
             }
         }
     }
@@ -787,17 +940,26 @@ namespace boblib::video
     // Performance monitoring thread
     void FFmpegVideoWriter::monitor_thread()
     {
-        while (m_isRunning)
+        while (m_isRunning.load())
         {
             std::this_thread::sleep_for(std::chrono::seconds(5));
 
-            auto stats = get_stats();
-            std::cout << "FFmpegVideoWriter stats:" << std::endl;
-            std::cout << "  Queue size: " << stats.queueSize << "/" << m_options.bufferSize << std::endl;
-            std::cout << "  Current FPS: " << stats.fps << std::endl;
-            std::cout << "  Avg processing time: " << stats.avgProcessingTimeMs << "ms" << std::endl;
-            std::cout << "  Frames received: " << stats.framesReceived << std::endl;
-            std::cout << "  Frames written: " << stats.framesWritten << std::endl;
+            if (!m_isRunning.load()) break;
+
+            try {
+                auto stats = get_stats();
+                std::cout << "FFmpegVideoWriter stats:" << std::endl;
+                std::cout << "  Queue size: " << stats.queueSize << "/" << m_options.bufferSize << std::endl;
+                std::cout << "  Current FPS: " << stats.fps << std::endl;
+                std::cout << "  Avg processing time: " << stats.avgProcessingTimeMs << "ms" << std::endl;
+                std::cout << "  Frames received: " << stats.framesReceived << std::endl;
+                std::cout << "  Frames written: " << stats.framesWritten << std::endl;
+                std::cout << "  Valid state: " << (stats.isValid ? "true" : "false") << std::endl;
+            } catch (const std::exception& e) {
+                std::cerr << "[ERROR] Exception in monitor thread: " << e.what() << std::endl;
+            } catch (...) {
+                std::cerr << "[ERROR] Unknown exception in monitor thread" << std::endl;
+            }
         }
     }
 }

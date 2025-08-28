@@ -14,17 +14,40 @@ namespace boblib::video
 {
     FFmpegVideoReader::FFmpegVideoReader()
     {
-        avformat_network_init();
-        allocate_resources();
+        try {
+            avformat_network_init();
+            allocate_resources();
+        } catch (const std::exception& e) {
+            std::cerr << "[ERROR] FFmpegVideoReader constructor failed: " << e.what() << std::endl;
+            // Ensure clean state
+            close();
+        } catch (...) {
+            std::cerr << "[ERROR] FFmpegVideoReader constructor failed with unknown exception" << std::endl;
+            close();
+        }
     }
 
     FFmpegVideoReader::~FFmpegVideoReader()
     {
-        close();
+        try {
+            close();
+        } catch (...) {
+            // Never throw from destructor
+            std::cerr << "[ERROR] Exception in FFmpegVideoReader destructor" << std::endl;
+        }
     }
 
     bool FFmpegVideoReader::open(int camera_id, int width, int height)
     {
+        if (camera_id < 0) {
+            std::cerr << "[ERROR] Invalid camera_id: " << camera_id << std::endl;
+            return false;
+        }
+        if (width < 0 || height < 0) {
+            std::cerr << "[ERROR] Invalid resolution: " << width << "x" << height << std::endl;
+            return false;
+        }
+        
         auto src = "/dev/video" + std::to_string(camera_id);
         return open(src, width, height);
     }
@@ -32,193 +55,332 @@ namespace boblib::video
     /// open / reopen a source (file path, RTSP url, or /dev/video* device) – returns true on success
     bool FFmpegVideoReader::open(const std::string &src, int width, int height)
     {
-        close(); // in case already open
-        allocate_resources();
-        src_ = src;
-
-        // set up interrupt callback timeout
-        probe_start_us_ = av_gettime_relative();
-        fmt_ctx_ = avformat_alloc_context();
-        fmt_ctx_->interrupt_callback.callback = &FFmpegVideoReader::interrupt_cb;
-        fmt_ctx_->interrupt_callback.opaque = this;
-
-        AVDictionary *opts = nullptr;
-
-        const AVInputFormat *input_format = nullptr;
-        if (src.starts_with("/dev/video"))
-        {
-            input_format = av_find_input_format("video4linux2");
-            auto resolution = std::to_string(width) + "x" + std::to_string(height);
-            av_dict_set(&opts, "video_size", resolution.c_str(), 0);
+        if (src.empty()) {
+            std::cerr << "[ERROR] Empty source string" << std::endl;
+            return false;
+        }
+        if (width < 0 || height < 0) {
+            std::cerr << "[ERROR] Invalid resolution: " << width << "x" << height << std::endl;
+            return false;
         }
 
-        // use TCP for RTSP
-        av_dict_set(&opts, "rtsp_transport", "tcp", 0);
-        // probe buffer 10 MiB
-        av_dict_set(&opts, "probesize", "10485760", 0);
-        // analyze up to 4 seconds of data
-        av_dict_set(&opts, "analyzeduration", "4000000", 0);
-        // network read timeout 4s
-        av_dict_set(&opts, "stimeout", "5000000", 0);
-        if (avformat_open_input(&fmt_ctx_, src.c_str(), input_format, &opts) < 0)
-        {
+        try {
+            close(); // in case already open
+            allocate_resources();
+            
+            if (!pkt_ || !frame_ || !sw_frame_) {
+                std::cerr << "[ERROR] Failed to allocate FFmpeg resources" << std::endl;
+                return false;
+            }
+            
+            src_ = src;
+
+            // set up interrupt callback timeout
+            probe_start_us_ = av_gettime_relative();
+            fmt_ctx_ = avformat_alloc_context();
+            if (!fmt_ctx_) {
+                std::cerr << "[ERROR] avformat_alloc_context failed" << std::endl;
+                return false;
+            }
+            
+            fmt_ctx_->interrupt_callback.callback = &FFmpegVideoReader::interrupt_cb;
+            fmt_ctx_->interrupt_callback.opaque = this;
+
+            AVDictionary *opts = nullptr;
+
+            const AVInputFormat *input_format = nullptr;
+            if (src.starts_with("/dev/video"))
+            {
+                input_format = av_find_input_format("video4linux2");
+                if (!input_format) {
+                    std::cerr << "[ERROR] video4linux2 input format not found" << std::endl;
+                    av_dict_free(&opts);
+                    return false;
+                }
+                auto resolution = std::to_string(width) + "x" + std::to_string(height);
+                av_dict_set(&opts, "video_size", resolution.c_str(), 0);
+            }
+
+            // use TCP for RTSP
+            av_dict_set(&opts, "rtsp_transport", "tcp", 0);
+            // probe buffer 10 MiB
+            av_dict_set(&opts, "probesize", "10485760", 0);
+            // analyze up to 4 seconds of data
+            av_dict_set(&opts, "analyzeduration", "4000000", 0);
+            // network read timeout 4s
+            av_dict_set(&opts, "stimeout", "5000000", 0);
+            
+            if (avformat_open_input(&fmt_ctx_, src.c_str(), input_format, &opts) < 0)
+            {
+                std::cerr << "[ERROR] avformat_open_input failed for source: " << src << std::endl;
+                av_dict_free(&opts);
+                return false;
+            }
             av_dict_free(&opts);
+
+            if (!fmt_ctx_) {
+                std::cerr << "[ERROR] fmt_ctx_ is null after avformat_open_input" << std::endl;
+                return false;
+            }
+
+            fmt_ctx_->flags |= AVFMT_FLAG_NONBLOCK;
+            if (avformat_find_stream_info(fmt_ctx_, nullptr) < 0)
+            {
+                std::cerr << "[ERROR] avformat_find_stream_info failed" << std::endl;
+                return false;
+            }
+
+            // locate first video stream
+            video_stream_index_ = av_find_best_stream(fmt_ctx_, AVMEDIA_TYPE_VIDEO, -1, -1, &decoder_, 0);
+            if (video_stream_index_ < 0)
+            {
+                std::cerr << "[ERROR] No video stream found" << std::endl;
+                return false;
+            }
+            
+            if (video_stream_index_ >= static_cast<int>(fmt_ctx_->nb_streams)) {
+                std::cerr << "[ERROR] Invalid video stream index" << std::endl;
+                return false;
+            }
+            
+            video_stream_ = fmt_ctx_->streams[video_stream_index_];
+            if (!video_stream_) {
+                std::cerr << "[ERROR] Video stream is null" << std::endl;
+                return false;
+            }
+
+            if (!init_decoder())
+            {
+                std::cerr << "[ERROR] Decoder initialization failed" << std::endl;
+                return false;
+            }
+            
+            if (!codec_ctx_) {
+                std::cerr << "[ERROR] Codec context is null after init_decoder" << std::endl;
+                return false;
+            }
+            
+            width_ = codec_ctx_->width;
+            height_ = codec_ctx_->height;
+
+            // Validate dimensions
+            if (width_ <= 0 || height_ <= 0 || width_ > 16384 || height_ > 16384) {
+                std::cerr << "[ERROR] Invalid video dimensions: " << width_ << "x" << height_ << std::endl;
+                return false;
+            }
+
+            // Try multiple sources for FPS
+            fps_ = 0.0;
+            // 1. Try avg_frame_rate first (often more accurate for RTSP)
+            if (video_stream_->avg_frame_rate.num != 0 && video_stream_->avg_frame_rate.den != 0)
+            {
+                fps_ = av_q2d(video_stream_->avg_frame_rate);
+            }
+            // 2. Fall back to r_frame_rate if avg_frame_rate is invalid
+            if (fps_ <= 0.0 || fps_ > 1000.0)
+            {
+                fps_ = av_q2d(video_stream_->r_frame_rate);
+            }
+            // 3. Check if the value is reasonable
+            if (fps_ <= 0.0 || fps_ > 1000.0)
+            {
+                // Set a reasonable default if both values are invalid
+                fps_ = 30.0;
+                std::cerr << "[WARN] Could not determine valid FPS from stream, using default: " << fps_ << std::endl;
+            }
+
+            is_opened_ = true;
+
+            // after avformat_find_stream_info() and before returning:
+            fmt_ctx_->interrupt_callback.callback = nullptr;
+            fmt_ctx_->interrupt_callback.opaque = nullptr;
+            fmt_ctx_->flags &= ~AVFMT_FLAG_NONBLOCK;
+            return true;
+        } catch (const std::exception& e) {
+            std::cerr << "[ERROR] Exception in open(): " << e.what() << std::endl;
+            close();
+            return false;
+        } catch (...) {
+            std::cerr << "[ERROR] Unknown exception in open()" << std::endl;
+            close();
             return false;
         }
-        av_dict_free(&opts);
-
-        fmt_ctx_->flags |= AVFMT_FLAG_NONBLOCK;
-        if (avformat_find_stream_info(fmt_ctx_, nullptr) < 0)
-        {
-            return false;
-        }
-
-        // locate first video stream
-        video_stream_index_ = av_find_best_stream(fmt_ctx_, AVMEDIA_TYPE_VIDEO, -1, -1, &decoder_, 0);
-        if (video_stream_index_ < 0)
-        {
-            return false;
-        }
-        video_stream_ = fmt_ctx_->streams[video_stream_index_];
-
-        if (!init_decoder())
-        {
-            return false;
-        }
-        width_ = codec_ctx_->width;
-        height_ = codec_ctx_->height;
-
-        // Try multiple sources for FPS
-        fps_ = 0.0;
-        // 1. Try avg_frame_rate first (often more accurate for RTSP)
-        if (video_stream_->avg_frame_rate.num != 0 && video_stream_->avg_frame_rate.den != 0)
-        {
-            fps_ = av_q2d(video_stream_->avg_frame_rate);
-        }
-        // 2. Fall back to r_frame_rate if avg_frame_rate is invalid
-        if (fps_ <= 0.0 || fps_ > 1000.0)
-        {
-            fps_ = av_q2d(video_stream_->r_frame_rate);
-        }
-        // 3. Check if the value is reasonable
-        if (fps_ <= 0.0 || fps_ > 1000.0)
-        {
-            // Set a reasonable default if both values are invalid
-            fps_ = 30.0;
-            std::cerr << "[WARN] Could not determine valid FPS from stream, using default: " << fps_ << std::endl;
-        }
-
-        is_opened_ = true;
-
-        // after avformat_find_stream_info() and before returning:
-        fmt_ctx_->interrupt_callback.callback = nullptr;
-        fmt_ctx_->interrupt_callback.opaque = nullptr;
-        fmt_ctx_->flags &= ~AVFMT_FLAG_NONBLOCK;
-        return true;
     }
 
     /// read next frame; returns true if a frame was read (false ⇒ EOF)
     bool FFmpegVideoReader::read(cv::Mat &out)
     {
-        // reset our timeout so interrupt_cb won't fire mid-stream
-        probe_start_us_ = av_gettime_relative();
+        if (!is_opened_ || !fmt_ctx_ || !codec_ctx_ || !pkt_ || !frame_) {
+            std::cerr << "[ERROR] Video reader not properly initialized" << std::endl;
+            return false;
+        }
 
-        while (true)
-        {
-            int ret = av_read_frame(fmt_ctx_, pkt_);
-            if (ret < 0)
-            {
-                char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
-                av_strerror(ret, errbuf, sizeof(errbuf));
-                std::cerr << "[ERROR] av_read_frame failed: " << errbuf << " (" << ret << ")" << std::endl;
-                break;
-            }
-
-            if (pkt_->stream_index != video_stream_index_)
-            {
-                av_packet_unref(pkt_);
-                continue;
-            }
-
-            if (avcodec_send_packet(codec_ctx_, pkt_) < 0)
-            {
-                std::cerr << "[ERROR] avcodec_send_packet failed" << std::endl;
-                av_packet_unref(pkt_);
-                continue;
-            }
+        try {
+            // reset our timeout so interrupt_cb won't fire mid-stream
+            probe_start_us_ = av_gettime_relative();
 
             while (true)
             {
-                ret = avcodec_receive_frame(codec_ctx_, frame_);
-                if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
-                {
-                    break;
-                }
+                int ret = av_read_frame(fmt_ctx_, pkt_);
                 if (ret < 0)
                 {
-                    std::cerr << "[ERROR] receive_frame error " << ret << std::endl;
-                    av_packet_unref(pkt_);
-                    return false;
+                    if (ret == AVERROR_EOF) {
+                        // Normal end of file
+                        return false;
+                    }
+                    char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
+                    av_strerror(ret, errbuf, sizeof(errbuf));
+                    std::cerr << "[ERROR] av_read_frame failed: " << errbuf << " (" << ret << ")" << std::endl;
+                    break;
                 }
 
-                AVFrame *use = frame_;
-                if (hw_pix_fmt_ != AV_PIX_FMT_NONE && frame_->format == hw_pix_fmt_)
+                if (pkt_->stream_index != video_stream_index_)
                 {
-                    if (av_hwframe_transfer_data(sw_frame_, frame_, 0) < 0)
+                    av_packet_unref(pkt_);
+                    continue;
+                }
+
+                ret = avcodec_send_packet(codec_ctx_, pkt_);
+                if (ret < 0)
+                {
+                    char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
+                    av_strerror(ret, errbuf, sizeof(errbuf));
+                    std::cerr << "[ERROR] avcodec_send_packet failed: " << errbuf << " (" << ret << ")" << std::endl;
+                    av_packet_unref(pkt_);
+                    continue;
+                }
+
+                while (true)
+                {
+                    ret = avcodec_receive_frame(codec_ctx_, frame_);
+                    if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
                     {
-                        std::cerr << "[ERROR] hwframe_transfer_data failed" << std::endl;
+                        break;
+                    }
+                    if (ret < 0)
+                    {
+                        char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
+                        av_strerror(ret, errbuf, sizeof(errbuf));
+                        std::cerr << "[ERROR] avcodec_receive_frame failed: " << errbuf << " (" << ret << ")" << std::endl;
                         av_packet_unref(pkt_);
                         return false;
                     }
-                    use = sw_frame_;
+
+                    if (!frame_->data[0]) {
+                        std::cerr << "[ERROR] Received frame with no data" << std::endl;
+                        av_frame_unref(frame_);
+                        av_packet_unref(pkt_);
+                        continue;
+                    }
+
+                    AVFrame *use = frame_;
+                    if (hw_pix_fmt_ != AV_PIX_FMT_NONE && frame_->format == hw_pix_fmt_)
+                    {
+                        if (!sw_frame_) {
+                            std::cerr << "[ERROR] Software frame buffer is null" << std::endl;
+                            av_frame_unref(frame_);
+                            av_packet_unref(pkt_);
+                            return false;
+                        }
+                        
+                        ret = av_hwframe_transfer_data(sw_frame_, frame_, 0);
+                        if (ret < 0)
+                        {
+                            char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
+                            av_strerror(ret, errbuf, sizeof(errbuf));
+                            std::cerr << "[ERROR] hwframe_transfer_data failed: " << errbuf << " (" << ret << ")" << std::endl;
+                            av_frame_unref(frame_);
+                            av_packet_unref(pkt_);
+                            return false;
+                        }
+                        use = sw_frame_;
+                    }
+
+                    cv::Mat result = avframe_to_mat(use);
+                    if (result.empty()) {
+                        std::cerr << "[ERROR] Failed to convert frame to cv::Mat" << std::endl;
+                        av_frame_unref(frame_);
+                        av_packet_unref(pkt_);
+                        return false;
+                    }
+
+                    out = result;
+                    av_frame_unref(frame_);
+                    av_packet_unref(pkt_);
+                    return true;
                 }
-
-                out = avframe_to_mat(use);
-
-                av_frame_unref(frame_);
                 av_packet_unref(pkt_);
-                return true;
             }
-            av_packet_unref(pkt_);
+        } catch (const std::exception& e) {
+            std::cerr << "[ERROR] Exception in read(): " << e.what() << std::endl;
+            if (pkt_) av_packet_unref(pkt_);
+            if (frame_) av_frame_unref(frame_);
+            return false;
+        } catch (...) {
+            std::cerr << "[ERROR] Unknown exception in read()" << std::endl;
+            if (pkt_) av_packet_unref(pkt_);
+            if (frame_) av_frame_unref(frame_);
+            return false;
         }
         return false;
     }
 
     void FFmpegVideoReader::close()
     {
-        if (fmt_ctx_)
-        {
-            avformat_close_input(&fmt_ctx_);
+        try {
+            is_opened_ = false;
+            
+            if (fmt_ctx_)
+            {
+                avformat_close_input(&fmt_ctx_);
+                fmt_ctx_ = nullptr;
+            }
+            if (codec_ctx_)
+            {
+                avcodec_free_context(&codec_ctx_);
+                codec_ctx_ = nullptr;
+            }
+            if (hw_device_ctx_)
+            {
+                av_buffer_unref(&hw_device_ctx_);
+                hw_device_ctx_ = nullptr;
+            }
+            if (frame_)
+            {
+                av_frame_free(&frame_);
+                frame_ = nullptr;
+            }
+            if (sw_frame_)
+            {
+                av_frame_free(&sw_frame_);
+                sw_frame_ = nullptr;
+            }
+            if (pkt_)
+            {
+                av_packet_free(&pkt_);
+                pkt_ = nullptr;
+            }
+            if (sws_ctx_)
+            {
+                sws_freeContext(sws_ctx_);
+                sws_ctx_ = nullptr;
+            }
+            
+            // Reset other members
+            decoder_ = nullptr;
+            video_stream_ = nullptr;
+            video_stream_index_ = -1;
+            width_ = 0;
+            height_ = 0;
+            fps_ = 0.0;
+            hw_pix_fmt_ = AV_PIX_FMT_NONE;
+            probe_start_us_ = 0;
+            src_.clear();
+        } catch (const std::exception& e) {
+            std::cerr << "[ERROR] Exception in close(): " << e.what() << std::endl;
+        } catch (...) {
+            std::cerr << "[ERROR] Unknown exception in close()" << std::endl;
         }
-        if (codec_ctx_)
-        {
-            avcodec_free_context(&codec_ctx_);
-        }
-        if (hw_device_ctx_)
-        {
-            av_buffer_unref(&hw_device_ctx_);
-        }
-        if (frame_)
-        {
-            av_frame_free(&frame_);
-        }
-        if (sw_frame_)
-        {
-            av_frame_free(&sw_frame_);
-        }
-        if (pkt_)
-        {
-            av_packet_free(&pkt_);
-        }
-        if (sws_ctx_)
-        {
-            sws_freeContext(sws_ctx_);
-        }
-        fmt_ctx_ = nullptr;
-        codec_ctx_ = nullptr;
-        sws_ctx_ = nullptr;
-        hw_device_ctx_ = nullptr;
-        is_opened_ = false;
     }
 
     int FFmpegVideoReader::get_width() const { return width_; }
@@ -228,9 +390,31 @@ namespace boblib::video
 
     void FFmpegVideoReader::allocate_resources()
     {
-        pkt_ = av_packet_alloc();
-        frame_ = av_frame_alloc();
-        sw_frame_ = av_frame_alloc();
+        try {
+            pkt_ = av_packet_alloc();
+            if (!pkt_) {
+                throw std::runtime_error("Failed to allocate packet");
+            }
+            
+            frame_ = av_frame_alloc();
+            if (!frame_) {
+                av_packet_free(&pkt_);
+                pkt_ = nullptr;
+                throw std::runtime_error("Failed to allocate frame");
+            }
+            
+            sw_frame_ = av_frame_alloc();
+            if (!sw_frame_) {
+                av_packet_free(&pkt_);
+                av_frame_free(&frame_);
+                pkt_ = nullptr;
+                frame_ = nullptr;
+                throw std::runtime_error("Failed to allocate software frame");
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "[ERROR] allocate_resources failed: " << e.what() << std::endl;
+            throw;
+        }
     }
 
     bool FFmpegVideoReader::init_decoder()
@@ -354,23 +538,57 @@ namespace boblib::video
 
     cv::Mat FFmpegVideoReader::avframe_to_mat(const AVFrame *src)
     {
-        if (!sws_ctx_ || src->width != width_ || src->height != height_)
-        {
-            if (sws_ctx_)
-            {
-                sws_freeContext(sws_ctx_);
-            }
-            sws_ctx_ = sws_getContext(src->width, src->height, static_cast<AVPixelFormat>(src->format),
-                                      src->width, src->height, AV_PIX_FMT_BGR24,
-                                      SWS_BILINEAR, nullptr, nullptr, nullptr);
-            width_ = src->width;
-            height_ = src->height;
+        if (!src || !src->data[0]) {
+            std::cerr << "[ERROR] Invalid source frame" << std::endl;
+            return cv::Mat();
         }
-        cv::Mat dst(height_, width_, CV_8UC3);
-        uint8_t *dst_data[1] = {dst.data};
-        int dst_linesize[1] = {static_cast<int>(dst.step)};
-        sws_scale(sws_ctx_, src->data, src->linesize, 0, src->height, dst_data, dst_linesize);
-        return dst;
+        
+        if (src->width <= 0 || src->height <= 0 || src->width > 16384 || src->height > 16384) {
+            std::cerr << "[ERROR] Invalid frame dimensions: " << src->width << "x" << src->height << std::endl;
+            return cv::Mat();
+        }
+
+        try {
+            if (!sws_ctx_ || src->width != width_ || src->height != height_)
+            {
+                if (sws_ctx_)
+                {
+                    sws_freeContext(sws_ctx_);
+                }
+                sws_ctx_ = sws_getContext(src->width, src->height, static_cast<AVPixelFormat>(src->format),
+                                          src->width, src->height, AV_PIX_FMT_BGR24,
+                                          SWS_BILINEAR, nullptr, nullptr, nullptr);
+                if (!sws_ctx_) {
+                    std::cerr << "[ERROR] Failed to create sws context" << std::endl;
+                    return cv::Mat();
+                }
+                width_ = src->width;
+                height_ = src->height;
+            }
+            
+            cv::Mat dst(height_, width_, CV_8UC3);
+            if (dst.empty()) {
+                std::cerr << "[ERROR] Failed to create destination Mat" << std::endl;
+                return cv::Mat();
+            }
+            
+            uint8_t *dst_data[1] = {dst.data};
+            int dst_linesize[1] = {static_cast<int>(dst.step)};
+            
+            int result = sws_scale(sws_ctx_, src->data, src->linesize, 0, src->height, dst_data, dst_linesize);
+            if (result != src->height) {
+                std::cerr << "[ERROR] sws_scale failed, expected " << src->height << " lines, got " << result << std::endl;
+                return cv::Mat();
+            }
+            
+            return dst;
+        } catch (const std::exception& e) {
+            std::cerr << "[ERROR] Exception in avframe_to_mat: " << e.what() << std::endl;
+            return cv::Mat();
+        } catch (...) {
+            std::cerr << "[ERROR] Unknown exception in avframe_to_mat" << std::endl;
+            return cv::Mat();
+        }
     }
 
     std::string FFmpegVideoReader::get_codec_name() const
@@ -426,21 +644,36 @@ namespace boblib::video
 
     bool FFmpegVideoReader::set_resolution(int width, int height)
     {
+        if (width <= 0 || height <= 0 || width > 16384 || height > 16384) {
+            std::cerr << "[ERROR] Invalid resolution: " << width << "x" << height << std::endl;
+            return false;
+        }
+        
         if (!src_.starts_with("/dev/video"))
         {
+            std::cerr << "[WARN] Resolution change only supported for camera devices" << std::endl;
             return false;
         }
-        auto resolutions = list_camera_resolutions();
-        if (resolutions.empty())
-        {
-            return false;
-        }
-        for (const auto &res : resolutions)
-        {
-            if (res.first == width && res.second == height)
+        
+        try {
+            auto resolutions = list_camera_resolutions();
+            if (resolutions.empty())
             {
-                return open(src_, width, height);
+                std::cerr << "[WARN] Could not enumerate camera resolutions" << std::endl;
+                return false;
             }
+            for (const auto &res : resolutions)
+            {
+                if (res.first == width && res.second == height)
+                {
+                    return open(src_, width, height);
+                }
+            }
+            std::cerr << "[WARN] Resolution " << width << "x" << height << " not supported by camera" << std::endl;
+        } catch (const std::exception& e) {
+            std::cerr << "[ERROR] Exception in set_resolution: " << e.what() << std::endl;
+        } catch (...) {
+            std::cerr << "[ERROR] Unknown exception in set_resolution" << std::endl;
         }
         return false;
     }
@@ -448,48 +681,72 @@ namespace boblib::video
     std::vector<std::pair<int, int>> FFmpegVideoReader::list_camera_resolutions() const
     {
         std::vector<std::pair<int, int>> resolutions;
-        int fd = ::open(src_.c_str(), O_RDWR);
-        if (fd < 0)
-        {
+        
+        if (src_.empty() || !src_.starts_with("/dev/video")) {
             return resolutions;
         }
-
-        // enumerate all pixel formats
-        v4l2_fmtdesc fmtdesc = {};
-        fmtdesc.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        for (fmtdesc.index = 0;
-             ioctl(fd, VIDIOC_ENUM_FMT, &fmtdesc) == 0;
-             ++fmtdesc.index)
-        {
-            // for each format, enumerate frame sizes
-            v4l2_frmsizeenum frmsize = {};
-            frmsize.pixel_format = fmtdesc.pixelformat;
-            for (frmsize.index = 0;
-                 ioctl(fd, VIDIOC_ENUM_FRAMESIZES, &frmsize) == 0;
-                 ++frmsize.index)
+        
+        try {
+            int fd = ::open(src_.c_str(), O_RDWR);
+            if (fd < 0)
             {
-                if (frmsize.type == V4L2_FRMSIZE_TYPE_DISCRETE)
+                std::cerr << "[WARN] Could not open " << src_ << " for resolution enumeration" << std::endl;
+                return resolutions;
+            }
+
+            // enumerate all pixel formats
+            v4l2_fmtdesc fmtdesc = {};
+            fmtdesc.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+            for (fmtdesc.index = 0;
+                 ioctl(fd, VIDIOC_ENUM_FMT, &fmtdesc) == 0;
+                 ++fmtdesc.index)
+            {
+                // for each format, enumerate frame sizes
+                v4l2_frmsizeenum frmsize = {};
+                frmsize.pixel_format = fmtdesc.pixelformat;
+                for (frmsize.index = 0;
+                     ioctl(fd, VIDIOC_ENUM_FRAMESIZES, &frmsize) == 0;
+                     ++frmsize.index)
                 {
-                    resolutions.emplace_back(frmsize.discrete.width, frmsize.discrete.height);
-                }
-                else if (frmsize.type == V4L2_FRMSIZE_TYPE_STEPWISE)
-                {
-                    for (unsigned h = frmsize.stepwise.min_height;
-                         h <= frmsize.stepwise.max_height;
-                         h += frmsize.stepwise.step_height)
+                    if (frmsize.type == V4L2_FRMSIZE_TYPE_DISCRETE)
                     {
-                        for (unsigned w = frmsize.stepwise.min_width;
-                             w <= frmsize.stepwise.max_width;
-                             w += frmsize.stepwise.step_width)
+                        // Validate dimensions
+                        if (frmsize.discrete.width > 0 && frmsize.discrete.height > 0 &&
+                            frmsize.discrete.width <= 16384 && frmsize.discrete.height <= 16384) {
+                            resolutions.emplace_back(frmsize.discrete.width, frmsize.discrete.height);
+                        }
+                    }
+                    else if (frmsize.type == V4L2_FRMSIZE_TYPE_STEPWISE)
+                    {
+                        // Limit iterations to prevent infinite loops
+                        const unsigned max_iterations = 1000;
+                        unsigned iteration_count = 0;
+                        
+                        for (unsigned h = frmsize.stepwise.min_height;
+                             h <= frmsize.stepwise.max_height && iteration_count < max_iterations;
+                             h += frmsize.stepwise.step_height, ++iteration_count)
                         {
-                            resolutions.emplace_back(w, h);
+                            for (unsigned w = frmsize.stepwise.min_width;
+                                 w <= frmsize.stepwise.max_width && iteration_count < max_iterations;
+                                 w += frmsize.stepwise.step_width, ++iteration_count)
+                            {
+                                // Validate dimensions
+                                if (w > 0 && h > 0 && w <= 16384 && h <= 16384) {
+                                    resolutions.emplace_back(w, h);
+                                }
+                            }
                         }
                     }
                 }
             }
-        }
 
-        ::close(fd);
+            ::close(fd);
+        } catch (const std::exception& e) {
+            std::cerr << "[ERROR] Exception in list_camera_resolutions: " << e.what() << std::endl;
+        } catch (...) {
+            std::cerr << "[ERROR] Unknown exception in list_camera_resolutions" << std::endl;
+        }
+        
         return resolutions;
     }
 } // namespace boblib::video
