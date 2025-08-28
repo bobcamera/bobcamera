@@ -24,19 +24,100 @@
 #include "object_simulator.hpp"
 #include "publish_image.hpp"
 
+// ==================== STRUCTURED ERROR TYPES ====================
+
+// Base error class for truly exceptional/unrecoverable errors only
+class CameraWorkerError : public std::runtime_error
+{
+public:
+    explicit CameraWorkerError(const std::string &message)
+        : std::runtime_error("CameraWorker: " + message) {}
+};
+
+// Initialization-specific errors (exceptional - should not happen in normal operation)
+class CameraInitializationError : public CameraWorkerError
+{
+public:
+    explicit CameraInitializationError(const std::string &message)
+        : CameraWorkerError("Initialization failed - " + message) {}
+};
+
+// Configuration errors (exceptional - invalid config should be caught early)
+class ConfigurationError : public CameraWorkerError
+{
+public:
+    explicit ConfigurationError(const std::string &message)
+        : CameraWorkerError("Configuration error - " + message) {}
+};
+
+// Error codes for normal operational errors (no exceptions thrown)
+enum class CameraError
+{
+    None = 0,
+    ConnectionLost,
+    InvalidFrame,
+    ProcessingFailed,
+    DeviceNotFound,
+    StreamTimeout,
+    ResourceExhausted
+};
+
+// Result type for operational error handling (high-performance, no exceptions)
+struct CameraResult
+{
+    CameraError error = CameraError::None;
+    std::string message;
+
+    // Convenience methods
+    bool success() const noexcept { return error == CameraError::None; }
+    bool failed() const noexcept { return error != CameraError::None; }
+    operator bool() const noexcept { return success(); }
+
+    // Success result factory
+    static CameraResult ok() noexcept
+    {
+        return {CameraError::None, ""};
+    }
+
+    // Error result factories
+    static CameraResult connection_lost(const std::string &msg = "") noexcept
+    {
+        return {CameraError::ConnectionLost, msg};
+    }
+
+    static CameraResult invalid_frame(const std::string &msg = "") noexcept
+    {
+        return {CameraError::InvalidFrame, msg};
+    }
+
+    static CameraResult processing_failed(const std::string &msg = "") noexcept
+    {
+        return {CameraError::ProcessingFailed, msg};
+    }
+
+    static CameraResult device_not_found(const std::string &msg = "") noexcept
+    {
+        return {CameraError::DeviceNotFound, msg};
+    }
+
+    static CameraResult stream_timeout(const std::string &msg = "") noexcept
+    {
+        return {CameraError::StreamTimeout, msg};
+    }
+
+    static CameraResult resource_exhausted(const std::string &msg = "") noexcept
+    {
+        return {CameraError::ResourceExhausted, msg};
+    }
+};
+
+// ==================== CAMERA WORKER CLASS ====================
+
 class CameraWorker final
 {
 public:
-    explicit CameraWorker(ParameterNode &node
-                          , CameraBgsParams &params
-                          , const rclcpp::QoS &qos_publish_profile
-                          , boblib::utils::pubsub::TopicManager &topic_manager
-                          , boblib::utils::Profiler &profiler)
-        : node_(node)
-        , params_(params)
-        , qos_publish_profile_(qos_publish_profile)
-        , topic_manager_(topic_manager)
-        , profiler_(profiler)
+    explicit CameraWorker(ParameterNode &node, CameraBgsParams &params, const rclcpp::QoS &qos_publish_profile, boblib::utils::pubsub::TopicManager &topic_manager, boblib::utils::Profiler &profiler)
+        : node_(node), params_(params), qos_publish_profile_(qos_publish_profile), topic_manager_(topic_manager), profiler_(profiler)
     {
         mask_worker_ptr_ = std::make_unique<MaskWorker>(node_,
                                                         [this](MaskWorker::MaskCheckType detection_mask_result, const cv::Mat &mask)
@@ -52,49 +133,55 @@ public:
     }
 
     // Move constructor
-    CameraWorker(CameraWorker&& other) noexcept = delete;
-    
+    CameraWorker(CameraWorker &&other) noexcept = delete;
+
     // Move assignment operator
-    CameraWorker& operator=(CameraWorker&& other) noexcept = delete;
-    
+    CameraWorker &operator=(CameraWorker &&other) noexcept = delete;
+
     // Copy constructor and assignment operator are deleted
-    CameraWorker(const CameraWorker&) = delete;
-    CameraWorker& operator=(const CameraWorker&) = delete;
+    CameraWorker(const CameraWorker &) = delete;
+    CameraWorker &operator=(const CameraWorker &) = delete;
 
     void init()
     {
         std::lock_guard<std::recursive_mutex> lock(state_mutex_);
-        
-        if (is_initialized_.load()) {
+
+        if (is_initialized_.load())
+        {
             node_.log_warn("CameraWorker already initialized");
             return;
         }
 
-        try {
+        try
+        {
             initialize_state();
             initialize_profiler_regions();
             initialize_components();
             initialize_publishers();
             initialize_pubsub();
             initialize_mask_worker();
-            
+
             // Mark as initialized only after all initialization succeeds
             is_initialized_.store(true);
-            
+
             // Start camera operations
-            if (!open_camera()) {
-                throw std::runtime_error("Failed to open camera during initialization");
+            auto open_result = open_camera();
+            if (!open_result.success())
+            {
+                throw CameraInitializationError("Failed to open camera during initialization: " + open_result.message);
             }
             start_capture();
-            
+
             node_.log_info("CameraWorker initialized successfully");
         }
-        catch (const std::exception &e) {
+        catch (const std::exception &e)
+        {
             cleanup_on_init_failure();
             node_.log_error("CameraWorker init failed: %s", e.what());
             throw;
         }
-        catch (...) {
+        catch (...)
+        {
             cleanup_on_init_failure();
             node_.log_error("CameraWorker init failed: unknown exception");
             throw;
@@ -119,63 +206,107 @@ public:
         return is_open_.load();
     }
 
-    bool open_camera()
+    // Helper method to create video reader for different source types
+    CameraResult create_video_reader_for_source()
+    {
+        // Reset previous video reader
+        video_reader_ptr_.reset();
+        is_open_.store(false);
+
+        switch (params_.camera.source_type)
+        {
+        case CameraBgsParams::SourceType::USB_CAMERA:
+        {
+            if (params_.camera.camera_id < 0)
+            {
+                throw ConfigurationError("Invalid camera ID: " + std::to_string(params_.camera.camera_id));
+            }
+
+            node_.log_send_info("Trying to open camera %d", params_.camera.camera_id);
+            video_reader_ptr_ = std::make_unique<boblib::video::VideoReader>(params_.camera.camera_id, params_.camera.use_opencv);
+            if (video_reader_ptr_->is_open())
+            {
+                set_camera_resolution();
+                return CameraResult::ok();
+            }
+            else
+            {
+                return CameraResult::device_not_found("Failed to open USB camera " + std::to_string(params_.camera.camera_id));
+            }
+        }
+        break;
+
+        case CameraBgsParams::SourceType::VIDEO_FILE:
+        {
+            const uint32_t current_idx = current_video_idx_.load();
+            if (current_idx >= params_.camera.videos.size())
+            {
+                throw ConfigurationError("Invalid video index " + std::to_string(current_idx) +
+                                         ", only " + std::to_string(params_.camera.videos.size()) + " videos configured");
+            }
+            const auto video_path = params_.camera.videos[current_idx];
+
+            if (!std::filesystem::exists(video_path))
+            {
+                return CameraResult::device_not_found("Video file does not exist: " + video_path);
+            }
+
+            node_.log_send_info("Trying to open video '%s'", video_path.c_str());
+            video_reader_ptr_ = std::make_unique<boblib::video::VideoReader>(video_path, params_.camera.use_opencv, using_cuda_.load());
+
+            if (!video_reader_ptr_->is_open())
+            {
+                return CameraResult::connection_lost("Failed to open video file: " + video_path);
+            }
+            return CameraResult::ok();
+        }
+        break;
+
+        case CameraBgsParams::SourceType::RTSP_STREAM:
+        {
+            if (params_.camera.rtsp_uri.empty())
+            {
+                throw ConfigurationError("RTSP URI is empty");
+            }
+
+            node_.log_send_info("Trying to open RTSP Stream '%s'", params_.camera.rtsp_uri.c_str());
+            video_reader_ptr_ = std::make_unique<boblib::video::VideoReader>(params_.camera.rtsp_uri, params_.camera.use_opencv, using_cuda_.load());
+
+            if (!video_reader_ptr_->is_open())
+            {
+                return CameraResult::connection_lost("Failed to connect to RTSP stream: " + params_.camera.rtsp_uri);
+            }
+            return CameraResult::ok();
+        }
+        break;
+
+        default:
+            throw ConfigurationError("Unknown camera source type: " + std::to_string(static_cast<int>(params_.camera.source_type)));
+        }
+    }
+
+    CameraResult open_camera()
     {
         if (!is_initialized())
         {
             node_.log_error("open_camera: CameraWorker not initialized");
-            return false;
+            return CameraResult::processing_failed("Camera not initialized");
         }
 
         try
         {
-            // Reset previous video reader
-            video_reader_ptr_.reset();
-            is_open_.store(false);
-
-            switch (params_.camera.source_type)
+            // Create video reader based on source type - config errors throw exceptions
+            auto create_result = create_video_reader_for_source();
+            if (!create_result.success())
             {
-            case CameraBgsParams::SourceType::USB_CAMERA:
-            {
-                node_.log_send_info("Trying to open camera %d", params_.camera.camera_id);
-                video_reader_ptr_ = std::make_unique<boblib::video::VideoReader>(params_.camera.camera_id, params_.camera.use_opencv);
-                if (video_reader_ptr_->is_open())
-                {
-                    set_camera_resolution();
-                }
-            }
-            break;
-
-            case CameraBgsParams::SourceType::VIDEO_FILE:
-            {
-                const uint32_t current_idx = current_video_idx_.load();
-                if (current_idx >= params_.camera.videos.size())
-                {
-                    node_.log_send_error("Invalid video index: %u", current_idx);
-                    return false;
-                }
-                const auto video_path = params_.camera.videos[current_idx];
-                node_.log_send_info("Trying to open video '%s'", video_path.c_str());
-                video_reader_ptr_ = std::make_unique<boblib::video::VideoReader>(video_path, params_.camera.use_opencv, using_cuda_.load());
-            }
-            break;
-
-            case CameraBgsParams::SourceType::RTSP_STREAM:
-            {
-                node_.log_send_info("Trying to open RTSP Stream '%s'", params_.camera.rtsp_uri.c_str());
-                video_reader_ptr_ = std::make_unique<boblib::video::VideoReader>(params_.camera.rtsp_uri, params_.camera.use_opencv, using_cuda_.load());
-            }
-            break;
-
-            default:
-                node_.log_send_error("Unknown SOURCE_TYPE: %d", static_cast<int>(params_.camera.source_type));
-                return false;
+                return create_result;
             }
 
+            // Validate video reader was created
             if (!video_reader_ptr_)
             {
                 node_.log_send_error("Failed to create video reader");
-                return false;
+                return CameraResult::device_not_found("Video reader creation failed");
             }
 
             if (video_reader_ptr_->using_cuda())
@@ -183,29 +314,39 @@ public:
                 node_.log_send_info("Using CUDA for decoding.");
             }
 
+            // Check if stream opened successfully
             is_open_.store(video_reader_ptr_->is_open());
+
             if (is_open_.load())
             {
                 node_.log_send_info("Stream is open.");
+
+                // Update connection timestamps and capture info
                 update_capture_info();
                 const auto now = node_.now();
                 last_camera_connect_ = now;
                 initial_camera_connect_ = (initial_camera_connect_.seconds() == 0 && initial_camera_connect_.nanoseconds() == 0) ? now : initial_camera_connect_;
+
+                return CameraResult::ok();
             }
             else
             {
                 node_.log_send_error("Could not open stream.");
                 video_reader_ptr_.reset();
+                return CameraResult::connection_lost("Stream failed to open");
             }
-
-            return is_open_.load();
+        }
+        catch (const ConfigurationError &ex)
+        {
+            // Configuration errors are exceptional - rethrow
+            throw;
         }
         catch (const std::exception &ex)
         {
-            node_.log_error("open_camera: exception %s", ex.what());
+            node_.log_error("open_camera: unexpected error - %s", ex.what());
             video_reader_ptr_.reset();
             is_open_.store(false);
-            return false;
+            return CameraResult::processing_failed("Unexpected error: " + std::string(ex.what()));
         }
     }
 
@@ -225,7 +366,7 @@ private:
         prof_sample_publish_id_ = profiler_.add_region("Sample Publish", prof_camera_worker_id_);
     }
 
-    void initialize_state() 
+    void initialize_state()
     {
         // Initialize all state variables first
         current_video_idx_.store(0);
@@ -254,12 +395,12 @@ private:
         // Initialize components that can throw
         privacy_mask_ptr_ = std::make_unique<boblib::base::Image>(using_cuda_.load());
         circuit_breaker_ptr_ = std::make_unique<CircuitBreaker>(
-            CIRCUIT_BREAKER_MAX_RETRIES, 
-            CIRCUIT_BREAKER_INITIAL_TIMEOUT, 
-            CIRCUIT_BREAKER_MAX_TIMEOUT
-        );
+            CIRCUIT_BREAKER_MAX_RETRIES,
+            CIRCUIT_BREAKER_INITIAL_TIMEOUT,
+            CIRCUIT_BREAKER_MAX_TIMEOUT);
 
-        if (params_.camera.simulator.enable) {
+        if (params_.camera.simulator.enable)
+        {
             object_simulator_ptr_ = std::make_unique<ObjectSimulator>(params_.camera.simulator.num_objects);
         }
     }
@@ -271,12 +412,13 @@ private:
             params_.topics.image_publish_topic, qos_publish_profile_);
         image_resized_publisher_ = node_.create_publisher<sensor_msgs::msg::Image>(
             params_.topics.image_resized_publish_topic, qos_publish_profile_);
-        
-        if (params_.sample_frame.enabled) {
+
+        if (params_.sample_frame.enabled)
+        {
             image_sample_publisher_ = node_.create_publisher<sensor_msgs::msg::Image>(
                 params_.topics.sample_frame_publisher_topic, qos_publish_profile_);
         }
-        
+
         image_info_publisher_ = node_.create_publisher<bob_camera::msg::ImageInfo>(
             params_.topics.image_info_publish_topic, qos_publish_profile_);
         camera_info_publisher_ = node_.create_publisher<bob_camera::msg::CameraInfo>(
@@ -300,15 +442,16 @@ private:
     void initialize_mask_worker()
     {
         // Initialize mask worker
-        mask_worker_ptr_->init(params_.camera.privacy_mask.timer_seconds, 
-                              params_.camera.privacy_mask.filename);
+        mask_worker_ptr_->init(params_.camera.privacy_mask.timer_seconds,
+                               params_.camera.privacy_mask.filename);
     }
 
     void cleanup() noexcept
     {
-        try {
+        try
+        {
             stop_capture();
-            
+
             // Reset unique_ptrs in reverse order of creation
             object_simulator_ptr_.reset();
             circuit_breaker_ptr_.reset();
@@ -316,10 +459,10 @@ private:
             speed_test_images_ptr_.reset();
             loop_rate_ptr_.reset();
             video_reader_ptr_.reset();
-            
+
             // Reset shared_ptrs
             camera_info_msg_ptr_.reset();
-            
+
             // Reset publishers and clients
             image_publisher_.reset();
             image_resized_publisher_.reset();
@@ -327,15 +470,16 @@ private:
             image_info_publisher_.reset();
             camera_info_publisher_.reset();
             camera_settings_client_.reset();
-            
+
             // Reset pubsub
             publish_pubsub_ptr_.reset();
             camera_info_pubsub_ptr_.reset();
-            
+
             // Reset state
             is_initialized_.store(false);
         }
-        catch (...) {
+        catch (...)
+        {
             // Swallow all exceptions in cleanup
         }
     }
@@ -368,8 +512,7 @@ private:
 
     void cache_test(boblib::base::Image &camera_img)
     {
-        if (!params_.camera.speed_test 
-            || (params_.camera.speed_test && cache_full_.load()))
+        if (!params_.camera.speed_test || (params_.camera.speed_test && cache_full_.load()))
         {
             return;
         }
@@ -427,14 +570,19 @@ private:
                     const uint32_t current_idx = current_video_idx_.load();
                     const uint32_t next_idx = current_idx >= (params_.camera.videos.size() - 1) ? 0 : current_idx + 1;
                     current_video_idx_.store(next_idx);
-                    if (!open_camera())
+                    auto open_result = open_camera();
+                    if (!open_result.success())
                     {
                         circuit_breaker_ptr_->record_failure();
                     }
                 }
-                else if (!open_camera())
+                else
                 {
-                    circuit_breaker_ptr_->record_failure();
+                    auto open_result = open_camera();
+                    if (!open_result.success())
+                    {
+                        circuit_breaker_ptr_->record_failure();
+                    }
                 }
                 return false;
             }
@@ -444,12 +592,12 @@ private:
         }
         catch (const std::exception &ex)
         {
-            node_.log_error("create_video_capture: Exception %s", ex.what());
+            node_.log_error("acquire_image: Unexpected error - %s", ex.what());
             return false;
         }
         catch (...)
         {
-            node_.log_error("create_video_capture: Unknown exception");
+            node_.log_error("acquire_image: Unknown error occurred");
             return false;
         }
     }
@@ -506,7 +654,7 @@ private:
             }
             catch (const std::exception &e)
             {
-                node_.log_send_error("CameraWorker: capture_loop: Exception: %s", e.what());
+                node_.log_send_error("CameraWorker: capture_loop: Unexpected error - %s", e.what());
                 rcutils_reset_error();
             }
         }
@@ -531,7 +679,7 @@ private:
         }
         catch (const std::exception &e)
         {
-            node_.log_send_error("CameraWorker: publish_images: Exception: %s", e.what());
+            node_.log_send_error("CameraWorker: publish_images: Unexpected error - %s", e.what());
             rcutils_reset_error();
         }
     }
@@ -611,16 +759,21 @@ private:
     void start_capture() noexcept
     {
         std::lock_guard<std::recursive_mutex> lock(state_mutex_);
-        try {
-            if (!run_.load() && !capture_thread_.joinable()) {
+        try
+        {
+            if (!run_.load() && !capture_thread_.joinable())
+            {
                 run_.store(true);
                 capture_thread_ = std::thread(&CameraWorker::capture_loop, this);
                 node_.log_info("Camera capture thread started");
-            } else {
+            }
+            else
+            {
                 node_.log_warn("Camera capture already running");
             }
         }
-        catch (const std::exception& e) {
+        catch (const std::exception &e)
+        {
             node_.log_error("Failed to start capture thread: %s", e.what());
             run_.store(false);
         }
@@ -628,29 +781,34 @@ private:
 
     void stop_capture() noexcept
     {
-        try {
+        try
+        {
             // Signal thread to stop
             run_.store(false);
-            
+
             // Wait for thread to finish
             std::thread capture_thread_local;
             {
                 std::lock_guard<std::recursive_mutex> lock(state_mutex_);
-                if (capture_thread_.joinable()) {
+                if (capture_thread_.joinable())
+                {
                     capture_thread_local = std::move(capture_thread_);
                 }
             }
-            
+
             // Join outside of mutex to avoid deadlock
-            if (capture_thread_local.joinable()) {
+            if (capture_thread_local.joinable())
+            {
                 capture_thread_local.join();
                 node_.log_info("Camera capture thread stopped");
             }
         }
-        catch (const std::exception& e) {
+        catch (const std::exception &e)
+        {
             node_.log_error("Error stopping capture thread: %s", e.what());
         }
-        catch (...) {
+        catch (...)
+        {
             node_.log_error("Unknown error stopping capture thread");
         }
     }
@@ -658,14 +816,17 @@ private:
     bool set_camera_resolution()
     {
         // Try user-defined resolution first
-        if ((params_.camera.usb_resolution.size() == 2) && 
-            (video_reader_ptr_->set_resolution(params_.camera.usb_resolution[0], params_.camera.usb_resolution[1]))) {
+        if ((params_.camera.usb_resolution.size() == 2) &&
+            (video_reader_ptr_->set_resolution(params_.camera.usb_resolution[0], params_.camera.usb_resolution[1])))
+        {
             return true;
         }
 
         // Try supported resolutions in order of preference
-        for (const auto &[width, height] : USB_SUPPORTED_RESOLUTIONS) {
-            if (video_reader_ptr_->set_resolution(width, height)) {
+        for (const auto &[width, height] : USB_SUPPORTED_RESOLUTIONS)
+        {
+            if (video_reader_ptr_->set_resolution(width, height))
+            {
                 node_.log_info("Setting resolution for %d x %d", width, height);
                 return true;
             }
@@ -802,25 +963,25 @@ private:
     }
 
     // ==================== CONFIGURATION CONSTANTS ====================
-    
+
     // Camera performance constants
     static constexpr double UNKNOWN_DEVICE_FPS = 30.0;
     static constexpr int MILLISECONDS_PER_SECOND = 1000;
-    
+
     // Circuit breaker configuration
     static constexpr int CIRCUIT_BREAKER_MAX_RETRIES = 10;
     static constexpr int CIRCUIT_BREAKER_INITIAL_TIMEOUT = 10;
     static constexpr int CIRCUIT_BREAKER_MAX_TIMEOUT = 10;
     static constexpr int CIRCUIT_BREAKER_SLEEP_MS = 1000;
-    
-    // Thread timing configuration  
+
+    // Thread timing configuration
     static constexpr int INITIALIZED_SLEEP_MS = 10;
     static constexpr int ERROR_RECOVERY_SLEEP_MS = 10;
-    
+
     // Camera resolution presets (ordered by preference)
     static constexpr std::array<std::pair<int, int>, 9> USB_SUPPORTED_RESOLUTIONS = {{
         {3840, 2160}, // 4K UHD
-        {2560, 1440}, // QHD, WQHD, 2K  
+        {2560, 1440}, // QHD, WQHD, 2K
         {1920, 1080}, // Full HD
         {1600, 900},  // HD+
         {1280, 720},  // HD
