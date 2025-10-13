@@ -4,6 +4,10 @@ temp*/**
 .svn/
 .hg/
 .env
+
+# Zencoder #
+############
+.zencoder/
 # Compiled source #
 ###################
 *.com
