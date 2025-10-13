@@ -12,6 +12,7 @@ export interface SystemSlice {
   isRunning: boolean
   wsStatus: 'connecting' | 'connected' | 'disconnected' | 'error'
   backendStatus: 'unknown' | 'online' | 'offline' | 'connecting' | 'disconnected'
+  mockMode: boolean
   uiPreferences: {
     darkMode: boolean
     sidebarCollapsed: boolean
@@ -29,6 +30,7 @@ export interface SystemSlice {
   setRunning: (running: boolean) => void
   setWSStatus: (status: 'connecting' | 'connected' | 'disconnected' | 'error') => void
   setBackendStatus: (status: 'unknown' | 'online' | 'offline' | 'connecting' | 'disconnected') => void
+  setMockMode: (enabled: boolean) => void
   setFeatureFlag: (flag: keyof SystemSlice['featureFlags'], enabled: boolean) => void
   toggleDarkMode: () => void
   toggleSidebar: () => void
@@ -46,6 +48,7 @@ export const createSystemSlice: StateCreator<SystemSlice> = (set, get) => ({
   isRunning: false,
   wsStatus: 'disconnected',
   backendStatus: 'unknown',
+  mockMode: import.meta.env.VITE_MOCK_MODE === 'true',
   uiPreferences: {
     darkMode: false,
     sidebarCollapsed: false,
@@ -75,6 +78,8 @@ export const createSystemSlice: StateCreator<SystemSlice> = (set, get) => ({
   setWSStatus: (status) => set({ wsStatus: status }),
 
   setBackendStatus: (status) => set({ backendStatus: status }),
+
+  setMockMode: (enabled) => set({ mockMode: enabled }),
 
   setFeatureFlag: (flag, enabled) =>
     set((state) => ({

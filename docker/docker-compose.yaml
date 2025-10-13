@@ -1,12 +1,15 @@
 # This docker-compose file is used to run the bobcamera web and ros2 nodes in a containerized environment.
 services:
   web:
-    image: bobcamera/bob-web-prod:1.7.5
+    build:
+      context: ../ui
+      dockerfile: Dockerfile
+    image: bobcamera/bob-web-react:local
     ports:
       - "8080:80"
   # If you want to view demo recordings, comment out the volume section below.      
     volumes: 
-      - ${PWD}/assets/recordings:/var/www/html/videos
+      - ${PWD}/assets/recordings:/usr/share/nginx/html/videos
     depends_on:
       - bob
 

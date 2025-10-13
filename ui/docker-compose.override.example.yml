@@ -1,0 +1,48 @@
+# Example docker-compose override for BOB Camera UI
+# Copy this file to docker-compose.override.yml and customize as needed
+# 
+# Usage:
+#   cp docker-compose.override.example.yml docker-compose.override.yml
+#   docker-compose up -d
+
+version: '3.8'
+
+services:
+  # UI service
+  ui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: /api
+        VITE_WS_BASE_URL: /ws
+        VITE_STREAM_PROTOCOL: mjpeg
+    container_name: bobcamera-ui
+    ports:
+      - "3000:80"
+    environment:
+      - NODE_ENV=production
+    networks:
+      - bobcamera
+    depends_on:
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  # Backend service (reference - should already exist in main docker-compose.yml)
+  # backend:
+  #   image: bobcamera/backend:latest
+  #   container_name: bobcamera-backend
+  #   ports:
+  #     - "8080:8080"
+  #   networks:
+  #     - bobcamera
+
+networks:
+  bobcamera:
+    driver: bridge

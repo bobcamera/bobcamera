@@ -76,6 +76,8 @@ code my_usb_config.yaml
 
 ### 8. Use your system browser and navigate to [http://localhost:8080](http://localhost:8080)
 
+> **New UI Available!** BOB now includes a modern React + Mantine UI. See [UI Quick Start](ui/QUICKSTART_MANTINE.md) for details.
+
 ### 9. To shut BOB down, type CTRL + C in the terminal
 
 --- 
@@ -93,6 +95,43 @@ git pull origin main
 ```
 cp ex_config.yaml my_config_file.yaml
 ```
+
+-----
+
+## UI Development
+
+BOB Camera includes a modern React frontend built with Mantine UI v7. The UI provides:
+
+- **Real-time monitoring** - Live camera feeds, detections, and system metrics
+- **Camera management** - Configure RTSP/USB cameras, test connections
+- **Track history** - Browse and filter detection events
+- **Recordings** - View and download saved clips
+- **System health** - Monitor CPU, GPU, memory, and services
+- **Dark/Light mode** - Comfortable viewing in any environment
+
+### Quick Start (UI Development)
+
+```bash
+cd ui
+npm install
+npm run dev
+```
+
+Open [http://localhost:5173](http://localhost:5173) - the UI will proxy to the backend on port 8080.
+
+**Documentation:**
+- [Quick Start Guide](ui/QUICKSTART_MANTINE.md) - Get started in 5 minutes
+- [Full Documentation](ui/MANTINE_SETUP.md) - Complete setup and development guide
+
+### UI Tech Stack
+
+- **React 19** + TypeScript + Vite
+- **Mantine UI v7** - Modern component library
+- **TailwindCSS v4** - Utility-first CSS (layout only)
+- **Zustand** - State management
+- **React Router v7** - Client-side routing
+- **Axios** - REST API client
+- **WebSocket** - Real-time updates
 
 -----
 

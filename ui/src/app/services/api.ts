@@ -56,8 +56,20 @@ class APIClient {
 
   // System Health
   async getSystemHealth(): Promise<SystemHealth> {
-    const response = await this.client.get('/system/health')
-    return SystemHealthSchema.parse(response.data)
+    try {
+      const response = await this.client.get('/system/health')
+      // Validate that we got an object, not a string (HTML error page)
+      if (typeof response.data === 'string') {
+        throw new Error('Backend returned HTML instead of JSON - is the backend running?')
+      }
+      return SystemHealthSchema.parse(response.data)
+    } catch (error) {
+      // Re-throw with more context
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Failed to fetch system health: ${error.message}`)
+      }
+      throw error
+    }
   }
 
   // Version Info

@@ -158,18 +158,27 @@ export const logsClient = new WebSocketClient()
 
 // Legacy API wrapper for backward compatibility
 export const wsClient = {
-  connect: (endpoint: string) => {
+  connect: (endpoint?: string) => {
     if (endpoint === 'logs') {
       logsClient.connect('/logs')
-    } else {
+    } else if (endpoint) {
       eventsClient.connect(`/${endpoint}`)
+    } else {
+      // Default: connect to events
+      eventsClient.connect('/events')
+      telemetryClient.connect('/telemetry')
     }
   },
-  disconnect: (endpoint: string) => {
+  disconnect: (endpoint?: string) => {
     if (endpoint === 'logs') {
       logsClient.disconnect()
-    } else {
+    } else if (endpoint) {
       eventsClient.disconnect()
+    } else {
+      // Disconnect all
+      eventsClient.disconnect()
+      telemetryClient.disconnect()
+      logsClient.disconnect()
     }
   },
   on: (endpoint: string, eventType: string, handler: (data: any) => void) => {
