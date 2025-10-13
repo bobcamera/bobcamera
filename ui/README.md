@@ -1,30 +1,38 @@
-# BOB Camera WebGUI
+# BOB Camera UI
 
-A modern React-based web interface for the BOB (Bird Object Tracking) camera system.
+Modern React-based frontend for the BOB (Bird, Object, Bat) Camera tracking system.
 
 ## Features
 
-- **Real-time Detection Visualization**: MJPEG video stream with canvas overlay for detection boxes
-- **Live Detection Data**: WebSocket connection for real-time detection events  
-- **Dashboard**: Video player, detection table, and control panel
-- **Settings**: Configurable detection parameters, overlay options, and video source
-- **Mock Mode**: Automatic fallback with synthetic data when backend is unavailable
-- **Responsive Design**: Works on desktop and mobile devices
+- 🎯 **Real-time Tracking**: Live video streams with detection overlays
+- 📊 **System Monitoring**: CPU, GPU, memory, and disk usage metrics
+- 📹 **Camera Management**: Configure and manage multiple camera sources
+- 🎬 **Recording Playback**: Browse and download recorded clips
+- ⚙️ **Configuration**: Adjust detection, tracking, and storage settings
+- 📝 **Live Logs**: Real-time system logs with filtering
+- 🌙 **Dark Mode**: Toggle between light and dark themes
+- ♿ **Accessible**: WCAG 2.1 compliant with keyboard navigation
 
-## Architecture
+## Tech Stack
 
-- **Frontend**: React 18 + TypeScript + Vite
-- **Styling**: Tailwind CSS
-- **State Management**: Zustand
-- **API**: REST + WebSocket
-- **Production**: Docker + Nginx
+- **React 19** - UI framework
+- **TypeScript** - Type safety
+- **Vite** - Build tool and dev server
+- **React Router 7** - Client-side routing
+- **Zustand** - State management
+- **TailwindCSS 4** - Utility-first styling
+- **Radix UI** - Accessible component primitives
+- **Axios** - HTTP client
+- **Zod** - Runtime schema validation
+- **Vitest** - Unit testing
+- **React Testing Library** - Component testing
 
-## Development Setup
+## Getting Started
 
 ### Prerequisites
 
-- Node.js 18+ 
-- npm or pnpm
+- Node.js 20+ and npm
+- Backend service running (see main README)
 
 ### Installation
 
@@ -32,140 +40,326 @@ A modern React-based web interface for the BOB (Bird Object Tracking) camera sys
 # Install dependencies
 npm install
 
-# Start development server
-npm run dev
+# Copy environment template
+cp .env.example .env
+
+# Edit .env with your backend URLs
 ```
 
-The dev server runs on http://localhost:5173 with proxy configuration for:
-- `/api` → http://localhost:8080 (REST API)
-- `/stream` → http://localhost:8080 (MJPEG stream)  
-- `/ws` → ws://localhost:8080 (WebSocket)
-
-### Mock Mode
-
-If the backend is not available, the UI automatically enters Mock Mode:
-- Displays a synthetic video placeholder
-- Generates realistic detection data
-- Allows testing the UI without hardware
-
-## Production Deployment
-
-### Docker Build
+### Development
 
 ```bash
-# Build production image
-docker build -t bob-ui .
+# Start dev server with hot reload
+npm run dev
 
-# Run container
-docker run -p 8080:80 bob-ui
+# Open http://localhost:5173
+```
+
+The dev server includes:
+- Hot module replacement (HMR)
+- Proxy to backend API (configured in vite.config.ts)
+- Source maps for debugging
+
+### Building
+
+```bash
+# Type check
+npx tsc --noEmit
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+```
+
+### Testing
+
+```bash
+# Run tests in watch mode
+npm run test
+
+# Run tests with UI
+npm run test:ui
+
+# Generate coverage report
+npm run test:coverage
+```
+
+### Linting & Formatting
+
+```bash
+# Lint code
+npm run lint
+
+# Format code
+npm run format
+
+# Check formatting
+npm run format -- --check
+```
+
+## Environment Variables
+
+Create a `.env` file in the `ui/` directory:
+
+```bash
+# API Configuration
+VITE_API_BASE_URL=/api
+VITE_WS_BASE_URL=/ws
+
+# Stream Configuration
+VITE_STREAM_PROTOCOL=mjpeg  # Options: hls, mjpeg, none
+
+# Feature Flags (optional)
+VITE_ENABLE_RECORDINGS=true
+VITE_ENABLE_SETTINGS=true
+```
+
+### Environment Variable Notes
+
+- All Vite env vars must be prefixed with `VITE_`
+- Variables are embedded at build time (not runtime)
+- For runtime config, use the backend `/api/config` endpoint
+
+## Project Structure
+
+```
+ui/
+├── src/
+│   ├── app/
+│   │   ├── components/
+│   │   │   ├── common/          # Reusable UI components
+│   │   │   └── layout/          # Layout components
+│   │   ├── pages/               # Page components
+│   │   │   ├── Dashboard/
+│   │   │   ├── Cameras/
+│   │   │   ├── LiveView/
+│   │   │   ├── Tracks/
+│   │   │   ├── Recordings/
+│   │   │   ├── Settings/
+│   │   │   ├── System/
+│   │   │   └── Logs/
+│   │   ├── services/
+│   │   │   ├── api.ts           # REST API client
+│   │   │   ├── ws.ts            # WebSocket client
+│   │   │   └── schema.ts        # Zod schemas
+│   │   ├── store/
+│   │   │   ├── index.ts         # Combined store
+│   │   │   ├── systemSlice.ts
+│   │   │   ├── camerasSlice.ts
+│   │   │   ├── tracksSlice.ts
+│   │   │   └── settingsSlice.ts
+│   │   └── router.tsx           # Route configuration
+│   ├── lib/
+│   │   └── utils.ts             # Utility functions
+│   ├── test/
+│   │   └── setup.ts             # Test configuration
+│   ├── index.css                # Global styles
+│   └── main.tsx                 # App entry point
+├── public/                      # Static assets
+├── .env.example                 # Environment template
+├── Dockerfile                   # Multi-stage Docker build
+├── nginx.conf                   # Nginx configuration
+├── package.json
+├── tsconfig.json
+├── vite.config.ts
+├── vitest.config.ts
+└── tailwind.config.js
+```
+
+## Docker Deployment
+
+### Build Image
+
+```bash
+docker build -t bobcamera/bob-ui:latest .
+```
+
+### Run Container
+
+```bash
+docker run -d \
+  --name bob-ui \
+  -p 8080:80 \
+  bobcamera/bob-ui:latest
 ```
 
 ### Docker Compose
 
-See the main project's docker-compose.yml for full stack deployment.
+Add to your `docker-compose.yml`:
+
+```yaml
+services:
+  ui:
+    build: ./ui
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    environment:
+      - NGINX_BACKEND_HOST=backend
+      - NGINX_BACKEND_PORT=8080
+```
 
 ## API Integration
 
-### Expected Backend Endpoints
+The UI expects the following backend endpoints:
 
-- `GET /api/status` - System status
-- `POST /api/start` - Start detection
-- `POST /api/stop` - Stop detection  
-- `POST /api/config` - Update configuration (optional)
-- `GET /stream` - MJPEG video stream
-- `WS /ws/detections` - Real-time detection events
+### REST API
 
-### WebSocket Message Format
+- `GET /api/system/health` - System health status
+- `GET /api/cameras` - List cameras
+- `POST /api/cameras` - Create camera
+- `PUT /api/cameras/:id` - Update camera
+- `DELETE /api/cameras/:id` - Delete camera
+- `POST /api/cameras/:id/test` - Test camera connection
+- `GET /api/tracks` - List tracks (paginated)
+- `GET /api/recordings` - List recordings (paginated)
+- `GET /api/config` - Get configuration
+- `PUT /api/config` - Update configuration
+- `GET /api/metrics` - Get system metrics
+- `GET /api/logs` - Get recent logs
 
-```json
-{
-  "detections": [
-    {
-      "bbox": [x, y, width, height],
-      "confidence": 0.85,
-      "class_name": "Robin",
-      "timestamp": 1640995200000
-    }
-  ],
-  "frame_id": "frame_123",
-  "timestamp": 1640995200000
+### WebSocket
+
+- `ws://host/ws/telemetry` - Real-time metrics
+- `ws://host/ws/events` - Detection events
+- `ws://host/ws/logs` - Live log stream
+
+### Adapting to Different APIs
+
+If your backend uses different endpoints, update `src/app/services/api.ts`:
+
+```typescript
+// Example: Different endpoint structure
+async getSystemHealth(): Promise<SystemHealth> {
+  // Change from /api/system/health to /api/v1/health
+  const response = await this.client.get('/v1/health')
+  return SystemHealthSchema.parse(response.data)
 }
 ```
 
-## Configuration
+## State Management
 
-Settings are persisted in localStorage and include:
-- Detection confidence threshold
-- NMS (Non-Maximum Suppression) threshold  
-- Overlay display options
-- Video source selection
+The app uses Zustand with separate slices:
 
-## Browser Compatibility
+- **systemSlice**: Health, metrics, WebSocket status
+- **camerasSlice**: Camera CRUD with optimistic updates
+- **tracksSlice**: Tracks, filters, pagination
+- **settingsSlice**: Config management, UI preferences
 
-- Chrome 88+
-- Firefox 85+
-- Safari 14+
-- Edge 88+
+### Accessing State
 
-## Performance
+```typescript
+import { useAppStore } from '@/app/store'
 
-- Optimized canvas rendering with requestAnimationFrame
-- Detection buffer limits (1000 max)
-- Automatic cleanup of old detection data
-- Efficient WebSocket reconnection with exponential backoff
+function MyComponent() {
+  const cameras = useAppStore((state) => state.cameras)
+  const fetchCameras = useAppStore((state) => state.fetchCameras)
+  
+  useEffect(() => {
+    fetchCameras()
+  }, [])
+  
+  return <div>{cameras.length} cameras</div>
+}
+```
+
+## Component Library
+
+### Common Components
+
+- `Card` - Container with optional header
+- `StatusPill` - Status indicator with icon
+- `Table` - Data table with sorting and pagination
+- `Spinner` - Loading indicator
+- `Toggle` - Accessible switch
+- `EmptyState` - Empty/error state display
+- `Toast` - Notification system
+
+### Usage Example
+
+```typescript
+import { Card } from '@/app/components/common/Card'
+import { StatusPill } from '@/app/components/common/StatusPill'
+
+function Example() {
+  return (
+    <Card title="System Status">
+      <StatusPill status="ok" label="Healthy" />
+    </Card>
+  )
+}
+```
 
 ## Troubleshooting
 
 ### Backend Connection Issues
 
-1. Check if backend is running on port 8080
-2. Verify API endpoints are accessible
-3. UI will automatically enter Mock Mode if backend is unreachable
+1. Check `.env` has correct `VITE_API_BASE_URL`
+2. Verify backend is running and accessible
+3. Check browser console for CORS errors
+4. Ensure Nginx proxy is configured correctly
 
-### Video Stream Issues
+### WebSocket Not Connecting
 
-1. Ensure `/stream` endpoint returns MJPEG format
-2. Check network connectivity
-3. Browser may cache failed image loads - refresh the page
+1. Verify `VITE_WS_BASE_URL` in `.env`
+2. Check WebSocket endpoint in browser DevTools
+3. Ensure backend WebSocket server is running
+4. Check for firewall/proxy blocking WebSocket
 
-### WebSocket Connection Issues
+### Build Errors
 
-1. Verify WebSocket endpoint `/ws/detections`
-2. Check browser console for connection errors
-3. UI implements automatic reconnection with backoff
+1. Clear node_modules: `rm -rf node_modules && npm install`
+2. Clear Vite cache: `rm -rf node_modules/.vite`
+3. Check Node.js version: `node --version` (should be 20+)
 
-## Development
+### Type Errors
 
-### Project Structure
+1. Run type check: `npx tsc --noEmit`
+2. Update types: `npm update @types/react @types/react-dom`
+3. Check for missing imports
 
-```
-src/
-├── components/          # Reusable UI components
-│   ├── VideoPlayer.tsx  # MJPEG video display
-│   ├── CanvasOverlay.tsx # Detection visualization
-│   ├── DetectionTable.tsx # Recent detections list
-│   ├── ControlsPanel.tsx # Start/stop controls
-│   ├── Header.tsx       # Top navigation
-│   └── Sidebar.tsx      # Side navigation
-├── routes/              # Page components
-│   ├── dashboard.tsx    # Main dashboard view
-│   └── settings.tsx     # Configuration page
-├── lib/                 # Utilities and services
-│   ├── api.ts          # REST API client
-│   ├── ws.ts           # WebSocket client
-│   └── mock/           # Mock data generators
-├── store/              # State management
-│   └── useAppStore.ts  # Zustand store
-└── main.tsx            # Application entry point
-```
+## Performance
 
-### Adding New Features
+### Optimization Techniques
 
-1. Define types in the store
-2. Add UI components
-3. Update API integration
-4. Test in both real and mock modes
+- Code splitting with React.lazy()
+- Memoization with useMemo/useCallback
+- Virtual scrolling for large lists
+- Debounced search inputs
+- Optimistic UI updates
+- Service worker for offline support (future)
+
+### Lighthouse Scores
+
+Target scores (desktop):
+- Performance: ≥ 90
+- Accessibility: 100
+- Best Practices: 100
+- SEO: 100
+
+## Contributing
+
+1. Create a feature branch
+2. Make changes with tests
+3. Run linter and tests
+4. Submit pull request
+
+### Code Style
+
+- Use TypeScript for all new code
+- Follow ESLint rules
+- Format with Prettier
+- Write tests for new features
+- Document complex logic
 
 ## License
 
-See main project license.
+See main repository LICENSE file.
+
+## Support
+
+- GitHub Issues: https://github.com/bobcamera/bobcamera/issues
+- Documentation: https://github.com/bobcamera/bobcamera/wiki

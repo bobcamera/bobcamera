@@ -44,7 +44,7 @@ export function generateMockDetections(count: number = 5): Detection[] {
 }
 
 export class MockDetectionGenerator {
-  private interval: number | undefined = undefined
+  private interval: ReturnType<typeof setInterval> | undefined = undefined
   private callback: ((detections: Detection[]) => void) | null = null
   
   start(onDetections: (detections: Detection[]) => void, intervalMs: number = 500) {
