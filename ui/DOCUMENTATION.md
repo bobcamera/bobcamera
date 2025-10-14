@@ -33,6 +33,7 @@ ui/
 | [Architecture Guide](docs/guides/architecture.md) | System architecture and design patterns | All developers |
 | [Mantine Setup](docs/guides/mantine-setup.md) | Mantine UI v7 integration details | UI developers |
 | [Mantine v8 Migration](docs/guides/mantine-v8-migration.md) | Mantine v7 → v8 upgrade report | UI developers |
+| [Comprehensive Testing Guide](docs/guides/comprehensive-testing-guide.md) | Full testing strategy for PR submission | QA, Contributors |
 
 ### Quick Start (5 Minutes)
 
