@@ -80,8 +80,23 @@ class APIClient {
 
   // Cameras
   async getCameras(): Promise<Camera[]> {
-    const response = await this.client.get('/cameras')
-    return response.data.map((camera: any) => CameraSchema.parse(camera))
+    try {
+      const response = await this.client.get('/cameras')
+      // Validate that we got an array, not a string (HTML error page) or object
+      if (typeof response.data === 'string') {
+        throw new Error('Backend returned HTML instead of JSON - is the backend running?')
+      }
+      if (!Array.isArray(response.data)) {
+        throw new Error('Backend returned invalid data format - expected an array of cameras')
+      }
+      return response.data.map((camera: any) => CameraSchema.parse(camera))
+    } catch (error) {
+      // Re-throw with more context
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Failed to fetch cameras: ${error.message}`)
+      }
+      throw error
+    }
   }
 
   async getCamera(id: string): Promise<Camera> {
@@ -207,8 +222,23 @@ class APIClient {
 
   // Metrics
   async getMetrics(params?: { from?: string; to?: string; interval?: string }): Promise<Metrics[]> {
-    const response = await this.client.get('/metrics', { params })
-    return response.data.map((metric: any) => MetricsSchema.parse(metric))
+    try {
+      const response = await this.client.get('/metrics', { params })
+      // Validate that we got an array, not a string (HTML error page) or object
+      if (typeof response.data === 'string') {
+        throw new Error('Backend returned HTML instead of JSON - is the backend running?')
+      }
+      if (!Array.isArray(response.data)) {
+        throw new Error('Backend returned invalid data format - expected an array of metrics')
+      }
+      return response.data.map((metric: any) => MetricsSchema.parse(metric))
+    } catch (error) {
+      // Re-throw with more context
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Failed to fetch metrics: ${error.message}`)
+      }
+      throw error
+    }
   }
 
   // Logs
@@ -216,8 +246,23 @@ class APIClient {
     tail?: number
     level?: 'debug' | 'info' | 'warn' | 'error'
   }): Promise<LogEntry[]> {
-    const response = await this.client.get('/logs', { params })
-    return response.data.map((log: any) => LogEntrySchema.parse(log))
+    try {
+      const response = await this.client.get('/logs', { params })
+      // Validate that we got an array, not a string (HTML error page) or object
+      if (typeof response.data === 'string') {
+        throw new Error('Backend returned HTML instead of JSON - is the backend running?')
+      }
+      if (!Array.isArray(response.data)) {
+        throw new Error('Backend returned invalid data format - expected an array of logs')
+      }
+      return response.data.map((log: any) => LogEntrySchema.parse(log))
+    } catch (error) {
+      // Re-throw with more context
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Failed to fetch logs: ${error.message}`)
+      }
+      throw error
+    }
   }
 
   // Control

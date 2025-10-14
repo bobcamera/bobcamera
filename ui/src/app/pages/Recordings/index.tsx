@@ -42,7 +42,7 @@ import {
   IconCalendar,
   IconCamera,
   IconClock,
-  IconFileSize,
+  IconFile,
   IconGridDots,
   IconList,
   IconAlertCircle,

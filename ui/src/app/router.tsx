@@ -6,8 +6,8 @@ import { LiveView } from './pages/LiveView'
 import Tracks from './pages/Tracks'
 import Recordings from './pages/Recordings'
 import { Settings } from './pages/Settings'
-import { System } from './pages/System'
-import { Logs } from './pages/Logs'
+import System from './pages/System'
+import Logs from './pages/Logs'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 
 const router = createBrowserRouter([

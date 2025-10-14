@@ -1,303 +1,393 @@
-import { useEffect } from 'react'
-import { useAppStore } from '@/app/store'
-import { Card, CardGrid } from '@/app/components/common/Card'
-import { StatusPill } from '@/app/components/common/StatusPill'
-import { PageSpinner } from '@/app/components/common/Spinner'
-import { EmptyState } from '@/app/components/common/EmptyState'
+import { useEffect, useState } from 'react'
 import {
-  Activity,
-  Cpu,
-  HardDrive,
-  Thermometer,
-  Zap,
-  Server,
-} from 'lucide-react'
-import { formatBytes, formatPercent, formatUptime } from '@/lib/utils'
-import * as Tabs from '@radix-ui/react-tabs'
+  Container,
+  Title,
+  Text,
+  Stack,
+  Card,
+  Group,
+  Progress,
+  Badge,
+  SimpleGrid,
+  ThemeIcon,
+  Alert,
+  Loader,
+  Center,
+  Button,
+  Divider,
+  Table,
+  RingProgress,
+} from '@mantine/core'
+import {
+  IconCpu,
+  IconDeviceDesktop,
+  IconDatabase,
+  IconTemperature,
+  IconClock,
+  IconRefresh,
+  IconAlertCircle,
+  IconCheck,
+  IconX,
+  IconServer,
+  IconBrandPython,
+  IconCode,
+} from '@tabler/icons-react'
+import { apiClient } from '@/app/services/api'
+import type { SystemHealth } from '@/app/services/schema'
+import { formatBytes } from '@/lib/utils'
 
-export function System() {
-  const systemHealth = useAppStore((state) => state.systemHealth)
-  const metrics = useAppStore((state) => state.metrics)
-  const backendStatus = useAppStore((state) => state.backendStatus)
-  const fetchSystemHealth = useAppStore((state) => state.fetchSystemHealth)
-  const fetchMetrics = useAppStore((state) => state.fetchMetrics)
+export default function System() {
+  const [health, setHealth] = useState<SystemHealth | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
 
   useEffect(() => {
     fetchSystemHealth()
-    fetchMetrics()
-
-    // Poll every 5 seconds
-    const interval = setInterval(() => {
-      fetchSystemHealth()
-      fetchMetrics()
-    }, 5000)
-
+    // Auto-refresh every 5 seconds
+    const interval = setInterval(fetchSystemHealth, 5000)
     return () => clearInterval(interval)
-  }, [fetchSystemHealth, fetchMetrics])
+  }, [])
 
-  if (backendStatus === 'connecting' || !systemHealth) {
-    return <PageSpinner />
+  const fetchSystemHealth = async () => {
+    try {
+      const data = await apiClient.getSystemHealth()
+      setHealth(data)
+      setError(null)
+      setLastUpdate(new Date())
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  if (backendStatus === 'disconnected') {
+  const formatUptime = (seconds: number) => {
+    const days = Math.floor(seconds / 86400)
+    const hours = Math.floor((seconds % 86400) / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    
+    if (days > 0) return `${days}d ${hours}h ${minutes}m`
+    if (hours > 0) return `${hours}h ${minutes}m`
+    return `${minutes}m`
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'ok':
+        return 'green'
+      case 'degraded':
+        return 'yellow'
+      case 'error':
+        return 'red'
+      default:
+        return 'gray'
+    }
+  }
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'ok':
+        return <IconCheck size={20} />
+      case 'degraded':
+        return <IconAlertCircle size={20} />
+      case 'error':
+        return <IconX size={20} />
+      default:
+        return <IconAlertCircle size={20} />
+    }
+  }
+
+  const getProgressColor = (percent: number) => {
+    if (percent < 60) return 'green'
+    if (percent < 80) return 'yellow'
+    return 'red'
+  }
+
+  if (isLoading && !health) {
     return (
-      <EmptyState
-        icon={<Activity />}
-        title="Backend Disconnected"
-        description="Unable to load system information. Please check your connection."
-        action={
-          <button
-            onClick={() => {
-              fetchSystemHealth()
-              fetchMetrics()
-            }}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-          >
-            Retry
-          </button>
-        }
-      />
+      <Center h={400}>
+        <Stack align="center" gap="md">
+          <Loader size="lg" />
+          <Text c="dimmed">Loading system information...</Text>
+        </Stack>
+      </Center>
     )
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">System Health</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Monitor system resources and service status
-        </p>
-      </div>
-
-      {/* Overall Status */}
-      <Card>
-        <div className="flex items-center justify-between">
+    <Container size="xl" py="xl">
+      <Stack gap="lg">
+        {/* Header */}
+        <Group justify="space-between" align="flex-start">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">System Status</h2>
-            <p className="mt-1 text-sm text-gray-500">
-              Overall health: {systemHealth.status}
-            </p>
+            <Title order={2}>System Status</Title>
+            <Text c="dimmed" size="sm">
+              Monitor system health and performance metrics
+            </Text>
           </div>
-          <StatusPill
-            status={
-              systemHealth.status === 'ok'
-                ? 'ok'
-                : systemHealth.status === 'degraded'
-                ? 'warning'
-                : 'error'
-            }
-            label={systemHealth.status}
-          />
-        </div>
-        {systemHealth.uptime && (
-          <div className="mt-4 border-t border-gray-200 pt-4">
-            <p className="text-sm text-gray-600">
-              Uptime: <span className="font-medium text-gray-900">{formatUptime(systemHealth.uptime)}</span>
-            </p>
-          </div>
+          <Group>
+            <Text size="xs" c="dimmed">
+              Last updated: {lastUpdate.toLocaleTimeString()}
+            </Text>
+            <Button
+              leftSection={<IconRefresh size={16} />}
+              variant="light"
+              onClick={fetchSystemHealth}
+              loading={isLoading}
+            >
+              Refresh
+            </Button>
+          </Group>
+        </Group>
+
+        {/* Error Alert */}
+        {error && (
+          <Alert
+            icon={<IconAlertCircle size={16} />}
+            title="Connection Error"
+            color="red"
+            variant="light"
+          >
+            {error}
+          </Alert>
         )}
-      </Card>
 
-      {/* Tabs */}
-      <Tabs.Root defaultValue="resources">
-        <Tabs.List className="flex gap-2 border-b border-gray-200">
-          <Tabs.Trigger
-            value="resources"
-            className="border-b-2 border-transparent px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600"
-          >
-            Resources
-          </Tabs.Trigger>
-          <Tabs.Trigger
-            value="services"
-            className="border-b-2 border-transparent px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600"
-          >
-            Services
-          </Tabs.Trigger>
-          <Tabs.Trigger
-            value="environment"
-            className="border-b-2 border-transparent px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600"
-          >
-            Environment
-          </Tabs.Trigger>
-        </Tabs.List>
-
-        {/* Resources Tab */}
-        <Tabs.Content value="resources" className="mt-6">
-          <CardGrid>
-            {/* CPU */}
-            <Card>
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <Cpu className="h-5 w-5 text-green-600" />
-                    <h3 className="font-semibold text-gray-900">CPU</h3>
+        {health && (
+          <>
+            {/* Overall Status Card */}
+            <Card withBorder padding="lg">
+              <Group justify="space-between">
+                <Group>
+                  <ThemeIcon size="xl" variant="light" color={getStatusColor(health.status)}>
+                    {getStatusIcon(health.status)}
+                  </ThemeIcon>
+                  <div>
+                    <Text size="sm" c="dimmed">
+                      System Status
+                    </Text>
+                    <Text size="xl" fw={700} tt="uppercase">
+                      {health.status}
+                    </Text>
                   </div>
-                  <div className="mt-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Load</span>
-                      <span className="text-sm font-medium text-gray-900">
-                        {systemHealth.cpuLoad !== undefined
-                          ? formatPercent(systemHealth.cpuLoad)
-                          : 'N/A'}
-                      </span>
-                    </div>
-                    {metrics && metrics.length > 0 && (
-                      <>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600">Average</span>
-                          <span className="text-sm font-medium text-gray-900">
-                            {formatPercent(
-                              metrics.reduce((sum, m) => sum + m.cpu, 0) / metrics.length
-                            )}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600">Peak</span>
-                          <span className="text-sm font-medium text-gray-900">
-                            {formatPercent(Math.max(...metrics.map((m) => m.cpu)))}
-                          </span>
-                        </div>
-                      </>
-                    )}
+                </Group>
+                <Group>
+                  <div style={{ textAlign: 'right' }}>
+                    <Text size="sm" c="dimmed">
+                      Uptime
+                    </Text>
+                    <Group gap="xs">
+                      <IconClock size={16} />
+                      <Text size="lg" fw={600}>
+                        {formatUptime(health.uptime)}
+                      </Text>
+                    </Group>
                   </div>
-                </div>
-              </div>
+                </Group>
+              </Group>
             </Card>
 
-            {/* GPU */}
-            {systemHealth.gpuLoad !== undefined && (
-              <Card>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <Zap className="h-5 w-5 text-purple-600" />
-                      <h3 className="font-semibold text-gray-900">GPU</h3>
+            {/* Resource Usage Cards */}
+            <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }}>
+              {/* CPU */}
+              <Card withBorder padding="lg">
+                <Stack gap="md">
+                  <Group justify="space-between">
+                    <Group gap="xs">
+                      <ThemeIcon size="lg" variant="light" color="blue">
+                        <IconCpu size={20} />
+                      </ThemeIcon>
+                      <Text fw={600}>CPU</Text>
+                    </Group>
+                    <Text size="xl" fw={700}>
+                      {health.cpuLoad.toFixed(1)}%
+                    </Text>
+                  </Group>
+                  <Progress
+                    value={health.cpuLoad}
+                    color={getProgressColor(health.cpuLoad)}
+                    size="lg"
+                    radius="md"
+                  />
+                </Stack>
+              </Card>
+
+              {/* GPU */}
+              {health.gpuLoad !== undefined && (
+                <Card withBorder padding="lg">
+                  <Stack gap="md">
+                    <Group justify="space-between">
+                      <Group gap="xs">
+                        <ThemeIcon size="lg" variant="light" color="grape">
+                          <IconDeviceDesktop size={20} />
+                        </ThemeIcon>
+                        <Text fw={600}>GPU</Text>
+                      </Group>
+                      <Text size="xl" fw={700}>
+                        {health.gpuLoad.toFixed(1)}%
+                      </Text>
+                    </Group>
+                    <Progress
+                      value={health.gpuLoad}
+                      color={getProgressColor(health.gpuLoad)}
+                      size="lg"
+                      radius="md"
+                    />
+                  </Stack>
+                </Card>
+              )}
+
+              {/* Memory */}
+              <Card withBorder padding="lg">
+                <Stack gap="md">
+                  <Group justify="space-between">
+                    <Group gap="xs">
+                      <ThemeIcon size="lg" variant="light" color="cyan">
+                        <IconServer size={20} />
+                      </ThemeIcon>
+                      <Text fw={600}>Memory</Text>
+                    </Group>
+                    <Text size="xl" fw={700}>
+                      {health.memory.percent.toFixed(1)}%
+                    </Text>
+                  </Group>
+                  <Progress
+                    value={health.memory.percent}
+                    color={getProgressColor(health.memory.percent)}
+                    size="lg"
+                    radius="md"
+                  />
+                  <Text size="xs" c="dimmed" ta="center">
+                    {formatBytes(health.memory.used)} / {formatBytes(health.memory.total)}
+                  </Text>
+                </Stack>
+              </Card>
+
+              {/* Disk */}
+              <Card withBorder padding="lg">
+                <Stack gap="md">
+                  <Group justify="space-between">
+                    <Group gap="xs">
+                      <ThemeIcon size="lg" variant="light" color="orange">
+                        <IconDatabase size={20} />
+                      </ThemeIcon>
+                      <Text fw={600}>Disk</Text>
+                    </Group>
+                    <Text size="xl" fw={700}>
+                      {health.disk.percent.toFixed(1)}%
+                    </Text>
+                  </Group>
+                  <Progress
+                    value={health.disk.percent}
+                    color={getProgressColor(health.disk.percent)}
+                    size="lg"
+                    radius="md"
+                  />
+                  <Text size="xs" c="dimmed" ta="center">
+                    {formatBytes(health.disk.used)} / {formatBytes(health.disk.total)}
+                  </Text>
+                </Stack>
+              </Card>
+            </SimpleGrid>
+
+            {/* Temperature Card (if available) */}
+            {health.temperature !== undefined && (
+              <Card withBorder padding="lg">
+                <Group justify="space-between">
+                  <Group>
+                    <ThemeIcon size="xl" variant="light" color="red">
+                      <IconTemperature size={24} />
+                    </ThemeIcon>
+                    <div>
+                      <Text size="sm" c="dimmed">
+                        System Temperature
+                      </Text>
+                      <Text size="xl" fw={700}>
+                        {health.temperature.toFixed(1)}°C
+                      </Text>
                     </div>
-                    <div className="mt-4 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">Load</span>
-                        <span className="text-sm font-medium text-gray-900">
-                          {formatPercent(systemHealth.gpuLoad)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                  </Group>
+                  <RingProgress
+                    size={120}
+                    thickness={12}
+                    sections={[
+                      {
+                        value: (health.temperature / 100) * 100,
+                        color: health.temperature > 80 ? 'red' : health.temperature > 60 ? 'yellow' : 'green',
+                      },
+                    ]}
+                    label={
+                      <Text size="lg" fw={700} ta="center">
+                        {health.temperature.toFixed(0)}°C
+                      </Text>
+                    }
+                  />
+                </Group>
               </Card>
             )}
 
-            {/* Memory */}
-            <Card>
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <Thermometer className="h-5 w-5 text-yellow-600" />
-                    <h3 className="font-semibold text-gray-900">Memory</h3>
-                  </div>
-                  <div className="mt-4 space-y-2">
-                    {systemHealth.memory && (
-                      <>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600">Used</span>
-                          <span className="text-sm font-medium text-gray-900">
-                            {formatBytes(systemHealth.memory.used)}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600">Total</span>
-                          <span className="text-sm font-medium text-gray-900">
-                            {formatBytes(systemHealth.memory.total)}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600">Usage</span>
-                          <span className="text-sm font-medium text-gray-900">
-                            {formatPercent(
-                              (systemHealth.memory.used / systemHealth.memory.total) * 100
-                            )}
-                          </span>
-                        </div>
-                      </>
+            {/* Version Information */}
+            <Card withBorder padding="lg">
+              <Stack gap="md">
+                <Group>
+                  <ThemeIcon size="lg" variant="light" color="indigo">
+                    <IconCode size={20} />
+                  </ThemeIcon>
+                  <Text size="lg" fw={600}>
+                    Version Information
+                  </Text>
+                </Group>
+                <Divider />
+                <Table>
+                  <Table.Tbody>
+                    <Table.Tr>
+                      <Table.Td>
+                        <Group gap="xs">
+                          <IconDeviceDesktop size={16} />
+                          <Text fw={500}>UI Version</Text>
+                        </Group>
+                      </Table.Td>
+                      <Table.Td>
+                        <Badge variant="light" color="blue">
+                          {health.versions.ui}
+                        </Badge>
+                      </Table.Td>
+                    </Table.Tr>
+                    <Table.Tr>
+                      <Table.Td>
+                        <Group gap="xs">
+                          <IconServer size={16} />
+                          <Text fw={500}>Backend Version</Text>
+                        </Group>
+                      </Table.Td>
+                      <Table.Td>
+                        <Badge variant="light" color="green">
+                          {health.versions.backend}
+                        </Badge>
+                      </Table.Td>
+                    </Table.Tr>
+                    {health.versions.ros2 && (
+                      <Table.Tr>
+                        <Table.Td>
+                          <Group gap="xs">
+                            <IconBrandPython size={16} />
+                            <Text fw={500}>ROS2 Version</Text>
+                          </Group>
+                        </Table.Td>
+                        <Table.Td>
+                          <Badge variant="light" color="grape">
+                            {health.versions.ros2}
+                          </Badge>
+                        </Table.Td>
+                      </Table.Tr>
                     )}
-                  </div>
-                </div>
-              </div>
+                  </Table.Tbody>
+                </Table>
+              </Stack>
             </Card>
-
-            {/* Disk */}
-            <Card>
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <HardDrive className="h-5 w-5 text-orange-600" />
-                    <h3 className="font-semibold text-gray-900">Disk</h3>
-                  </div>
-                  <div className="mt-4 space-y-2">
-                    {systemHealth.disk && (
-                      <>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600">Used</span>
-                          <span className="text-sm font-medium text-gray-900">
-                            {formatBytes(systemHealth.disk.used)}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600">Free</span>
-                          <span className="text-sm font-medium text-gray-900">
-                            {formatBytes(systemHealth.disk.total - systemHealth.disk.used)}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600">Total</span>
-                          <span className="text-sm font-medium text-gray-900">
-                            {formatBytes(systemHealth.disk.total)}
-                          </span>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </Card>
-          </CardGrid>
-        </Tabs.Content>
-
-        {/* Services Tab */}
-        <Tabs.Content value="services" className="mt-6">
-          <Card>
-            <div className="space-y-3">
-              <EmptyState
-                icon={<Server />}
-                title="No service information"
-                description="Service status is not available"
-              />
-            </div>
-          </Card>
-        </Tabs.Content>
-
-        {/* Environment Tab */}
-        <Tabs.Content value="environment" className="mt-6">
-          <Card title="Version Information">
-            {systemHealth.versions ? (
-              <dl className="grid gap-4 sm:grid-cols-2">
-                {Object.entries(systemHealth.versions).map(([key, value]) => (
-                  <div key={key}>
-                    <dt className="text-sm font-medium text-gray-600">
-                      {key.charAt(0).toUpperCase() + key.slice(1)}
-                    </dt>
-                    <dd className="mt-1 font-mono text-sm font-semibold text-gray-900">
-                      {value}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            ) : (
-              <p className="text-sm text-gray-500">No version information available</p>
-            )}
-          </Card>
-        </Tabs.Content>
-      </Tabs.Root>
-    </div>
+          </>
+        )}
+      </Stack>
+    </Container>
   )
 }
