@@ -126,7 +126,7 @@ export function Recordings() {
       {/* Recordings Grid */}
       {recordings.length === 0 ? (
         <EmptyState
-          icon={Video}
+          icon={<Video />}
           title="No recordings found"
           description="Recordings will appear here when clips are saved"
         />

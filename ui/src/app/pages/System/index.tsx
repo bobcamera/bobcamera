@@ -42,7 +42,7 @@ export function System() {
   if (backendStatus === 'disconnected') {
     return (
       <EmptyState
-        icon={Activity}
+        icon={<Activity />}
         title="Backend Disconnected"
         description="Unable to load system information. Please check your connection."
         action={
@@ -268,7 +268,7 @@ export function System() {
           <Card>
             <div className="space-y-3">
               <EmptyState
-                icon={Server}
+                icon={<Server />}
                 title="No service information"
                 description="Service status is not available"
               />

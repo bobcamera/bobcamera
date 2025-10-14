@@ -40,7 +40,7 @@ export function LiveView() {
   if (enabledCameras.length === 0) {
     return (
       <EmptyState
-        icon={Camera}
+        icon={<Camera />}
         title="No cameras available"
         description="Enable at least one camera to view live streams"
         action={
@@ -110,7 +110,7 @@ export function LiveView() {
             <Card>
               <div className="flex aspect-video items-center justify-center">
                 <EmptyState
-                  icon={Camera}
+                  icon={<Camera />}
                   title="No camera selected"
                   description="Select a camera from the list above"
                 />

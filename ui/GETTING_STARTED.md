@@ -114,11 +114,11 @@ ui/
 │   │   │       └── EmptyState.tsx
 │   │   ├── pages/               # Route pages
 │   │   │   ├── Dashboard/       # ✅ Implemented
-│   │   │   ├── Cameras/         # 📋 TODO
-│   │   │   ├── LiveView/        # 📋 TODO
-│   │   │   ├── Tracks/          # 📋 TODO
+│   │   │   ├── Cameras/         # ✅ Implemented
+│   │   │   ├── LiveView/        # ✅ Implemented
+│   │   │   ├── Tracks/          # ✅ Implemented
 │   │   │   ├── Recordings/      # 📋 TODO
-│   │   │   ├── Settings/        # 📋 TODO
+│   │   │   ├── Settings/        # ✅ Implemented
 │   │   │   ├── System/          # 📋 TODO
 │   │   │   └── Logs/            # 📋 TODO
 │   │   ├── services/            # API and WebSocket clients
@@ -313,16 +313,16 @@ Generates coverage report in `coverage/` directory.
 1. ✅ Complete this setup guide
 2. 📖 Read [QUICKSTART_MANTINE.md](./QUICKSTART_MANTINE.md)
 3. 📖 Read [MANTINE_SETUP.md](./MANTINE_SETUP.md)
-4. 🔍 Explore the Dashboard page code
+4. 🔍 Explore completed pages (Dashboard, Cameras, LiveView, Tracks, Settings)
 5. 🎨 Try modifying a component
 6. 🧪 Run tests and see them pass
-7. 📋 Pick a TODO item from [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md)
+7. 📋 Pick a TODO item from [PROJECT_STATUS.md](./PROJECT_STATUS.md)
 
 ### For Experienced Developers
 1. ✅ Complete setup
-2. 📋 Review [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md)
-3. 🎯 Pick a page to implement (Cameras, LiveView, etc.)
-4. 💻 Follow existing patterns in Dashboard
+2. 📋 Review [PROJECT_STATUS.md](./PROJECT_STATUS.md) - 5/8 pages complete (62.5%)
+3. 🎯 Pick a page to implement (Recordings, System, or Logs)
+4. 💻 Follow existing patterns in Dashboard, Tracks, or Settings pages
 5. 🧪 Write tests for new code
 6. 📝 Update documentation
 7. 🚀 Submit pull request
@@ -397,5 +397,6 @@ If you get stuck, check the documentation or ask for help in the project chat.
 **Quick Links:**
 - [Quick Start](./QUICKSTART_MANTINE.md)
 - [Full Setup Guide](./MANTINE_SETUP.md)
-- [Implementation Status](./IMPLEMENTATION_STATUS.md)
+- [Project Status](./PROJECT_STATUS.md) - Current progress: 5/8 pages (62.5%)
+- [Tracks Implementation](./TRACKS_PAGE_IMPLEMENTATION.md) - Latest completed page
 - [Project Summary](./PROJECT_SUMMARY.md)

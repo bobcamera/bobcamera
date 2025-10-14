@@ -1,53 +1,182 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
+import {
+  Container,
+  Title,
+  Text,
+  Button,
+  Group,
+  Stack,
+  Card,
+  Badge,
+  Select,
+  NumberInput,
+  Collapse,
+  Alert,
+  Loader,
+  Center,
+  ActionIcon,
+  Tooltip,
+  Table as MantineTable,
+  Pagination,
+  Menu,
+  TextInput,
+} from '@mantine/core'
+import {
+  IconTarget,
+  IconDownload,
+  IconFilter,
+  IconX,
+  IconChevronDown,
+  IconFileTypeCsv,
+  IconJson,
+  IconRefresh,
+  IconSearch,
+} from '@tabler/icons-react'
+import { DatePickerInput } from '@mantine/dates'
 import { useAppStore } from '@/app/store'
-import { Card } from '@/app/components/common/Card'
-import { Table, Pagination } from '@/app/components/common/Table'
-import { StatusPill } from '@/app/components/common/StatusPill'
-import { PageSpinner } from '@/app/components/common/Spinner'
+import { apiClient } from '@/app/services/api'
 import { EmptyState } from '@/app/components/common/EmptyState'
-import { Target, Download, Filter, X } from 'lucide-react'
-import { formatPercent } from '@/lib/utils'
-import { TrackDetailPanel } from './TrackDetailPanel'
+import { TrackDetailDrawer } from './TrackDetailDrawer'
 import type { Track } from '@/app/services/schema'
 
-export function Tracks() {
-  const tracks = useAppStore((state) => state.tracks)
-  const filters = useAppStore((state) => state.filters)
-  const pagination = useAppStore((state) => state.pagination)
-  const backendStatus = useAppStore((state) => state.backendStatus)
-  const cameras = useAppStore((state) => state.cameras)
-  const setFilters = useAppStore((state) => state.setFilters)
-  const setPage = useAppStore((state) => state.setPage)
-  
+// Object classes for filtering
+const OBJECT_CLASSES = [
+  'person',
+  'bicycle',
+  'car',
+  'motorcycle',
+  'airplane',
+  'bus',
+  'train',
+  'truck',
+  'boat',
+  'bird',
+  'cat',
+  'dog',
+  'horse',
+  'sheep',
+  'cow',
+  'elephant',
+  'bear',
+  'zebra',
+  'giraffe',
+]
+
+export default function Tracks() {
+  const {
+    tracks,
+    filters,
+    pagination,
+    loading,
+    error,
+    backendStatus,
+    cameras,
+    setTracks,
+    setFilters,
+    setPage,
+    setPageSize,
+    setLoading,
+    setError,
+  } = useAppStore()
+
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null)
   const [showFilters, setShowFilters] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
+  // Fetch tracks when filters or pagination changes
   useEffect(() => {
-    // Fetch tracks from API when filters or page changes
-    // This would be implemented with actual API call
-  }, [filters, pagination.page])
+    if (backendStatus !== 'connected') return
 
+    const fetchTracks = async () => {
+      setLoading(true)
+      setError(null)
+
+      try {
+        const response = await apiClient.getTracks({
+          from: filters.from,
+          to: filters.to,
+          cameraId: filters.cameraId,
+          class: filters.class,
+          minConfidence: filters.minConfidence,
+          page: pagination.page,
+          pageSize: pagination.pageSize,
+        })
+
+        setTracks(response.data, response.total, response.hasMore)
+      } catch (err) {
+        console.error('Failed to fetch tracks:', err)
+        setError(err instanceof Error ? err.message : 'Failed to fetch tracks')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchTracks()
+  }, [
+    filters,
+    pagination.page,
+    pagination.pageSize,
+    backendStatus,
+    setTracks,
+    setLoading,
+    setError,
+  ])
+
+  // Filter tracks by search query (client-side)
+  const filteredTracks = useMemo(() => {
+    if (!searchQuery.trim()) return tracks
+
+    const query = searchQuery.toLowerCase()
+    return tracks.filter(
+      (track) =>
+        track.id.toLowerCase().includes(query) ||
+        track.class.toLowerCase().includes(query) ||
+        cameras.find((c) => c.id === track.cameraId)?.name.toLowerCase().includes(query)
+    )
+  }, [tracks, searchQuery, cameras])
+
+  // Export to CSV
   const handleExportCSV = () => {
-    const headers = ['ID', 'First Seen', 'Camera', 'Class', 'Confidence', 'Status']
+    const headers = ['Track ID', 'First Seen', 'Last Seen', 'Camera', 'Class', 'Confidence', 'Detections', 'Status']
     const rows = tracks.map((track) => [
       track.id,
       new Date(track.firstSeen).toISOString(),
+      new Date(track.lastSeen).toISOString(),
       cameras.find((c) => c.id === track.cameraId)?.name || track.cameraId,
       track.class,
-      track.avgConfidence,
-      track.status === 'active' ? 'Active' : 'Ended',
+      (track.avgConfidence * 100).toFixed(1) + '%',
+      track.detectionCount.toString(),
+      track.status,
     ])
 
     const csv = [headers, ...rows].map((row) => row.join(',')).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `tracks-${new Date().toISOString()}.csv`
-    a.click()
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `tracks-${new Date().toISOString().split('T')[0]}.csv`
+    link.click()
     URL.revokeObjectURL(url)
   }
 
+  // Export to JSON
+  const handleExportJSON = () => {
+    const data = tracks.map((track) => ({
+      ...track,
+      cameraName: cameras.find((c) => c.id === track.cameraId)?.name || track.cameraId,
+    }))
+
+    const json = JSON.stringify(data, null, 2)
+    const blob = new Blob([json], { type: 'application/json;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `tracks-${new Date().toISOString().split('T')[0]}.json`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // Clear all filters
   const clearFilters = () => {
     setFilters({
       cameraId: undefined,
@@ -56,281 +185,559 @@ export function Tracks() {
       from: undefined,
       to: undefined,
     })
+    setSearchQuery('')
   }
 
+  // Check if any filters are active
   const hasActiveFilters =
     filters.cameraId ||
     filters.class ||
     filters.minConfidence !== undefined ||
     filters.from ||
-    filters.to
+    filters.to ||
+    searchQuery.trim()
 
-  if (backendStatus === 'connecting') {
-    return <PageSpinner />
+  // Handle retry
+  const handleRetry = () => {
+    window.location.reload()
   }
 
-  if (backendStatus === 'disconnected') {
+  // Loading state
+  if (backendStatus === 'connecting') {
     return (
-      <EmptyState
-        icon={Target}
-        title="Backend Disconnected"
-        description="Unable to load tracks. Please check your connection."
-        action={
-          <button
-            onClick={() => window.location.reload()}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-          >
-            Retry
-          </button>
-        }
-      />
+      <Center h={400}>
+        <Stack align="center" gap="md">
+          <Loader size="lg" />
+          <Text c="dimmed">Connecting to backend...</Text>
+        </Stack>
+      </Center>
     )
   }
 
-  const columns = [
-    {
-      key: 'id',
-      header: 'Track ID',
-      sortable: true,
-      render: (track: Track) => (
-        <span className="font-mono text-sm">{track.id}</span>
-      ),
-    },
-    {
-      key: 'timestamp',
-      header: 'Timestamp',
-      sortable: true,
-      render: (track: Track) => (
-        <div className="text-sm">
-          <div>{new Date(track.firstSeen).toLocaleDateString()}</div>
-          <div className="text-gray-500">
-            {new Date(track.firstSeen).toLocaleTimeString()}
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: 'cameraId',
-      header: 'Camera',
-      sortable: true,
-      render: (track: Track) => {
-        const camera = cameras.find((c) => c.id === track.cameraId)
-        return (
-          <span className="text-sm">{camera?.name || track.cameraId}</span>
-        )
-      },
-    },
-    {
-      key: 'class',
-      header: 'Class',
-      sortable: true,
-      render: (track: Track) => (
-        <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700">
-          {track.class}
-        </span>
-      ),
-    },
-    {
-      key: 'confidence',
-      header: 'Confidence',
-      sortable: true,
-      render: (track: Track) => (
-        <span className="text-sm font-medium">
-          {formatPercent(track.avgConfidence * 100)}
-        </span>
-      ),
-    },
-    {
-      key: 'status',
-      header: 'Status',
-      sortable: true,
-      render: (track: Track) => (
-        <StatusPill
-          status={track.status === 'active' ? 'ok' : 'offline'}
-          label={track.status === 'active' ? 'Active' : 'Ended'}
-        />
-      ),
-    },
-  ]
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Tracks & Detections</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Browse and analyze detected objects
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            <Filter className="h-4 w-4" />
-            Filters
-            {hasActiveFilters && (
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-xs text-white">
-                !
-              </span>
-            )}
-          </button>
-          <button
-            onClick={handleExportCSV}
-            disabled={tracks.length === 0}
-            className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            <Download className="h-4 w-4" />
-            Export CSV
-          </button>
-        </div>
-      </div>
-
-      {/* Filters */}
-      {showFilters && (
-        <Card>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-900">Filters</h3>
-              {hasActiveFilters && (
-                <button
-                  onClick={clearFilters}
-                  className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
-                >
-                  <X className="h-4 w-4" />
-                  Clear all
-                </button>
-              )}
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {/* Camera Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Camera
-                </label>
-                <select
-                  value={filters.cameraId || ''}
-                  onChange={(e) =>
-                    setFilters({
-                      ...filters,
-                      cameraId: e.target.value || undefined,
-                    })
-                  }
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-1 focus:ring-blue-500"
-                >
-                  <option value="">All cameras</option>
-                  {cameras.map((camera) => (
-                    <option key={camera.id} value={camera.id}>
-                      {camera.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Class Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Class
-                </label>
-                <select
-                  value={filters.class || ''}
-                  onChange={(e) =>
-                    setFilters({
-                      ...filters,
-                      class: e.target.value || undefined,
-                    })
-                  }
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                >
-                  <option value="">All classes</option>
-                  <option value="bird">Bird</option>
-                  <option value="bat">Bat</option>
-                  <option value="insect">Insect</option>
-                  <option value="uap">UAP</option>
-                  <option value="unknown">Unknown</option>
-                </select>
-              </div>
-
-              {/* Min Confidence */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Min Confidence
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={filters.minConfidence || ''}
-                  onChange={(e) =>
-                    setFilters({
-                      ...filters,
-                      minConfidence: e.target.value
-                        ? parseFloat(e.target.value)
-                        : undefined,
-                    })
-                  }
-                  placeholder="0-100"
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-
-              {/* Date Range */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Date Range
-                </label>
-                <input
-                  type="date"
-                  value={filters.from?.split('T')[0] || ''}
-                  onChange={(e) =>
-                    setFilters({
-                      ...filters,
-                      from: e.target.value
-                        ? new Date(e.target.value).toISOString()
-                        : undefined,
-                    })
-                  }
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Table */}
-      <Card>
-        <Table
-          columns={columns}
-          data={tracks}
-          keyExtractor={(track) => track.id}
-          onRowClick={(track) => setSelectedTrack(track)}
-          emptyMessage={
-            hasActiveFilters
-              ? 'No tracks found. Try adjusting your filters.'
-              : 'Tracks will appear here when objects are detected'
+  // Disconnected state
+  if (backendStatus === 'disconnected') {
+    return (
+      <Container size="sm" py="xl">
+        <EmptyState
+          icon={<IconTarget size={48} stroke={1.5} />}
+          title="Backend Disconnected"
+          description="Unable to load tracks. Please check your connection and try again."
+          action={
+            <Button leftSection={<IconRefresh size={16} />} onClick={handleRetry}>
+              Retry Connection
+            </Button>
           }
         />
-        {tracks.length > 0 && (
-          <Pagination
-            page={pagination.page}
-            pageSize={pagination.pageSize}
-            total={pagination.total}
-            hasMore={pagination.hasMore}
-            onPageChange={setPage}
-          />
-        )}
-      </Card>
+      </Container>
+    )
+  }
 
-      {/* Detail Panel */}
+  return (
+    <Container size="xl" py="md">
+      <Stack gap="lg">
+        {/* Header */}
+        <Group justify="space-between" align="flex-start">
+          <div>
+            <Title order={2}>Tracks & Detections</Title>
+            <Text size="sm" c="dimmed" mt={4}>
+              Browse and analyze detected objects across all cameras
+            </Text>
+          </div>
+
+          <Group gap="xs">
+            <Button
+              variant={showFilters ? 'filled' : 'default'}
+              leftSection={<IconFilter size={16} />}
+              onClick={() => setShowFilters(!showFilters)}
+              rightSection={
+                hasActiveFilters && (
+                  <Badge size="xs" circle color="blue">
+                    !
+                  </Badge>
+                )
+              }
+            >
+              Filters
+            </Button>
+
+            <Menu position="bottom-end" shadow="md">
+              <Menu.Target>
+                <Button
+                  variant="default"
+                  leftSection={<IconDownload size={16} />}
+                  rightSection={<IconChevronDown size={14} />}
+                  disabled={tracks.length === 0}
+                >
+                  Export
+                </Button>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item
+                  leftSection={<IconFileTypeCsv size={16} />}
+                  onClick={handleExportCSV}
+                >
+                  Export as CSV
+                </Menu.Item>
+                <Menu.Item
+                  leftSection={<IconJson size={16} />}
+                  onClick={handleExportJSON}
+                >
+                  Export as JSON
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+          </Group>
+        </Group>
+
+        {/* Filters Panel */}
+        <Collapse in={showFilters}>
+          <Card withBorder>
+            <Stack gap="md">
+              <Group justify="space-between">
+                <Text fw={600} size="sm">
+                  Filter Tracks
+                </Text>
+                {hasActiveFilters && (
+                  <Button
+                    variant="subtle"
+                    size="xs"
+                    leftSection={<IconX size={14} />}
+                    onClick={clearFilters}
+                  >
+                    Clear all
+                  </Button>
+                )}
+              </Group>
+
+              <Group grow align="flex-start">
+                {/* Search */}
+                <TextInput
+                  label="Search"
+                  placeholder="Search by ID, class, or camera..."
+                  leftSection={<IconSearch size={16} />}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  rightSection={
+                    searchQuery && (
+                      <ActionIcon
+                        variant="subtle"
+                        size="sm"
+                        onClick={() => setSearchQuery('')}
+                      >
+                        <IconX size={14} />
+                      </ActionIcon>
+                    )
+                  }
+                />
+
+                {/* Camera Filter */}
+                <Select
+                  label="Camera"
+                  placeholder="All cameras"
+                  data={[
+                    { value: '', label: 'All cameras' },
+                    ...cameras.map((camera) => ({
+                      value: camera.id,
+                      label: camera.name,
+                    })),
+                  ]}
+                  value={filters.cameraId || ''}
+                  onChange={(value) =>
+                    setFilters({ ...filters, cameraId: value || undefined })
+                  }
+                  clearable
+                />
+
+                {/* Class Filter */}
+                <Select
+                  label="Object Class"
+                  placeholder="All classes"
+                  data={[
+                    { value: '', label: 'All classes' },
+                    ...OBJECT_CLASSES.map((cls) => ({
+                      value: cls,
+                      label: cls.charAt(0).toUpperCase() + cls.slice(1),
+                    })),
+                  ]}
+                  value={filters.class || ''}
+                  onChange={(value) =>
+                    setFilters({ ...filters, class: value || undefined })
+                  }
+                  clearable
+                  searchable
+                />
+
+                {/* Min Confidence */}
+                <NumberInput
+                  label="Min Confidence (%)"
+                  placeholder="0-100"
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={
+                    filters.minConfidence !== undefined
+                      ? filters.minConfidence * 100
+                      : undefined
+                  }
+                  onChange={(value) =>
+                    setFilters({
+                      ...filters,
+                      minConfidence:
+                        typeof value === 'number' ? value / 100 : undefined,
+                    })
+                  }
+                  suffix="%"
+                  allowDecimal={false}
+                />
+              </Group>
+
+              <Group grow align="flex-start">
+                {/* Date Range */}
+                <DatePickerInput
+                  label="From Date"
+                  placeholder="Start date"
+                  value={filters.from ? new Date(filters.from) : null}
+                  onChange={(date) =>
+                    setFilters({
+                      ...filters,
+                      from: date ? date.toISOString() : undefined,
+                    })
+                  }
+                  clearable
+                  maxDate={filters.to ? new Date(filters.to) : new Date()}
+                />
+
+                <DatePickerInput
+                  label="To Date"
+                  placeholder="End date"
+                  value={filters.to ? new Date(filters.to) : null}
+                  onChange={(date) =>
+                    setFilters({
+                      ...filters,
+                      to: date ? date.toISOString() : undefined,
+                    })
+                  }
+                  clearable
+                  minDate={filters.from ? new Date(filters.from) : undefined}
+                  maxDate={new Date()}
+                />
+              </Group>
+            </Stack>
+          </Card>
+        </Collapse>
+
+        {/* Error Alert */}
+        {error && (
+          <Alert color="red" title="Error loading tracks" withCloseButton onClose={() => setError(null)}>
+            {error}
+          </Alert>
+        )}
+
+        {/* Active Filters Summary */}
+        {hasActiveFilters && (
+          <Group gap="xs">
+            <Text size="sm" c="dimmed">
+              Active filters:
+            </Text>
+            {searchQuery && (
+              <Badge
+                variant="light"
+                rightSection={
+                  <ActionIcon
+                    size="xs"
+                    variant="transparent"
+                    onClick={() => setSearchQuery('')}
+                  >
+                    <IconX size={10} />
+                  </ActionIcon>
+                }
+              >
+                Search: {searchQuery}
+              </Badge>
+            )}
+            {filters.cameraId && (
+              <Badge
+                variant="light"
+                rightSection={
+                  <ActionIcon
+                    size="xs"
+                    variant="transparent"
+                    onClick={() => setFilters({ ...filters, cameraId: undefined })}
+                  >
+                    <IconX size={10} />
+                  </ActionIcon>
+                }
+              >
+                Camera: {cameras.find((c) => c.id === filters.cameraId)?.name}
+              </Badge>
+            )}
+            {filters.class && (
+              <Badge
+                variant="light"
+                rightSection={
+                  <ActionIcon
+                    size="xs"
+                    variant="transparent"
+                    onClick={() => setFilters({ ...filters, class: undefined })}
+                  >
+                    <IconX size={10} />
+                  </ActionIcon>
+                }
+              >
+                Class: {filters.class}
+              </Badge>
+            )}
+            {filters.minConfidence !== undefined && (
+              <Badge
+                variant="light"
+                rightSection={
+                  <ActionIcon
+                    size="xs"
+                    variant="transparent"
+                    onClick={() =>
+                      setFilters({ ...filters, minConfidence: undefined })
+                    }
+                  >
+                    <IconX size={10} />
+                  </ActionIcon>
+                }
+              >
+                Min Confidence: {(filters.minConfidence * 100).toFixed(0)}%
+              </Badge>
+            )}
+            {(filters.from || filters.to) && (
+              <Badge
+                variant="light"
+                rightSection={
+                  <ActionIcon
+                    size="xs"
+                    variant="transparent"
+                    onClick={() =>
+                      setFilters({ ...filters, from: undefined, to: undefined })
+                    }
+                  >
+                    <IconX size={10} />
+                  </ActionIcon>
+                }
+              >
+                Date Range
+              </Badge>
+            )}
+          </Group>
+        )}
+
+        {/* Tracks Table */}
+        <Card withBorder padding={0}>
+          {loading ? (
+            <Center p="xl">
+              <Stack align="center" gap="md">
+                <Loader size="md" />
+                <Text size="sm" c="dimmed">
+                  Loading tracks...
+                </Text>
+              </Stack>
+            </Center>
+          ) : filteredTracks.length === 0 ? (
+            <EmptyState
+              icon={<IconTarget size={48} stroke={1.5} />}
+              title={hasActiveFilters ? 'No tracks found' : 'No tracks yet'}
+              description={
+                hasActiveFilters
+                  ? 'Try adjusting your filters to see more results.'
+                  : 'Tracks will appear here when objects are detected by your cameras.'
+              }
+              action={
+                hasActiveFilters ? (
+                  <Button variant="light" onClick={clearFilters}>
+                    Clear Filters
+                  </Button>
+                ) : undefined
+              }
+            />
+          ) : (
+            <>
+              <MantineTable.ScrollContainer minWidth={800}>
+                <MantineTable highlightOnHover>
+                  <MantineTable.Thead>
+                    <MantineTable.Tr>
+                      <MantineTable.Th>Track ID</MantineTable.Th>
+                      <MantineTable.Th>First Seen</MantineTable.Th>
+                      <MantineTable.Th>Last Seen</MantineTable.Th>
+                      <MantineTable.Th>Camera</MantineTable.Th>
+                      <MantineTable.Th>Class</MantineTable.Th>
+                      <MantineTable.Th>Confidence</MantineTable.Th>
+                      <MantineTable.Th>Detections</MantineTable.Th>
+                      <MantineTable.Th>Status</MantineTable.Th>
+                    </MantineTable.Tr>
+                  </MantineTable.Thead>
+                  <MantineTable.Tbody>
+                    {filteredTracks.map((track) => {
+                      const camera = cameras.find((c) => c.id === track.cameraId)
+                      const firstSeen = new Date(track.firstSeen)
+                      const lastSeen = new Date(track.lastSeen)
+
+                      return (
+                        <MantineTable.Tr
+                          key={track.id}
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => setSelectedTrack(track)}
+                        >
+                          <MantineTable.Td>
+                            <Text size="sm" ff="monospace">
+                              {track.id.slice(0, 8)}...
+                            </Text>
+                          </MantineTable.Td>
+                          <MantineTable.Td>
+                            <div>
+                              <Text size="sm">{firstSeen.toLocaleDateString()}</Text>
+                              <Text size="xs" c="dimmed">
+                                {firstSeen.toLocaleTimeString()}
+                              </Text>
+                            </div>
+                          </MantineTable.Td>
+                          <MantineTable.Td>
+                            <div>
+                              <Text size="sm">{lastSeen.toLocaleDateString()}</Text>
+                              <Text size="xs" c="dimmed">
+                                {lastSeen.toLocaleTimeString()}
+                              </Text>
+                            </div>
+                          </MantineTable.Td>
+                          <MantineTable.Td>
+                            <Text size="sm">{camera?.name || track.cameraId}</Text>
+                          </MantineTable.Td>
+                          <MantineTable.Td>
+                            <Badge variant="light" color="blue">
+                              {track.class}
+                            </Badge>
+                          </MantineTable.Td>
+                          <MantineTable.Td>
+                            <Tooltip
+                              label={`${(track.avgConfidence * 100).toFixed(2)}%`}
+                            >
+                              <Text size="sm" fw={500}>
+                                {(track.avgConfidence * 100).toFixed(1)}%
+                              </Text>
+                            </Tooltip>
+                          </MantineTable.Td>
+                          <MantineTable.Td>
+                            <Text size="sm">{track.detectionCount}</Text>
+                          </MantineTable.Td>
+                          <MantineTable.Td>
+                            <Badge
+                              color={
+                                track.status === 'active'
+                                  ? 'green'
+                                  : track.status === 'lost'
+                                  ? 'yellow'
+                                  : 'gray'
+                              }
+                              variant="light"
+                            >
+                              {track.status}
+                            </Badge>
+                          </MantineTable.Td>
+                        </MantineTable.Tr>
+                      )
+                    })}
+                  </MantineTable.Tbody>
+                </MantineTable>
+              </MantineTable.ScrollContainer>
+
+              {/* Pagination */}
+              {pagination.total > pagination.pageSize && (
+                <Group justify="space-between" p="md" style={{ borderTop: '1px solid var(--mantine-color-gray-3)' }}>
+                  <Text size="sm" c="dimmed">
+                    Showing {(pagination.page - 1) * pagination.pageSize + 1} to{' '}
+                    {Math.min(pagination.page * pagination.pageSize, pagination.total)} of{' '}
+                    {pagination.total} tracks
+                  </Text>
+
+                  <Group gap="xs">
+                    <Select
+                      size="xs"
+                      value={pagination.pageSize.toString()}
+                      onChange={(value) => setPageSize(Number(value))}
+                      data={[
+                        { value: '25', label: '25 per page' },
+                        { value: '50', label: '50 per page' },
+                        { value: '100', label: '100 per page' },
+                      ]}
+                      w={130}
+                    />
+
+                    <Pagination
+                      size="sm"
+                      value={pagination.page}
+                      onChange={setPage}
+                      total={Math.ceil(pagination.total / pagination.pageSize)}
+                    />
+                  </Group>
+                </Group>
+              )}
+            </>
+          )}
+        </Card>
+
+        {/* Statistics Summary */}
+        {!loading && filteredTracks.length > 0 && (
+          <Group grow>
+            <Card withBorder>
+              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                Total Tracks
+              </Text>
+              <Text size="xl" fw={700} mt="xs">
+                {pagination.total.toLocaleString()}
+              </Text>
+            </Card>
+
+            <Card withBorder>
+              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                Active Tracks
+              </Text>
+              <Text size="xl" fw={700} mt="xs" c="green">
+                {filteredTracks.filter((t) => t.status === 'active').length}
+              </Text>
+            </Card>
+
+            <Card withBorder>
+              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                Avg Confidence
+              </Text>
+              <Text size="xl" fw={700} mt="xs">
+                {filteredTracks.length > 0
+                  ? (
+                      (filteredTracks.reduce((sum, t) => sum + t.avgConfidence, 0) /
+                        filteredTracks.length) *
+                      100
+                    ).toFixed(1)
+                  : 0}
+                %
+              </Text>
+            </Card>
+
+            <Card withBorder>
+              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                Total Detections
+              </Text>
+              <Text size="xl" fw={700} mt="xs">
+                {filteredTracks
+                  .reduce((sum, t) => sum + t.detectionCount, 0)
+                  .toLocaleString()}
+              </Text>
+            </Card>
+          </Group>
+        )}
+      </Stack>
+
+      {/* Track Detail Drawer */}
       {selectedTrack && (
-        <TrackDetailPanel
+        <TrackDetailDrawer
           track={selectedTrack}
+          opened={!!selectedTrack}
           onClose={() => setSelectedTrack(null)}
         />
       )}
-    </div>
+    </Container>
   )
 }

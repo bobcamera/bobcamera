@@ -1,11 +1,63 @@
 import { useEffect, useState } from 'react'
+import {
+  Container,
+  Title,
+  Text,
+  Tabs,
+  Card,
+  Button,
+  Group,
+  Stack,
+  NumberInput,
+  TextInput,
+  Switch,
+  Slider,
+  Alert,
+  Loader,
+  Center,
+  Badge,
+  Divider,
+  MultiSelect,
+} from '@mantine/core'
+import { notifications } from '@mantine/notifications'
+import { modals } from '@mantine/modals'
+import {
+  IconSettings,
+  IconDeviceFloppy,
+  IconRestore,
+  IconAlertTriangle,
+  IconEye,
+  IconRoute,
+  IconDatabase,
+  IconNetwork,
+  IconCheck,
+  IconX,
+} from '@tabler/icons-react'
 import { useAppStore } from '@/app/store'
-import { Card } from '@/app/components/common/Card'
-import { PageSpinner } from '@/app/components/common/Spinner'
 import { EmptyState } from '@/app/components/common/EmptyState'
-import { useToast } from '@/app/components/common/Toast'
-import { Settings as SettingsIcon, Save, RotateCcw, AlertTriangle } from 'lucide-react'
-import * as Tabs from '@radix-ui/react-tabs'
+
+// Available object classes for detection
+const AVAILABLE_CLASSES = [
+  'person',
+  'bicycle',
+  'car',
+  'motorcycle',
+  'airplane',
+  'bus',
+  'train',
+  'truck',
+  'boat',
+  'bird',
+  'cat',
+  'dog',
+  'horse',
+  'sheep',
+  'cow',
+  'elephant',
+  'bear',
+  'zebra',
+  'giraffe',
+]
 
 export function Settings() {
   const config = useAppStore((state) => state.config)
@@ -16,10 +68,9 @@ export function Settings() {
   const saveConfig = useAppStore((state) => state.saveConfig)
   const resetDraftConfig = useAppStore((state) => state.resetDraftConfig)
   const hasPendingChanges = useAppStore((state) => state.hasPendingChanges)
-  
-  const [activeTab, setActiveTab] = useState('detection')
+
+  const [activeTab, setActiveTab] = useState<string | null>('detection')
   const [isSaving, setIsSaving] = useState(false)
-  const { success, error } = useToast()
 
   useEffect(() => {
     fetchConfig()
@@ -33,400 +84,548 @@ export function Settings() {
     setIsSaving(true)
     try {
       await saveConfig(draftConfig)
-      success('Settings saved', 'Configuration has been updated successfully')
+      notifications.show({
+        title: 'Settings saved',
+        message: 'Configuration has been updated successfully',
+        color: 'green',
+        icon: <IconCheck size={18} />,
+      })
     } catch (err) {
-      error('Failed to save settings', (err as Error).message)
+      notifications.show({
+        title: 'Failed to save settings',
+        message: (err as Error).message,
+        color: 'red',
+        icon: <IconX size={18} />,
+      })
     } finally {
       setIsSaving(false)
     }
   }
 
   const handleReset = () => {
-    if (confirm('Are you sure you want to discard all changes?')) {
-      resetDraftConfig()
-      success('Changes discarded', 'Configuration has been reset')
-    }
+    modals.openConfirmModal({
+      title: 'Discard changes',
+      children: (
+        <Text size="sm">
+          Are you sure you want to discard all unsaved changes? This action cannot be undone.
+        </Text>
+      ),
+      labels: { confirm: 'Discard', cancel: 'Cancel' },
+      confirmProps: { color: 'red' },
+      onConfirm: () => {
+        resetDraftConfig()
+        notifications.show({
+          title: 'Changes discarded',
+          message: 'Configuration has been reset to saved values',
+          color: 'blue',
+        })
+      },
+    })
   }
 
+  // Loading state
   if (backendStatus === 'connecting' || !config) {
-    return <PageSpinner />
+    return (
+      <Center h={400}>
+        <Stack align="center" gap="md">
+          <Loader size="lg" />
+          <Text c="dimmed">Loading settings...</Text>
+        </Stack>
+      </Center>
+    )
   }
 
+  // Disconnected state
   if (backendStatus === 'disconnected') {
     return (
       <EmptyState
-        icon={SettingsIcon}
+        icon={<IconSettings size={48} />}
         title="Backend Disconnected"
-        description="Unable to load settings. Please check your connection."
+        description="Unable to load settings. Please check your connection and try again."
         action={
-          <button
-            onClick={() => fetchConfig()}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-          >
+          <Button onClick={() => fetchConfig()} leftSection={<IconRestore size={16} />}>
             Retry
-          </button>
+          </Button>
         }
       />
     )
   }
 
   const draft = draftConfig || config
+  const hasChanges = hasPendingChanges()
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <Container size="lg" py="xl">
+      <Stack gap="lg">
+        {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Configure detection, tracking, and system parameters
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={handleReset}
-            disabled={!hasPendingChanges()}
-            className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-          >
-            <RotateCcw className="h-4 w-4" />
-            Reset
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!hasPendingChanges() || isSaving}
-            className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            <Save className="h-4 w-4" />
-            {isSaving ? 'Saving...' : 'Save Changes'}
-          </button>
-        </div>
-      </div>
-
-      {/* Pending Changes Warning */}
-      {hasPendingChanges() && (
-        <Card>
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 flex-shrink-0 text-yellow-600" />
+          <Group justify="space-between" align="flex-start">
             <div>
-              <h3 className="text-sm font-semibold text-gray-900">
-                Unsaved Changes
-              </h3>
-              <p className="mt-1 text-sm text-gray-600">
-                You have unsaved changes. Click "Save Changes" to apply them or "Reset" to discard.
-              </p>
+              <Title order={1}>Settings</Title>
+              <Text c="dimmed" mt={4}>
+                Configure detection, tracking, storage, and network parameters
+              </Text>
             </div>
-          </div>
-        </Card>
-      )}
+            <Group gap="sm">
+              <Button
+                variant="default"
+                leftSection={<IconRestore size={16} />}
+                onClick={handleReset}
+                disabled={!hasChanges}
+              >
+                Reset
+              </Button>
+              <Button
+                leftSection={<IconDeviceFloppy size={16} />}
+                onClick={handleSave}
+                disabled={!hasChanges}
+                loading={isSaving}
+              >
+                Save Changes
+              </Button>
+            </Group>
+          </Group>
+        </div>
 
-      {/* Settings Tabs */}
-      <Tabs.Root value={activeTab} onValueChange={setActiveTab}>
-        <Tabs.List className="flex gap-2 border-b border-gray-200">
-          <Tabs.Trigger
-            value="detection"
-            className="border-b-2 border-transparent px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600"
+        {/* Pending Changes Alert */}
+        {hasChanges && (
+          <Alert
+            icon={<IconAlertTriangle size={20} />}
+            title="Unsaved Changes"
+            color="yellow"
+            variant="light"
           >
-            Detection
-          </Tabs.Trigger>
-          <Tabs.Trigger
-            value="tracking"
-            className="border-b-2 border-transparent px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600"
-          >
-            Tracking
-          </Tabs.Trigger>
-          <Tabs.Trigger
-            value="storage"
-            className="border-b-2 border-transparent px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600"
-          >
-            Storage
-          </Tabs.Trigger>
-          <Tabs.Trigger
-            value="network"
-            className="border-b-2 border-transparent px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600"
-          >
-            Network
-          </Tabs.Trigger>
-        </Tabs.List>
+            You have unsaved changes. Click "Save Changes" to apply them or "Reset" to discard.
+          </Alert>
+        )}
 
-        {/* Detection Settings */}
-        <Tabs.Content value="detection" className="mt-6">
-          <Card title="Detection Parameters">
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Confidence Threshold
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={draft.detection?.confidence || 0.5}
-                  onChange={(e) =>
-                    updateDraftConfig({
-                      detection: {
-                        ...draft.detection,
-                        confidence: parseFloat(e.target.value),
-                      },
-                    })
-                  }
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  Minimum confidence score for detections (0.0 - 1.0)
-                </p>
-              </div>
+        {/* Settings Tabs */}
+        <Tabs value={activeTab} onChange={setActiveTab}>
+          <Tabs.List>
+            <Tabs.Tab value="detection" leftSection={<IconEye size={16} />}>
+              Detection
+            </Tabs.Tab>
+            <Tabs.Tab value="tracking" leftSection={<IconRoute size={16} />}>
+              Tracking
+            </Tabs.Tab>
+            <Tabs.Tab value="storage" leftSection={<IconDatabase size={16} />}>
+              Storage
+            </Tabs.Tab>
+            <Tabs.Tab value="network" leftSection={<IconNetwork size={16} />}>
+              Network
+            </Tabs.Tab>
+          </Tabs.List>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  NMS Threshold
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={draft.detection?.nms || 0.45}
-                  onChange={(e) =>
-                    updateDraftConfig({
-                      detection: {
-                        ...draft.detection,
-                        nms: parseFloat(e.target.value),
-                      },
-                    })
-                  }
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  Non-maximum suppression threshold (0.0 - 1.0)
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between">
+          {/* Detection Settings */}
+          <Tabs.Panel value="detection" pt="lg">
+            <Card shadow="sm" padding="lg" radius="md" withBorder>
+              <Stack gap="lg">
                 <div>
-                  <label className="text-sm font-medium text-gray-700">
-                    Enable Detection
-                  </label>
-                  <p className="text-xs text-gray-500">
-                    Enable object detection
-                  </p>
+                  <Group justify="space-between" mb="xs">
+                    <Text fw={600} size="lg">
+                      Detection Parameters
+                    </Text>
+                    <Badge
+                      color={draft.detection?.enabled ? 'green' : 'gray'}
+                      variant="light"
+                    >
+                      {draft.detection?.enabled ? 'Enabled' : 'Disabled'}
+                    </Badge>
+                  </Group>
+                  <Text size="sm" c="dimmed">
+                    Configure object detection model parameters and behavior
+                  </Text>
                 </div>
-                <input
-                  type="checkbox"
+
+                <Divider />
+
+                <Switch
+                  label="Enable Detection"
+                  description="Enable or disable object detection globally"
                   checked={draft.detection?.enabled || false}
                   onChange={(e) =>
                     updateDraftConfig({
                       detection: {
                         ...draft.detection,
-                        enabled: e.target.checked,
+                        enabled: e.currentTarget.checked,
                       },
                     })
                   }
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  size="md"
                 />
-              </div>
-            </div>
-          </Card>
-        </Tabs.Content>
 
-        {/* Tracking Settings */}
-        <Tabs.Content value="tracking" className="mt-6">
-          <Card title="Tracking Parameters">
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Max Track Age
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={draft.tracking?.maxAge || 30}
-                  onChange={(e) =>
-                    updateDraftConfig({
-                      tracking: {
-                        ...draft.tracking,
-                        maxAge: parseInt(e.target.value),
-                      },
-                    })
-                  }
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  Maximum frames to keep a track without detection
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Min Hits
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={draft.tracking?.minHits || 3}
-                  onChange={(e) =>
-                    updateDraftConfig({
-                      tracking: {
-                        ...draft.tracking,
-                        minHits: parseInt(e.target.value),
-                      },
-                    })
-                  }
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  Minimum detections before confirming a track
-                </p>
-              </div>
-            </div>
-          </Card>
-        </Tabs.Content>
-
-        {/* Storage Settings */}
-        <Tabs.Content value="storage" className="mt-6">
-          <Card title="Storage Configuration">
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Storage Path
-                </label>
-                <input
-                  type="text"
-                  value={draft.storage?.path || ''}
-                  onChange={(e) =>
-                    updateDraftConfig({
-                      storage: {
-                        ...draft.storage,
-                        path: e.target.value,
-                      },
-                    })
-                  }
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 font-mono text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Max Storage Size (bytes)
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={draft.storage?.maxSize || 100000000000}
-                  onChange={(e) =>
-                    updateDraftConfig({
-                      storage: {
-                        ...draft.storage,
-                        maxSize: parseInt(e.target.value),
-                      },
-                    })
-                  }
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  Maximum storage size in bytes
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Retention Period (days)
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={draft.storage?.retention || 30}
-                  onChange={(e) =>
-                    updateDraftConfig({
-                      storage: {
-                        ...draft.storage,
-                        retention: parseInt(e.target.value),
-                      },
-                    })
-                  }
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  Number of days to retain recordings
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between">
                 <div>
-                  <label className="text-sm font-medium text-gray-700">
-                    Enable Storage
-                  </label>
-                  <p className="text-xs text-gray-500">
-                    Enable recording storage
-                  </p>
+                  <Text size="sm" fw={500} mb="xs">
+                    Confidence Threshold: {(draft.detection?.confidence || 0.5).toFixed(2)}
+                  </Text>
+                  <Slider
+                    value={draft.detection?.confidence || 0.5}
+                    onChange={(value) =>
+                      updateDraftConfig({
+                        detection: {
+                          ...draft.detection,
+                          confidence: value,
+                        },
+                      })
+                    }
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    marks={[
+                      { value: 0, label: '0.0' },
+                      { value: 0.25, label: '0.25' },
+                      { value: 0.5, label: '0.5' },
+                      { value: 0.75, label: '0.75' },
+                      { value: 1, label: '1.0' },
+                    ]}
+                    disabled={!draft.detection?.enabled}
+                  />
+                  <Text size="xs" c="dimmed" mt="xs">
+                    Minimum confidence score for detections. Higher values reduce false positives
+                    but may miss valid detections.
+                  </Text>
                 </div>
-                <input
-                  type="checkbox"
+
+                <div>
+                  <Text size="sm" fw={500} mb="xs">
+                    NMS Threshold: {(draft.detection?.nms || 0.45).toFixed(2)}
+                  </Text>
+                  <Slider
+                    value={draft.detection?.nms || 0.45}
+                    onChange={(value) =>
+                      updateDraftConfig({
+                        detection: {
+                          ...draft.detection,
+                          nms: value,
+                        },
+                      })
+                    }
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    marks={[
+                      { value: 0, label: '0.0' },
+                      { value: 0.25, label: '0.25' },
+                      { value: 0.5, label: '0.5' },
+                      { value: 0.75, label: '0.75' },
+                      { value: 1, label: '1.0' },
+                    ]}
+                    disabled={!draft.detection?.enabled}
+                  />
+                  <Text size="xs" c="dimmed" mt="xs">
+                    Non-maximum suppression threshold for removing duplicate detections. Lower
+                    values are more aggressive.
+                  </Text>
+                </div>
+
+                <MultiSelect
+                  label="Detected Classes"
+                  description="Select which object classes to detect"
+                  placeholder="Select classes"
+                  data={AVAILABLE_CLASSES}
+                  value={draft.detection?.classes || []}
+                  onChange={(value) =>
+                    updateDraftConfig({
+                      detection: {
+                        ...draft.detection,
+                        classes: value,
+                      },
+                    })
+                  }
+                  searchable
+                  clearable
+                  disabled={!draft.detection?.enabled}
+                />
+              </Stack>
+            </Card>
+          </Tabs.Panel>
+
+          {/* Tracking Settings */}
+          <Tabs.Panel value="tracking" pt="lg">
+            <Card shadow="sm" padding="lg" radius="md" withBorder>
+              <Stack gap="lg">
+                <div>
+                  <Group justify="space-between" mb="xs">
+                    <Text fw={600} size="lg">
+                      Tracking Parameters
+                    </Text>
+                    <Badge
+                      color={draft.tracking?.enabled ? 'green' : 'gray'}
+                      variant="light"
+                    >
+                      {draft.tracking?.enabled ? 'Enabled' : 'Disabled'}
+                    </Badge>
+                  </Group>
+                  <Text size="sm" c="dimmed">
+                    Configure object tracking algorithm parameters
+                  </Text>
+                </div>
+
+                <Divider />
+
+                <Switch
+                  label="Enable Tracking"
+                  description="Enable or disable object tracking globally"
+                  checked={draft.tracking?.enabled || false}
+                  onChange={(e) =>
+                    updateDraftConfig({
+                      tracking: {
+                        ...draft.tracking,
+                        enabled: e.currentTarget.checked,
+                      },
+                    })
+                  }
+                  size="md"
+                />
+
+                <NumberInput
+                  label="Max Track Age"
+                  description="Maximum number of frames to keep a track without detection"
+                  placeholder="30"
+                  value={draft.tracking?.maxAge || 30}
+                  onChange={(value) =>
+                    updateDraftConfig({
+                      tracking: {
+                        ...draft.tracking,
+                        maxAge: Number(value),
+                      },
+                    })
+                  }
+                  min={1}
+                  max={300}
+                  disabled={!draft.tracking?.enabled}
+                />
+
+                <NumberInput
+                  label="Min Hits"
+                  description="Minimum number of detections before confirming a track"
+                  placeholder="3"
+                  value={draft.tracking?.minHits || 3}
+                  onChange={(value) =>
+                    updateDraftConfig({
+                      tracking: {
+                        ...draft.tracking,
+                        minHits: Number(value),
+                      },
+                    })
+                  }
+                  min={1}
+                  max={20}
+                  disabled={!draft.tracking?.enabled}
+                />
+
+                <div>
+                  <Text size="sm" fw={500} mb="xs">
+                    IOU Threshold: {(draft.tracking?.iouThreshold || 0.3).toFixed(2)}
+                  </Text>
+                  <Slider
+                    value={draft.tracking?.iouThreshold || 0.3}
+                    onChange={(value) =>
+                      updateDraftConfig({
+                        tracking: {
+                          ...draft.tracking,
+                          iouThreshold: value,
+                        },
+                      })
+                    }
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    marks={[
+                      { value: 0, label: '0.0' },
+                      { value: 0.25, label: '0.25' },
+                      { value: 0.5, label: '0.5' },
+                      { value: 0.75, label: '0.75' },
+                      { value: 1, label: '1.0' },
+                    ]}
+                    disabled={!draft.tracking?.enabled}
+                  />
+                  <Text size="xs" c="dimmed" mt="xs">
+                    Intersection over Union threshold for matching detections to tracks. Higher
+                    values require closer matches.
+                  </Text>
+                </div>
+              </Stack>
+            </Card>
+          </Tabs.Panel>
+
+          {/* Storage Settings */}
+          <Tabs.Panel value="storage" pt="lg">
+            <Card shadow="sm" padding="lg" radius="md" withBorder>
+              <Stack gap="lg">
+                <div>
+                  <Group justify="space-between" mb="xs">
+                    <Text fw={600} size="lg">
+                      Storage Configuration
+                    </Text>
+                    <Badge color={draft.storage?.enabled ? 'green' : 'gray'} variant="light">
+                      {draft.storage?.enabled ? 'Enabled' : 'Disabled'}
+                    </Badge>
+                  </Group>
+                  <Text size="sm" c="dimmed">
+                    Configure recording storage location and retention policies
+                  </Text>
+                </div>
+
+                <Divider />
+
+                <Switch
+                  label="Enable Storage"
+                  description="Enable or disable recording storage"
                   checked={draft.storage?.enabled || false}
                   onChange={(e) =>
                     updateDraftConfig({
                       storage: {
                         ...draft.storage,
-                        enabled: e.target.checked,
+                        enabled: e.currentTarget.checked,
                       },
                     })
                   }
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  size="md"
                 />
-              </div>
-            </div>
-          </Card>
-        </Tabs.Content>
 
-        {/* Network Settings */}
-        <Tabs.Content value="network" className="mt-6">
-          <Card title="Network Configuration">
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  API Port
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="65535"
+                <TextInput
+                  label="Storage Path"
+                  description="Directory path where recordings will be stored"
+                  placeholder="/data/recordings"
+                  value={draft.storage?.path || ''}
+                  onChange={(e) =>
+                    updateDraftConfig({
+                      storage: {
+                        ...draft.storage,
+                        path: e.currentTarget.value,
+                      },
+                    })
+                  }
+                  disabled={!draft.storage?.enabled}
+                  styles={{
+                    input: {
+                      fontFamily: 'monospace',
+                    },
+                  }}
+                />
+
+                <NumberInput
+                  label="Max Storage Size"
+                  description="Maximum storage size in gigabytes (GB)"
+                  placeholder="100"
+                  value={Math.round((draft.storage?.maxSize || 100000000000) / 1000000000)}
+                  onChange={(value) =>
+                    updateDraftConfig({
+                      storage: {
+                        ...draft.storage,
+                        maxSize: Number(value) * 1000000000,
+                      },
+                    })
+                  }
+                  min={1}
+                  max={10000}
+                  suffix=" GB"
+                  disabled={!draft.storage?.enabled}
+                />
+
+                <NumberInput
+                  label="Retention Period"
+                  description="Number of days to retain recordings before automatic deletion"
+                  placeholder="30"
+                  value={draft.storage?.retention || 30}
+                  onChange={(value) =>
+                    updateDraftConfig({
+                      storage: {
+                        ...draft.storage,
+                        retention: Number(value),
+                      },
+                    })
+                  }
+                  min={1}
+                  max={365}
+                  suffix=" days"
+                  disabled={!draft.storage?.enabled}
+                />
+              </Stack>
+            </Card>
+          </Tabs.Panel>
+
+          {/* Network Settings */}
+          <Tabs.Panel value="network" pt="lg">
+            <Card shadow="sm" padding="lg" radius="md" withBorder>
+              <Stack gap="lg">
+                <div>
+                  <Text fw={600} size="lg" mb="xs">
+                    Network Configuration
+                  </Text>
+                  <Text size="sm" c="dimmed">
+                    Configure network ports and connectivity settings
+                  </Text>
+                </div>
+
+                <Divider />
+
+                <Alert
+                  icon={<IconAlertTriangle size={20} />}
+                  title="Warning"
+                  color="orange"
+                  variant="light"
+                >
+                  Changing network settings may require restarting the application. Ensure ports
+                  are not already in use.
+                </Alert>
+
+                <NumberInput
+                  label="API Port"
+                  description="Port for REST API server"
+                  placeholder="8080"
                   value={draft.network?.apiPort || 8080}
-                  onChange={(e) =>
+                  onChange={(value) =>
                     updateDraftConfig({
                       network: {
                         ...draft.network,
-                        apiPort: parseInt(e.target.value),
+                        apiPort: Number(value),
                       },
                     })
                   }
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  min={1024}
+                  max={65535}
                 />
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  WebSocket Port
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="65535"
+                <NumberInput
+                  label="WebSocket Port"
+                  description="Port for WebSocket event streaming"
+                  placeholder="8081"
                   value={draft.network?.wsPort || 8081}
-                  onChange={(e) =>
+                  onChange={(value) =>
                     updateDraftConfig({
                       network: {
                         ...draft.network,
-                        wsPort: parseInt(e.target.value),
+                        wsPort: Number(value),
                       },
                     })
                   }
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  min={1024}
+                  max={65535}
                 />
-              </div>
-            </div>
-          </Card>
-        </Tabs.Content>
-      </Tabs.Root>
-    </div>
+
+                <NumberInput
+                  label="Stream Port"
+                  description="Port for video streaming server"
+                  placeholder="8082"
+                  value={draft.network?.streamPort || 8082}
+                  onChange={(value) =>
+                    updateDraftConfig({
+                      network: {
+                        ...draft.network,
+                        streamPort: Number(value),
+                      },
+                    })
+                  }
+                  min={1024}
+                  max={65535}
+                />
+              </Stack>
+            </Card>
+          </Tabs.Panel>
+        </Tabs>
+      </Stack>
+    </Container>
   )
 }
