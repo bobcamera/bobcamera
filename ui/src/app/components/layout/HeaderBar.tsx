@@ -9,7 +9,7 @@ interface HeaderBarProps {
 
 export function HeaderBar({ burger }: HeaderBarProps) {
   const { colorScheme, toggleColorScheme } = useMantineColorScheme()
-  const { backendStatus, version } = useAppStore()
+  const { backendStatus, versions, gitHash } = useAppStore()
 
   return (
     <Group h="100%" px="md" justify="space-between">
@@ -18,10 +18,20 @@ export function HeaderBar({ burger }: HeaderBarProps) {
         <Text size="xl" fw={700}>
           BOB Camera
         </Text>
-        {version && (
-          <Badge size="sm" variant="light" color="gray">
-            v{version}
-          </Badge>
+        {versions && (
+          <Group gap="xs">
+            <Badge size="sm" variant="light" color="blue">
+              FE v{versions.ui}
+            </Badge>
+            <Badge size="sm" variant="light" color="gray">
+              BE v{versions.backend}
+            </Badge>
+            {gitHash && (
+              <Badge size="sm" variant="light" color="gray" style={{ fontFamily: 'monospace' }}>
+                {gitHash}
+              </Badge>
+            )}
+          </Group>
         )}
       </Group>
 

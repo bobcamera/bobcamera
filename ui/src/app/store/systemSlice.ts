@@ -8,7 +8,8 @@ export interface SystemSlice {
   systemHealth: SystemHealth | null // Alias for compatibility
   metrics: Metrics[]
   versions: { ui: string; backend: string } | null
-  version: string // Computed from versions
+  version: string // Computed from versions (deprecated, use versions instead)
+  gitHash: string | null
   isRunning: boolean
   wsStatus: 'connecting' | 'connected' | 'disconnected' | 'error'
   backendStatus: 'unknown' | 'online' | 'offline' | 'connecting' | 'disconnected'
@@ -27,6 +28,7 @@ export interface SystemSlice {
   setHealth: (health: SystemHealth | null) => void
   addMetrics: (metrics: Metrics) => void
   setVersions: (versions: { ui: string; backend: string }) => void
+  setGitHash: (hash: string) => void
   setRunning: (running: boolean) => void
   setWSStatus: (status: 'connecting' | 'connected' | 'disconnected' | 'error') => void
   setBackendStatus: (status: 'unknown' | 'online' | 'offline' | 'connecting' | 'disconnected') => void
@@ -43,8 +45,9 @@ export const createSystemSlice: StateCreator<SystemSlice> = (set, get) => ({
   health: null,
   systemHealth: null,
   metrics: [],
-  versions: null,
-  version: 'v1.0.0',
+  versions: { ui: '0.9.0', backend: '1.7.5' },
+  version: 'v0.9.0', // Deprecated, kept for backward compatibility
+  gitHash: import.meta.env.VITE_GIT_HASH || null,
   isRunning: false,
   wsStatus: 'disconnected',
   backendStatus: 'unknown',
@@ -70,8 +73,10 @@ export const createSystemSlice: StateCreator<SystemSlice> = (set, get) => ({
 
   setVersions: (versions) => set({ 
     versions, 
-    version: versions ? `v${versions.ui}` : 'v1.0.0' 
+    version: versions ? `v${versions.ui}` : 'v0.9.0' 
   }),
+
+  setGitHash: (hash) => set({ gitHash: hash }),
 
   setRunning: (running) => set({ isRunning: running }),
 

@@ -2,9 +2,19 @@
 
 Modern React-based frontend for the BOB (Bird, Object, Bat) Camera tracking system.
 
+## 📚 Documentation
+
+**→ [Complete Documentation Index](DOCUMENTATION.md)** - Start here for all documentation
+
+### Quick Links
+- [Getting Started Guide](docs/guides/getting-started.md) - Setup and development (5 min quick start)
+- [Architecture Guide](docs/guides/architecture.md) - System design and patterns
+- [Project Status](docs/status/project-status.md) - Current progress (75% complete)
+- [Page Documentation](docs/pages/) - Detailed docs for each page
+
 ## Features
 
-- 🎯 **Real-time Tracking**: Live video streams with detection overlays
+- 🎯 **Real-time Tracking**: Live video streams with detection overlays via ROS2
 - 📊 **System Monitoring**: CPU, GPU, memory, and disk usage metrics
 - 📹 **Camera Management**: Configure and manage multiple camera sources
 - 🎬 **Recording Playback**: Browse and download recorded clips
@@ -20,8 +30,8 @@ Modern React-based frontend for the BOB (Bird, Object, Bat) Camera tracking syst
 - **Vite** - Build tool and dev server
 - **React Router 7** - Client-side routing
 - **Zustand** - State management
+- **Mantine v7** - Component library
 - **TailwindCSS 4** - Utility-first styling
-- **Radix UI** - Accessible component primitives
 - **Axios** - HTTP client
 - **Zod** - Runtime schema validation
 - **Vitest** - Unit testing
@@ -358,6 +368,17 @@ Target scores (desktop):
 ## License
 
 See main repository LICENSE file.
+
+## Documentation
+
+For comprehensive documentation, see:
+
+- **[Documentation Index](DOCUMENTATION.md)** - Complete documentation hub
+- **[Getting Started](docs/guides/getting-started.md)** - Setup and development guide
+- **[Architecture](docs/guides/architecture.md)** - System architecture and design
+- **[Project Status](docs/status/project-status.md)** - Current progress and roadmap
+- **[Page Docs](docs/pages/)** - Individual page documentation
+- **[Fixes](docs/fixes/)** - Bug fixes and resolutions
 
 ## Support
 

@@ -1,6 +1,8 @@
-# Getting Started with BOB Camera UI Development
+# Getting Started with BOB Camera UI
 
-## 🎯 Prerequisites
+Get the BOB Camera UI running in 5 minutes and start developing!
+
+## Prerequisites
 
 Before you begin, ensure you have:
 
@@ -10,7 +12,7 @@ Before you begin, ensure you have:
 - ✅ **Code editor** (VS Code recommended)
 - ✅ **BOB Camera backend** running (optional for development)
 
-## 🚀 First-Time Setup
+## Quick Start (5 Minutes)
 
 ### 1. Navigate to UI Directory
 ```bash
@@ -23,8 +25,9 @@ npm install
 ```
 This will install all required packages (~500MB, takes 2-3 minutes).
 
-### 3. Create Environment File
+### 3. Configure Environment
 ```bash
+# Copy the example environment file
 cp .env.example .env
 ```
 
@@ -53,7 +56,37 @@ Navigate to [http://localhost:5173](http://localhost:5173)
 
 You should see the BOB Camera dashboard! 🎉
 
-## 🔧 Development Workflow
+### 6. Start Backend (Optional)
+If you need the backend running, in a separate terminal:
+```bash
+cd c:\bobcamera
+./run.sh your_config.yaml
+```
+
+## What's Included
+
+### Pages
+
+- **Dashboard** (`/`) - System overview with metrics and health status
+- **Cameras** (`/cameras`) - Camera management with CRUD operations
+- **Live View** (`/live`) - Real-time video streaming with ROS2 integration
+- **Tracks** (`/tracks`) - Detection history browser with advanced filtering
+- **Recordings** (`/recordings`) - Video clip library with playback
+- **Settings** (`/settings`) - System configuration editor
+- **System** (`/system`) - System health monitoring
+- **Logs** (`/logs`) - Real-time log viewer
+
+### Features
+
+✅ **Dark/Light Mode** - Toggle in header  
+✅ **Responsive Design** - Works on mobile and desktop  
+✅ **Real-time Updates** - WebSocket integration  
+✅ **Offline Mode** - Graceful degradation  
+✅ **Type Safety** - Full TypeScript support  
+✅ **Modern UI** - Mantine v7 components  
+✅ **Fast Development** - Vite HMR  
+
+## Development Workflow
 
 ### Daily Development
 ```bash
@@ -94,7 +127,7 @@ npm run build
 npm run preview
 ```
 
-## 📁 Project Structure Overview
+## Project Structure
 
 ```
 ui/
@@ -102,28 +135,20 @@ ui/
 │   ├── app/
 │   │   ├── components/
 │   │   │   ├── layout/          # AppShell, HeaderBar, Sidebar
-│   │   │   │   ├── AppShell.tsx
-│   │   │   │   ├── HeaderBar.tsx
-│   │   │   │   └── Sidebar.tsx
 │   │   │   └── common/          # Reusable components
-│   │   │       ├── MetricCard.tsx
-│   │   │       ├── StatusBadge.tsx
-│   │   │       ├── DataTable.tsx
-│   │   │       ├── ConfirmDialog.tsx
-│   │   │       ├── FieldRow.tsx
-│   │   │       └── EmptyState.tsx
 │   │   ├── pages/               # Route pages
 │   │   │   ├── Dashboard/       # ✅ Implemented
 │   │   │   ├── Cameras/         # ✅ Implemented
 │   │   │   ├── LiveView/        # ✅ Implemented
 │   │   │   ├── Tracks/          # ✅ Implemented
-│   │   │   ├── Recordings/      # 📋 TODO
+│   │   │   ├── Recordings/      # ✅ Implemented
 │   │   │   ├── Settings/        # ✅ Implemented
-│   │   │   ├── System/          # 📋 TODO
-│   │   │   └── Logs/            # 📋 TODO
+│   │   │   ├── System/          # ⏳ Partial
+│   │   │   └── Logs/            # ⏳ Partial
 │   │   ├── services/            # API and WebSocket clients
 │   │   │   ├── api.ts           # REST API client
 │   │   │   ├── ws.ts            # WebSocket client
+│   │   │   ├── ros2Client.ts    # ROS2 WebSocket client
 │   │   │   └── schema.ts        # Zod schemas
 │   │   ├── store/               # Zustand state management
 │   │   │   ├── index.ts         # Store setup
@@ -131,24 +156,22 @@ ui/
 │   │   │   ├── camerasSlice.ts  # Cameras state
 │   │   │   ├── tracksSlice.ts   # Tracks state
 │   │   │   └── settingsSlice.ts # Settings state
-│   │   ├── theme/               # Mantine theme
-│   │   │   └── index.ts
 │   │   └── router.tsx           # Route definitions
 │   ├── test/                    # Test utilities
-│   │   ├── setup.ts
-│   │   └── utils.tsx
 │   ├── main.tsx                 # App entry point
 │   └── index.css                # Global styles
+├── docs/                        # Documentation
 ├── public/                      # Static assets
 ├── .env.example                 # Environment template
 ├── vite.config.ts               # Vite configuration
-├── package.json                 # Dependencies
-└── README.md                    # This file
+└── package.json                 # Dependencies
 ```
 
-## 🎨 Creating a New Component
+## Common Development Tasks
 
-### 1. Create Component File
+### Creating a New Component
+
+1. **Create Component File**
 ```tsx
 // src/app/components/common/MyComponent.tsx
 import { Card, Text } from '@mantine/core'
@@ -168,7 +191,7 @@ export default function MyComponent({ title, value }: MyComponentProps) {
 }
 ```
 
-### 2. Create Test File
+2. **Create Test File**
 ```tsx
 // src/app/components/common/MyComponent.test.tsx
 import { describe, it, expect } from 'vitest'
@@ -184,24 +207,18 @@ describe('MyComponent', () => {
 })
 ```
 
-### 3. Export from Index
+3. **Use in Page**
 ```tsx
-// src/app/components/common/index.ts
-export { default as MyComponent } from './MyComponent'
-```
-
-### 4. Use in Page
-```tsx
-import { MyComponent } from '@/app/components/common'
+import MyComponent from '@/app/components/common/MyComponent'
 
 function MyPage() {
   return <MyComponent title="Users" value="42" />
 }
 ```
 
-## 🔌 Adding a New API Endpoint
+### Adding a New API Endpoint
 
-### 1. Define Schema
+1. **Define Schema**
 ```tsx
 // src/app/services/schema.ts
 export const MyDataSchema = z.object({
@@ -213,7 +230,7 @@ export const MyDataSchema = z.object({
 export type MyData = z.infer<typeof MyDataSchema>
 ```
 
-### 2. Add API Method
+2. **Add API Method**
 ```tsx
 // src/app/services/api.ts
 async getMyData(): Promise<MyData[]> {
@@ -222,7 +239,7 @@ async getMyData(): Promise<MyData[]> {
 }
 ```
 
-### 3. Use in Component
+3. **Use in Component**
 ```tsx
 import { apiClient } from '@/app/services/api'
 
@@ -237,9 +254,9 @@ function MyComponent() {
 }
 ```
 
-## 🗂️ Adding State Management
+### Adding State Management
 
-### 1. Create Slice
+1. **Create Slice**
 ```tsx
 // src/app/store/mySlice.ts
 import { StateCreator } from 'zustand'
@@ -255,7 +272,7 @@ export const createMySlice: StateCreator<MySlice> = (set) => ({
 })
 ```
 
-### 2. Add to Store
+2. **Add to Store**
 ```tsx
 // src/app/store/index.ts
 import { createMySlice, MySlice } from './mySlice'
@@ -269,7 +286,7 @@ export const useAppStore = create<AppStore>()((...a) => ({
 }))
 ```
 
-### 3. Use in Component
+3. **Use in Component**
 ```tsx
 import { useAppStore } from '@/app/store'
 
@@ -281,7 +298,62 @@ function MyComponent() {
 }
 ```
 
-## 🧪 Running Tests
+### Adding a New Page
+
+1. Create page component in `src/app/pages/MyPage/index.tsx`
+2. Add route in `src/app/router.tsx`
+3. Add navigation link in `src/app/components/layout/Sidebar.tsx`
+4. Add tests in `src/app/pages/MyPage/MyPage.test.tsx`
+
+## Using Mantine Components
+
+### Example: Create a Card
+
+```tsx
+import { Card, Text, Button } from '@mantine/core'
+
+function MyCard() {
+  return (
+    <Card shadow="sm" padding="lg" radius="md" withBorder>
+      <Text size="lg" fw={600}>Card Title</Text>
+      <Text size="sm" c="dimmed" mt="xs">
+        Card description goes here
+      </Text>
+      <Button mt="md" fullWidth>
+        Action
+      </Button>
+    </Card>
+  )
+}
+```
+
+### Example: Show Notification
+
+```tsx
+import { notifications } from '@mantine/notifications'
+
+notifications.show({
+  title: 'Success!',
+  message: 'Operation completed successfully',
+  color: 'green',
+})
+```
+
+### Example: Open Modal
+
+```tsx
+import { openConfirmDialog } from '@/app/components/common/ConfirmDialog'
+
+openConfirmDialog({
+  title: 'Confirm Action',
+  message: 'Are you sure you want to proceed?',
+  onConfirm: () => {
+    // Do something
+  },
+})
+```
+
+## Running Tests
 
 ### Watch Mode (Development)
 ```bash
@@ -307,27 +379,7 @@ npm run test:coverage
 ```
 Generates coverage report in `coverage/` directory.
 
-## 🎯 Next Steps
-
-### For New Developers
-1. ✅ Complete this setup guide
-2. 📖 Read [QUICKSTART_MANTINE.md](./QUICKSTART_MANTINE.md)
-3. 📖 Read [MANTINE_SETUP.md](./MANTINE_SETUP.md)
-4. 🔍 Explore completed pages (Dashboard, Cameras, LiveView, Tracks, Settings)
-5. 🎨 Try modifying a component
-6. 🧪 Run tests and see them pass
-7. 📋 Pick a TODO item from [PROJECT_STATUS.md](./PROJECT_STATUS.md)
-
-### For Experienced Developers
-1. ✅ Complete setup
-2. 📋 Review [PROJECT_STATUS.md](./PROJECT_STATUS.md) - 5/8 pages complete (62.5%)
-3. 🎯 Pick a page to implement (Recordings, System, or Logs)
-4. 💻 Follow existing patterns in Dashboard, Tracks, or Settings pages
-5. 🧪 Write tests for new code
-6. 📝 Update documentation
-7. 🚀 Submit pull request
-
-## 🆘 Troubleshooting
+## Troubleshooting
 
 ### Port 5173 Already in Use
 ```bash
@@ -358,13 +410,67 @@ npm run typecheck
 3. Check browser console for CORS errors
 4. Try accessing http://localhost:8080/api/system/health directly
 
+### WebSocket Not Connecting
+1. Check `VITE_WS_BASE_URL` in `.env`
+2. Verify WebSocket endpoint: Open DevTools → Network → WS
+3. Check firewall/proxy settings
+4. Ensure backend WebSocket server is running
+
 ### Mantine Styles Not Loading
 1. Check `index.css` imports Mantine CSS
 2. Verify `postcss.config.js` has Mantine preset
 3. Clear Vite cache: `rm -rf node_modules/.vite`
 4. Restart dev server
 
-## 📚 Useful Resources
+### Build Errors
+1. Clear cache: `rm -rf node_modules/.vite`
+2. Reinstall: `rm -rf node_modules && npm install`
+3. Check Node version: `node --version` (should be 20+)
+4. Run type check: `npx tsc --noEmit`
+
+### Slow Performance
+1. Check browser DevTools → Performance
+2. Disable browser extensions
+3. Clear browser cache
+4. Check backend response times
+5. Reduce polling frequency in code
+
+## Docker Deployment
+
+### Build Image
+```bash
+docker build -t bobcamera/bob-ui:latest .
+```
+
+### Run Container
+```bash
+docker run -d \
+  --name bob-ui \
+  -p 8080:80 \
+  bobcamera/bob-ui:latest
+```
+
+### Docker Compose
+Add to your `docker-compose.yml`:
+```yaml
+services:
+  ui:
+    build: ./ui
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    environment:
+      - NGINX_BACKEND_HOST=backend
+      - NGINX_BACKEND_PORT=8080
+```
+
+Then run:
+```bash
+docker-compose up -d
+```
+
+## Useful Resources
 
 ### Documentation
 - [Mantine UI](https://mantine.dev/) - Component library
@@ -386,17 +492,33 @@ npm run typecheck
 - Error Lens
 - GitLens
 
-## 🎉 You're Ready!
+## Next Steps
+
+### For New Developers
+1. ✅ Complete this setup guide
+2. 📖 Read [Architecture Guide](./architecture.md)
+3. 🔍 Explore completed pages (Dashboard, Cameras, LiveView, Tracks, Settings, Recordings)
+4. 🎨 Try modifying a component
+5. 🧪 Run tests and see them pass
+6. 📋 Pick a task from the project status
+
+### For Experienced Developers
+1. ✅ Complete setup
+2. 📋 Review project status documentation
+3. 🎯 Pick a feature to implement
+4. 💻 Follow existing patterns in completed pages
+5. 🧪 Write tests for new code
+6. 📝 Update documentation
+7. 🚀 Submit pull request
+
+## Getting Help
+
+- **Issues**: https://github.com/bobcamera/bobcamera/issues
+- **Discussions**: https://github.com/bobcamera/bobcamera/discussions
+- **Wiki**: https://github.com/bobcamera/bobcamera/wiki
+
+## You're Ready! 🎉
 
 You now have everything you need to start developing the BOB Camera UI. Happy coding! 🚀
 
 If you get stuck, check the documentation or ask for help in the project chat.
-
----
-
-**Quick Links:**
-- [Quick Start](./QUICKSTART_MANTINE.md)
-- [Full Setup Guide](./MANTINE_SETUP.md)
-- [Project Status](./PROJECT_STATUS.md) - Current progress: 5/8 pages (62.5%)
-- [Tracks Implementation](./TRACKS_PAGE_IMPLEMENTATION.md) - Latest completed page
-- [Project Summary](./PROJECT_SUMMARY.md)
