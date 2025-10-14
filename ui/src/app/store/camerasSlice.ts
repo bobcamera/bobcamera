@@ -12,7 +12,7 @@ export interface CamerasSlice {
   // Actions
   setCameras: (cameras: Camera[]) => void
   addCamera: (camera: Camera) => void
-  updateCamera: (id: string, updates: Partial<Camera>) => void
+  updateCamera: (id: string, updates: Partial<Camera>) => Promise<void>
   removeCamera: (id: string) => void
   selectCamera: (id: string | null) => void
   setLoading: (loading: boolean) => void
@@ -43,12 +43,18 @@ export const createCamerasSlice: StateCreator<CamerasSlice> = (set, get) => ({
       cameras: [...state.cameras, camera],
     })),
 
-  updateCamera: (id, updates) =>
-    set((state) => ({
-      cameras: state.cameras.map((camera) =>
-        camera.id === id ? { ...camera, ...updates } : camera
-      ),
-    })),
+  updateCamera: async (id, updates) => {
+    try {
+      const updatedCamera = await apiClient.updateCamera(id, updates)
+      set((state) => ({
+        cameras: state.cameras.map((camera) =>
+          camera.id === id ? updatedCamera : camera
+        ),
+      }))
+    } catch (error) {
+      throw new Error('Failed to update camera')
+    }
+  },
 
   removeCamera: (id) =>
     set((state) => ({

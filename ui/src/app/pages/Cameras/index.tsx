@@ -21,7 +21,6 @@ import {
   IconTrash,
   IconTestPipe,
   IconPower,
-  IconPowerOff,
   IconRefresh,
 } from '@tabler/icons-react'
 import { useAppStore } from '@/app/store'
@@ -195,7 +194,7 @@ export function Cameras() {
       {/* Camera List */}
       {cameras.length === 0 ? (
         <EmptyState
-          icon={IconCamera}
+          icon={<IconCamera size={48} />}
           title="No cameras configured"
           description="Get started by adding your first camera source"
           action={
@@ -278,7 +277,7 @@ export function Cameras() {
                         color={camera.enabled ? 'red' : 'green'}
                         onClick={() => handleToggleEnabled(camera)}
                       >
-                        {camera.enabled ? <IconPowerOff size={18} /> : <IconPower size={18} />}
+                        <IconPower size={18} />
                       </ActionIcon>
                     </Tooltip>
                     <Tooltip label="Test connection">
