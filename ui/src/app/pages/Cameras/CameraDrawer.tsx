@@ -1,8 +1,17 @@
 import { useState, useEffect } from 'react'
+import {
+  Drawer,
+  TextInput,
+  Select,
+  PasswordInput,
+  Switch,
+  Button,
+  Stack,
+  Group,
+  Text,
+} from '@mantine/core'
+import { notifications } from '@mantine/notifications'
 import { useAppStore } from '@/app/store'
-import { useToast } from '@/app/components/common/Toast'
-import * as Dialog from '@radix-ui/react-dialog'
-import { X } from 'lucide-react'
 import type { Camera } from '@/app/services/schema'
 
 interface CameraDrawerProps {
@@ -15,7 +24,7 @@ interface CameraDrawerProps {
 interface CameraFormData {
   name: string
   url: string
-  protocol: string
+  protocol: 'rtsp' | 'onvif' | 'usb' | 'file'
   enabled: boolean
   username?: string
   password?: string
@@ -24,7 +33,6 @@ interface CameraFormData {
 export function CameraDrawer({ camera, isOpen, isCreating, onClose }: CameraDrawerProps) {
   const createCamera = useAppStore((state) => state.createCamera)
   const updateCamera = useAppStore((state) => state.updateCamera)
-  const { success, error } = useToast()
 
   const [formData, setFormData] = useState<CameraFormData>({
     name: '',
@@ -66,178 +74,120 @@ export function CameraDrawer({ camera, isOpen, isCreating, onClose }: CameraDraw
     try {
       if (isCreating) {
         await createCamera(formData as any)
-        success('Camera created', `${formData.name} has been added`)
+        notifications.show({
+          title: 'Camera created',
+          message: `${formData.name} has been added`,
+          color: 'green',
+        })
       } else if (camera) {
         await updateCamera(camera.id, formData as any)
-        success('Camera updated', `${formData.name} has been updated`)
+        notifications.show({
+          title: 'Camera updated',
+          message: `${formData.name} has been updated`,
+          color: 'blue',
+        })
       }
       onClose()
     } catch (err) {
-      error(
-        isCreating ? 'Failed to create camera' : 'Failed to update camera',
-        (err as Error).message
-      )
+      notifications.show({
+        title: isCreating ? 'Failed to create camera' : 'Failed to update camera',
+        message: (err as Error).message,
+        color: 'red',
+      })
     } finally {
       setIsSubmitting(false)
     }
   }
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={onClose}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
-        <Dialog.Content className="fixed right-0 top-0 z-50 h-full w-full max-w-md border-l border-gray-200 bg-white shadow-xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right">
-          <div className="flex h-full flex-col">
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-              <Dialog.Title className="text-lg font-semibold text-gray-900">
-                {isCreating ? 'Add Camera' : 'Edit Camera'}
-              </Dialog.Title>
-              <Dialog.Close asChild>
-                <button
-                  className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-900"
-                  aria-label="Close"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </Dialog.Close>
-            </div>
+    <Drawer
+      opened={isOpen}
+      onClose={onClose}
+      title={isCreating ? 'Add Camera' : 'Edit Camera'}
+      position="right"
+      size="md"
+      padding="lg"
+    >
+      <form onSubmit={handleSubmit}>
+        <Stack gap="md">
+          {/* Name */}
+          <TextInput
+            label="Camera Name"
+            placeholder="Front Door Camera"
+            required
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          />
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
-              <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6">
-                {/* Name */}
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                    Camera Name *
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    required
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    placeholder="Front Door Camera"
-                  />
-                </div>
+          {/* Protocol */}
+          <Select
+            label="Protocol"
+            required
+            value={formData.protocol}
+            onChange={(value) =>
+              setFormData({ ...formData, protocol: value as CameraFormData['protocol'] })
+            }
+            data={[
+              { value: 'rtsp', label: 'RTSP' },
+              { value: 'onvif', label: 'ONVIF' },
+              { value: 'usb', label: 'USB' },
+              { value: 'file', label: 'File' },
+            ]}
+          />
 
-                {/* Protocol */}
-                <div>
-                  <label htmlFor="protocol" className="block text-sm font-medium text-gray-700">
-                    Protocol *
-                  </label>
-                  <select
-                    id="protocol"
-                    required
-                    value={formData.protocol}
-                    onChange={(e) => setFormData({ ...formData, protocol: e.target.value })}
-                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  >
-                    <option value="rtsp">RTSP</option>
-                    <option value="onvif">ONVIF</option>
-                    <option value="http">HTTP/MJPEG</option>
-                    <option value="usb">USB</option>
-                  </select>
-                </div>
+          {/* URL */}
+          <TextInput
+            label="Stream URL"
+            placeholder="rtsp://192.168.1.100:554/stream"
+            required
+            value={formData.url}
+            onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+            description="Full URL to the camera stream"
+            styles={{
+              input: {
+                fontFamily: 'monospace',
+              },
+            }}
+          />
 
-                {/* URL */}
-                <div>
-                  <label htmlFor="url" className="block text-sm font-medium text-gray-700">
-                    Stream URL *
-                  </label>
-                  <input
-                    type="text"
-                    id="url"
-                    required
-                    value={formData.url}
-                    onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 font-mono text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    placeholder="rtsp://192.168.1.100:554/stream"
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    Full URL to the camera stream
-                  </p>
-                </div>
+          {/* Username */}
+          <TextInput
+            label="Username"
+            placeholder="admin"
+            value={formData.username}
+            onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+            autoComplete="username"
+          />
 
-                {/* Username */}
-                <div>
-                  <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-                    Username
-                  </label>
-                  <input
-                    type="text"
-                    id="username"
-                    value={formData.username}
-                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    placeholder="admin"
-                    autoComplete="username"
-                  />
-                </div>
+          {/* Password */}
+          <PasswordInput
+            label="Password"
+            placeholder={isCreating ? '' : '••••••••'}
+            value={formData.password}
+            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            description={!isCreating ? 'Leave blank to keep existing password' : undefined}
+            autoComplete="current-password"
+          />
 
-                {/* Password */}
-                <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    id="password"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    placeholder={isCreating ? '' : '••••••••'}
-                    autoComplete="current-password"
-                  />
-                  {!isCreating && (
-                    <p className="mt-1 text-xs text-gray-500">
-                      Leave blank to keep existing password
-                    </p>
-                  )}
-                </div>
+          {/* Enabled */}
+          <Switch
+            label="Enable Camera"
+            description="Start streaming from this camera immediately"
+            checked={formData.enabled}
+            onChange={(e) => setFormData({ ...formData, enabled: e.currentTarget.checked })}
+          />
 
-                {/* Enabled */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <label htmlFor="enabled" className="text-sm font-medium text-gray-700">
-                      Enable Camera
-                    </label>
-                    <p className="text-xs text-gray-500">
-                      Start streaming from this camera immediately
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    id="enabled"
-                    checked={formData.enabled}
-                    onChange={(e) => setFormData({ ...formData, enabled: e.target.checked })}
-                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="flex gap-3 border-t border-gray-200 px-6 py-4">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {isSubmitting ? 'Saving...' : isCreating ? 'Create' : 'Update'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+          {/* Actions */}
+          <Group justify="flex-end" mt="md">
+            <Button variant="default" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" loading={isSubmitting}>
+              {isCreating ? 'Create' : 'Update'}
+            </Button>
+          </Group>
+        </Stack>
+      </form>
+    </Drawer>
   )
 }

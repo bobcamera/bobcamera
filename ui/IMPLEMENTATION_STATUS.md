@@ -26,7 +26,7 @@
 
 ### Pages
 - [x] **Dashboard** - System overview with metrics, status, events
-- [ ] **Cameras** - Camera management (TODO)
+- [x] **Cameras** - Camera management with CRUD operations
 - [ ] **LiveView** - Real-time video feed (TODO)
 - [ ] **Tracks** - Detection history (TODO)
 - [ ] **Recordings** - Saved clips (TODO)
@@ -257,8 +257,8 @@ None - all planned components for Phase 1 are complete.
 - **TODO:** 12 (40%)
 
 - **Total Pages:** 8 planned
-- **Completed:** 1 (12.5%)
-- **TODO:** 7 (87.5%)
+- **Completed:** 2 (25%)
+- **TODO:** 6 (75%)
 
 - **Test Coverage:** ~30% (target: 80%+)
 - **Documentation:** 100% complete for Phase 1
