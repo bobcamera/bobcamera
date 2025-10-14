@@ -152,8 +152,33 @@ class APIClient {
     page?: number
     pageSize?: number
   }): Promise<PaginatedResponse<Recording>> {
-    const response = await this.client.get('/recordings', { params })
-    return PaginatedResponseSchema(RecordingSchema).parse(response.data)
+    try {
+      const response = await this.client.get('/recordings', { params })
+      // Validate that we got an object, not a string (HTML error page)
+      if (typeof response.data === 'string') {
+        console.error('API Error: Backend returned HTML instead of JSON for /recordings', {
+          responseData: response.data.substring(0, 500), // Log first 500 chars
+          status: response.status,
+          statusText: response.statusText,
+          url: response.config?.url,
+        })
+        throw new Error('Backend returned HTML instead of JSON - is the backend running?')
+      }
+      return PaginatedResponseSchema(RecordingSchema).parse(response.data)
+    } catch (error) {
+      // Re-throw with more context
+      if (axios.isAxiosError(error)) {
+        console.error('API Error in getRecordings:', {
+          message: error.message,
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          url: error.config?.url,
+        })
+        throw new Error(`Failed to fetch recordings: ${error.message}`)
+      }
+      throw error
+    }
   }
 
   async getRecording(id: string): Promise<Recording> {
