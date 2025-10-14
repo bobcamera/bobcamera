@@ -32,6 +32,7 @@ ui/
 | [Getting Started](docs/guides/getting-started.md) | Complete setup guide with quick start (5 min) | All developers |
 | [Architecture Guide](docs/guides/architecture.md) | System architecture and design patterns | All developers |
 | [Mantine Setup](docs/guides/mantine-setup.md) | Mantine UI v7 integration details | UI developers |
+| [Mantine v8 Migration](docs/guides/mantine-v8-migration.md) | Mantine v7 → v8 upgrade report | UI developers |
 
 ### Quick Start (5 Minutes)
 
@@ -86,7 +87,7 @@ Detailed documentation for each page in the application.
 
 - **State Management**: Zustand with slice pattern (see [Architecture](docs/guides/architecture.md#state-management))
 - **API Integration**: REST and WebSocket clients (see [Architecture](docs/guides/architecture.md#services-layer))
-- **Component Library**: Mantine UI v7 (see [Mantine Setup](docs/guides/mantine-setup.md))
+- **Component Library**: Mantine UI v8 (see [Mantine Setup](docs/guides/mantine-setup.md))
 - **Type Safety**: TypeScript + Zod validation (see [Architecture](docs/guides/architecture.md#validation-layer))
 
 ### Common Tasks
@@ -118,6 +119,7 @@ Track the current state of the project and implementation progress.
 | [Implementation Status](docs/status/implementation-status.md) | Component-by-component status | Current |
 | [Build Status](docs/status/build-status.md) | Build and type checking status | Current |
 | [Project Summary](docs/status/project-summary.md) | High-level project overview | Current |
+| [QA Requirements Report](docs/status/QA_REQUIREMENTS_REPORT.md) | Comprehensive QA verification pass | January 2025 |
 
 ### Current Progress
 
@@ -208,7 +210,7 @@ See [Architecture Guide](docs/guides/architecture.md) for detailed information.
 
 ### Component Library
 
-The UI uses **Mantine v7** as the primary component library:
+The UI uses **Mantine v8** as the primary component library:
 
 - **Layout**: Container, Grid, Group, Stack, Card
 - **Inputs**: TextInput, NumberInput, Select, DatePicker, Switch, Slider
@@ -328,7 +330,7 @@ When reporting issues, include:
 ### Current Version: 1.0.0
 
 - ✅ 6/8 pages complete
-- ✅ Mantine v7 integration
+- ✅ Mantine v8 integration (upgraded from v7)
 - ✅ ROS2 WebSocket streaming
 - ✅ Comprehensive documentation
 - ⏳ System and Logs pages pending
