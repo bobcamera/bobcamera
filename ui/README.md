@@ -12,6 +12,11 @@ Modern React-based frontend for the BOB (Bird, Object, Bat) Camera tracking syst
 - [Project Status](docs/status/project-status.md) - Current progress (75% complete)
 - [Page Documentation](docs/pages/) - Detailed docs for each page
 
+### 🧪 Testing & PR Preparation
+- **[TEST_QUICK_START.md](TEST_QUICK_START.md)** - ⚡ Fast-track testing guide (30min - 2hrs)
+- [Comprehensive Testing Guide](docs/guides/comprehensive-testing-guide.md) - Full testing strategy (4-5hrs)
+- [QA Requirements Report](docs/status/QA_REQUIREMENTS_REPORT.md) - Complete QA verification
+
 ## Features
 
 - 🎯 **Real-time Tracking**: Live video streams with detection overlays via ROS2
@@ -30,7 +35,7 @@ Modern React-based frontend for the BOB (Bird, Object, Bat) Camera tracking syst
 - **Vite** - Build tool and dev server
 - **React Router 7** - Client-side routing
 - **Zustand** - State management
-- **Mantine v7** - Component library
+- **Mantine v8** - Component library
 - **TailwindCSS 4** - Utility-first styling
 - **Axios** - HTTP client
 - **Zod** - Runtime schema validation
