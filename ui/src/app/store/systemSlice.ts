@@ -1,6 +1,30 @@
 import { type StateCreator } from 'zustand'
 import { type SystemHealth, type Metrics } from '../services/schema'
 import { apiClient } from '../services/api'
+import { mockDetectionGenerator } from '../../lib/mock/mockDetections'
+import type { TracksSlice } from './tracksSlice'
+import type { Detection } from '../services/schema'
+
+// Adapter to convert simple mock detections to the advanced UI format
+function adaptMockDetection(mockDetection: any): Detection {
+  return {
+    id: mockDetection.id,
+    cameraId: 'mock-camera-1',
+    timestamp: new Date(mockDetection.timestamp).toISOString(),
+    bbox: {
+      x: mockDetection.x,
+      y: mockDetection.y,
+      width: mockDetection.width,
+      height: mockDetection.height,
+    },
+    class: mockDetection.class,
+    confidence: mockDetection.confidence,
+    snapshotUrl: undefined,
+    metadata: {
+      mock: true,
+    },
+  }
+}
 
 export interface SystemSlice {
   // State
@@ -40,7 +64,7 @@ export interface SystemSlice {
   fetchMetrics: () => Promise<void>
 }
 
-export const createSystemSlice: StateCreator<SystemSlice> = (set, get) => ({
+export const createSystemSlice: StateCreator<SystemSlice & TracksSlice> = (set, get) => ({
   // Initial state
   health: null,
   systemHealth: null,
@@ -113,10 +137,29 @@ export const createSystemSlice: StateCreator<SystemSlice> = (set, get) => ({
   fetchSystemHealth: async () => {
     try {
       const health = await apiClient.getSystemHealth()
-      set({ health, systemHealth: health, backendStatus: 'online' })
+      set({ health, systemHealth: health, backendStatus: 'online', mockMode: false })
+      // Stop mock mode if it was running
+      mockDetectionGenerator.stop()
     } catch (error) {
       console.error('Failed to fetch system health:', error)
-      set({ backendStatus: 'offline' })
+      const currentMockMode = get().mockMode
+      set({ backendStatus: 'offline', mockMode: true })
+      
+      // Start mock detection generator if not already running
+      if (!currentMockMode) {
+        console.log('[SystemSlice] Starting mock mode...')
+        mockDetectionGenerator.start((detections) => {
+          console.log('[SystemSlice] Mock detections generated:', detections.length)
+          // Convert and add each detection as a live event
+          detections.forEach((mockDetection) => {
+            const state = get() as any
+            if (state.addLiveEvent) {
+              const adaptedDetection = adaptMockDetection(mockDetection)
+              state.addLiveEvent(adaptedDetection)
+            }
+          })
+        })
+      }
     }
   },
 

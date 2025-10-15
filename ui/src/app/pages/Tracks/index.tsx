@@ -85,7 +85,7 @@ export default function Tracks() {
 
   // Fetch tracks when filters or pagination changes
   useEffect(() => {
-    if (backendStatus !== 'connected') return
+    if (backendStatus !== 'online') return
 
     const fetchTracks = async () => {
       setLoading(true)
@@ -102,7 +102,7 @@ export default function Tracks() {
           pageSize: pagination.pageSize,
         })
 
-        setTracks(response.data, response.total, response.hasMore)
+        setTracks(response.items, response.total, response.hasMore)
       } catch (err) {
         console.error('Failed to fetch tracks:', err)
         setError(err instanceof Error ? err.message : 'Failed to fetch tracks')
@@ -400,7 +400,7 @@ export default function Tracks() {
                   onChange={(date) =>
                     setFilters({
                       ...filters,
-                      from: date ? date.toISOString() : undefined,
+                      from: date ? (typeof date === 'string' ? date : (date as Date).toISOString()) : undefined,
                     })
                   }
                   clearable
@@ -414,7 +414,7 @@ export default function Tracks() {
                   onChange={(date) =>
                     setFilters({
                       ...filters,
-                      to: date ? date.toISOString() : undefined,
+                      to: date ? (typeof date === 'string' ? date : (date as Date).toISOString()) : undefined,
                     })
                   }
                   clearable

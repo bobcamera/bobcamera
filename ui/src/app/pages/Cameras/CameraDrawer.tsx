@@ -8,7 +8,6 @@ import {
   Button,
   Stack,
   Group,
-  Text,
 } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
 import { useAppStore } from '@/app/store'

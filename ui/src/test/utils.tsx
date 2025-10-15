@@ -1,5 +1,5 @@
-import { ReactElement } from 'react'
-import { render, RenderOptions } from '@testing-library/react'
+import type { ReactElement } from 'react'
+import { render, type RenderOptions } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { MantineProvider } from '@mantine/core'
 import { ModalsProvider } from '@mantine/modals'
@@ -36,7 +36,7 @@ export { customRender as render }
 
 // Mock API responses
 export const mockHealthResponse = {
-  status: 'ok',
+  status: 'ok' as const,
   cpuLoad: 45.2,
   gpuLoad: 32.1,
   memory: {
@@ -51,6 +51,7 @@ export const mockHealthResponse = {
   },
   uptime: 86400,
   versions: {
+    ui: '0.9.0',
     backend: '1.0.0',
     ros2: 'humble',
   },

@@ -3,5 +3,10 @@
         "vector": "cpp"
     },
     "cmake.sourceDirectory": "/home/fabio/src/bobcamera/src/ros2/build/rosbridge_test_msgs/rosbridge_test_msgs__py",
-    "jira-plugin.workingProject": ""
+    "jira-plugin.workingProject": "",
+    "workbench.colorCustomizations": {
+        "activityBar.background": "#1F2E42",
+        "titleBar.activeBackground": "#2B415D",
+        "titleBar.activeForeground": "#F9FAFC"
+    }
 }

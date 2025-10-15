@@ -23,6 +23,11 @@ export default defineConfig({
   define: {
     'import.meta.env.VITE_GIT_HASH': JSON.stringify(getGitHash()),
   },
+  build: {
+    rollupOptions: {
+      external: ['roslib'],
+    },
+  },
   server: {
     port: 5173,
     proxy: {

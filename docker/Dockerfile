@@ -57,6 +57,11 @@ ARG USER_GID=$USER_UID
 # Copy the compiled libs
 COPY --from=qhy /opt/sdk_qhy /opt/sdk_qhy/
 COPY version.txt src/ros2/
+# Refresh ROS2 GPG key to fix expired key issue
+RUN rm -f /etc/apt/sources.list.d/ros2-latest.list \
+    && apt-get update && apt-get install -y --no-install-recommends curl gnupg \
+    && curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
         libjsoncpp-dev libturbojpeg-dev \
         #libgstreamer-plugins-base1.0-0 libgstreamer-plugins-good1.0-0 libgstreamer-plugins-bad1.0-0 \

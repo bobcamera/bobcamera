@@ -39,9 +39,9 @@ export function HeaderBar({ burger }: HeaderBarProps) {
         <Badge
           size="lg"
           variant="dot"
-          color={backendStatus === 'online' ? 'green' : backendStatus === 'degraded' ? 'yellow' : 'red'}
+          color={backendStatus === 'online' ? 'green' : 'red'}
         >
-          {backendStatus === 'online' ? 'Online' : backendStatus === 'degraded' ? 'Degraded' : 'Offline'}
+          {backendStatus === 'online' ? 'Online' : 'Offline'}
         </Badge>
 
         <ActionIcon

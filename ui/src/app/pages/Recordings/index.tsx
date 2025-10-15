@@ -16,11 +16,9 @@ import {
   ActionIcon,
   Tooltip,
   Pagination,
-  Menu,
   TextInput,
   Modal,
   SegmentedControl,
-  Progress,
   Grid,
   Table,
   AspectRatio,
@@ -42,7 +40,6 @@ import {
   IconCalendar,
   IconCamera,
   IconClock,
-  IconFile,
   IconGridDots,
   IconList,
   IconAlertCircle,
@@ -431,7 +428,7 @@ export default function Recordings() {
                     placeholder="Start date"
                     leftSection={<IconCalendar size={16} />}
                     value={filters.startDate}
-                    onChange={(value) => setFilters({ ...filters, startDate: value })}
+                    onChange={(value) => setFilters({ ...filters, startDate: value as Date | null })}
                     clearable
                   />
                 </Grid.Col>
@@ -441,7 +438,7 @@ export default function Recordings() {
                     placeholder="End date"
                     leftSection={<IconCalendar size={16} />}
                     value={filters.endDate}
-                    onChange={(value) => setFilters({ ...filters, endDate: value })}
+                    onChange={(value) => setFilters({ ...filters, endDate: value as Date | null })}
                     clearable
                   />
                 </Grid.Col>

@@ -43,7 +43,10 @@ global.ResizeObserver = class ResizeObserver {
 
 // Mock WebSocket
 global.WebSocket = class WebSocket {
-  constructor(public url: string) {}
+  url: string
+  constructor(url: string) {
+    this.url = url
+  }
   close() {}
   send() {}
   addEventListener() {}

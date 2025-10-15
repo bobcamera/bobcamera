@@ -62,13 +62,13 @@ export function Dashboard() {
         />
         <MetricCard
           title="Memory"
-          value={health?.memory ? `${health.memory.toFixed(1)}%` : 'N/A'}
+          value={health?.memory ? `${health.memory.percent.toFixed(1)}%` : 'N/A'}
           icon={<IconDatabase size={20} />}
           color="cyan"
         />
         <MetricCard
           title="Disk"
-          value={health?.disk ? `${health.disk.toFixed(1)}%` : 'N/A'}
+          value={health?.disk ? `${health.disk.percent.toFixed(1)}%` : 'N/A'}
           icon={<IconDatabase size={20} />}
           color="teal"
         />
@@ -83,7 +83,7 @@ export function Dashboard() {
                 <Text size="lg" fw={600}>
                   System Status
                 </Text>
-                <Badge color={health?.status === 'healthy' ? 'green' : 'red'} variant="filled">
+                <Badge color={health?.status === 'ok' ? 'green' : 'red'} variant="filled">
                   {health?.status || 'Unknown'}
                 </Badge>
               </Group>
@@ -174,7 +174,7 @@ export function Dashboard() {
                     <Text size="sm">Track #{track.id}</Text>
                   </Group>
                   <Text size="xs" c="dimmed">
-                    {new Date(track.timestamp).toLocaleTimeString()}
+                    {new Date(track.lastSeen).toLocaleTimeString()}
                   </Text>
                 </Group>
               ))}

@@ -1,0 +1,36 @@
+# This docker-compose file uses the locally built bob-ros2-prod image
+# Use this after rebuilding the image for your specific CPU architecture
+services:
+  web:
+    build:
+      context: ../ui
+      dockerfile: Dockerfile
+    image: bobcamera/bob-web-react:local
+    ports:
+      - "8080:80"
+    volumes: 
+      - ${PWD}/assets/recordings:/usr/share/nginx/html/videos
+    depends_on:
+      - bob
+
+  bob:
+    image: bobcamera/bob-ros2-prod:local  # Using locally built image
+    privileged: true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "9090:9090"
+    environment:  # add in .env
+      - BOB_LOGLEVEL=${BOB_LOGLEVEL:-INFO}
+    volumes: 
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro    
+      - ${PWD}/assets/:/workspaces/bobcamera/src/ros2/assets/
+      - ${PWD}/temp_config.yaml:/workspaces/bobcamera/src/ros2/assets/config/app_config.yaml
+  # If you want to use a usb camera uncomment the devices comment below
+  #  devices:
+  #    - /dev/video0:/dev/video0 
+
+volumes:
+  assets:
+    driver: local

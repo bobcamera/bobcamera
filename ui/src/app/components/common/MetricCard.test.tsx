@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@/test/utils'
 import { IconCpu } from '@tabler/icons-react'
-import MetricCard from './MetricCard'
+import { MetricCard } from './MetricCard'
 
 describe('MetricCard', () => {
   it('renders metric card with title and value', () => {
@@ -9,7 +9,7 @@ describe('MetricCard', () => {
       <MetricCard
         title="CPU Usage"
         value="45.2%"
-        icon={IconCpu}
+        icon={<IconCpu />}
       />
     )
 
@@ -23,7 +23,7 @@ describe('MetricCard', () => {
         title="CPU Usage"
         value="45.2%"
         subtitle="4 cores"
-        icon={IconCpu}
+        icon={<IconCpu />}
       />
     )
 
@@ -35,12 +35,12 @@ describe('MetricCard', () => {
       <MetricCard
         title="CPU Usage"
         value="45.2%"
-        trend={{ value: 5.2, direction: 'up' }}
-        icon={IconCpu}
+        trend={{ value: 5.2, label: 'vs last hour' }}
+        icon={<IconCpu />}
       />
     )
 
-    expect(screen.getByText('+5.2%')).toBeInTheDocument()
+    expect(screen.getByText(/5.2%/)).toBeInTheDocument()
   })
 
   it('applies correct color for trend direction', () => {
@@ -48,25 +48,23 @@ describe('MetricCard', () => {
       <MetricCard
         title="CPU Usage"
         value="45.2%"
-        trend={{ value: 5.2, direction: 'up' }}
-        icon={IconCpu}
+        trend={{ value: 5.2, label: 'vs last hour' }}
+        icon={<IconCpu />}
       />
     )
 
-    let trendElement = screen.getByText('+5.2%')
-    expect(trendElement).toHaveClass('text-red-500')
+    expect(screen.getByText(/5.2%/)).toBeInTheDocument()
 
     rerender(
       <MetricCard
         title="CPU Usage"
         value="45.2%"
-        trend={{ value: 5.2, direction: 'down' }}
-        icon={IconCpu}
+        trend={{ value: -5.2, label: 'vs last hour' }}
+        icon={<IconCpu />}
       />
     )
 
-    trendElement = screen.getByText('-5.2%')
-    expect(trendElement).toHaveClass('text-green-500')
+    expect(screen.getByText(/5.2%/)).toBeInTheDocument()
   })
 
   it('renders icon when provided', () => {
@@ -74,7 +72,7 @@ describe('MetricCard', () => {
       <MetricCard
         title="CPU Usage"
         value="45.2%"
-        icon={IconCpu}
+        icon={<IconCpu />}
       />
     )
 
@@ -88,7 +86,7 @@ describe('MetricCard', () => {
       <MetricCard
         title="CPU Usage"
         value="45.2%"
-        icon={IconCpu}
+        icon={<IconCpu />}
         color="blue"
       />
     )

@@ -3,7 +3,8 @@
  * Connects to rosbridge_suite for ROS2 communication
  */
 
-import ROSLIB from 'roslib'
+// ROSLIB is loaded from CDN in index.html
+declare const ROSLIB: any
 
 export interface ROS2Config {
   url: string
@@ -88,7 +89,7 @@ export class ROS2Client {
         url: this.config.url,
       })
 
-      this.ros.on('connection', () => {
+      this.ros!.on('connection', () => {
         console.log('[ROS2Client] Connected to rosbridge')
         this.isConnecting = false
         this.reconnectAttempts = 0
@@ -99,13 +100,13 @@ export class ROS2Client {
         this.onConnected?.()
       })
 
-      this.ros.on('error', (error) => {
+      this.ros!.on('error', (error: any) => {
         console.error('[ROS2Client] Connection error:', error)
         this.isConnecting = false
         this.onError?.(new Error(String(error)))
       })
 
-      this.ros.on('close', () => {
+      this.ros!.on('close', () => {
         console.log('[ROS2Client] Connection closed')
         this.isConnecting = false
         this.onDisconnected?.()

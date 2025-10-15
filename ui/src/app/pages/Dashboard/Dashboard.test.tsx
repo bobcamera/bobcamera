@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@/test/utils'
-import { mockHealthResponse } from '@/test/utils'
-import Dashboard from './index'
+import { render, screen, waitFor, mockHealthResponse } from '@/test/utils'
+import { Dashboard } from './index'
 import { apiClient } from '@/app/services/api'
 
 // Mock the API client
@@ -41,12 +40,12 @@ describe('Dashboard', () => {
   })
 
   it('fetches and displays health data', async () => {
-    vi.mocked(apiClient.getHealth).mockResolvedValue(mockHealthResponse)
+    vi.mocked(apiClient.getSystemHealth).mockResolvedValue(mockHealthResponse)
 
     render(<Dashboard />)
 
     await waitFor(() => {
-      expect(apiClient.getHealth).toHaveBeenCalled()
+      expect(apiClient.getSystemHealth).toHaveBeenCalled()
     })
 
     // Check if metrics are displayed
@@ -59,14 +58,14 @@ describe('Dashboard', () => {
   })
 
   it('handles API errors gracefully', async () => {
-    vi.mocked(apiClient.getHealth).mockRejectedValue(
+    vi.mocked(apiClient.getSystemHealth).mockRejectedValue(
       new Error('Network error')
     )
 
     render(<Dashboard />)
 
     await waitFor(() => {
-      expect(apiClient.getHealth).toHaveBeenCalled()
+      expect(apiClient.getSystemHealth).toHaveBeenCalled()
     })
 
     // Should show offline state or error message
@@ -78,7 +77,7 @@ describe('Dashboard', () => {
   })
 
   it('displays system status card', async () => {
-    vi.mocked(apiClient.getHealth).mockResolvedValue(mockHealthResponse)
+    vi.mocked(apiClient.getSystemHealth).mockResolvedValue(mockHealthResponse)
 
     render(<Dashboard />)
 
@@ -88,7 +87,7 @@ describe('Dashboard', () => {
   })
 
   it('shows uptime information', async () => {
-    vi.mocked(apiClient.getHealth).mockResolvedValue(mockHealthResponse)
+    vi.mocked(apiClient.getSystemHealth).mockResolvedValue(mockHealthResponse)
 
     render(<Dashboard />)
 
@@ -98,7 +97,7 @@ describe('Dashboard', () => {
   })
 
   it('displays metric cards with correct values', async () => {
-    vi.mocked(apiClient.getHealth).mockResolvedValue(mockHealthResponse)
+    vi.mocked(apiClient.getSystemHealth).mockResolvedValue(mockHealthResponse)
 
     render(<Dashboard />)
 
@@ -112,20 +111,20 @@ describe('Dashboard', () => {
 
   it('polls health data periodically', async () => {
     vi.useFakeTimers()
-    vi.mocked(apiClient.getHealth).mockResolvedValue(mockHealthResponse)
+    vi.mocked(apiClient.getSystemHealth).mockResolvedValue(mockHealthResponse)
 
     render(<Dashboard />)
 
     // Initial call
     await waitFor(() => {
-      expect(apiClient.getHealth).toHaveBeenCalledTimes(1)
+      expect(apiClient.getSystemHealth).toHaveBeenCalledTimes(1)
     })
 
     // Fast-forward 10 seconds
     vi.advanceTimersByTime(10000)
 
     await waitFor(() => {
-      expect(apiClient.getHealth).toHaveBeenCalledTimes(2)
+      expect(apiClient.getSystemHealth).toHaveBeenCalledTimes(2)
     })
 
     vi.useRealTimers()
@@ -133,12 +132,12 @@ describe('Dashboard', () => {
 
   it('cleans up interval on unmount', async () => {
     vi.useFakeTimers()
-    vi.mocked(apiClient.getHealth).mockResolvedValue(mockHealthResponse)
+    vi.mocked(apiClient.getSystemHealth).mockResolvedValue(mockHealthResponse)
 
     const { unmount } = render(<Dashboard />)
 
     await waitFor(() => {
-      expect(apiClient.getHealth).toHaveBeenCalledTimes(1)
+      expect(apiClient.getSystemHealth).toHaveBeenCalledTimes(1)
     })
 
     unmount()
@@ -147,7 +146,7 @@ describe('Dashboard', () => {
     vi.advanceTimersByTime(10000)
 
     // Should not call again after unmount
-    expect(apiClient.getHealth).toHaveBeenCalledTimes(1)
+    expect(apiClient.getSystemHealth).toHaveBeenCalledTimes(1)
 
     vi.useRealTimers()
   })

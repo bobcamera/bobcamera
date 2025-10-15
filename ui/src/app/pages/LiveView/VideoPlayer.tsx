@@ -30,7 +30,6 @@ export function VideoPlayer({
   const [error, setError] = useState<string | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [fps, setFps] = useState(0)
-  const [latency, setLatency] = useState(0)
   const [monitoringStatus, setMonitoringStatus] = useState<MonitoringStatus | null>(null)
   
   const liveEvents = useAppStore((state) => state.liveEvents)

@@ -16,28 +16,33 @@ function App() {
     // Initialize the application
     const initialize = async () => {
       try {
+        console.log('[App] Checking backend health...')
         // Check if backend is available
         const isHealthy = await apiClient.checkHealth()
         
         if (isHealthy) {
+          console.log('[App] Backend is healthy, connecting...')
           setBackendStatus('online')
           setMockMode(false)
           // Connect to WebSocket
           wsClient.connect()
         } else {
+          console.log('[App] Backend is offline, starting mock mode...')
           setBackendStatus('offline')
           setMockMode(true)
           // Start mock detection generator
           mockDetectionGenerator.start((detections) => {
+            console.log('[App] Mock detections generated:', detections.length)
             addDetections(detections)
           })
         }
       } catch (error) {
-        console.error('Initialization failed:', error)
+        console.error('[App] Initialization failed:', error)
         setBackendStatus('offline')
         setMockMode(true)
         // Start mock detection generator
         mockDetectionGenerator.start((detections) => {
+          console.log('[App] Mock detections generated (error path):', detections.length)
           addDetections(detections)
         })
       }

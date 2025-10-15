@@ -1,4 +1,13 @@
 #########################################################################
+# Variables to use in nodes
+#########################################################################
+basic_variables:
+  profiling: false            # true to enable profiling display, false otherwise
+  use_recording: true         # true to enable recording, false otherwise
+  camera1_enabled: true       # true to enable camera1, false otherwise
+  camera2_enabled: false      # true to enable camera2, false otherwise
+
+#########################################################################
 # Basic configuration for nodes
 #   This is the basic configuration, where most of the users need to worry
 #########################################################################
@@ -25,13 +34,25 @@ basic_config:
     seconds_save: 2
     #pipeline: 'appsrc ! videoconvert ! openh264enc bitrate=10240000 qp-min=10 qp-max=51 ! h264parse ! mp4mux ! filesink location='
     
-  multi_frame_viewer_node:
-    topics: 
-      - '/bob/frames/annotated/resized/compressed'
-      - '/bob/frames/allsky/original/resized/compressed'
-      - '/bob/frames/allsky/original'
-      - '/bob/frames/foreground_mask/resized'
-      - '/bob/frames/foreground_mask'
+  # multi_frame_viewer_node disabled for headless/Docker environments
+  # multi_frame_viewer_node:
+  #   topics: 
+  #     - '/bob/frames/annotated/resized/compressed'
+  #     - '/bob/frames/allsky/original/resized/compressed'
+  #     - '/bob/frames/allsky/original'
+  #     - '/bob/frames/foreground_mask/resized'
+  #     - '/bob/frames/foreground_mask'
+
+#########################################################################
+# Advanced variables
+#########################################################################
+advanced_variables:
+  resize_height: 1024           # Height to resize the image for display, 0 to disable resize
+  logging_type: both            # Type of logging for the nodes, screen | log | both
+  extra_saving_seconds: 2       # Extra seconds to save the recording after the event is finished
+  image_compression_quality: 75 # Image compression quality for the compressed image, 0 to 100
+  use_cuda: false               # Leave it false as it is not working
+  display_enabled: false        # true to enable opencv display, false otherwise
 
 #########################################################################
 # Advanced configuration for nodes
@@ -299,14 +320,15 @@ launch:
           remappings:
             - 'bob/compressor/source': 'bob/frames/foreground_mask/resized'
             - 'bob/compressor/target': 'bob/frames/foreground_mask/resized/compressed'
-    - name: Display
-      executable: component_container # Has to be single-threaded because of OpenCV display
-      output: both
-      nodes:
-        - package: bob_visualizers
-          plugin: FrameViewer
-          name: multi_frame_viewer_node
-          remappings: []
+    # Display container disabled for headless/Docker environments
+    # - name: Display
+    #   executable: component_container # Has to be single-threaded because of OpenCV display
+    #   output: both
+    #   nodes:
+    #     - package: bob_visualizers
+    #       plugin: FrameViewer
+    #       name: multi_frame_viewer_node
+    #       remappings: []
     - name: Monitor
       executable: component_container_mt
       output: both
@@ -320,34 +342,35 @@ launch:
           name: allsky_recorder_monitoring_node
           remappings: []
   standalone_nodes:
-    - package: bob_observer
-      executable: day_night_classifier
-      name: day_night_classifier_node
-      remappings:
-        - 'bob/observer_frame/source': 'bob/frames/allsky/original/resized'
-      output: screen
-    - package: bob_observer
-      executable: cloud_estimator
-      name: cloud_estimator_node
-      remappings:
-        - 'bob/observer_frame/source': 'bob/frames/allsky/original/resized'
-      output: screen
-    - package: bob_observer
-      executable: star_mask
-      name: star_mask_node
-      remappings:
-        - 'bob/observer_frame/source': '/bob/frames/allsky/original/resized'
-      output: screen
-    - package: bob_monitor
-      executable: monitoring_status_aggregator
-      name: monitoring_status_aggregator_node
-      remappings: []
-      output: screen
-    - package: bob_monitor
-      executable: onvif_service
-      name: onvif_service_node
-      remappings: []
-      output: screen
+    # Observer nodes disabled - executables not available in Docker image
+    # - package: bob_observer
+    #   executable: day_night_classifier
+    #   name: day_night_classifier_node
+    #   remappings:
+    #     - 'bob/observer_frame/source': 'bob/frames/allsky/original/resized'
+    #   output: screen
+    # - package: bob_observer
+    #   executable: cloud_estimator
+    #   name: cloud_estimator_node
+    #   remappings:
+    #     - 'bob/observer_frame/source': 'bob/frames/allsky/original/resized'
+    #   output: screen
+    # - package: bob_observer
+    #   executable: star_mask
+    #   name: star_mask_node
+    #   remappings:
+    #     - 'bob/observer_frame/source': '/bob/frames/allsky/original/resized'
+    #   output: screen
+    # - package: bob_monitor
+    #   executable: monitoring_status_aggregator
+    #   name: monitoring_status_aggregator_node
+    #   remappings: []
+    #   output: screen
+    # - package: bob_monitor
+    #   executable: onvif_service
+    #   name: onvif_service_node
+    #   remappings: []
+    #   output: screen
     - package: bob_webapi
       executable: info_webapi
       name: info_webapi_node
