@@ -1,3 +1,4 @@
+import { normalizeLogSettings, normalizeNetwork } from "../../utils/normalize";
 import { useEffect, useState } from 'react'
 import {
   Container,
@@ -22,7 +23,6 @@ import {
 import { notifications } from '@mantine/notifications'
 import { modals } from '@mantine/modals'
 import {
-  IconSettings,
   IconDeviceFloppy,
   IconRestore,
   IconAlertTriangle,
@@ -34,7 +34,6 @@ import {
   IconX,
 } from '@tabler/icons-react'
 import { useAppStore } from '@/app/store'
-import { EmptyState } from '@/app/components/common/EmptyState'
 
 // Available object classes for detection
 const AVAILABLE_CLASSES = [
@@ -162,6 +161,8 @@ export function Settings() {
   }
 
   const draft = draftConfig || config || defaultConfig
+  const normalizedStorage = normalizeLogSettings(draft.storage) || { path: '', enabled: false, maxSize: 100 * 1000000000, retention: 30 }
+  const normalizedNetwork = normalizeNetwork(draft.network, 8082)
   const hasChanges = hasPendingChanges()
 
   return (
@@ -302,7 +303,7 @@ export function Settings() {
                     ]}
                     disabled={!draft.detection?.enabled}
                   />
-                  <Text size="xs" c="dimmed" mt="xs">
+                  <Text size="xs" c="dimmed" mt="md">
                     Minimum confidence score for detections. Higher values reduce false positives
                     but may miss valid detections.
                   </Text>
@@ -334,7 +335,7 @@ export function Settings() {
                     ]}
                     disabled={!draft.detection?.enabled}
                   />
-                  <Text size="xs" c="dimmed" mt="xs">
+                  <Text size="xs" c="dimmed" mt="md">
                     Non-maximum suppression threshold for removing duplicate detections. Lower
                     values are more aggressive.
                   </Text>
@@ -462,7 +463,7 @@ export function Settings() {
                     ]}
                     disabled={!draft.tracking?.enabled}
                   />
-                  <Text size="xs" c="dimmed" mt="xs">
+                  <Text size="xs" c="dimmed" mt="md">
                     Intersection over Union threshold for matching detections to tracks. Higher
                     values require closer matches.
                   </Text>
@@ -480,8 +481,8 @@ export function Settings() {
                     <Text fw={600} size="lg">
                       Storage Configuration
                     </Text>
-                    <Badge color={draft.storage?.enabled ? 'green' : 'gray'} variant="light">
-                      {draft.storage?.enabled ? 'Enabled' : 'Disabled'}
+                    <Badge color={normalizedStorage.enabled ? 'green' : 'gray'} variant="light">
+                      {normalizedStorage.enabled ? 'Enabled' : 'Disabled'}
                     </Badge>
                   </Group>
                   <Text size="sm" c="dimmed">
@@ -494,13 +495,13 @@ export function Settings() {
                 <Switch
                   label="Enable Storage"
                   description="Enable or disable recording storage"
-                  checked={draft.storage?.enabled || false}
+                  checked={normalizedStorage.enabled || false}
                   onChange={(e) =>
                     updateDraftConfig({
-                      storage: {
+                      storage: normalizeLogSettings({
                         ...draft.storage,
                         enabled: e.currentTarget.checked,
-                      },
+                      }),
                     })
                   }
                   size="md"
@@ -510,16 +511,16 @@ export function Settings() {
                   label="Storage Path"
                   description="Directory path where recordings will be stored"
                   placeholder="/data/recordings"
-                  value={draft.storage?.path || ''}
+                  value={normalizedStorage.path || ''}
                   onChange={(e) =>
                     updateDraftConfig({
-                      storage: {
+                      storage: normalizeLogSettings({
                         ...draft.storage,
                         path: e.currentTarget.value,
-                      },
+                      }),
                     })
                   }
-                  disabled={!draft.storage?.enabled}
+                  disabled={!normalizedStorage.enabled}
                   styles={{
                     input: {
                       fontFamily: 'monospace',
@@ -531,38 +532,38 @@ export function Settings() {
                   label="Max Storage Size"
                   description="Maximum storage size in gigabytes (GB)"
                   placeholder="100"
-                  value={Math.round((draft.storage?.maxSize || 100000000000) / 1000000000)}
+                  value={Math.round((normalizedStorage.maxSize || 100000000000) / 1000000000)}
                   onChange={(value) =>
                     updateDraftConfig({
-                      storage: {
+                      storage: normalizeLogSettings({
                         ...draft.storage,
                         maxSize: Number(value) * 1000000000,
-                      },
+                      }),
                     })
                   }
                   min={1}
                   max={10000}
                   suffix=" GB"
-                  disabled={!draft.storage?.enabled}
+                  disabled={!normalizedStorage.enabled}
                 />
 
                 <NumberInput
                   label="Retention Period"
                   description="Number of days to retain recordings before automatic deletion"
                   placeholder="30"
-                  value={draft.storage?.retention || 30}
+                  value={normalizedStorage.retention || 30}
                   onChange={(value) =>
                     updateDraftConfig({
-                      storage: {
+                      storage: normalizeLogSettings({
                         ...draft.storage,
                         retention: Number(value),
-                      },
+                      }),
                     })
                   }
                   min={1}
                   max={365}
                   suffix=" days"
-                  disabled={!draft.storage?.enabled}
+                  disabled={!normalizedStorage.enabled}
                 />
               </Stack>
             </Card>
@@ -597,13 +598,13 @@ export function Settings() {
                   label="API Port"
                   description="Port for REST API server"
                   placeholder="8080"
-                  value={draft.network?.apiPort || 8080}
+                  value={normalizedNetwork?.apiPort || 8080}
                   onChange={(value) =>
                     updateDraftConfig({
-                      network: {
+                      network: normalizeNetwork({
                         ...draft.network,
                         apiPort: Number(value),
-                      },
+                      }, 8082),
                     })
                   }
                   min={1024}
@@ -614,13 +615,13 @@ export function Settings() {
                   label="WebSocket Port"
                   description="Port for WebSocket event streaming"
                   placeholder="8081"
-                  value={draft.network?.wsPort || 8081}
+                  value={normalizedNetwork?.wsPort || 8081}
                   onChange={(value) =>
                     updateDraftConfig({
-                      network: {
+                      network: normalizeNetwork({
                         ...draft.network,
                         wsPort: Number(value),
-                      },
+                      }, 8082),
                     })
                   }
                   min={1024}
@@ -631,13 +632,13 @@ export function Settings() {
                   label="Stream Port"
                   description="Port for video streaming server"
                   placeholder="8082"
-                  value={draft.network?.streamPort || 8082}
+                  value={normalizedNetwork?.streamPort || 8082}
                   onChange={(value) =>
                     updateDraftConfig({
-                      network: {
+                      network: normalizeNetwork({
                         ...draft.network,
                         streamPort: Number(value),
-                      },
+                      }, 8082),
                     })
                   }
                   min={1024}

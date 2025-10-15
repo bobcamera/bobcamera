@@ -1,3 +1,4 @@
+import { mapStatus, safeNumber } from "../../utils/normalize";
 import { useEffect, useState } from 'react'
 import {
   Container,
@@ -79,6 +80,7 @@ export default function System() {
       case 'degraded':
         return 'yellow'
       case 'error':
+      case mapStatus('offline'):
         return 'red'
       default:
         return 'gray'
@@ -106,14 +108,18 @@ export default function System() {
 
   // Use placeholder data when offline
   const mockHealth: SystemHealth = {
-    status: 'offline',
+    status: mapStatus('offline'),
     uptime: 0,
     cpuLoad: 0,
     gpuLoad: 0,
     memory: { used: 0, total: 0, percent: 0 },
     disk: { used: 0, total: 0, percent: 0 },
     temperature: 0,
-    version: 'N/A',
+    versions: {
+      ui: 'N/A',
+      backend: 'N/A',
+      ros2: undefined,
+    },
   }
 
   const displayHealth = health || mockHealth
@@ -306,39 +312,46 @@ export default function System() {
             </SimpleGrid>
 
             {/* Temperature Card (if available) */}
-            {displayHealth.temperature !== undefined && !error && (
-              <Card withBorder padding="lg">
-                <Group justify="space-between">
-                  <Group>
-                    <ThemeIcon size="xl" variant="light" color="red">
-                      <IconTemperature size={24} />
-                    </ThemeIcon>
-                    <div>
-                      <Text size="sm" c="dimmed">
-                        System Temperature
-                      </Text>
-                      <Text size="xl" fw={700}>
-                        {health.temperature.toFixed(1)}°C
-                      </Text>
-                    </div>
-                  </Group>
-                  <RingProgress
-                    size={120}
-                    thickness={12}
-                    sections={[
-                      {
-                        value: (health.temperature / 100) * 100,
-                        color: health.temperature > 80 ? 'red' : health.temperature > 60 ? 'yellow' : 'green',
-                      },
-                    ]}
-                    label={
-                      <Text size="lg" fw={700} ta="center">
-                        {health.temperature.toFixed(0)}°C
-                      </Text>
-                    }
-                  />
-                </Group>
-              </Card>
+            {displayHealth.temperature !== undefined && !error && health?.temperature !== undefined && (
+              <>
+                {(() => {
+                  const temp = safeNumber(health?.temperature);
+                  return (
+                    <Card withBorder padding="lg">
+                      <Group justify="space-between">
+                        <Group>
+                          <ThemeIcon size="xl" variant="light" color="red">
+                            <IconTemperature size={24} />
+                          </ThemeIcon>
+                          <div>
+                            <Text size="sm" c="dimmed">
+                              System Temperature
+                            </Text>
+                            <Text size="xl" fw={700}>
+                              {temp.toFixed(1)}°C
+                            </Text>
+                          </div>
+                        </Group>
+                        <RingProgress
+                          size={120}
+                          thickness={12}
+                          sections={[
+                            {
+                              value: Math.min((temp / 100) * 100, 100),
+                              color: temp > 80 ? 'red' : temp > 60 ? 'yellow' : 'green',
+                            },
+                          ]}
+                          label={
+                            <Text size="lg" fw={700} ta="center">
+                              {temp.toFixed(0)}°C
+                            </Text>
+                          }
+                        />
+                      </Group>
+                    </Card>
+                  );
+                })()}
+              </>
             )}
 
             {/* Version Information */}
@@ -364,7 +377,7 @@ export default function System() {
                       </Table.Td>
                       <Table.Td>
                         <Badge variant="light" color="blue">
-                          {health.versions.ui}
+                          {displayHealth.versions.ui}
                         </Badge>
                       </Table.Td>
                     </Table.Tr>
@@ -377,11 +390,11 @@ export default function System() {
                       </Table.Td>
                       <Table.Td>
                         <Badge variant="light" color="green">
-                          {health.versions.backend}
+                          {displayHealth.versions.backend}
                         </Badge>
                       </Table.Td>
                     </Table.Tr>
-                    {health.versions.ros2 && (
+                    {displayHealth.versions.ros2 && (
                       <Table.Tr>
                         <Table.Td>
                           <Group gap="xs">
@@ -391,7 +404,7 @@ export default function System() {
                         </Table.Td>
                         <Table.Td>
                           <Badge variant="light" color="grape">
-                            {health.versions.ros2}
+                            {displayHealth.versions.ros2}
                           </Badge>
                         </Table.Td>
                       </Table.Tr>

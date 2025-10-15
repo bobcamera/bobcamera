@@ -7,7 +7,8 @@ import Tracks from './pages/Tracks'
 import Recordings from './pages/Recordings'
 import { Settings } from './pages/Settings'
 import System from './pages/System'
-import Logs from './pages/Logs'
+// NOTE: Logs page not yet implemented - uncomment when pages/Logs/index.tsx is created
+// import Logs from './pages/Logs'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 
 const router = createBrowserRouter([
@@ -44,10 +45,11 @@ const router = createBrowserRouter([
         path: 'system',
         element: <System />,
       },
-      {
-        path: 'logs',
-        element: <Logs />,
-      },
+      // Logs route commented out - page not yet implemented
+      // {
+      //   path: 'logs',
+      //   element: <Logs />,
+      // },
     ],
   },
 ])

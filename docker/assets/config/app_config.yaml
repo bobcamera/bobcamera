@@ -1,0 +1,108 @@
+###################################################################################
+# Minimal BOB Camera Configuration for Development/Testing
+###################################################################################
+basic_variables:
+  profiling: false
+  use_recording: false          # Disable recording for testing
+  camera1_enabled: false        # No camera for testing
+  camera2_enabled: false
+  logging_type: screen
+
+###################################################################################
+# Basic configuration for nodes
+###################################################################################
+basic_config:
+  camera1_node:
+    recording_prefix: 'test'
+    source_type: 'VIDEO_FILE'
+    rtsp_uri: ''
+
+  camera2_node:
+    recording_prefix: 'test'
+    source_type: 'VIDEO_FILE'
+    rtsp_uri: ''
+
+###################################################################################
+# Advanced configuration for nodes
+###################################################################################
+advanced_variables:
+  resize_height: 1024
+  logging_type: screen
+  extra_saving_seconds: 2
+  image_compression_quality: 50
+  use_cuda: false
+  display_enabled: false
+
+advanced_config:
+  camera1_node:
+    detector_algorithm: 'MOG2'
+    tracking_algorithm: 'centroid'
+    confidence: 0.8
+    motion_threshold: 10
+    gaussian_blur: (3, 3)
+    morphology_opening_kernel: (3, 3)
+    morphology_closing_kernel: (5, 5)
+    expected_blob_size: 15
+    contour_approximation_method: 'chain_approx_simple'
+    is_resize_image: false
+    is_save_image: false
+    is_visualize_image: false
+    is_tracking_enabled: false
+
+  camera2_node:
+    detector_algorithm: 'MOG2'
+    tracking_algorithm: 'centroid'
+    confidence: 0.8
+    motion_threshold: 10
+    gaussian_blur: (3, 3)
+    morphology_opening_kernel: (3, 3)
+    morphology_closing_kernel: (5, 5)
+    expected_blob_size: 15
+    contour_approximation_method: 'chain_approx_simple'
+    is_resize_image: false
+    is_save_image: false
+    is_visualize_image: false
+    is_tracking_enabled: false
+
+  onvif_service_node:
+    onvif_wsdl_path: 'assets/wsdl'
+
+  info_webapi_node:
+    version_file: '/workspaces/bobcamera/src/ros2/version.txt'
+
+  mask_webapi_node:
+    masks_folder: 'assets/masks'
+
+###################################################################################
+## Launch nodes configuration
+###################################################################################
+launch:
+  namespace: ''
+  rosbridge: True
+
+  node_containers:
+    - name: Monitor_Camera1
+      enabled: false
+      executable: component_container_mt
+      output: $logging_type
+      nodes: []
+
+  standalone_nodes:
+    - package: bob_monitor
+      executable: onvif_service
+      name: onvif_service_node
+      enabled: true
+      remappings: []
+      output: $logging_type
+    - package: bob_webapi
+      executable: info_webapi
+      name: info_webapi_node
+      enabled: true
+      remappings: []
+      output: $logging_type
+    - package: bob_webapi
+      executable: mask_webapi
+      name: mask_webapi_node
+      enabled: true
+      remappings: []
+      output: $logging_type

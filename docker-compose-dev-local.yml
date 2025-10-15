@@ -1,0 +1,43 @@
+# Docker Compose for Local Development
+# Uses pre-built backend image and locally-built frontend (via npm run build)
+version: '3.8'
+
+services:
+  # Backend service - ROS2-based bob service
+  bob:
+    image: bobcamera/bob-ros2-prod:1.7.5
+    privileged: true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "9090:9090"  # ROS2/rosbridge port
+    environment:
+      - BOB_LOGLEVEL=${BOB_LOGLEVEL:-INFO}
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - ./docker/assets:/workspaces/bobcamera/src/ros2/assets
+      - ./docker/assets/config/app_config.yaml:/workspaces/bobcamera/src/ros2/assets/config/app_config.yaml
+    networks:
+      - bob-network
+    # Note: rosbridge typically doesn't have a /health endpoint
+    # If available, it would be at port 9090
+
+  # Web UI service - Serves pre-built React frontend via Nginx
+  web:
+    image: nginx:stable-alpine
+    ports:
+      - "8080:80"
+    depends_on:
+      - bob
+    volumes:
+      - ./ui/dist:/usr/share/nginx/html:ro
+      - ./ui/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - bob-network
+    environment:
+      - BOB_API_URL=http://bob:9090
+
+networks:
+  bob-network:
+    driver: bridge

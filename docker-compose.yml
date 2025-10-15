@@ -1,31 +1,44 @@
-# Docker Compose configuration for BOB Camera with WebGUI
+# Docker Compose configuration for BOB Camera - Local Build
+# This file builds both backend (bob-ros2) and frontend (web-react) from source
 version: '3.8'
 
 services:
-  # Backend service (placeholder - replace with actual backend service)
-  backend:
-    build: .
+  # Backend service - ROS2-based bob service built from source
+  bob:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile
+      target: bob-ros2-prod
+    image: bobcamera/bob-ros2-prod:local-build
+    privileged: true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
-      - "8080:8080"
+      - "9090:9090"
     environment:
-      - NODE_ENV=production
+      - BOB_LOGLEVEL=${BOB_LOGLEVEL:-INFO}
     volumes:
-      - ./config:/app/config
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - ./docker/assets:/workspaces/bobcamera/src/ros2/assets
+      - ./docker/assets/config/app_config.yaml:/workspaces/bobcamera/src/ros2/assets/config/app_config.yaml
     networks:
       - bob-network
 
-  # Web UI service
-  ui:
+  # Web UI service - React frontend built from source
+  web:
     build:
       context: ./ui
       dockerfile: Dockerfile
-    depends_on:
-      - backend
+    image: bobcamera/bob-web-react:local-build
     ports:
-      - "80:80"
+      - "8080:80"
+    depends_on:
+      - bob
     environment:
-      - ENABLE_UI=${ENABLE_UI:-true}
-    profiles: ["ui"]
+      - BOB_LOGLEVEL=${BOB_LOGLEVEL:-INFO}
+    volumes:
+      - ./docker/assets/recordings:/usr/share/nginx/html/videos
     networks:
       - bob-network
 

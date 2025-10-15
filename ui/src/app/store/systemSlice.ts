@@ -2,7 +2,6 @@ import { type StateCreator } from 'zustand'
 import { type SystemHealth, type Metrics } from '../services/schema'
 import { apiClient } from '../services/api'
 import { mockDetectionGenerator } from '../../lib/mock/mockDetections'
-import type { TracksSlice } from './tracksSlice'
 import type { Detection } from '../services/schema'
 
 // Adapter to convert simple mock detections to the advanced UI format
@@ -64,13 +63,13 @@ export interface SystemSlice {
   fetchMetrics: () => Promise<void>
 }
 
-export const createSystemSlice: StateCreator<SystemSlice & TracksSlice> = (set, get) => ({
-  // Initial state
+export const createSystemSlice: StateCreator<SystemSlice> = (set, get) => ({
+  // Initial state for SystemSlice
   health: null,
   systemHealth: null,
   metrics: [],
   versions: { ui: '0.9.0', backend: '1.7.5' },
-  version: 'v0.9.0', // Deprecated, kept for backward compatibility
+  version: 'v0.9.0',
   gitHash: import.meta.env.VITE_GIT_HASH || null,
   isRunning: false,
   wsStatus: 'disconnected',
@@ -85,19 +84,34 @@ export const createSystemSlice: StateCreator<SystemSlice & TracksSlice> = (set, 
     systemMetrics: import.meta.env.VITE_ENABLE_SYSTEM_METRICS !== 'false',
     logs: import.meta.env.VITE_ENABLE_LOGS !== 'false',
   },
+  
+  // Initial state for TracksSlice (required to satisfy SystemSlice & TracksSlice type)
+  tracks: [],
+  detections: [],
+  liveEvents: [],
+  selectedTrackId: null,
+  filters: {},
+  pagination: {
+    page: 1,
+    pageSize: 50,
+    total: 0,
+    hasMore: false,
+  },
+  loading: false,
+  error: null,
 
-  // Actions
+  // SystemSlice actions
   setHealth: (health) => set({ health, systemHealth: health }),
 
   addMetrics: (metrics) => {
     const current = get().metrics
-    const updated = [...current, metrics].slice(-100) // Keep last 100 data points
+    const updated = [...current, metrics].slice(-100)
     set({ metrics: updated })
   },
 
-  setVersions: (versions) => set({ 
-    versions, 
-    version: versions ? `v${versions.ui}` : 'v0.9.0' 
+  setVersions: (versions) => set({
+    versions,
+    version: versions ? `v${versions.ui}` : 'v0.9.0'
   }),
 
   setGitHash: (hash) => set({ gitHash: hash }),
@@ -138,19 +152,16 @@ export const createSystemSlice: StateCreator<SystemSlice & TracksSlice> = (set, 
     try {
       const health = await apiClient.getSystemHealth()
       set({ health, systemHealth: health, backendStatus: 'online', mockMode: false })
-      // Stop mock mode if it was running
       mockDetectionGenerator.stop()
     } catch (error) {
       console.error('Failed to fetch system health:', error)
       const currentMockMode = get().mockMode
       set({ backendStatus: 'offline', mockMode: true })
-      
-      // Start mock detection generator if not already running
+
       if (!currentMockMode) {
         console.log('[SystemSlice] Starting mock mode...')
         mockDetectionGenerator.start((detections) => {
           console.log('[SystemSlice] Mock detections generated:', detections.length)
-          // Convert and add each detection as a live event
           detections.forEach((mockDetection) => {
             const state = get() as any
             if (state.addLiveEvent) {
