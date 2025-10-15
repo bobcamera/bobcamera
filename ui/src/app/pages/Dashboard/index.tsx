@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Grid, Card, Title, Text, Stack, Group, Badge, SimpleGrid } from '@mantine/core'
+import { Grid, Card, Title, Text, Stack, Group, Badge, SimpleGrid, Alert } from '@mantine/core'
 import {
   IconCpu,
   IconDeviceDesktop,
@@ -26,16 +26,7 @@ export function Dashboard() {
 
   const activeCameras = cameras.filter((c) => c.enabled).length
   const activeTracks = tracks.length
-
-  if (backendStatus === 'offline') {
-    return (
-      <EmptyState
-        icon={<IconActivity size={32} />}
-        title="Backend Offline"
-        description="The BOB Camera backend is currently offline. Please check your connection and ensure the backend services are running."
-      />
-    )
-  }
+  const isOffline = backendStatus === 'offline'
 
   return (
     <Stack gap="lg">
@@ -45,6 +36,18 @@ export function Dashboard() {
           status={backendStatus === 'online' ? 'online' : 'offline'}
         />
       </Group>
+
+      {/* Offline Alert */}
+      {isOffline && (
+        <Alert
+          icon={<IconActivity size={20} />}
+          title="Backend Offline"
+          color="yellow"
+          variant="light"
+        >
+          The BOB Camera backend is currently offline. Displaying UI structure with placeholder data.
+        </Alert>
+      )}
 
       {/* Metrics Grid */}
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="lg">

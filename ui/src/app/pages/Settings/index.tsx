@@ -123,8 +123,8 @@ export function Settings() {
     })
   }
 
-  // Loading state
-  if (backendStatus === 'connecting' || !config) {
+  // Loading state - only show loader briefly
+  if (backendStatus === 'connecting' && !config) {
     return (
       <Center h={400}>
         <Stack align="center" gap="md">
@@ -135,23 +135,33 @@ export function Settings() {
     )
   }
 
-  // Disconnected state
-  if (backendStatus === 'disconnected') {
-    return (
-      <EmptyState
-        icon={<IconSettings size={48} />}
-        title="Backend Disconnected"
-        description="Unable to load settings. Please check your connection and try again."
-        action={
-          <Button onClick={() => fetchConfig()} leftSection={<IconRestore size={16} />}>
-            Retry
-          </Button>
-        }
-      />
-    )
+  // Use default config if backend is offline
+  const defaultConfig = {
+    detection: {
+      enabled: true,
+      confidence: 0.5,
+      nms: 0.45,
+      classes: ['bird', 'person', 'cat', 'dog'],
+    },
+    tracking: {
+      enabled: true,
+      maxAge: 30,
+      minHits: 3,
+      iouThreshold: 0.3,
+    },
+    storage: {
+      enabled: true,
+      retentionDays: 30,
+      maxSize: 100,
+    },
+    network: {
+      apiPort: 8080,
+      wsPort: 8081,
+      enableCors: true,
+    },
   }
 
-  const draft = draftConfig || config
+  const draft = draftConfig || config || defaultConfig
   const hasChanges = hasPendingChanges()
 
   return (
@@ -186,6 +196,18 @@ export function Settings() {
             </Group>
           </Group>
         </div>
+
+        {/* Backend Offline Alert */}
+        {(backendStatus === 'offline' || backendStatus === 'disconnected') && (
+          <Alert
+            icon={<IconAlertTriangle size={20} />}
+            title="Backend Offline"
+            color="orange"
+            variant="light"
+          >
+            Unable to connect to backend. Displaying default configuration values. Changes cannot be saved until connection is restored.
+          </Alert>
+        )}
 
         {/* Pending Changes Alert */}
         {hasChanges && (

@@ -104,7 +104,21 @@ export default function System() {
     return 'red'
   }
 
-  if (isLoading && !health) {
+  // Use placeholder data when offline
+  const mockHealth: SystemHealth = {
+    status: 'offline',
+    uptime: 0,
+    cpuLoad: 0,
+    gpuLoad: 0,
+    memory: { used: 0, total: 0, percent: 0 },
+    disk: { used: 0, total: 0, percent: 0 },
+    temperature: 0,
+    version: 'N/A',
+  }
+
+  const displayHealth = health || mockHealth
+
+  if (isLoading && !health && !error) {
     return (
       <Center h={400}>
         <Stack align="center" gap="md">
@@ -145,29 +159,30 @@ export default function System() {
         {error && (
           <Alert
             icon={<IconAlertCircle size={16} />}
-            title="Connection Error"
-            color="red"
+            title="Backend Offline"
+            color="orange"
             variant="light"
           >
-            {error}
+            Unable to connect to backend. Displaying UI structure with placeholder data.
           </Alert>
         )}
 
-        {health && (
+        {/* Show layout even when offline */}
+        {(health || error) && (
           <>
             {/* Overall Status Card */}
             <Card withBorder padding="lg">
               <Group justify="space-between">
                 <Group>
-                  <ThemeIcon size="xl" variant="light" color={getStatusColor(health.status)}>
-                    {getStatusIcon(health.status)}
+                  <ThemeIcon size="xl" variant="light" color={getStatusColor(displayHealth.status)}>
+                    {getStatusIcon(displayHealth.status)}
                   </ThemeIcon>
                   <div>
                     <Text size="sm" c="dimmed">
                       System Status
                     </Text>
                     <Text size="xl" fw={700} tt="uppercase">
-                      {health.status}
+                      {displayHealth.status}
                     </Text>
                   </div>
                 </Group>
@@ -179,7 +194,7 @@ export default function System() {
                     <Group gap="xs">
                       <IconClock size={16} />
                       <Text size="lg" fw={600}>
-                        {formatUptime(health.uptime)}
+                        {error ? 'N/A' : formatUptime(displayHealth.uptime)}
                       </Text>
                     </Group>
                   </div>
@@ -200,12 +215,12 @@ export default function System() {
                       <Text fw={600}>CPU</Text>
                     </Group>
                     <Text size="xl" fw={700}>
-                      {health.cpuLoad.toFixed(1)}%
+                      {error ? 'N/A' : `${displayHealth.cpuLoad.toFixed(1)}%`}
                     </Text>
                   </Group>
                   <Progress
-                    value={health.cpuLoad}
-                    color={getProgressColor(health.cpuLoad)}
+                    value={displayHealth.cpuLoad}
+                    color={getProgressColor(displayHealth.cpuLoad)}
                     size="lg"
                     radius="md"
                   />
@@ -213,7 +228,7 @@ export default function System() {
               </Card>
 
               {/* GPU */}
-              {health.gpuLoad !== undefined && (
+              {displayHealth.gpuLoad !== undefined && (
                 <Card withBorder padding="lg">
                   <Stack gap="md">
                     <Group justify="space-between">
@@ -224,12 +239,12 @@ export default function System() {
                         <Text fw={600}>GPU</Text>
                       </Group>
                       <Text size="xl" fw={700}>
-                        {health.gpuLoad.toFixed(1)}%
+                        {error ? 'N/A' : `${displayHealth.gpuLoad.toFixed(1)}%`}
                       </Text>
                     </Group>
                     <Progress
-                      value={health.gpuLoad}
-                      color={getProgressColor(health.gpuLoad)}
+                      value={displayHealth.gpuLoad}
+                      color={getProgressColor(displayHealth.gpuLoad)}
                       size="lg"
                       radius="md"
                     />
@@ -248,17 +263,17 @@ export default function System() {
                       <Text fw={600}>Memory</Text>
                     </Group>
                     <Text size="xl" fw={700}>
-                      {health.memory.percent.toFixed(1)}%
+                      {error ? 'N/A' : `${displayHealth.memory.percent.toFixed(1)}%`}
                     </Text>
                   </Group>
                   <Progress
-                    value={health.memory.percent}
-                    color={getProgressColor(health.memory.percent)}
+                    value={displayHealth.memory.percent}
+                    color={getProgressColor(displayHealth.memory.percent)}
                     size="lg"
                     radius="md"
                   />
                   <Text size="xs" c="dimmed" ta="center">
-                    {formatBytes(health.memory.used)} / {formatBytes(health.memory.total)}
+                    {error ? 'N/A' : `${formatBytes(displayHealth.memory.used)} / ${formatBytes(displayHealth.memory.total)}`}
                   </Text>
                 </Stack>
               </Card>
@@ -274,24 +289,24 @@ export default function System() {
                       <Text fw={600}>Disk</Text>
                     </Group>
                     <Text size="xl" fw={700}>
-                      {health.disk.percent.toFixed(1)}%
+                      {error ? 'N/A' : `${displayHealth.disk.percent.toFixed(1)}%`}
                     </Text>
                   </Group>
                   <Progress
-                    value={health.disk.percent}
-                    color={getProgressColor(health.disk.percent)}
+                    value={displayHealth.disk.percent}
+                    color={getProgressColor(displayHealth.disk.percent)}
                     size="lg"
                     radius="md"
                   />
                   <Text size="xs" c="dimmed" ta="center">
-                    {formatBytes(health.disk.used)} / {formatBytes(health.disk.total)}
+                    {error ? 'N/A' : `${formatBytes(displayHealth.disk.used)} / ${formatBytes(displayHealth.disk.total)}`}
                   </Text>
                 </Stack>
               </Card>
             </SimpleGrid>
 
             {/* Temperature Card (if available) */}
-            {health.temperature !== undefined && (
+            {displayHealth.temperature !== undefined && !error && (
               <Card withBorder padding="lg">
                 <Group justify="space-between">
                   <Group>
