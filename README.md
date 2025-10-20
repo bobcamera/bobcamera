@@ -100,7 +100,7 @@ cp ex_config.yaml my_config_file.yaml
 
 ## UI Development
 
-BOB Camera includes a modern React frontend built with Mantine UI v7. The UI provides:
+BOB Camera includes a modern React frontend built with Mantine UI v8. The UI provides:
 
 - **Real-time monitoring** - Live camera feeds, detections, and system metrics
 - **Camera management** - Configure RTSP/USB cameras, test connections
@@ -126,7 +126,7 @@ Open [http://localhost:5173](http://localhost:5173) - the UI will proxy to the b
 ### UI Tech Stack
 
 - **React 19** + TypeScript + Vite
-- **Mantine UI v7** - Modern component library
+- **Mantine UI v8** - Modern component library
 - **TailwindCSS v4** - Utility-first CSS (layout only)
 - **Zustand** - State management
 - **React Router v7** - Client-side routing

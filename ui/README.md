@@ -174,8 +174,8 @@ ui/
 │   └── main.tsx                 # App entry point
 ├── public/                      # Static assets
 ├── .env.example                 # Environment template
-├── Dockerfile                   # Multi-stage Docker build
-├── nginx.conf                   # Nginx configuration
+├── Dockerfile                   # Alpine + Nginx production image
+├── nginx.conf                   # Nginx reverse proxy & SPA routing
 ├── package.json
 ├── tsconfig.json
 ├── vite.config.ts
@@ -188,6 +188,10 @@ ui/
 ### Build Image
 
 ```bash
+# Build requires the React app to be built first
+npm run build
+
+# Then build the Docker image
 docker build -t bobcamera/bob-ui:latest .
 ```
 
@@ -212,10 +216,21 @@ services:
       - "8080:80"
     depends_on:
       - backend
-    environment:
-      - NGINX_BACKEND_HOST=backend
-      - NGINX_BACKEND_PORT=8080
 ```
+
+### How It Works
+
+The Docker image uses a simplified single-stage build approach:
+- **Base Image**: Alpine Linux + Nginx (75 MB total)
+- **Pre-built Assets**: React app is built locally, dist folder copied into container
+- **Nginx Configuration**: Routes all traffic through `/api/*` and `/ws/*` to backend
+- **SPA Routing**: Nginx rewrites unmapped routes to index.html for React Router
+
+This approach provides:
+- ✅ Faster builds (no Node.js compilation in container)
+- ✅ Smaller image size
+- ✅ Better startup performance
+- ✅ Production-ready configuration
 
 ## API Integration
 
