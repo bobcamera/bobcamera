@@ -46,25 +46,31 @@ Modern React-based frontend for the BOB (Bird, Object, Bat) Camera tracking syst
 
 ### Prerequisites
 
-- Node.js 20+ and npm
-- Backend service running (see main README)
+- **Node.js 20+** and npm 10+ (for local builds)
+- **Docker** 20.10+ (for containerized builds)
+- Backend service running (for runtime, not required for build)
 
-### Installation
+### Local Installation & Development
+
+#### Install dependencies with npm ci
 
 ```bash
-# Install dependencies
+# Install dependencies deterministically (recommended)
+npm ci
+
+# Or use npm install if you want to update package-lock.json
 npm install
 
 # Copy environment template
 cp .env.example .env
 
-# Edit .env with your backend URLs
+# Edit .env with your backend URLs (defaults work for local dev)
 ```
 
-### Development
+#### Start development server
 
 ```bash
-# Start dev server with hot reload
+# Start Vite dev server with hot reload
 npm run dev
 
 # Open http://localhost:5173
@@ -74,13 +80,21 @@ The dev server includes:
 - Hot module replacement (HMR)
 - Proxy to backend API (configured in vite.config.ts)
 - Source maps for debugging
+- Mock mode support (VITE_MOCK_MODE=true)
 
-### Building
+#### Type checking
 
 ```bash
-# Type check
+# Type check without emitting
 npx tsc --noEmit
 
+# Or use npm script
+npm run typecheck
+```
+
+#### Building locally
+
+```bash
 # Build for production
 npm run build
 
@@ -107,35 +121,50 @@ npm run test:coverage
 # Lint code
 npm run lint
 
-# Format code
+# Format code with Prettier
 npm run format
 
-# Check formatting
-npm run format -- --check
+# Check formatting without changing files
+npm run format:check
 ```
 
 ## Environment Variables
 
-Create a `.env` file in the `ui/` directory:
+### Configuration
+
+Create a `.env` file in the `ui/` directory (copy from `.env.example`):
 
 ```bash
-# API Configuration
-VITE_API_BASE_URL=/api
-VITE_WS_BASE_URL=/ws
-
-# Stream Configuration
-VITE_STREAM_PROTOCOL=mjpeg  # Options: hls, mjpeg, none
-
-# Feature Flags (optional)
-VITE_ENABLE_RECORDINGS=true
-VITE_ENABLE_SETTINGS=true
+cp .env.example .env
 ```
 
-### Environment Variable Notes
+### Available Variables
 
-- All Vite env vars must be prefixed with `VITE_`
-- Variables are embedded at build time (not runtime)
-- For runtime config, use the backend `/api/config` endpoint
+**Backend API**:
+- `VITE_API_BASE_URL` - REST API base path (default: `/api`)
+- `VITE_WS_BASE_URL` - WebSocket base URL (default: `ws://localhost:8080/ws`)
+- `VITE_ROS2_WS_URL` - ROS2 bridge WebSocket (default: `ws://localhost:9090`)
+
+**Video Stream**:
+- `VITE_STREAM_PROTOCOL` - Stream type: `ros2`, `hls`, `mjpeg`, or `none` (default: `ros2`)
+- `VITE_STREAM_URL` - Stream endpoint path (default: `/stream`)
+
+**Feature Flags**:
+- `VITE_MOCK_MODE` - Use mock backend for development (default: `false`)
+- `VITE_ENABLE_RECORDINGS` - Show recordings page (default: `true`)
+- `VITE_ENABLE_SYSTEM_METRICS` - Show system metrics (default: `true`)
+- `VITE_ENABLE_LOGS` - Show logs page (default: `true`)
+
+**UI Configuration**:
+- `VITE_APP_TITLE` - App title in header (default: `BOB Camera System`)
+- `VITE_DEBUG` - Verbose console logging (default: `false`)
+
+### Important Notes
+
+- **Build-time embedding**: All `VITE_*` variables are embedded at build time, not read at runtime
+- **For runtime configuration**: Use the backend `/api/config` endpoint
+- **Git commit**: See [Build & Version Metadata](#build--version-metadata) below
+- **Case-sensitive**: Variable names are case-sensitive in Vite
 
 ## Project Structure
 
@@ -185,23 +214,53 @@ ui/
 
 ## Docker Deployment
 
-### Build Image
+### 📦 Build & Version Metadata
 
+The build process automatically captures git commit information:
+
+**Priority for commit hash** (checked in order):
+1. `GIT_COMMIT` environment variable (passed via Docker build-arg)
+2. Local git repository (`git rev-parse --short HEAD`)
+3. Fallback to `'unknown'` (expected in CI/Docker contexts without .git)
+
+This is handled gracefully - builds never fail due to missing git info.
+
+### Build Docker Image
+
+#### Quick Build (no git tracking)
 ```bash
-# Build requires the React app to be built first
-npm run build
-
-# Then build the Docker image
+# Builds with GIT_COMMIT=unknown
 docker build -t bobcamera/bob-ui:latest .
+```
+
+#### Build with git commit info
+```bash
+# Auto-detect current commit and pass to build
+docker build \
+  --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) \
+  -t bobcamera/bob-ui:latest \
+  .
+```
+
+#### Using the Makefile (recommended)
+```bash
+# Auto-detects git commit
+make docker-build
+
+# Or with custom tag
+make docker-build IMAGE_TAG=bobcamera/bob-ui:v1.0.0
 ```
 
 ### Run Container
 
 ```bash
+# Run UI on port 8080
 docker run -d \
   --name bob-ui \
   -p 8080:80 \
   bobcamera/bob-ui:latest
+
+# Access at http://localhost:8080
 ```
 
 ### Docker Compose
@@ -211,26 +270,65 @@ Add to your `docker-compose.yml`:
 ```yaml
 services:
   ui:
-    build: ./ui
+    build:
+      context: ./ui
+      # Optional: pass git commit at build time
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
     ports:
       - "8080:80"
     depends_on:
       - backend
+    environment:
+      # Override API URLs if backend is not on localhost
+      # (Note: These are build-time, adjust image or mount config)
+      # For dynamic URLs, use backend /api/config endpoint
 ```
 
-### How It Works
+### Build Architecture
 
-The Docker image uses a simplified single-stage build approach:
-- **Base Image**: Alpine Linux + Nginx (75 MB total)
-- **Pre-built Assets**: React app is built locally, dist folder copied into container
-- **Nginx Configuration**: Routes all traffic through `/api/*` and `/ws/*` to backend
-- **SPA Routing**: Nginx rewrites unmapped routes to index.html for React Router
+The Dockerfile uses **multi-stage building**:
 
-This approach provides:
-- ✅ Faster builds (no Node.js compilation in container)
-- ✅ Smaller image size
-- ✅ Better startup performance
-- ✅ Production-ready configuration
+```
+Stage 1: Builder (node:18-alpine)
+├─ Install build dependencies
+├─ Run npm ci (deterministic installs)
+├─ Build React app → dist/
+└─ Accept GIT_COMMIT build-arg (optional)
+
+Stage 2: Production (nginx:stable-alpine)
+├─ Copy nginx config from builder
+├─ Copy dist/ from builder
+├─ Serve with Nginx on port 80
+└─ Include healthcheck
+```
+
+**Benefits**:
+- ✅ No Node.js in final image (smaller size)
+- ✅ Reproducible builds regardless of .git presence
+- ✅ Deterministic with `npm ci --ignore-scripts`
+- ✅ Proper layer caching for faster rebuilds
+- ✅ Works in CI/CD without git history
+
+### Build Reproducibility
+
+For CI/CD pipelines that don't have .git:
+
+```bash
+# Simulate "no .git" scenario
+git archive --format=tar HEAD | tar -x -C /tmp/bob-ui-archive
+cd /tmp/bob-ui-archive/ui
+
+# Build will still succeed, using GIT_COMMIT=unknown
+docker build -t bobcamera/bob-ui:latest .
+```
+
+### Size & Performance
+
+- **Final image**: ~120 MB (Nginx Alpine + React bundle)
+- **Build time**: ~2-3 minutes (depends on npm install cache)
+- **Startup time**: <1 second
+- **Memory usage**: ~50-100 MB at runtime
 
 ## API Integration
 
@@ -325,31 +423,147 @@ function Example() {
 
 ## Troubleshooting
 
-### Backend Connection Issues
+### Local Build Issues
 
-1. Check `.env` has correct `VITE_API_BASE_URL`
-2. Verify backend is running and accessible
-3. Check browser console for CORS errors
-4. Ensure Nginx proxy is configured correctly
+#### "npm install fails with permission error"
+```bash
+# Clear npm cache
+npm cache clean --force
 
-### WebSocket Not Connecting
+# Reinstall cleanly
+rm -rf node_modules package-lock.json
+npm ci
+```
 
-1. Verify `VITE_WS_BASE_URL` in `.env`
-2. Check WebSocket endpoint in browser DevTools
-3. Ensure backend WebSocket server is running
-4. Check for firewall/proxy blocking WebSocket
+#### "Cannot find module" or type errors
+```bash
+# Clear all caches and reinstall
+rm -rf node_modules .vite
+npm ci
 
-### Build Errors
+# Type check
+npm run typecheck
+```
 
-1. Clear node_modules: `rm -rf node_modules && npm install`
-2. Clear Vite cache: `rm -rf node_modules/.vite`
-3. Check Node.js version: `node --version` (should be 20+)
+#### "Node.js version mismatch"
+```bash
+# Check your version (should be 20+)
+node --version
 
-### Type Errors
+# Use nvm to manage versions
+nvm install 20
+nvm use 20
+```
 
-1. Run type check: `npx tsc --noEmit`
-2. Update types: `npm update @types/react @types/react-dom`
-3. Check for missing imports
+### Docker Build Issues
+
+#### "fatal: not a git repository" during Docker build
+**This is expected and not an error!** The build will complete with `GIT_COMMIT=unknown`
+
+Solution: This happens because `.git` is excluded from Docker context (by design).
+- ✅ Build completes successfully
+- ✅ UI functions normally
+- ✅ Version display shows "unknown" (graceful fallback)
+
+#### "docker build hangs or times out"
+```bash
+# Check Docker resources
+docker system df
+
+# Try with increased timeout
+docker build --progress=plain -t bobcamera/bob-ui:latest .
+
+# Or use BuildKit
+DOCKER_BUILDKIT=1 docker build -t bobcamera/bob-ui:latest .
+```
+
+#### "npm ci fails in Docker"
+```bash
+# Clear Docker build cache and rebuild
+docker build --no-cache -t bobcamera/bob-ui:latest .
+
+# Check Docker disk space
+docker system prune -a  # ⚠️ removes all unused images/containers
+```
+
+### Runtime Issues
+
+#### UI loads but shows blank page
+1. Check browser console for JavaScript errors
+2. Verify backend is running: `curl http://localhost:8080/api/system/health`
+3. Check network tab in DevTools for failed requests
+4. Ensure VITE_API_BASE_URL matches your deployment
+
+#### "Cannot connect to backend" or API 404 errors
+```bash
+# Verify backend is running
+curl -i http://localhost:8080/api/system/health
+
+# Check your .env file
+cat .env | grep VITE_API
+
+# For Docker, verify networks
+docker network ls
+docker network inspect bridge
+```
+
+#### WebSocket connection fails
+1. Verify `VITE_WS_BASE_URL` in `.env` points to correct host
+2. Check WebSocket is not blocked by firewall
+3. Verify backend WebSocket endpoint is running
+4. In browser DevTools → Network → WS, check connection status
+
+#### Video stream not showing
+```bash
+# Verify stream is accessible
+curl -i http://localhost:8080/stream
+
+# Check VITE_STREAM_PROTOCOL setting
+cat .env | grep VITE_STREAM
+
+# Try mjpeg if ros2 doesn't work (faster debugging)
+# Edit .env and set VITE_STREAM_PROTOCOL=mjpeg
+```
+
+### Troubleshooting Matrix
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| `npm run build` fails locally | Missing build deps | `npm ci && npm run build` |
+| Docker build fails with git error | `.git` not in context | Normal behavior, build succeeds with `GIT_COMMIT=unknown` |
+| Docker build very slow | npm cache miss | Use `--no-cache` only when needed |
+| UI blank screen | API unreachable | Check backend health: `curl /api/system/health` |
+| WebSocket fails | Wrong URL or firewall | Verify `VITE_WS_BASE_URL` in `.env` |
+| Version shows "unknown" | No git in Docker context | Expected; use `--build-arg GIT_COMMIT=<hash>` to override |
+| Module not found after git pull | Dependency changes | `rm -rf node_modules && npm ci` |
+| TypeScript errors | Type mismatch | `npm run typecheck` → fix errors |
+| Hot reload not working | HMR config issue | Restart dev server or clear `.vite` cache |
+
+### Debug Mode
+
+Enable debug logging to troubleshoot issues:
+
+```bash
+# In .env
+VITE_DEBUG=true
+
+# Then check browser console for detailed logs
+npm run dev
+```
+
+### Getting Help
+
+If you encounter issues:
+
+1. **Check logs**: Browser console + terminal output
+2. **Verify environment**: Correct `.env` file, backend running
+3. **Clear caches**: `npm ci` + Docker `--no-cache`
+4. **Search existing issues**: GitHub issue tracker
+5. **Report with details**:
+   - Output of `node --version && npm --version`
+   - Your `.env` file (sanitized)
+   - Full error message from console/terminal
+   - Steps to reproduce
 
 ## Performance
 

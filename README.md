@@ -76,9 +76,72 @@ code my_usb_config.yaml
 
 ### 8. Use your system browser and navigate to [http://localhost:8080](http://localhost:8080)
 
-> **New UI Available!** BOB now includes a modern React + Mantine UI. See [UI Quick Start](ui/QUICKSTART_MANTINE.md) for details.
-
 ### 9. To shut BOB down, type CTRL + C in the terminal
+
+---
+
+## 🚀 UI Quick Start
+
+BOB includes a modern **React 19 + Mantine UI** with real-time streaming and system monitoring.
+
+### Build the UI Locally
+
+```bash
+cd ui
+npm ci                 # Install dependencies
+npm run build          # Build for production
+npm run dev            # Start dev server (http://localhost:5173)
+```
+
+### Build & Run Docker Image
+
+```bash
+# Quick build (includes git in image)
+docker build -t bobcamera/bob-ui:latest ui/
+
+# Build with git commit info (recommended)
+GIT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
+docker build --build-arg GIT_COMMIT=$GIT_COMMIT -t bobcamera/bob-ui:latest ui/
+
+# Run the container
+docker run -d -p 8080:80 bobcamera/bob-ui:latest
+```
+
+### Using the Makefile (Recommended)
+
+```bash
+cd ui
+make help              # Show all targets
+make docker-build      # Auto-detects git commit
+make docker-run        # Run on port 8080
+```
+
+### Configuration
+
+Copy and customize environment:
+
+```bash
+cp ui/.env.example ui/.env
+# Edit ui/.env to change API URLs, feature flags, etc.
+```
+
+### Full Documentation
+
+For complete setup, troubleshooting, and development guide:
+→ **[UI README](ui/README.md)** - Full documentation
+→ **[.env Configuration](ui/.env.example)** - All environment variables
+
+### Key Features
+
+- 🎯 Real-time video streams with detection overlays
+- 📊 System metrics (CPU, GPU, memory, disk)
+- 📹 Camera management and recording playback
+- 📝 Live log streaming
+- ⚙️ Configuration management
+- 🌙 Dark/light theme toggle
+- ♿ WCAG 2.1 compliant
+
+---
 
 --- 
 ## Appendix: 

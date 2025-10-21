@@ -1,17 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
-import { execSync } from 'child_process'
-
-// Get git commit hash
-const getGitHash = () => {
-  try {
-    return execSync('git rev-parse --short HEAD').toString().trim()
-  } catch (error) {
-    console.warn('Failed to get git hash:', error)
-    return 'unknown'
-  }
-}
+import { getGitCommit } from './src/lib/buildInfo'
 
 export default defineConfig({
   plugins: [react()],
@@ -21,7 +11,7 @@ export default defineConfig({
     },
   },
   define: {
-    'import.meta.env.VITE_GIT_HASH': JSON.stringify(getGitHash()),
+    'import.meta.env.VITE_GIT_HASH': JSON.stringify(getGitCommit()),
   },
   build: {
     rollupOptions: {
