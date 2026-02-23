@@ -40,7 +40,6 @@ public:
 
     ~CameraSaveWorker() noexcept
     {
-        node_.log_info("CameraSaveWorker destructor");
         recording_event_pubsub_ptr_.reset();
         image_pubsub_ptr_.reset();
         bgs_pubsub_ptr_.reset();

@@ -43,7 +43,6 @@ public:
 
     ~AnnotatedFrameWorker()
     {
-        node_.log_info("AnnotatedFrameWorker destructor");
         tracking_pubsub_ptr_.reset();
     }
 

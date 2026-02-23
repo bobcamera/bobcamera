@@ -45,7 +45,6 @@ public:
 
     ~BackgroundSubtractorWorker()
     {
-        node_.log_info("BackgroundSubtractorWorker destructor");
         shutdown();
         camera_pubsub_ptr_.reset();
         process_pubsub_ptr_.reset();

@@ -40,7 +40,6 @@ public:
 
     ~CameraWorker() noexcept
     {
-        node_.log_info("CameraWorker destructor");
         stop_capture();
         publish_pubsub_ptr_.reset();
         camera_info_pubsub_ptr_.reset();

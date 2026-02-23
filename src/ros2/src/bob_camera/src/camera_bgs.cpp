@@ -54,29 +54,21 @@ public:
     // Ensure child workers are destroyed when node is shut down
     ~CameraBGS() override
     {
-        log_info("CameraBGS destructor - begin");
+        log_info("CameraBGS destructor");
         // Unblock any BGS callbacks waiting on condition variables
         bgs_worker_ptr_->shutdown();
-        log_info("CameraBGS destructor - bgs shutdown done");
         // Close video files early — ffmpeg finalization can be slow
         camera_save_worker_ptr_->shutdown();
-        log_info("CameraBGS destructor - save worker shutdown done");
         // Stop ALL pubsub dispatch and subscriber threads — no more callbacks
         topic_manager_->shutdown();
-        log_info("CameraBGS destructor - topic manager shutdown done");
         // Destroy workers (safe — no pubsub threads running, videos already closed)
         camera_worker_ptr_.reset();
-        log_info("CameraBGS destructor - camera worker destroyed");
         camera_save_worker_ptr_.reset();
-        log_info("CameraBGS destructor - save worker destroyed");
         bgs_worker_ptr_.reset();
-        log_info("CameraBGS destructor - bgs worker destroyed");
         track_provider_worker_ptr_.reset();
         record_manager_worker_ptr_.reset();
         annotated_frame_worker_ptr_.reset();
-        log_info("CameraBGS destructor - all workers destroyed");
         topic_manager_.reset();
-        log_info("CameraBGS destructor - complete");
     }
 
     void on_configure()

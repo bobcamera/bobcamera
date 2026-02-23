@@ -40,7 +40,6 @@ public:
 
     ~RecordManagerWorker()
     {
-        node_.log_info("RecordManagerWorker destructor");
         tracking_pubsub_ptr_.reset();
         camera_info_pubsub_ptr_.reset();
         recording_event_pubsub_ptr_.reset();
