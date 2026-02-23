@@ -15,6 +15,7 @@
 #include <video_recorder.hpp>
 
 #include <parameter_node.hpp>
+#include <tracking_state.hpp>
 
 #include "camera_bgs_params.hpp"
 
@@ -83,22 +84,35 @@ private:
         node_.log_info("Closing recorders");
         recording_ = false;
 
+        const bool has_valid_path = !last_recording_event_.recording_path.empty()
+                                    && !last_recording_event_.filename.empty();
+
         if (img_recorder_)
         {
-            std::string full_path = last_recording_event_.recording_path +
-                                    "/heatmaps/" + last_recording_event_.filename + ".jpg";
-            node_.log_info("Saving heatmap image to: %s", full_path.c_str());
-            img_recorder_->write_image(full_path);
+            if (has_valid_path)
+            {
+                std::string full_path = last_recording_event_.recording_path +
+                                        "/heatmaps/" + last_recording_event_.filename + ".jpg";
+                node_.log_info("Saving heatmap image to: %s", full_path.c_str());
+                img_recorder_->write_image(full_path);
+            }
             img_recorder_->reset();
         }
         if (json_recorder_)
         {
-            auto json_full_path = last_recording_event_.recording_path + "/json/" + last_recording_event_.filename + ".json";
-            node_.log_send_info("Writing JSON to: %s", json_full_path.c_str());
+            if (has_valid_path)
+            {
+                auto json_full_path = last_recording_event_.recording_path + "/json/" + last_recording_event_.filename + ".json";
+                node_.log_send_info("Writing JSON to: %s", json_full_path.c_str());
 
-            auto json_camera_info = JsonRecorder::build_json_camera_info(last_camera_info_);
-            json_recorder_->add_to_buffer(json_camera_info, true);
-            json_recorder_->write_buffer_to_file(json_full_path);
+                auto json_camera_info = JsonRecorder::build_json_camera_info(last_camera_info_);
+                json_recorder_->add_to_buffer(json_camera_info, true);
+                json_recorder_->write_buffer_to_file(json_full_path);
+            }
+            else
+            {
+                json_recorder_->reset();
+            }
         }
         if (video_recorder_ptr_)
         {
@@ -245,7 +259,7 @@ private:
             {
                 for (const auto &detection : tracking_msg->detections)
                 {
-                    if (detection.state == 2) // ActiveTarget
+                    if (detection.state == ActiveTarget)
                     {
                         const auto &bbox = detection.bbox;
                         const double area = bbox.width * bbox.height;
