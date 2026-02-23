@@ -140,6 +140,7 @@ private:
 
     void recording_event(const bob_interfaces::msg::RecordingEvent::SharedPtr &event) noexcept
     {
+        std::lock_guard<std::recursive_mutex> lk(recording_mutex_);
         last_recording_event_ = *event;
 
         if (!params_.recording.enabled)

@@ -38,6 +38,14 @@ public:
     {
     }
 
+    ~RecordManagerWorker()
+    {
+        node_.log_info("RecordManagerWorker destructor");
+        tracking_pubsub_ptr_.reset();
+        camera_info_pubsub_ptr_.reset();
+        recording_event_pubsub_ptr_.reset();
+    }
+
     enum class RecordingStateEnum
     {
         Disabled,
@@ -86,14 +94,16 @@ private:
 
         dated_directory_ = dirPath / get_current_date_as_str() / params_.recording.prefix;
 
-        if (std::filesystem::create_directories(dated_directory_))
+        std::error_code ec;
+        std::filesystem::create_directories(dated_directory_, ec);
+        if (ec)
         {
-            node_.log_send_info("Dated directory created: %s", dated_directory_.c_str());
-            return true;
+            node_.log_send_error("Failed to create dated directory: %s (%s)", dated_directory_.c_str(), ec.message().c_str());
+            return false;
         }
 
-        node_.log_send_error("Failed to create dated directory: %s", dated_directory_.c_str());
-        return false;
+        node_.log_send_info("Dated directory ready: %s", dated_directory_.c_str());
+        return true;
     }
 
     static std::string generate_filename(builtin_interfaces::msg::Time time)

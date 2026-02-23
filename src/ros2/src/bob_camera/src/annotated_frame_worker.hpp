@@ -41,6 +41,12 @@ public:
     {
     }
 
+    ~AnnotatedFrameWorker()
+    {
+        node_.log_info("AnnotatedFrameWorker destructor");
+        tracking_pubsub_ptr_.reset();
+    }
+
     void init()
     {
         prof_annotated_id_ = profiler_.add_region("Annotated Frame Provider");

@@ -46,6 +46,19 @@ public:
     ~BackgroundSubtractorWorker()
     {
         node_.log_info("BackgroundSubtractorWorker destructor");
+        shutdown();
+        camera_pubsub_ptr_.reset();
+        process_pubsub_ptr_.reset();
+        detector_pubsub_ptr_.reset();
+    }
+
+    void shutdown() noexcept
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        shutting_down_ = true;
+        ready_ = true;
+        cv_ready_.notify_all();
+        cv_processing_.notify_all();
     }
 
     void init()
@@ -86,10 +99,8 @@ public:
 
     void init_bgs(const std::string &bgs) noexcept
     {
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            ready_ = false;
-        }
+        std::lock_guard<std::mutex> lock(mutex_);
+        ready_ = false;
 
         try
         {
@@ -112,22 +123,20 @@ public:
             rcutils_reset_error();
         }
 
+        if (bgs_ptr_)
         {
-            std::lock_guard<std::mutex> lock(mutex_);
-            if (bgs_ptr_)
-            {
-                ready_ = true;
-            }
-            else
-            {
-                node_.log_send_error("init_bgs: Failed to initialize background subtractor; bgs_ptr_ is null");
-            }
-            cv_ready_.notify_all();
+            ready_ = true;
         }
+        else
+        {
+            node_.log_send_error("init_bgs: Failed to initialize background subtractor; bgs_ptr_ is null");
+        }
+        cv_ready_.notify_all();
     }
 
     void restart() noexcept
     {
+        std::lock_guard<std::mutex> lock(mutex_);
         if (!bgs_ptr_)
         {
             node_.log_send_error("BGSWorker: restart: bgs_ptr_ is not initialized");
@@ -200,7 +209,11 @@ public:
         {
             std::unique_lock lock(mutex_);
             cv_ready_.wait(lock, [this]
-                           { return ready_; });
+                           { return ready_ || shutting_down_; });
+            if (shutting_down_)
+            {
+                return;
+            }
             processing_ = true;
 
             if (!bgs_ptr_)
@@ -401,6 +414,7 @@ private:
     std::mutex mutex_;
     bool ready_{false};
     bool processing_{false};
+    bool shutting_down_{false};
     bool using_cuda_{false};
 
     std::unique_ptr<boblib::base::Image> blank_mask_ptr_;

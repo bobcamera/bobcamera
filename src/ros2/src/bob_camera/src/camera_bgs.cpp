@@ -55,12 +55,17 @@ public:
     ~CameraBGS() override
     {
         log_info("CameraBGS destructor");
+        // Unblock BGS worker's condition variable so the capture thread can exit
+        bgs_worker_ptr_->shutdown();
+        // Stop the producer first — joins the capture thread
+        camera_worker_ptr_.reset();
+        // Then destroy consumers
         camera_save_worker_ptr_.reset();
         bgs_worker_ptr_.reset();
         track_provider_worker_ptr_.reset();
         record_manager_worker_ptr_.reset();
         annotated_frame_worker_ptr_.reset();
-        camera_worker_ptr_.reset();
+        topic_manager_.reset();
     }
 
     void on_configure()

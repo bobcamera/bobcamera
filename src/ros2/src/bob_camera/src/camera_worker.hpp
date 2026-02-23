@@ -1,6 +1,8 @@
 #pragma once
 
+#include <atomic>
 #include <filesystem>
+#include <mutex>
 #include <thread>
 
 #include <boblib/api/video/VideoReader.hpp>
@@ -40,6 +42,8 @@ public:
     {
         node_.log_info("CameraWorker destructor");
         stop_capture();
+        publish_pubsub_ptr_.reset();
+        camera_info_pubsub_ptr_.reset();
     }
 
     void init()
@@ -423,6 +427,7 @@ private:
 
     inline void apply_mask(boblib::base::Image &img)
     {
+        std::lock_guard<std::mutex> lock(mask_mutex_);
         if (!mask_enabled_ || !params_.camera.privacy_mask.enable_override)
         {
             return;
@@ -615,6 +620,7 @@ private:
 
     void mask_timer_callback(MaskWorker::MaskCheckType detection_mask_result, const cv::Mat &mask)
     {
+        std::lock_guard<std::mutex> lock(mask_mutex_);
         if (detection_mask_result == MaskWorker::MaskCheckType::Enable)
         {
             if (!mask_enabled_)
@@ -632,7 +638,7 @@ private:
         {
             node_.log_send_info("CameraWorker: Privacy Mask Disabled.");
             mask_enabled_ = false;
-            privacy_mask_ptr_.release();
+            privacy_mask_ptr_.reset();
         }
     }
 
@@ -661,7 +667,7 @@ private:
     std::unique_ptr<boblib::video::VideoReader> video_reader_ptr_;
     bob_camera::msg::CameraInfo::SharedPtr camera_info_msg_ptr_;
 
-    bool run_{false};
+    std::atomic<bool> run_{false};
     std::thread capture_thread_;
 
     uint32_t current_video_idx_{0};
@@ -673,6 +679,7 @@ private:
     bool is_initialized_{false};
     std::unique_ptr<ObjectSimulator> object_simulator_ptr_;
 
+    std::mutex mask_mutex_;
     bool mask_enabled_{false};
     std::unique_ptr<boblib::base::Image> privacy_mask_ptr_;
 
