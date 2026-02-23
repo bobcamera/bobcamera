@@ -48,6 +48,11 @@ public:
         close_recorders();
     }
 
+    void shutdown() noexcept
+    {
+        close_recorders();
+    }
+
     void init()
     {
         prof_save_worker_id_ = profiler_.add_region("Save Worker");

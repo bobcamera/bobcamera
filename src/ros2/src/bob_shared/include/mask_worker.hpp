@@ -24,6 +24,11 @@ public:
     {
     }
 
+    ~MaskWorker() noexcept
+    {
+        stop();
+    }
+
     void init(int mask_timer_seconds, const std::string & mask_filename)
     {
         mask_timer_seconds_ = mask_timer_seconds;
@@ -33,6 +38,15 @@ public:
         
         mask_timer_ = node_.create_wall_timer(std::chrono::seconds(mask_timer_seconds_), [this](){mask_timer_callback();});
         mask_timer_callback(); // Calling it the first time
+    }
+
+    void stop()
+    {
+        if (mask_timer_)
+        {
+            mask_timer_->cancel();
+            mask_timer_.reset();
+        }
     }
 
     bool is_running() const
@@ -52,6 +66,10 @@ private:
 
     void mask_timer_callback()
     {
+        if (!mask_timer_)
+        {
+            return;
+        }
         mask_timer_->cancel();
 
         auto detection_mask_result = mask_set();
@@ -61,7 +79,10 @@ private:
             user_callback_(detection_mask_result, image_mask_);
         }
 
-        mask_timer_->reset();
+        if (mask_timer_)
+        {
+            mask_timer_->reset();
+        }
     }
 
     inline MaskCheckType mask_set()
