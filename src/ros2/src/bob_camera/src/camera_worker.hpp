@@ -105,7 +105,7 @@ public:
 
             mask_worker_ptr_->init(params_.camera.privacy_mask.timer_seconds, params_.camera.privacy_mask.filename);
 
-            is_initialized_ = true;
+            is_initialized_.store(true, std::memory_order_release);
 
             open_camera();
             start_capture();
@@ -127,16 +127,17 @@ public:
 
     [[nodiscard]] bool is_initialized() const noexcept
     {
-        return is_initialized_;
+        return is_initialized_.load(std::memory_order_acquire);
     }
 
     [[nodiscard]] bool is_open() const noexcept
     {
-        return is_open_;
+        return is_open_.load(std::memory_order_acquire);
     }
 
     bool open_camera()
     {
+        std::lock_guard<std::mutex> lock(open_mutex_);
         if (!is_initialized())
         {
             return false;
@@ -211,10 +212,10 @@ private:
             fps_ = static_cast<float>(video_reader_ptr_->get_fps());
             const int cv_camera_width = video_reader_ptr_->get_width();
             const int cv_camera_height = video_reader_ptr_->get_height();
-            node_.log_send_info("Stream capture Info: %dx%d at %.2g FPS", cv_camera_width, cv_camera_height, fps_);
+            node_.log_send_info("Stream capture Info: %dx%d at %.2g FPS", cv_camera_width, cv_camera_height, fps_.load());
             node_.log_send_info("              codec: %s, decoder: %s, Pixel Format: %s",
                                 video_reader_ptr_->get_codec_name().c_str(), video_reader_ptr_->get_decoder_name().c_str(), video_reader_ptr_->get_pixel_format_name().c_str());
-            loop_rate_ptr_ = std::make_unique<rclcpp::WallRate>(fps_);
+            loop_rate_ptr_ = std::make_unique<rclcpp::WallRate>(fps_.load());
 
             create_camera_info_msg();
         }
@@ -549,7 +550,7 @@ private:
     void fill_camera_info(const std_msgs::msg::Header &header, const boblib::base::Image &camera_img)
     {
         camera_info_msg_ptr_->header = header;
-        camera_info_msg_ptr_->fps = fps_;
+        camera_info_msg_ptr_->fps = fps_.load();
         camera_info_msg_ptr_->frame_width = camera_img.size().width;
         camera_info_msg_ptr_->frame_height = camera_img.size().height;
         camera_info_msg_ptr_->is_color = camera_img.channels() >= 3;
@@ -672,12 +673,13 @@ private:
     uint32_t current_video_idx_{0};
 
     std::unique_ptr<rclcpp::WallRate> loop_rate_ptr_;
-    float fps_{UNKNOWN_DEVICE_FPS};
-    bool is_open_{false};
+    std::atomic<float> fps_{UNKNOWN_DEVICE_FPS};
+    std::atomic<bool> is_open_{false};
     bool is_camera_info_auto_{false};
-    bool is_initialized_{false};
+    std::atomic<bool> is_initialized_{false};
     std::unique_ptr<ObjectSimulator> object_simulator_ptr_;
 
+    std::mutex open_mutex_;
     std::mutex mask_mutex_;
     bool mask_enabled_{false};
     std::unique_ptr<boblib::base::Image> privacy_mask_ptr_;

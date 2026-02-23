@@ -115,11 +115,13 @@ private:
 
     void camera_info_callback(const bob_camera::msg::CameraInfo::SharedPtr &camera_info_msg) noexcept
     {
+        std::lock_guard<std::mutex> lock(state_mutex_);
         last_camera_info_ = *camera_info_msg;
     }
 
     void tracking_info_callback(const std::shared_ptr<bob_camera::Tracking> &tracking_msg) noexcept
     {
+        std::lock_guard<std::mutex> lock(state_mutex_);
         if (!params_.recording.enabled || last_camera_info_.fps == 0)
         {
             return;
@@ -228,6 +230,7 @@ private:
     void change_recording_enabled_request(const std::shared_ptr<bob_interfaces::srv::RecordingRequest::Request> request,
                                           std::shared_ptr<bob_interfaces::srv::RecordingRequest::Response> response)
     {
+        std::lock_guard<std::mutex> lock(state_mutex_);
         current_state_ = request->disable_recording ? RecordingStateEnum::Disabled : RecordingStateEnum::BeforeStart;
         response->success = true;
     }
@@ -242,6 +245,7 @@ private:
     std::shared_ptr<boblib::utils::pubsub::PubSub<bob_camera::msg::CameraInfo>> camera_info_pubsub_ptr_;
     std::shared_ptr<boblib::utils::pubsub::PubSub<bob_interfaces::msg::RecordingEvent>> recording_event_pubsub_ptr_;
 
+    mutable std::mutex state_mutex_;
     RecordingStateEnum current_state_;
     std::string dated_directory_;
     std::string date_;
@@ -250,10 +254,10 @@ private:
     rclcpp::Publisher<bob_interfaces::msg::RecordingState>::SharedPtr state_publisher_;
     rclcpp::Publisher<bob_interfaces::msg::RecordingEvent>::SharedPtr event_publisher_;
 
-    double video_fps_;
-    size_t current_end_frame_;
-    cv::Size prev_frame_size_;
-    bool recording_;
+    double video_fps_{0.0};
+    size_t current_end_frame_{0};
+    cv::Size prev_frame_size_{};
+    bool recording_{false};
 
     bob_camera::msg::CameraInfo last_camera_info_;
 

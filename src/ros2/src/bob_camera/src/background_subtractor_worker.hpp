@@ -256,11 +256,15 @@ public:
         }
         catch (const std::exception &e)
         {
+            processing_ = false;
+            cv_processing_.notify_all();
             node_.log_send_error("bgs_worker: image_callback: exception: %s", e.what());
             rcutils_reset_error();
         }
         catch (...)
         {
+            processing_ = false;
+            cv_processing_.notify_all();
             node_.log_send_error("bgs_worker: image_callback: Unknown Exception");
             rcutils_reset_error();
         }

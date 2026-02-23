@@ -471,9 +471,10 @@ private:
         add_action_parameters(params);
     }
 
-    void privacy_mask_override_request(const std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Request> request, 
+    void privacy_mask_override_request(const std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Request> request,
                                        std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Response> response)
     {
+        auto lock = camera_bgs_params_.write_lock();
         camera_bgs_params_.camera.privacy_mask.enable_override = request->mask_enabled;
         if (request->mask_enabled)
         {
@@ -486,9 +487,10 @@ private:
         response->success = true;        
     }
 
-    void bgs_mask_override_request(const std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Request> request, 
+    void bgs_mask_override_request(const std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Request> request,
                                    std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Response> response)
     {
+        auto lock = camera_bgs_params_.write_lock();
         camera_bgs_params_.bgs.mask.enable_override = request->mask_enabled;
         if (request->mask_enabled)
         {
