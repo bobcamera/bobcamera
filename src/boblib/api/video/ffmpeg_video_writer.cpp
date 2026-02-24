@@ -259,9 +259,17 @@ namespace boblib::video
             }
             return false;
         }
-        
-        std::lock_guard<std::mutex> lock(m_ffmpegMutex);
-        
+
+        std::lock_guard<std::recursive_mutex> lock(m_ffmpegMutex);
+
+        // RAII guard: if we return without setting success=true, cleanup partial FFmpeg state
+        bool success = false;
+        struct CleanupGuard {
+            FFmpegVideoWriter &self;
+            bool &ok;
+            ~CleanupGuard() { if (!ok) self.cleanup(); }
+        } guard{*this, success};
+
         // Create output format context
         if (avformat_alloc_output_context2(&m_formatContext, nullptr, nullptr, m_options.outputPath.c_str()) < 0)
         {
@@ -487,6 +495,7 @@ namespace boblib::video
             return false;
         }
 
+        success = true;
         return true;
     }
 
@@ -637,7 +646,7 @@ namespace boblib::video
     // Finalize the video
     void FFmpegVideoWriter::finalize_video()
     {
-        std::lock_guard<std::mutex> lock(m_ffmpegMutex);
+        std::lock_guard<std::recursive_mutex> lock(m_ffmpegMutex);
         
         if (!m_isInitialized.load())
         {
@@ -670,7 +679,7 @@ namespace boblib::video
     // Cleanup all FFmpeg resources
     void FFmpegVideoWriter::cleanup()
     {
-        std::lock_guard<std::mutex> lock(m_ffmpegMutex);
+        std::lock_guard<std::recursive_mutex> lock(m_ffmpegMutex);
         
         try {
             // Clean up SwsContext
@@ -746,6 +755,8 @@ namespace boblib::video
                 auto startTime = std::chrono::high_resolution_clock::now();
 
                 try {
+                    std::lock_guard<std::recursive_mutex> ffLock(m_ffmpegMutex);
+
                     // Initialize FFmpeg if this is the first frame
                     if (!m_isInitialized.load())
                     {
@@ -831,7 +842,9 @@ namespace boblib::video
                                         .count() /
                                     1000.0;
 
-                    m_totalProcessingTime.store(m_totalProcessingTime.load() + duration);
+                    auto prev = m_totalProcessingTime.load(std::memory_order_relaxed);
+                    while (!m_totalProcessingTime.compare_exchange_weak(prev, prev + duration,
+                           std::memory_order_relaxed, std::memory_order_relaxed)) {}
                 } catch (const std::exception& e) {
                     std::cerr << "[ERROR] Exception in processing thread: " << e.what() << std::endl;
                     m_isValid.store(false);
@@ -855,6 +868,8 @@ namespace boblib::video
             if (!frame.empty() && m_isInitialized.load())
             {
                 try {
+                    std::lock_guard<std::recursive_mutex> ffLock(m_ffmpegMutex);
+
                     // Convert the frame
                     if (convert_frame(frame, m_frame))
                     {
@@ -903,6 +918,8 @@ namespace boblib::video
         if (m_isInitialized.load() && m_codecContext)
         {
             try {
+                std::lock_guard<std::recursive_mutex> ffLock(m_ffmpegMutex);
+
                 int ret = avcodec_send_frame(m_codecContext, nullptr);
                 if (ret >= 0)
                 {
@@ -942,7 +959,11 @@ namespace boblib::video
     {
         while (m_isRunning.load())
         {
-            std::this_thread::sleep_for(std::chrono::seconds(5));
+            {
+                std::unique_lock<std::mutex> lock(m_queueMutex);
+                m_queueCondition.wait_for(lock, std::chrono::seconds(5),
+                    [this] { return !m_isRunning.load(); });
+            }
 
             if (!m_isRunning.load()) break;
 

@@ -222,7 +222,6 @@ inline void VideoWriter::create_video_writer() noexcept
             options.height = frame_size_.height;
             options.fps = fps_;
             options.useHardwareAcceleration = true;
-            options.debug = true; // Enable debug for better error reporting
             
             ffmpeg_video_writer_ptr_ = std::make_unique<FFmpegVideoWriter>(options);
             if (!ffmpeg_video_writer_ptr_->start()) {

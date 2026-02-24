@@ -112,8 +112,9 @@ namespace boblib::video
         std::chrono::steady_clock::time_point m_startTime;
         std::atomic<double> m_totalProcessingTime;
 
-        // FFmpeg variables (protected by cleanup mutex)
-        mutable std::mutex m_ffmpegMutex;
+        // FFmpeg variables (protected by cleanup mutex — recursive because
+        // finalize_video() calls cleanup() while already holding this lock)
+        mutable std::recursive_mutex m_ffmpegMutex;
         AVFormatContext *m_formatContext{nullptr};
         AVCodecContext *m_codecContext{nullptr};
         AVStream *m_stream{nullptr};

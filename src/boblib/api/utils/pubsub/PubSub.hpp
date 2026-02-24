@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <memory>
+#include <new>
 #include <thread>
 #include <stop_token>
 #include <optional>
@@ -10,6 +11,8 @@
 #include <array>
 #include <vector>
 #include <cstddef>
+#include <mutex>
+#include <shared_mutex>
 
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
 #include <immintrin.h>
@@ -74,11 +77,11 @@ namespace boblib::utils::pubsub
         // ---------------------------- slot with Lamport sequence number
         struct Slot
         {
-            std::aligned_storage_t<sizeof(T), alignof(T)> storage;
+            alignas(T) std::byte storage[sizeof(T)];
             std::atomic<std::size_t> seq{0};
 
-            T &get() noexcept { return *reinterpret_cast<T *>(&storage); }
-            const T &get() const noexcept { return *reinterpret_cast<const T *>(&storage); }
+            T &get() noexcept { return *std::launder(reinterpret_cast<T *>(storage)); }
+            const T &get() const noexcept { return *std::launder(reinterpret_cast<const T *>(storage)); }
         };
 
         // ---------------------------- single‑producer / single‑consumer ring
@@ -104,33 +107,34 @@ namespace boblib::utils::pubsub
                 if (s.seq.load(std::memory_order_acquire) != head_idx)
                 {
                     // Buffer is full - we need to drop the oldest item
-                    // Use CAS loop to safely advance tail and clean up
                     auto current_tail = tail.v.load(std::memory_order_relaxed);
                     Slot &tail_slot = buffer[current_tail & mask];
-                    
-                    // Only force advance if the tail slot is ready to be consumed
-                    // and we can atomically claim it
+
                     auto expected_seq = current_tail + 1;
-                    if (tail_slot.seq.compare_exchange_weak(expected_seq, current_tail + capacity, 
+                    if (tail_slot.seq.compare_exchange_weak(expected_seq, current_tail + capacity,
                                                           std::memory_order_acq_rel, std::memory_order_relaxed))
                     {
                         // Successfully claimed the tail slot - safe to destroy
                         tail_slot.get().~T();
-
-                        // Try to advance tail pointer atomically.
-                        // Use strong CAS to avoid spurious failures. If it fails, it means consumer likely advanced tail.
                         tail.v.compare_exchange_strong(current_tail, current_tail + 1,
                                                        std::memory_order_release, std::memory_order_relaxed);
                         dropped_count.fetch_add(1, std::memory_order_relaxed);
                     }
-                    // If CAS failed, try_pop_item() might have got it
-                    // In either case, we continue with our push
+
+                    // Re-check: if slot is still not available, drop incoming message
+                    if (s.seq.load(std::memory_order_acquire) != head_idx)
+                    {
+                        dropped_count.fetch_add(1, std::memory_order_relaxed);
+                        return;
+                    }
                 }
 
                 // Now push the new item
                 new (&s.storage) T(std::move(item));
                 s.seq.store(head_idx + 1, std::memory_order_release);
                 head.v.store(head_idx + 1, std::memory_order_relaxed);
+                notify_flag.store(head_idx + 1, std::memory_order_release);
+                notify_flag.notify_one();
             }
 
             // copy‑push overload for copyable T (eg shared_ptr<Msg>)
@@ -143,33 +147,34 @@ namespace boblib::utils::pubsub
                 if (s.seq.load(std::memory_order_acquire) != head_idx)
                 {
                     // Buffer is full - we need to drop the oldest item
-                    // Use CAS loop to safely advance tail and clean up
                     auto current_tail = tail.v.load(std::memory_order_relaxed);
                     Slot &tail_slot = buffer[current_tail & mask];
-                    
-                    // Only force advance if the tail slot is ready to be consumed
-                    // and we can atomically claim it
+
                     auto expected_seq = current_tail + 1;
-                    if (tail_slot.seq.compare_exchange_weak(expected_seq, current_tail + capacity, 
+                    if (tail_slot.seq.compare_exchange_weak(expected_seq, current_tail + capacity,
                                                           std::memory_order_acq_rel, std::memory_order_relaxed))
                     {
                         // Successfully claimed the tail slot - safe to destroy
                         tail_slot.get().~T();
-
-                        // Try to advance tail pointer atomically.
-                        // Use strong CAS to avoid spurious failures. If it fails, it means consumer likely advanced tail.
                         tail.v.compare_exchange_strong(current_tail, current_tail + 1,
                                                        std::memory_order_release, std::memory_order_relaxed);
                         dropped_count.fetch_add(1, std::memory_order_relaxed);
                     }
-                    // If CAS failed, try_pop_item() might have got it
-                    // In either case, we continue with our push
+
+                    // Re-check: if slot is still not available, drop incoming message
+                    if (s.seq.load(std::memory_order_acquire) != head_idx)
+                    {
+                        dropped_count.fetch_add(1, std::memory_order_relaxed);
+                        return;
+                    }
                 }
 
                 // Now push the new item
                 new (&s.storage) T(item);
                 s.seq.store(head_idx + 1, std::memory_order_release);
                 head.v.store(head_idx + 1, std::memory_order_relaxed);
+                notify_flag.store(head_idx + 1, std::memory_order_release);
+                notify_flag.notify_one();
             }
 
             std::optional<T> try_pop_item() noexcept
@@ -219,6 +224,7 @@ namespace boblib::utils::pubsub
             std::unique_ptr<Slot[]> buffer;
             const std::size_t mask;
             PaddedAtomic head, tail;
+            std::atomic<std::size_t> notify_flag{0};
             std::atomic<std::size_t> dropped_count;
         };
 
@@ -236,18 +242,32 @@ namespace boblib::utils::pubsub
                 : fn(f), ctx(c), local_q(qsize),
                   thr([this](std::stop_token stop)
                       {
-                        constexpr int kSpin = 64;
+                        constexpr int kSpin = 32;
                         while (!stop.stop_requested())
                         {
-                            if (auto opt = local_q.try_pop_item())
+                            auto opt = local_q.try_pop_item();
+                            if (opt)
                             {
                                 fn(*opt, ctx);
+                                continue;
                             }
-                            else
+
+                            // Brief spin before blocking
+                            for (int i = 0; i < kSpin && !stop.stop_requested(); ++i)
+                                cpu_relax();
+
+                            opt = local_q.try_pop_item();
+                            if (opt)
                             {
-                                for (int i = 0; i < kSpin; ++i)
-                                    cpu_relax();
-                                std::this_thread::yield();
+                                fn(*opt, ctx);
+                                continue;
+                            }
+
+                            // Block until push notifies or stop requested
+                            if (!stop.stop_requested())
+                            {
+                                auto last = local_q.notify_flag.load(std::memory_order_acquire);
+                                local_q.notify_flag.wait(last, std::memory_order_relaxed);
                             }
                         } })
             {
@@ -259,36 +279,51 @@ namespace boblib::utils::pubsub
         std::array<std::optional<Subscriber>, MaxSubscribers> subscribers;
         std::atomic<std::size_t> active_cnt{0};
         std::jthread dispatch_thread;
+        mutable std::shared_mutex subscribers_mutex_;
+
+        // Fan out a message to all active subscribers under shared (read) lock.
+        // This prevents races with subscribe/unsubscribe which hold unique (write) lock.
+        void fan_out(const T &item) noexcept
+        {
+            std::shared_lock lock(subscribers_mutex_);
+            auto cnt = active_cnt.load(std::memory_order_acquire);
+            for (size_t i = 0; i < cnt; ++i)
+            {
+                if (subscribers[i].has_value())
+                    subscribers[i]->local_q.push(item);
+            }
+        }
 
         // ---------------------------- dispatch loop
         void dispatch_loop(std::stop_token stop) noexcept
         {
-            constexpr int kSpin = 64;
-            int backoff = 1;
+            constexpr int kSpin = 32;
             while (!stop.stop_requested())
             {
-                if (auto opt = queue.try_pop_item())
+                auto opt = queue.try_pop_item();
+                if (opt)
                 {
-                    backoff = 1;
-                    auto cnt = active_cnt.load(std::memory_order_acquire);
-                    
-                    // Copy to all active subscribers safely
-                    for (size_t i = 0; i < cnt; ++i)
-                    {
-                        // Double-check subscriber exists before accessing
-                        if (subscribers[i].has_value()) {
-                            subscribers[i]->local_q.push(*opt);
-                        }
-                    }
+                    fan_out(*opt);
+                    continue;
                 }
-                else
+
+                // Brief spin before blocking
+                for (int i = 0; i < kSpin && !stop.stop_requested(); ++i)
+                    cpu_relax();
+
+                // Re-check after spin
+                opt = queue.try_pop_item();
+                if (opt)
                 {
-                    // exponential pause then yield
-                    for (int i = 0; i < backoff; ++i)
-                        cpu_relax();
-                    backoff = std::min(backoff << 1, kSpin);
-                    if (backoff == kSpin)
-                        std::this_thread::yield();
+                    fan_out(*opt);
+                    continue;
+                }
+
+                // Block until a push notifies us or stop is requested
+                if (!stop.stop_requested())
+                {
+                    auto last = queue.notify_flag.load(std::memory_order_acquire);
+                    queue.notify_flag.wait(last, std::memory_order_relaxed);
                 }
             }
         }
@@ -304,15 +339,40 @@ namespace boblib::utils::pubsub
 
         ~PubSub() noexcept
         {
-            // drain central queue
-            while (queue.try_pop_item())
-            {
-            }
-            // stop dispatch thread
+            shutdown();
+        }
+
+        void shutdown() noexcept
+        {
+            // 1. Stop and join the dispatch thread first so it releases any shared_lock
             dispatch_thread.request_stop();
-            // destroy subscribers (jthread destructor joins)
-            for (std::size_t i = 0, n = active_cnt.load(); i < n; ++i)
-                subscribers[i].reset();
+            queue.notify_flag.store(SIZE_MAX, std::memory_order_release);
+            queue.notify_flag.notify_all();
+            if (dispatch_thread.joinable())
+                dispatch_thread.join();
+
+            // 2. Now safe to exclusively lock and clean up all subscribers
+            {
+                std::unique_lock lock(subscribers_mutex_);
+                auto cnt = active_cnt.load(std::memory_order_acquire);
+                for (std::size_t i = 0; i < cnt; ++i)
+                {
+                    if (subscribers[i].has_value())
+                    {
+                        subscribers[i]->thr.request_stop();
+                        subscribers[i]->local_q.notify_flag.store(SIZE_MAX, std::memory_order_release);
+                        subscribers[i]->local_q.notify_flag.notify_all();
+                    }
+                }
+                // drain central queue
+                while (queue.try_pop_item())
+                {
+                }
+                // join and destroy subscriber threads (callback completion guarantee)
+                for (std::size_t i = 0; i < cnt; ++i)
+                    subscribers[i].reset();
+                active_cnt.store(0, std::memory_order_release);
+            }
         }
 
         // overload for raw M → we wrap in shared_ptr
@@ -330,6 +390,7 @@ namespace boblib::utils::pubsub
         // ---------------------------- subscribe
         std::optional<std::size_t> subscribe(Callback fn, void *ctx = nullptr) noexcept
         {
+            std::unique_lock lock(subscribers_mutex_);
             auto idx = active_cnt.load(std::memory_order_acquire);
             if (idx >= MaxSubscribers)
             {
@@ -337,7 +398,6 @@ namespace boblib::utils::pubsub
             }
             // construct Subscriber in-place into the optional
             subscribers[idx].emplace(fn, ctx, queue.capacity);
-            std::atomic_thread_fence(std::memory_order_release);
             active_cnt.store(idx + 1, std::memory_order_release);
             return idx;
         }
@@ -351,27 +411,28 @@ namespace boblib::utils::pubsub
         // ---------------------------- unsubscribe
         bool unsubscribe(std::size_t id) noexcept
         {
+            std::unique_lock lock(subscribers_mutex_);
             auto cnt = active_cnt.load(std::memory_order_acquire);
-            if (id >= cnt)
+            if (id >= cnt || !subscribers[id].has_value())
                 return false;
-    
-            // First, stop the subscriber thread safely
-            if (subscribers[id].has_value()) {
-                subscribers[id]->thr.request_stop();
+
+            // Stop the subscriber thread and wake it so it exits promptly
+            subscribers[id]->thr.request_stop();
+            subscribers[id]->local_q.notify_flag.store(SIZE_MAX, std::memory_order_release);
+            subscribers[id]->local_q.notify_flag.notify_all();
+
+            // Reset destroys the Subscriber, joining its thread.
+            // This guarantees the callback has finished (no use-after-free).
+            subscribers[id].reset();
+
+            // Compact: move last subscriber into the vacated slot
+            auto new_cnt = cnt - 1;
+            if (id < new_cnt)
+            {
+                subscribers[id] = std::move(subscribers[new_cnt]);
+                subscribers[new_cnt].reset();
             }
-    
-            // Update count first to prevent dispatch loop from accessing this subscriber
-            active_cnt.store(cnt - 1, std::memory_order_release);
-    
-            // Wait for any in-flight dispatch operations to complete
-            std::atomic_thread_fence(std::memory_order_acquire);
-    
-            // Now safe to move/reset
-            if (id + 1 < cnt) {
-                subscribers[id] = std::move(subscribers[cnt - 1]);
-            }
-            subscribers[cnt - 1].reset();
-    
+            active_cnt.store(new_cnt, std::memory_order_release);
             return true;
         }
 
@@ -379,6 +440,7 @@ namespace boblib::utils::pubsub
         [[nodiscard]] std::size_t central_queue_size() const noexcept { return queue.queue_size(); }
         [[nodiscard]] std::size_t total_subscriber_queue_size() const noexcept
         {
+            std::shared_lock lock(subscribers_mutex_);
             std::size_t total_size = 0;
             auto cnt = active_cnt.load(std::memory_order_acquire);
 
@@ -395,6 +457,7 @@ namespace boblib::utils::pubsub
 
         [[nodiscard]] std::size_t max_subscriber_queue_size() const noexcept
         {
+            std::shared_lock lock(subscribers_mutex_);
             std::size_t max_size = 0;
             auto cnt = active_cnt.load(std::memory_order_acquire);
 
@@ -411,6 +474,7 @@ namespace boblib::utils::pubsub
 
         [[nodiscard]] std::size_t dropped_count() const noexcept
         {
+            std::shared_lock lock(subscribers_mutex_);
             auto total_dropped = queue.get_dropped_count();
             auto cnt = active_cnt.load(std::memory_order_acquire);
 
@@ -428,6 +492,7 @@ namespace boblib::utils::pubsub
 
         void reset_dropped_count() noexcept
         {
+            std::shared_lock lock(subscribers_mutex_);
             queue.reset_dropped_count();
             auto cnt = active_cnt.load(std::memory_order_acquire);
 
@@ -444,6 +509,7 @@ namespace boblib::utils::pubsub
         // ---------------------------- detailed stats
         [[nodiscard]] QueueStats get_queue_stats() const noexcept
         {
+            std::shared_lock lock(subscribers_mutex_);
             auto cnt = active_cnt.load(std::memory_order_acquire);
 
             QueueStats stats{};
