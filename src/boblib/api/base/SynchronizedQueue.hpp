@@ -123,6 +123,14 @@ public:
         return queue_.size();
     }
 
+    // Discard all queued items
+    void clear()
+    {
+        std::unique_lock<std::mutex> lock(mutex_);
+        std::queue<T> empty;
+        queue_.swap(empty);
+    }
+
 private:
     const size_t max_size_;
     std::queue<T> queue_;

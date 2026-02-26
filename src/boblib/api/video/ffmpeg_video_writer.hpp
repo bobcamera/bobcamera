@@ -111,9 +111,9 @@ namespace boblib::video
         std::chrono::steady_clock::time_point m_startTime;
         std::atomic<double> m_totalProcessingTime{0.0};
 
-        // FFmpeg variables (protected by cleanup mutex — recursive because
-        // finalize_video() calls cleanup() while already holding this lock)
-        mutable std::recursive_mutex m_ffmpegMutex;
+        // FFmpeg variables — protected by m_ffmpegMutex.
+        // All *_locked() helpers assume the caller already holds this lock.
+        mutable std::mutex m_ffmpegMutex;
         AVFormatContext *m_formatContext{nullptr};
         AVCodecContext *m_codecContext{nullptr};
         AVStream *m_stream{nullptr};
@@ -122,11 +122,11 @@ namespace boblib::video
         uint8_t *m_frameBuffer{nullptr};
         int m_ioBufferSize;
 
-        // pull all the heavy lifting into this helper
-        bool init_with_codec(const AVCodec *codec, int width, int height);
+        // Pull all the heavy lifting into this helper. Caller must hold m_ffmpegMutex.
+        bool init_with_codec_locked(const AVCodec *codec, int width, int height);
 
-        // Initialize FFmpeg
-        bool initialize_fFmpeg(int width, int height);
+        // Initialize FFmpeg. Caller must hold m_ffmpegMutex.
+        bool initialize_fFmpeg_locked(int width, int height);
 
         // Convert cv::Mat to FFmpeg frame
         bool convert_frame(const cv::Mat &input, AVFrame *output);
@@ -138,8 +138,8 @@ namespace boblib::video
         // Finalize the video
         void finalize_video();
 
-        // Cleanup all FFmpeg resources (thread-safe)
-        void cleanup();
+        // Cleanup all FFmpeg resources. Caller must hold m_ffmpegMutex.
+        void cleanup_locked();
 
         // Worker thread for processing frames
         void processing_thread();

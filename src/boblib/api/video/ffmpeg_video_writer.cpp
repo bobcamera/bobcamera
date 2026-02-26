@@ -47,7 +47,7 @@ namespace boblib::video
 
     FFmpegVideoWriter::~FFmpegVideoWriter()
     {
-        stop(); // joins threads, finalizes video, and calls cleanup()
+        stop(); // joins threads, finalizes video, and cleans up
     }
 
     bool FFmpegVideoWriter::start()
@@ -82,7 +82,8 @@ namespace boblib::video
         // Immediate initialization when both dimensions are known
         if (m_options.width > 0 && m_options.height > 0)
         {
-            if (!initialize_fFmpeg(m_options.width, m_options.height))
+            std::lock_guard<std::mutex> ffLock(m_ffmpegMutex);
+            if (!initialize_fFmpeg_locked(m_options.width, m_options.height))
             {
                 std::cerr << "Failed to initialize FFmpeg on start" << std::endl;
                 m_isRunning.store(false);
@@ -248,7 +249,7 @@ namespace boblib::video
         return m_isValid.load();
     }
 
-    bool FFmpegVideoWriter::init_with_codec(const AVCodec *codec, int width, int height)
+    bool FFmpegVideoWriter::init_with_codec_locked(const AVCodec *codec, int width, int height)
     {
         if (!codec || width <= 0 || height <= 0) {
             if (m_options.debug) {
@@ -257,14 +258,12 @@ namespace boblib::video
             return false;
         }
 
-        std::lock_guard<std::recursive_mutex> lock(m_ffmpegMutex);
-
         // RAII guard: if we return without setting success=true, cleanup partial FFmpeg state
         bool success = false;
         struct CleanupGuard {
             FFmpegVideoWriter &self;
             bool &ok;
-            ~CleanupGuard() { if (!ok) self.cleanup(); }
+            ~CleanupGuard() { if (!ok) self.cleanup_locked(); }
         } guard{*this, success};
 
         // Create output format context
@@ -496,7 +495,7 @@ namespace boblib::video
         return true;
     }
 
-    bool FFmpegVideoWriter::initialize_fFmpeg(int width, int height)
+    bool FFmpegVideoWriter::initialize_fFmpeg_locked(int width, int height)
     {
         if (width <= 0 || height <= 0) {
             if (m_options.debug) {
@@ -528,8 +527,8 @@ namespace boblib::video
             {
                 continue;
             }
-            cleanup(); // wipe any partial state
-            if (init_with_codec(c, width, height))
+            cleanup_locked(); // wipe any partial state
+            if (init_with_codec_locked(c, width, height))
             {
                 if (m_options.debug)
                 {
@@ -552,8 +551,8 @@ namespace boblib::video
             m_isValid.store(false);
             return false;
         }
-        cleanup();
-        if (!init_with_codec(sw, width, height))
+        cleanup_locked();
+        if (!init_with_codec_locked(sw, width, height))
         {
             if (m_options.debug)
             {
@@ -643,8 +642,8 @@ namespace boblib::video
     // Finalize the video
     void FFmpegVideoWriter::finalize_video()
     {
-        std::lock_guard<std::recursive_mutex> lock(m_ffmpegMutex);
-        
+        std::lock_guard<std::mutex> lock(m_ffmpegMutex);
+
         if (!m_isInitialized.load())
         {
             return;
@@ -665,7 +664,7 @@ namespace boblib::video
             std::cerr << "[ERROR] Exception writing trailer: " << e.what() << std::endl;
         }
 
-        cleanup();
+        cleanup_locked();
     }
     
     bool FFmpegVideoWriter::validate_state() const noexcept
@@ -674,10 +673,8 @@ namespace boblib::video
     }
 
     // Cleanup all FFmpeg resources
-    void FFmpegVideoWriter::cleanup()
+    void FFmpegVideoWriter::cleanup_locked()
     {
-        std::lock_guard<std::recursive_mutex> lock(m_ffmpegMutex);
-        
         try {
             // Clean up SwsContext
             if (m_swsContext)
@@ -806,7 +803,7 @@ namespace boblib::video
                 auto startTime = std::chrono::high_resolution_clock::now();
 
                 try {
-                    std::lock_guard<std::recursive_mutex> ffLock(m_ffmpegMutex);
+                    std::lock_guard<std::mutex> ffLock(m_ffmpegMutex);
 
                     // Initialize FFmpeg if this is the first frame
                     if (!m_isInitialized.load())
@@ -814,7 +811,7 @@ namespace boblib::video
                         int width = m_options.width > 0 ? m_options.width : frame.cols;
                         int height = m_options.height > 0 ? m_options.height : frame.rows;
 
-                        if (!initialize_fFmpeg(width, height))
+                        if (!initialize_fFmpeg_locked(width, height))
                         {
                             std::cerr << "Failed to initialize FFmpeg" << std::endl;
                             m_isRunning.store(false);
@@ -875,7 +872,7 @@ namespace boblib::video
             if (!frame.empty() && m_isInitialized.load())
             {
                 try {
-                    std::lock_guard<std::recursive_mutex> ffLock(m_ffmpegMutex);
+                    std::lock_guard<std::mutex> ffLock(m_ffmpegMutex);
 
                     if (convert_frame(frame, m_frame))
                     {
@@ -899,7 +896,7 @@ namespace boblib::video
         if (m_isInitialized.load() && m_codecContext)
         {
             try {
-                std::lock_guard<std::recursive_mutex> ffLock(m_ffmpegMutex);
+                std::lock_guard<std::mutex> ffLock(m_ffmpegMutex);
                 encode_and_write_packets(nullptr);
             } catch (const std::exception& e) {
                 std::cerr << "[ERROR] Exception flushing encoder: " << e.what() << std::endl;
