@@ -149,7 +149,7 @@ namespace boblib::bgs
                 {
                     if ((_rnd_gen.fast() & m_params.and_learning_rate) == 0)
                     {
-                        T *const bg_img_pix_data{&_bg_img[_rnd_gen.fast() & m_params.and_learning_rate]->ptr<T>()[color_pix_offset]};
+                        T *const bg_img_pix_data{&_bg_img[_rnd_gen.fast() & m_params.and_bg_samples]->ptr<T>()[color_pix_offset]};
                         bg_img_pix_data[0] = pix_data[0];
                         bg_img_pix_data[1] = pix_data[1];
                         bg_img_pix_data[2] = pix_data[2];
@@ -157,7 +157,7 @@ namespace boblib::bgs
                     if ((_rnd_gen.fast() & m_params.and_learning_rate) == 0)
                     {
                         const int neigh_data{get_neighbor_position_3x3(x, y, _image.size, _rnd_gen.fast()) * 3};
-                        T *const xy_rand_data{&_bg_img[_rnd_gen.fast() & m_params.and_learning_rate]->ptr<T>()[neigh_data]};
+                        T *const xy_rand_data{&_bg_img[_rnd_gen.fast() & m_params.and_bg_samples]->ptr<T>()[neigh_data]};
                         xy_rand_data[0] = pix_data[0];
                         xy_rand_data[1] = pix_data[1];
                         xy_rand_data[2] = pix_data[2];
@@ -216,12 +216,12 @@ namespace boblib::bgs
                 {
                     if ((_rnd_gen.fast() & m_params.and_learning_rate) == 0)
                     {
-                        _bg_img[_rnd_gen.fast() & m_params.and_learning_rate]->ptr<T>()[pix_offset] = pix_data;
+                        _bg_img[_rnd_gen.fast() & m_params.and_bg_samples]->ptr<T>()[pix_offset] = pix_data;
                     }
                     if ((_rnd_gen.fast() & m_params.and_learning_rate) == 0)
                     {
                         const int neigh_data{get_neighbor_position_3x3(x, y, _image.size, _rnd_gen.fast())};
-                        _bg_img[_rnd_gen.fast() & m_params.and_learning_rate]->ptr<T>()[neigh_data] = pix_data;
+                        _bg_img[_rnd_gen.fast() & m_params.and_bg_samples]->ptr<T>()[neigh_data] = pix_data;
                     }
                 }
             }

@@ -186,8 +186,17 @@ namespace boblib::bgs
             threshold_color16_squared = (threshold_mono16 * 3) * (threshold_mono16 * 3);
         }
         void set_bg_samples(uint32_t value)
-        { 
-            bg_samples = value;
+        {
+            if (value > 1)
+            {
+                bg_samples = get_higher_value_bit(value);
+                and_bg_samples = bg_samples - 1;
+            }
+            else
+            {
+                bg_samples = 2;
+                and_bg_samples = 1;
+            }
             if (m_core_bgs != nullptr)
             {
                 m_core_bgs->restart();
@@ -215,7 +224,10 @@ namespace boblib::bgs
 
     protected:
         /// number of different samples per pixel/block to be taken from input frames to build the background model ('N' in the original ViBe paper)
+        /// must be a power of 2
         uint32_t bg_samples;
+        /// bitmask for random sample selection: bg_samples - 1
+        uint32_t and_bg_samples;
         /// number of similar samples needed to consider the current pixel/block as 'background' ('#_min' in the original ViBe paper)
         uint32_t required_bg_samples;
         /// absolute color distance threshold ('R' or 'radius' in the original ViBe paper)

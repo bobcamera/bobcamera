@@ -162,9 +162,9 @@ namespace boblib::bgs
             const float meanR{(dI1[0] * _weight[0]) + (dI2[0] * _weight[1]) + (dI3[0] * _weight[2])};
             const float meanG{(dI1[1] * _weight[0]) + (dI2[1] * _weight[1]) + (dI3[1] * _weight[2])};
             const float meanB{(dI1[2] * _weight[0]) + (dI2[2] * _weight[1]) + (dI3[2] * _weight[2])};
-            const float valueR[]{dI1[0] - meanR, dI2[0] - meanR, dI2[0] - meanR};
-            const float valueG[]{dI1[1] - meanG, dI2[1] - meanG, dI2[1] - meanG};
-            const float valueB[]{dI1[2] - meanB, dI2[2] - meanB, dI2[2] - meanB};
+            const float valueR[]{dI1[0] - meanR, dI2[0] - meanR, dI3[0] - meanR};
+            const float valueG[]{dI1[1] - meanG, dI2[1] - meanG, dI3[1] - meanG};
+            const float valueB[]{dI1[2] - meanB, dI2[2] - meanB, dI3[2] - meanB};
             const float r{std::sqrt(((valueR[0] * valueR[0]) * _weight[0]) + ((valueR[1] * valueR[1]) * _weight[1]) + ((valueR[2] * valueR[2]) * _weight[2]))};
             const float g{std::sqrt(((valueG[0] * valueG[0]) * _weight[0]) + ((valueG[1] * valueG[1]) * _weight[1]) + ((valueG[2] * valueG[2]) * _weight[2]))};
             const float b{std::sqrt(((valueB[0] * valueB[0]) * _weight[0]) + ((valueB[1] * valueB[1]) * _weight[1]) + ((valueB[2] * valueB[2]) * _weight[2]))};
@@ -190,9 +190,9 @@ namespace boblib::bgs
             const float meanR{(dI1[0] * _weight[0]) + (dI2[0] * _weight[1]) + (dI3[0] * _weight[2])};
             const float meanG{(dI1[1] * _weight[0]) + (dI2[1] * _weight[1]) + (dI3[1] * _weight[2])};
             const float meanB{(dI1[2] * _weight[0]) + (dI2[2] * _weight[1]) + (dI3[2] * _weight[2])};
-            const float valueR[]{dI1[0] - meanR, dI2[0] - meanR, dI2[0] - meanR};
-            const float valueG[]{dI1[1] - meanG, dI2[1] - meanG, dI2[1] - meanG};
-            const float valueB[]{dI1[2] - meanB, dI2[2] - meanB, dI2[2] - meanB};
+            const float valueR[]{dI1[0] - meanR, dI2[0] - meanR, dI3[0] - meanR};
+            const float valueG[]{dI1[1] - meanG, dI2[1] - meanG, dI3[1] - meanG};
+            const float valueB[]{dI1[2] - meanB, dI2[2] - meanB, dI3[2] - meanB};
             const float r2{((valueR[0] * valueR[0]) * _weight[0]) + ((valueR[1] * valueR[1]) * _weight[1]) + ((valueR[2] * valueR[2]) * _weight[2])};
             const float g2{((valueG[0] * valueG[0]) * _weight[0]) + ((valueG[1] * valueG[1]) * _weight[1]) + ((valueG[2] * valueG[2]) * _weight[2])};
             const float b2{((valueB[0] * valueB[0]) * _weight[0]) + ((valueB[1] * valueB[1]) * _weight[1]) + ((valueB[2] * valueB[2]) * _weight[2])};

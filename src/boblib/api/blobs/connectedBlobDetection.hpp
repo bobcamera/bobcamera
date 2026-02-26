@@ -68,7 +68,7 @@ namespace boblib::blobs
                                size_t numProcessesParallel = DETECT_NUMBER_OF_THREADS) noexcept;
 
         inline void set_size_threshold(int threshold) noexcept { params_.set_size_threshold(threshold); }
-        inline void set_area_threshold(int threshold) noexcept { params_.set_size_threshold(threshold); }
+        inline void set_area_threshold(int threshold) noexcept { params_.set_area_threshold(threshold); }
         inline void set_min_distance(int distance) noexcept { params_.setMinDistance(distance); }
 
         // Finds the connected components in the image and returns a list of bounding boxes
