@@ -333,8 +333,12 @@ void Image::medianBlurTo(Image &blured, int size) const
     {
         if (blured.using_cuda_)
         {
-            cv::Ptr<cv::cuda::Filter> medianFilter = cv::cuda::createMedianFilter(gpu_mat_ptr_->type(), gpu_mat_ptr_->type(), cv::Size(size, size));
-            medianFilter->apply(*gpu_mat_ptr_, *blured.gpu_mat_ptr_);
+            if (!median_filter_ || median_filter_size_ != size)
+            {
+                median_filter_ = cv::cuda::createMedianFilter(gpu_mat_ptr_->type(), gpu_mat_ptr_->type(), cv::Size(size, size));
+                median_filter_size_ = size;
+            }
+            median_filter_->apply(*gpu_mat_ptr_, *blured.gpu_mat_ptr_);
             return;
         }
 

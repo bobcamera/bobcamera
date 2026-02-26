@@ -221,6 +221,11 @@ namespace boblib::video
                 {
                     std::cout << "Frame buffer full, dropping frame!" << std::endl;
                 }
+                lock.unlock();
+                {
+                    std::lock_guard<std::mutex> poolLock(m_poolMutex);
+                    m_framePool.push_back(std::move(frameCopy));
+                }
                 return false;
             }
 
@@ -370,8 +375,10 @@ namespace boblib::video
         switch (codec->id)
         {
         case AV_CODEC_ID_H264:
-        case AV_CODEC_ID_H265:
             m_codecContext->profile = FF_PROFILE_H264_MAIN;
+            break;
+        case AV_CODEC_ID_H265:
+            m_codecContext->profile = FF_PROFILE_HEVC_MAIN;
             break;
         default:
             if (m_options.debug)
@@ -446,7 +453,9 @@ namespace boblib::video
             std::string opt;
             while (std::getline(ss, opt, ':'))
             {
+                if (opt.empty()) continue;
                 auto pos = opt.find('=');
+                if (pos == std::string::npos || pos + 1 >= opt.size()) continue;
                 av_opt_set(m_codecContext->priv_data,
                            opt.substr(0, pos).c_str(),
                            opt.substr(pos + 1).c_str(), 0);

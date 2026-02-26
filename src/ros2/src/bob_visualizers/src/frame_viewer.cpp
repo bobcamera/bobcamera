@@ -62,7 +62,6 @@ private:
 
     void check_topics_callback()
     {
-        int retries = 0;
         timer_->cancel();
         std::string specific_topic_name = topics_[current_topic_];
         auto topics_and_types = get_topic_names_and_types();
@@ -101,10 +100,10 @@ private:
         image_subscription_compressed_.reset();
         image_subscription_.reset();
         std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-        log_warn("Topic '%s' not found, retries: %d", specific_topic_name.c_str(), retries);
-        if (++retries > max_retries)
+        log_warn("Topic '%s' not found, retries: %d", specific_topic_name.c_str(), retries_);
+        if (++retries_ > max_retries)
         {
-            retries = 0;
+            retries_ = 0;
             current_topic_ = ++current_topic_ >= (int)topics_.size() ? 0 : current_topic_;
             log_info("Switching Topic to '%s'", topics_[current_topic_].c_str());
         }

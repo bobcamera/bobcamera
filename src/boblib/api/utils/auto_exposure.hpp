@@ -109,7 +109,7 @@ namespace boblib::utils
         double m_min_exposure;
         double m_max_gain;
         double m_min_gain;
-        double m_current_msv;
+        double m_current_msv{0.0};
         double m_gain_accumulator;
         bool m_is_night;
         PIDController<double> m_pid_controller;

@@ -5,6 +5,8 @@
 
 #include <visibility_control.h>
 
+#include <mutex>
+
 #include "bob_interfaces/srv/recording_request.hpp"
 #include "bob_interfaces/msg/monitoring_status.hpp"
 
@@ -66,12 +68,18 @@ private:
 
     void status_callback(const bob_interfaces::msg::MonitoringStatus::SharedPtr status_msg)
     {
+        std::lock_guard<std::mutex> lock(status_mutex_);
         status_msg_ = status_msg;
     }
 
     void interval_check_timer_callback()
     {
-        if (status_msg_)
+        bob_interfaces::msg::MonitoringStatus::SharedPtr local_status;
+        {
+            std::lock_guard<std::mutex> lock(status_mutex_);
+            local_status = status_msg_;
+        }
+        if (local_status)
         {
             // Testing the service call
             /*auto recording_change_request = std::make_shared<bob_interfaces::srv::RecordingRequest::Request>();
@@ -84,7 +92,7 @@ private:
                     std::placeholders::_1));
             }*/
 
-            if (status_msg_->max_blobs_reached)
+            if (local_status->max_blobs_reached)
             {
                 if (recording_enabled_)
                 {
@@ -145,6 +153,7 @@ private:
 
     bool recording_enabled_;
     int check_interval_;
+    mutable std::mutex status_mutex_;
     bob_interfaces::msg::MonitoringStatus::SharedPtr status_msg_;
 
     rclcpp::QoS pub_qos_profile_;

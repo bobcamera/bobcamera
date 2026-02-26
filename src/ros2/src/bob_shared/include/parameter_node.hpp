@@ -200,7 +200,7 @@ private:
             throw std::runtime_error("Error during formatting.");
         }
 
-        std::string buf(size, '\0');
+        std::string buf(size - 1, '\0');
         std::snprintf(&buf[0], size, format.c_str(), args...);
 #pragma GCC diagnostic pop
         return buf;

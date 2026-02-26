@@ -86,7 +86,7 @@ namespace boblib::bgs
         }
 
         nSampleCoord_X += nOrigCoord_X - nKernelWidth / 2;
-        nSampleCoord_Y += nOrigCoord_Y - nKernelHeight / 2;
+        nSampleCoord_Y += nOrigCoord_Y - nKernelHeight / 2 - 1;
         clamp_image_coords(nSampleCoord_X, nSampleCoord_Y, oImageSize);
     }
 
@@ -216,7 +216,7 @@ namespace boblib::bgs
             else
             {
                 learning_rate = 1;
-                and_learning_rate = 1;
+                and_learning_rate = 0;
             }
         }
 

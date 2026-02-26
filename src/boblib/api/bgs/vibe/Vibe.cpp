@@ -230,7 +230,7 @@ namespace boblib::bgs
 
     void Vibe::get_background_image(cv::Mat &_bg_image)
     {
-        cv::Mat avg_bg_img(m_orig_img_size->height, m_orig_img_size->width, CV_32FC(m_orig_img_size->num_channels));
+        cv::Mat avg_bg_img = cv::Mat::zeros(m_orig_img_size->height, m_orig_img_size->width, CV_32FC(m_orig_img_size->num_channels));
 
         for (size_t t{0}; t < m_num_processes_parallel; ++t)
         {

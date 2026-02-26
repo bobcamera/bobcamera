@@ -81,8 +81,8 @@ namespace boblib::video
         AVPixelFormat hw_pix_fmt_{AV_PIX_FMT_NONE};
         std::atomic<bool> is_opened_{false};
         bool hw_accel_enabled_{true};
-        int64_t io_start_us_{0};
-        int64_t io_timeout_us_{kProbeTimeoutUs};
+        std::atomic<int64_t> io_start_us_{0};
+        std::atomic<int64_t> io_timeout_us_{kProbeTimeoutUs};
 
         static constexpr int64_t kProbeTimeoutUs = 2'000'000;  // 2 seconds
         static constexpr int64_t kReadTimeoutUs  = 10'000'000; // 10 seconds
@@ -90,7 +90,7 @@ namespace boblib::video
         static int interrupt_cb(void *opaque)
         {
             auto *self = static_cast<FFmpegVideoReader *>(opaque);
-            if (av_gettime_relative() - self->io_start_us_ > self->io_timeout_us_)
+            if (av_gettime_relative() - self->io_start_us_.load(std::memory_order_relaxed) > self->io_timeout_us_.load(std::memory_order_relaxed))
                 return 1;
             return 0;
         }

@@ -64,6 +64,10 @@ namespace boblib::utils
 
             double sum = result.dot(result) / 3.0;
             sum = sqrt(sum);
+            if (sum < 1e-10)
+            {
+                return m_current_wb;
+            }
             result /= sum;
 
             cv::Scalar unit_vec(1.0, 1.0, 1.0);
@@ -71,15 +75,18 @@ namespace boblib::utils
 
             double max_val = subSampled.depth() == CV_8U ? MAX_VALUE_8_BIT : MAX_VALUE_16_BIT;
 
-            if (error > m_error_threshold) 
+            if (error > m_error_threshold)
             {
-                WhiteBalanceValues wb_values = 
-                { 
-                    std::max(0.0, std::min(max_val, (1.0 / result[2]) * m_current_wb.red)),
-                    std::max(0.0, std::min(max_val, (1.0 / result[1]) * m_current_wb.green)),
-                    std::max(0.0, std::min(max_val, (1.0 / result[0]) * m_current_wb.blue))
-                };
-                m_current_wb = wb_values; 
+                if (result[0] > 1e-10 && result[1] > 1e-10 && result[2] > 1e-10)
+                {
+                    WhiteBalanceValues wb_values =
+                    {
+                        std::max(0.0, std::min(max_val, (1.0 / result[2]) * m_current_wb.red)),
+                        std::max(0.0, std::min(max_val, (1.0 / result[1]) * m_current_wb.green)),
+                        std::max(0.0, std::min(max_val, (1.0 / result[0]) * m_current_wb.blue))
+                    };
+                    m_current_wb = wb_values;
+                }
             }
 
             return m_current_wb;

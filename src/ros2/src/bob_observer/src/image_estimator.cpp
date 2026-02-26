@@ -19,6 +19,8 @@
 
 #include <visibility_control.h>
 
+#include <mutex>
+
 class ImageEstimator
     : public ParameterNode
 {
@@ -149,26 +151,32 @@ private:
 
     void camera_callback(const sensor_msgs::msg::Image::SharedPtr image_msg)
     {
+        std::lock_guard<std::mutex> lock(image_mutex_);
         ImageUtils::convert_image_msg(image_msg, image_, true);
     }
 
     void timer_callback()
     {
-        if (image_.empty())
+        cv::Mat local_image;
         {
-            log_info("Image is empty, skip processing");
-            return;
+            std::lock_guard<std::mutex> lock(image_mutex_);
+            if (image_.empty())
+            {
+                log_info("Image is empty, skip processing");
+                return;
+            }
+            local_image = image_.clone();
         }
         log_info("Processing image");
-        day_night_classifier();
-        cloud_sampler();
+        day_night_classifier(local_image);
+        cloud_sampler(local_image);
     }
 
-    void day_night_classifier()
+    void day_night_classifier(const cv::Mat &image)
     {
         try
         {
-            auto [result, average_brightness] = day_night_classifier_worker_ptr_->estimate(image_, observer_day_night_brightness_threshold_);
+            auto [result, average_brightness] = day_night_classifier_worker_ptr_->estimate(image, observer_day_night_brightness_threshold_);
             log_info("Day/Night classifier --> %d, %d", (int)result, average_brightness);
             day_night_ = result;
 
@@ -183,7 +191,7 @@ private:
         }
     }
 
-    void cloud_sampler()
+    void cloud_sampler(const cv::Mat &image)
     {
         try
         {
@@ -194,14 +202,14 @@ private:
             {
                 case DayNightEnum::Day:
                 {
-                    std::tie(estimation, distribution) = day_cloud_estimator_worker_ptr_->estimate(image_);
+                    std::tie(estimation, distribution) = day_cloud_estimator_worker_ptr_->estimate(image);
                     log_info("Day time cloud estimation --> %f", estimation);
                 }
                 break;
 
                 case DayNightEnum::Night:
                 {
-                    std::tie(estimation, distribution) = night_cloud_estimator_worker_ptr_->estimate(image_);
+                    std::tie(estimation, distribution) = night_cloud_estimator_worker_ptr_->estimate(image);
                     log_info("Night time cloud estimation --> %f", estimation);
                 }
                 break;
@@ -228,6 +236,7 @@ private:
     rclcpp::QoS sub_qos_profile_;
     rclcpp::QoS pub_qos_profile_;
     int timer_interval_;
+    mutable std::mutex image_mutex_;
     cv::Mat image_;
     std::unique_ptr<DayTimeCloudEstimator> day_cloud_estimator_worker_ptr_;
     std::unique_ptr<NightTimeCloudEstimator> night_cloud_estimator_worker_ptr_;

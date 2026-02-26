@@ -6,6 +6,8 @@
 
 #include <visibility_control.h>
 
+#include <mutex>
+
 #include "bob_interfaces/srv/sensitivity_change_request.hpp"
 
 #include "bob_interfaces/msg/monitoring_status.hpp"
@@ -103,6 +105,7 @@ private:
 
     void status_callback(const bob_interfaces::msg::MonitoringStatus::SharedPtr status_msg)
     {
+        std::lock_guard<std::mutex> lock(status_mutex_);
         status_msg_ = status_msg;
     }
 
@@ -119,43 +122,50 @@ private:
         // ----------------------------------------------------------------
         // Look into a rules engine e.g.: https://www.clipsrules.net/
         // ----------------------------------------------------------------
-        if (status_msg_)
+        bob_interfaces::msg::MonitoringStatus::SharedPtr local_status;
+        {
+            std::lock_guard<std::mutex> lock(status_mutex_);
+            local_status = status_msg_;
+        }
+        if (local_status)
         {
             change_reason_ = "";
 
             // Rule 1
-            if (status_msg_->day_night_enum > 0)
+            if (local_status->day_night_enum > 0)
             {
                 // Rule 2
-                if (status_msg_->max_blobs_reached)
+                if (local_status->max_blobs_reached)
                 {
                     change_reason_ = "Max Blobs";
                     sensitivity_change_action_ = LowerSensitivity;
                 }
                 // Rule 3
-                else if (!star_mask_enabled_ && status_msg_->day_night_enum == 2 && (sensitivity_ == "high" || sensitivity_ == "high_c"))
+                else if (!star_mask_enabled_ && local_status->day_night_enum == 2 && (sensitivity_ == "high" || sensitivity_ == "high_c"))
                 {
                     change_reason_ = "Day 2 Night";
                     sensitivity_change_action_ = LowerSensitivity;
                 }
                 else
                 {
-                    if (status_msg_->unimodal_cloud_cover)
+                    if (local_status->unimodal_cloud_cover)
                     {
                         change_reason_ = "Unimodal";
                         sensitivity_change_action_ = IncreaseSensitivity;
                     }
                     // Rule 4
-                    else if (!status_msg_->unimodal_cloud_cover)
+                    else
                     {
-                        if (status_msg_->percentage_cloud_cover > 10 && status_msg_->percentage_cloud_cover < 90)
+                        if (local_status->percentage_cloud_cover > 10 && local_status->percentage_cloud_cover < 90)
                         {
                             change_reason_ = "Bimodal";
                             sensitivity_change_action_ = LowerSensitivity;
                         }
+                        else
+                        {
+                            sensitivity_change_action_ = Ignore;
+                        }
                     }
-                    else
-                        sensitivity_change_action_ = Ignore;
                 }
 
                 // Rule 5
@@ -171,12 +181,12 @@ private:
                     }
                 }
 
-                apply_sensitivity_change();
+                apply_sensitivity_change(local_status);
             }
         }
     }
 
-    void apply_sensitivity_change()
+    void apply_sensitivity_change(const bob_interfaces::msg::MonitoringStatus::SharedPtr &local_status)
     {
         static const std::map<std::string, std::pair<std::string, std::string>> sensitivity_change_map =
         {
@@ -196,7 +206,7 @@ private:
                 sensitivity_increase_check_counter_ = 0;
                 if ((sensitivity_ == "medium") || (sensitivity_ == "medium_c")) 
                 {
-                    if (status_msg_->day_night_enum == 1 || (star_mask_enabled_ && status_msg_->day_night_enum == 2))
+                    if (local_status->day_night_enum == 1 || (star_mask_enabled_ && local_status->day_night_enum == 2))
                     {
                         proposed_sensitivity_ = higher_sensitivity;
                     }
@@ -277,6 +287,7 @@ private:
 
     rclcpp::AsyncParametersClient::SharedPtr sensitivity_param_client_;
 
+    mutable std::mutex status_mutex_;
     bob_interfaces::msg::MonitoringStatus::SharedPtr status_msg_;
 
     std::string sensitivity_;

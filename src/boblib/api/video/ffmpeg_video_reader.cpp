@@ -76,8 +76,8 @@ namespace boblib::video
             src_ = src;
 
             // set up interrupt callback with probe timeout
-            io_timeout_us_ = kProbeTimeoutUs;
-            io_start_us_ = av_gettime_relative();
+            io_timeout_us_.store(kProbeTimeoutUs, std::memory_order_relaxed);
+            io_start_us_.store(av_gettime_relative(), std::memory_order_relaxed);
             fmt_ctx_ = avformat_alloc_context();
             if (!fmt_ctx_) {
                 std::cerr << "[ERROR] avformat_alloc_context failed" << std::endl;
@@ -195,8 +195,8 @@ namespace boblib::video
             // Switch from probe timeout to the longer read timeout.
             // Keep the interrupt callback active so av_read_frame() won't
             // hang indefinitely if the stream drops.
-            io_timeout_us_ = kReadTimeoutUs;
-            io_start_us_ = av_gettime_relative();
+            io_timeout_us_.store(kReadTimeoutUs, std::memory_order_relaxed);
+            io_start_us_.store(av_gettime_relative(), std::memory_order_relaxed);
             fmt_ctx_->flags &= ~AVFMT_FLAG_NONBLOCK;
             return true;
         } catch (const std::exception& e) {
@@ -222,7 +222,7 @@ namespace boblib::video
             while (true)
             {
                 // Reset the read timeout before each blocking I/O call
-                io_start_us_ = av_gettime_relative();
+                io_start_us_.store(av_gettime_relative(), std::memory_order_relaxed);
                 int ret = av_read_frame(fmt_ctx_, pkt_);
                 if (ret < 0)
                 {
@@ -375,8 +375,8 @@ namespace boblib::video
             height_ = 0;
             fps_ = 0.0;
             hw_pix_fmt_ = AV_PIX_FMT_NONE;
-            io_start_us_ = 0;
-            io_timeout_us_ = kProbeTimeoutUs;
+            io_start_us_.store(0, std::memory_order_relaxed);
+            io_timeout_us_.store(kProbeTimeoutUs, std::memory_order_relaxed);
             src_.clear();
         } catch (const std::exception& e) {
             std::cerr << "[ERROR] Exception in close(): " << e.what() << std::endl;
