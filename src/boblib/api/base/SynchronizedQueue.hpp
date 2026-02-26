@@ -17,7 +17,7 @@ public:
     // Add an item to the queue (copy version)
     bool push(const T & item)
     {
-        std::unique_lock<std::mutex> lock(mutex_);
+        std::lock_guard<std::mutex> lock(mutex_);
         if (max_size_ > 0 && queue_.size() >= max_size_)
         {
             return false;
@@ -31,7 +31,7 @@ public:
     // Add an item to the queue (move version)
     bool push(T && item)
     {
-        std::unique_lock<std::mutex> lock(mutex_);
+        std::lock_guard<std::mutex> lock(mutex_);
         if (max_size_ > 0 && queue_.size() >= max_size_)
         {
             return false;
@@ -88,7 +88,7 @@ public:
     void stop()
     {
         {
-            std::unique_lock<std::mutex> lock(mutex_);
+            std::lock_guard<std::mutex> lock(mutex_);
             running_ = false;
         }
         cv_.notify_all();
@@ -98,7 +98,7 @@ public:
     void start()
     {
         {
-            std::unique_lock<std::mutex> lock(mutex_);
+            std::lock_guard<std::mutex> lock(mutex_);
             running_ = true;
         }
         cv_.notify_all();
@@ -113,20 +113,20 @@ public:
     // Check if the queue is empty
     bool empty() const
     {
-        std::unique_lock<std::mutex> lock(mutex_);
+        std::lock_guard<std::mutex> lock(mutex_);
         return queue_.empty();
     }
 
     size_t size() const
     {
-        std::unique_lock<std::mutex> lock(mutex_);
+        std::lock_guard<std::mutex> lock(mutex_);
         return queue_.size();
     }
 
     // Discard all queued items
     void clear()
     {
-        std::unique_lock<std::mutex> lock(mutex_);
+        std::lock_guard<std::mutex> lock(mutex_);
         std::queue<T> empty;
         queue_.swap(empty);
     }

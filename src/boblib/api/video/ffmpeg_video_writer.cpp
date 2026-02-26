@@ -193,8 +193,17 @@ namespace boblib::video
 
         m_framesReceived.fetch_add(1);
 
-        // Make a deep copy of the frame to ensure it persists
+        // Acquire a reusable buffer from pool to avoid per-frame heap allocation.
+        // copyTo() reuses the destination's buffer when size/type match.
         cv::Mat frameCopy;
+        {
+            std::lock_guard<std::mutex> poolLock(m_poolMutex);
+            if (!m_framePool.empty())
+            {
+                frameCopy = std::move(m_framePool.back());
+                m_framePool.pop_back();
+            }
+        }
         try {
             frame.copyTo(frameCopy);
         } catch (const std::exception& e) {
@@ -698,7 +707,7 @@ namespace boblib::video
             }
 
             // Close the output file
-            if (m_formatContext && !(m_formatContext->oformat->flags & AVFMT_NOFILE))
+            if (m_formatContext && m_formatContext->oformat && !(m_formatContext->oformat->flags & AVFMT_NOFILE))
             {
                 avio_closep(&m_formatContext->pb);
             }
@@ -828,7 +837,15 @@ namespace boblib::video
                         break;
                     }
 
-                    if (!convert_frame(frame, m_frame))
+                    bool converted = convert_frame(frame, m_frame);
+
+                    // Frame data consumed by sws_scale; return buffer to pool
+                    {
+                        std::lock_guard<std::mutex> poolLock(m_poolMutex);
+                        m_framePool.push_back(std::move(frame));
+                    }
+
+                    if (!converted)
                     {
                         std::cerr << "Failed to convert frame" << std::endl;
                         continue;
@@ -874,7 +891,15 @@ namespace boblib::video
                 try {
                     std::lock_guard<std::mutex> ffLock(m_ffmpegMutex);
 
-                    if (convert_frame(frame, m_frame))
+                    bool converted = convert_frame(frame, m_frame);
+
+                    // Return buffer to pool
+                    {
+                        std::lock_guard<std::mutex> poolLock(m_poolMutex);
+                        m_framePool.push_back(std::move(frame));
+                    }
+
+                    if (converted)
                     {
                         m_frame->pts = m_framesWritten.load();
                         if (encode_and_write_packets(m_frame))

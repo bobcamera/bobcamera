@@ -103,6 +103,11 @@ namespace boblib::video
         mutable std::mutex m_queueMutex;
         mutable std::condition_variable m_queueCondition;
 
+        // Pool of reusable cv::Mat buffers to avoid per-frame heap allocation.
+        // copyTo() into a pooled Mat reuses its existing buffer when size/type match.
+        std::vector<cv::Mat> m_framePool;
+        std::mutex m_poolMutex;
+
         // Worker thread
         std::thread m_workerThread;
         std::thread m_monitorThread;
