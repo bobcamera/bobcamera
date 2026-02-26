@@ -26,8 +26,6 @@ namespace boblib::video
     public:
         FFmpegVideoReader();
 
-        explicit FFmpegVideoReader(const std::string &src);
-
         ~FFmpegVideoReader();
 
         /// open / reopen a usb camera – returns true on success

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <mutex>
 #include <string>
 
 namespace boblib::utils
@@ -21,6 +22,7 @@ namespace boblib::utils
             {
                 return;
             }
+            std::lock_guard<std::mutex> lock(mutex_);
             frame_count_++;
             auto now = std::chrono::high_resolution_clock::now();
             current_duration_ = now - start_time_;
@@ -33,6 +35,7 @@ namespace boblib::utils
             {
                 return 0.0;
             }
+            std::lock_guard<std::mutex> lock(mutex_);
             if (current_duration_.count() > 0)
             {
                 return static_cast<double>(frame_count_) /
@@ -48,14 +51,14 @@ namespace boblib::utils
             {
                 return false;
             }
+            std::lock_guard<std::mutex> lock(mutex_);
             auto now = std::chrono::high_resolution_clock::now();
             auto time_since_last_update = now - last_update_time_;
 
             if (time_since_last_update >= update_interval_)
             {
-                fps = compute_fps();
-                //last_update_time_ = now;
-                reset();
+                fps = compute_fps_locked();
+                reset_locked();
                 return true;
             }
 
@@ -69,14 +72,33 @@ namespace boblib::utils
             {
                 return;
             }
+            std::lock_guard<std::mutex> lock(mutex_);
+            reset_locked();
+        }
+
+    private:
+        // Caller must hold mutex_
+        double compute_fps_locked() const noexcept
+        {
+            if (current_duration_.count() > 0)
+            {
+                return static_cast<double>(frame_count_) /
+                       std::chrono::duration<double>(current_duration_).count();
+            }
+            return 0.0;
+        }
+
+        // Caller must hold mutex_
+        void reset_locked() noexcept
+        {
             frame_count_ = 0;
             start_time_ = std::chrono::high_resolution_clock::now();
             last_update_time_ = start_time_;
             current_duration_ = std::chrono::high_resolution_clock::duration::zero();
         }
 
-    private:
         bool enabled_{true};
+        mutable std::mutex mutex_;
         size_t frame_count_{0};
         std::chrono::high_resolution_clock::time_point start_time_;
         std::chrono::high_resolution_clock::time_point last_update_time_;
