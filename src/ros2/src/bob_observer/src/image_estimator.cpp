@@ -235,22 +235,22 @@ private:
 
     rclcpp::QoS sub_qos_profile_;
     rclcpp::QoS pub_qos_profile_;
-    int timer_interval_;
+    int timer_interval_{0};
     mutable std::mutex image_mutex_;
     cv::Mat image_;
     std::unique_ptr<DayTimeCloudEstimator> day_cloud_estimator_worker_ptr_;
     std::unique_ptr<NightTimeCloudEstimator> night_cloud_estimator_worker_ptr_;
     std::unique_ptr<DayNightClassifierWorker> day_night_classifier_worker_ptr_;
-    int observer_day_night_brightness_threshold_;
-    DayNightEnum day_night_;
+    int observer_day_night_brightness_threshold_{0};
+    DayNightEnum day_night_{DayNightEnum::Night};
     rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::Publisher<bob_interfaces::msg::ObserverCloudEstimation>::SharedPtr pub_cloud_data_;
     rclcpp::Publisher<bob_interfaces::msg::ObserverDayNight>::SharedPtr pub_day_night_data_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub_camera_;
     std::unique_ptr<MaskWorker> mask_worker_ptr_;
-    bool mask_enabled_;
+    bool mask_enabled_{false};
     cv::Mat detection_mask_;
-    int mask_timer_seconds_;
+    int mask_timer_seconds_{0};
     std::string mask_filename_;
 };
 

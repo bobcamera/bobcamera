@@ -9,7 +9,7 @@
 namespace boblib::bgs
 {
     Vibe::Vibe(VibeParams _params, bool use_cuda, size_t _num_processes_parallel)
-        : CoreBgs(use_cuda, _num_processes_parallel), m_params(_params), memory_allocated(false)
+        : CoreBgs(use_cuda, _num_processes_parallel), m_params(_params)
     {
     }
 

@@ -112,7 +112,7 @@ bool VideoReader::is_open() const noexcept
     return video_capture_ptr_ ? video_capture_ptr_->isOpened() : false;
 }
 
-inline void VideoReader::create_video_capture() noexcept
+void VideoReader::create_video_capture() noexcept
 {
     static const std::vector<int> default_params_normal = {cv::CAP_PROP_HW_ACCELERATION, cv::VIDEO_ACCELERATION_ANY};
     static const std::vector<int> default_params_cuda = {cv::CAP_PROP_OPEN_TIMEOUT_MSEC, 10000, cv::CAP_PROP_CONVERT_RGB, 1};
@@ -121,10 +121,6 @@ inline void VideoReader::create_video_capture() noexcept
         if (!use_opencv_)
         {
             ffmpeg_video_reader_ptr_ = std::make_unique<FFmpegVideoReader>();
-            if (!ffmpeg_video_reader_ptr_) {
-                std::cerr << "[ERROR] Failed to create FFmpegVideoReader" << std::endl;
-                return;
-            }
 
             bool is_open = false;
             if (is_usb_) {

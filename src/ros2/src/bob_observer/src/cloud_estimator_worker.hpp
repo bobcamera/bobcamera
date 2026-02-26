@@ -33,7 +33,7 @@ protected:
     const double end_;
     const std::size_t num_bins_;
     std::vector<double> x_;
-    bool mask_enabled_;
+    bool mask_enabled_{false};
     cv::Mat detection_mask_;
 
     static std::vector<double> linspace(double start, double end, std::size_t num) 

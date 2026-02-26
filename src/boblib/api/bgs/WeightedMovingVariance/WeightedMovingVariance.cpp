@@ -67,6 +67,7 @@ namespace boblib::bgs
         if (_img_input_prev.first_phase < 2)
         {
             ++_img_input_prev.first_phase;
+            img_output.setTo(0);
             return;
         }
 
@@ -107,7 +108,7 @@ namespace boblib::bgs
     }
 
     template<class T>
-    inline void calc_weighted_variance_mono(const T *const _i1, const T *const _i2, const T *const _i3, const uint8_t *const _imgMask,
+    void calc_weighted_variance_mono(const T *const _i1, const T *const _i2, const T *const _i3, const uint8_t *const _imgMask,
                                         uint8_t *const _o, uint32_t _total_pixels, const float* _weight)
     {
         for (uint32_t i{0}; i < _total_pixels; ++i)
@@ -145,7 +146,7 @@ namespace boblib::bgs
     }
 
     template<class T>
-    inline void calc_weighted_variance_color(const T *const _i1, const T *const _i2, const T *const _i3, const uint8_t *const _imgMask,
+    void calc_weighted_variance_color(const T *const _i1, const T *const _i2, const T *const _i3, const uint8_t *const _imgMask,
                                         uint8_t *const _o, uint32_t _total_pixels, 
                                         const float* _weight)
     {

@@ -24,8 +24,8 @@ namespace boblib
             , height(_height)
             , num_channels(_num_channels)
             , bytes_per_channel(_bytes_per_pixel)
-            , num_pixels(_width * _height)
-            , size_in_bytes(_width * _height * _num_channels * _bytes_per_pixel)
+            , num_pixels(static_cast<size_t>(_width) * static_cast<size_t>(_height))
+            , size_in_bytes(static_cast<size_t>(_width) * static_cast<size_t>(_height) * static_cast<size_t>(_num_channels) * static_cast<size_t>(_bytes_per_pixel))
             , original_pixel_pos{_original_pixel_pos}
         {
         }

@@ -124,7 +124,6 @@ namespace boblib::video
         AVStream *m_stream{nullptr};
         SwsContext *m_swsContext{nullptr};
         AVFrame *m_frame{nullptr};
-        uint8_t *m_frameBuffer{nullptr};
         int m_ioBufferSize;
 
         // Pull all the heavy lifting into this helper. Caller must hold m_ffmpegMutex.

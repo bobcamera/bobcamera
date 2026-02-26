@@ -2,7 +2,9 @@
 
 #include <chrono>
 
-class CircuitBreaker 
+// Note: This class is NOT thread-safe. All calls (allow_request, record_success,
+// record_failure) must be made from the same thread or externally synchronized.
+class CircuitBreaker
 {
 public:
     CircuitBreaker(int failure_threshold, int initial_reset_timeout, int max_reset_timeout)

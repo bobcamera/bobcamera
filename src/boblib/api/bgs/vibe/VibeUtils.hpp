@@ -173,17 +173,17 @@ namespace boblib::bgs
             set_required_bg_samples(_params.required_bg_samples);
         }
 
-        uint32_t get_threshold() { return threshold_mono; }
-        uint32_t get_bg_samples() { return bg_samples; }
-        uint32_t get_required_bg_samples() { return required_bg_samples; }
-        uint32_t get_learning_rate() { return learning_rate; }
+        uint32_t get_threshold() const { return threshold_mono; }
+        uint32_t get_bg_samples() const { return bg_samples; }
+        uint32_t get_required_bg_samples() const { return required_bg_samples; }
+        uint32_t get_learning_rate() const { return learning_rate; }
 
         void set_threshold(uint32_t value) 
         { 
             threshold_mono = value; 
             threshold_color_squared = (threshold_mono * 3) * (threshold_mono * 3);
             threshold_mono16 = threshold_mono * 256;
-            threshold_color16_squared = (threshold_mono16 * 3) * (threshold_mono16 * 3);
+            threshold_color16_squared = static_cast<uint64_t>(threshold_mono16 * 3) * static_cast<uint64_t>(threshold_mono16 * 3);
         }
         void set_bg_samples(uint32_t value)
         {

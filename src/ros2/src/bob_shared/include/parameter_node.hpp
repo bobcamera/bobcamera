@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 
@@ -47,7 +48,7 @@ public:
     }
 
     template <class T>
-    inline void publish_if_subscriber(rclcpp::Publisher<T>::SharedPtr publisher, T message) const
+    inline void publish_if_subscriber(const typename rclcpp::Publisher<T>::SharedPtr &publisher, const T &message) const
     {
         if (!publisher || publisher->get_subscription_count() <= 0)
         {
@@ -121,9 +122,9 @@ public:
     {
         if (severity >= get_logger().get_effective_level())
         {
-            static uint64_t log_index_ = 0;
+            static std::atomic<uint64_t> log_index_{0};
             bob_interfaces::msg::LogMessage log_msg;
-            log_msg.header.frame_id = std::to_string(++log_index_);
+            log_msg.header.frame_id = std::to_string(log_index_.fetch_add(1, std::memory_order_relaxed) + 1);
             log_msg.header.stamp = now();
             log_msg.node = get_name();
             log_msg.severity = g_rcutils_log_severity_names[(int)severity];

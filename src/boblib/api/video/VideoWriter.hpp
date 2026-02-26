@@ -53,7 +53,7 @@ namespace boblib::video
         [[nodiscard]] static boblib::video::Codec codec_from_string(std::string_view codec_str) noexcept;
 
     private:
-        inline void create_video_writer() noexcept;
+        void create_video_writer() noexcept;
         void safe_cleanup() noexcept;
 
         // Configuration - stored as copies to avoid dangling references

@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <json/json.h>
 
-std::string to_lowercase(const std::string &str)
+inline std::string to_lowercase(const std::string &str)
 {
     std::string lower_str = str;
     std::transform(lower_str.begin(), lower_str.end(), lower_str.begin(), ::tolower);
@@ -31,7 +31,7 @@ T string_to_number(const std::string &str, T default_value)
 
 // Specialization for floating point numbers (float, double, etc.)
 template <>
-float string_to_number<float>(const std::string &str, float default_value)
+inline float string_to_number<float>(const std::string &str, float default_value)
 {
     try
     {
@@ -44,7 +44,7 @@ float string_to_number<float>(const std::string &str, float default_value)
 }
 
 template <>
-double string_to_number<double>(const std::string &str, double default_value)
+inline double string_to_number<double>(const std::string &str, double default_value)
 {
     try
     {
@@ -56,7 +56,7 @@ double string_to_number<double>(const std::string &str, double default_value)
     }
 }
 
-std::tuple<int, int, int> extract_rgb(const std::string &str)
+inline std::tuple<int, int, int> extract_rgb(const std::string &str)
 {
     int r, g, b;
     char ch; // to skip non-numeric characters
@@ -71,7 +71,7 @@ std::tuple<int, int, int> extract_rgb(const std::string &str)
     return {r, g, b};
 }
 
-std::unordered_map<std::string, std::string> parse_json_to_map(const std::string &jsonString)
+inline std::unordered_map<std::string, std::string> parse_json_to_map(const std::string &jsonString)
 {
     // if (jsonString.empty())
     // {

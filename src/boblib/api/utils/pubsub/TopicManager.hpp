@@ -72,8 +72,8 @@ namespace boblib::utils::pubsub
     public:
         TopicManager(const TopicManager &) = delete;
         TopicManager &operator=(const TopicManager &) = delete;
-        TopicManager(TopicManager &&) = default;
-        TopicManager &operator=(TopicManager &&) = default;
+        TopicManager(TopicManager &&) = delete;
+        TopicManager &operator=(TopicManager &&) = delete;
 
         // Constructor with default values
         explicit TopicManager(size_t queue_size = 100, bool enable_monitoring = true, int report_time_seconds = 10);

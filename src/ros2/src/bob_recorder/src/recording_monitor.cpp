@@ -151,8 +151,8 @@ private:
     rclcpp::Client<bob_interfaces::srv::RecordingRequest>::SharedPtr recording_change_client_;
     rclcpp::Subscription<bob_interfaces::msg::MonitoringStatus>::SharedPtr monitoring_subscription_;
 
-    bool recording_enabled_;
-    int check_interval_;
+    bool recording_enabled_{false};
+    int check_interval_{0};
     mutable std::mutex status_mutex_;
     bob_interfaces::msg::MonitoringStatus::SharedPtr status_msg_;
 

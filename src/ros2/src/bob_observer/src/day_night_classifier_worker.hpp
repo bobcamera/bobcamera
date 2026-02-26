@@ -28,28 +28,21 @@ public:
         cv::split(hsv_frame, hsv_channels);
         auto & v_channel = hsv_channels[2];
 
-        double sum_brightness = 0.0;
-        double num_pixels = 0.0;
+        cv::Scalar mean_brightness = mask_enabled_
+            ? cv::mean(v_channel, detection_mask_)
+            : cv::mean(v_channel);
 
-        for (int i = 0; i < v_channel.rows; ++i)
-        {
-            for (int j = 0; j < v_channel.cols; ++j)
-            {
-                if (!mask_enabled_ || detection_mask_.at<uchar>(i, j) > 0)
-                {
-                    sum_brightness += v_channel.at<uchar>(i, j);
-                    ++num_pixels;
-                }
-            }
-        }
+        double num_pixels = mask_enabled_
+            ? cv::countNonZero(detection_mask_)
+            : static_cast<double>(v_channel.total());
 
-        if (num_pixels == 0) 
+        if (num_pixels == 0)
         {
             node_.log_send_warn("No valid pixels found for brightness estimation.");
             return {result, 0};
         }
 
-        int avg_brightness = static_cast<int>(sum_brightness / num_pixels);
+        int avg_brightness = static_cast<int>(mean_brightness[0]);
         node_.log_debug("Pixels used: %.2f%%, Avg. Brightness: %d", (num_pixels * 100.0) / frame.total(), avg_brightness);
 
         if (avg_brightness > threshold)
@@ -68,6 +61,6 @@ public:
 
 private:
     ParameterNode &node_;
-    bool mask_enabled_;
+    bool mask_enabled_{false};
     cv::Mat detection_mask_;
 };

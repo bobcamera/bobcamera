@@ -244,7 +244,7 @@ private:
     void change_parameter_async(const std::string & param_name, const std::string & param_value)
     {
         // TODO: Move this into the base class so all param change requests can use the same code
-        if (!sensitivity_param_client_->wait_for_service(std::chrono::seconds(1)))
+        if (!sensitivity_param_client_->service_is_ready())
         {
             log_warn("Sensitivity parameter service not ready.");
             return;
@@ -292,12 +292,12 @@ private:
 
     std::string sensitivity_;
     std::string proposed_sensitivity_;
-    int check_interval_;
-    SensitivityChangeActionEnum sensitivity_change_action_;
-    bool star_mask_enabled_;
+    int check_interval_{0};
+    SensitivityChangeActionEnum sensitivity_change_action_{Ignore};
+    bool star_mask_enabled_{false};
 
-    int sensitivity_increase_count_threshold_;
-    int sensitivity_increase_check_counter_;
+    int sensitivity_increase_count_threshold_{0};
+    int sensitivity_increase_check_counter_{0};
     std::string change_reason_;
 
     rclcpp::QoS pub_qos_profile_;

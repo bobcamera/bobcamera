@@ -223,7 +223,7 @@ bool VideoWriter::is_valid() const noexcept
     return is_valid_.load() && is_initialized_.load();
 }
 
-inline void VideoWriter::create_video_writer() noexcept
+void VideoWriter::create_video_writer() noexcept
 {
     if (!use_opencv_)
     {
