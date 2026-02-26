@@ -75,8 +75,9 @@ namespace boblib::video
             
             src_ = src;
 
-            // set up interrupt callback timeout
-            probe_start_us_ = av_gettime_relative();
+            // set up interrupt callback with probe timeout
+            io_timeout_us_ = kProbeTimeoutUs;
+            io_start_us_ = av_gettime_relative();
             fmt_ctx_ = avformat_alloc_context();
             if (!fmt_ctx_) {
                 std::cerr << "[ERROR] avformat_alloc_context failed" << std::endl;
@@ -191,9 +192,11 @@ namespace boblib::video
 
             is_opened_ = true;
 
-            // after avformat_find_stream_info() and before returning:
-            fmt_ctx_->interrupt_callback.callback = nullptr;
-            fmt_ctx_->interrupt_callback.opaque = nullptr;
+            // Switch from probe timeout to the longer read timeout.
+            // Keep the interrupt callback active so av_read_frame() won't
+            // hang indefinitely if the stream drops.
+            io_timeout_us_ = kReadTimeoutUs;
+            io_start_us_ = av_gettime_relative();
             fmt_ctx_->flags &= ~AVFMT_FLAG_NONBLOCK;
             return true;
         } catch (const std::exception& e) {
@@ -216,11 +219,10 @@ namespace boblib::video
         }
 
         try {
-            // reset our timeout so interrupt_cb won't fire mid-stream
-            probe_start_us_ = av_gettime_relative();
-
             while (true)
             {
+                // Reset the read timeout before each blocking I/O call
+                io_start_us_ = av_gettime_relative();
                 int ret = av_read_frame(fmt_ctx_, pkt_);
                 if (ret < 0)
                 {
@@ -296,15 +298,14 @@ namespace boblib::video
                         use = sw_frame_;
                     }
 
-                    cv::Mat result = avframe_to_mat(use);
-                    if (result.empty()) {
+                    avframe_to_mat(use, out);
+                    if (out.empty()) {
                         std::cerr << "[ERROR] Failed to convert frame to cv::Mat" << std::endl;
                         av_frame_unref(frame_);
                         av_packet_unref(pkt_);
                         return false;
                     }
 
-                    out = result;
                     av_frame_unref(frame_);
                     av_packet_unref(pkt_);
                     return true;
@@ -374,7 +375,8 @@ namespace boblib::video
             height_ = 0;
             fps_ = 0.0;
             hw_pix_fmt_ = AV_PIX_FMT_NONE;
-            probe_start_us_ = 0;
+            io_start_us_ = 0;
+            io_timeout_us_ = kProbeTimeoutUs;
             src_.clear();
         } catch (const std::exception& e) {
             std::cerr << "[ERROR] Exception in close(): " << e.what() << std::endl;
@@ -536,16 +538,18 @@ namespace boblib::video
         return true;
     }
 
-    cv::Mat FFmpegVideoReader::avframe_to_mat(const AVFrame *src)
+    void FFmpegVideoReader::avframe_to_mat(const AVFrame *src, cv::Mat &dst)
     {
         if (!src || !src->data[0]) {
             std::cerr << "[ERROR] Invalid source frame" << std::endl;
-            return cv::Mat();
+            dst = cv::Mat();
+            return;
         }
-        
+
         if (src->width <= 0 || src->height <= 0 || src->width > 16384 || src->height > 16384) {
             std::cerr << "[ERROR] Invalid frame dimensions: " << src->width << "x" << src->height << std::endl;
-            return cv::Mat();
+            dst = cv::Mat();
+            return;
         }
 
         try {
@@ -560,34 +564,34 @@ namespace boblib::video
                                           SWS_BILINEAR, nullptr, nullptr, nullptr);
                 if (!sws_ctx_) {
                     std::cerr << "[ERROR] Failed to create sws context" << std::endl;
-                    return cv::Mat();
+                    dst = cv::Mat();
+                    return;
                 }
                 width_ = src->width;
                 height_ = src->height;
             }
-            
-            cv::Mat dst(height_, width_, CV_8UC3);
-            if (dst.empty()) {
-                std::cerr << "[ERROR] Failed to create destination Mat" << std::endl;
-                return cv::Mat();
+
+            // Reuse the buffer if it already has the right size and type
+            if (dst.rows != height_ || dst.cols != width_ || dst.type() != CV_8UC3)
+            {
+                dst.create(height_, width_, CV_8UC3);
             }
-            
+
             uint8_t *dst_data[1] = {dst.data};
             int dst_linesize[1] = {static_cast<int>(dst.step)};
-            
+
             int result = sws_scale(sws_ctx_, src->data, src->linesize, 0, src->height, dst_data, dst_linesize);
             if (result != src->height) {
                 std::cerr << "[ERROR] sws_scale failed, expected " << src->height << " lines, got " << result << std::endl;
-                return cv::Mat();
+                dst = cv::Mat();
+                return;
             }
-            
-            return dst;
         } catch (const std::exception& e) {
             std::cerr << "[ERROR] Exception in avframe_to_mat: " << e.what() << std::endl;
-            return cv::Mat();
+            dst = cv::Mat();
         } catch (...) {
             std::cerr << "[ERROR] Unknown exception in avframe_to_mat" << std::endl;
-            return cv::Mat();
+            dst = cv::Mat();
         }
     }
 

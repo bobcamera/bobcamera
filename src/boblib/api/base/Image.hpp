@@ -1,5 +1,6 @@
 #pragma once
 
+#include <mutex>
 #include <vector>
 #include <string>
 
@@ -96,7 +97,8 @@ namespace boblib::base
 
         bool using_cuda_;
         mutable std::unique_ptr<cv::cuda::GpuMat> gpu_mat_ptr_;
-        mutable std::unique_ptr<cv::Mat> mat_ptr_;
+        mutable cv::Mat mat_;
+        mutable std::mutex transfer_mutex_; // protects GPU↔CPU transfers when using_cuda_
 
 #ifdef HAVE_CUDA
         void mask_cuda(cv::cuda::GpuMat &mask_) noexcept;

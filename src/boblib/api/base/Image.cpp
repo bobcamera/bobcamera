@@ -18,24 +18,24 @@ Image::Image(const Image &img) noexcept
     : using_cuda_(img.using_cuda_),
       median_filter_size_(img.median_filter_size_)
 {
-    if (using_cuda_) 
+    if (using_cuda_)
     {
 #ifdef HAVE_CUDA
         median_filter_ = img.median_filter_;
 #endif
         gpu_mat_ptr_ = std::make_unique<cv::cuda::GpuMat>();
         img.gpu_mat_ptr_->copyTo(*gpu_mat_ptr_);
-    } 
+    }
     else
     {
-        mat_ptr_ = std::make_unique<cv::Mat>(img.mat_ptr_->clone());
+        mat_ = img.mat_.clone();
     }
 }
 
 Image::Image(Image &&img) noexcept
     : using_cuda_(img.using_cuda_),
       gpu_mat_ptr_(std::move(img.gpu_mat_ptr_)),
-      mat_ptr_(std::move(img.mat_ptr_)),
+      mat_(std::move(img.mat_)),
       median_filter_size_(std::exchange(img.median_filter_size_, -1))
 {
 #ifdef HAVE_CUDA
@@ -62,7 +62,7 @@ void Image::reset() noexcept
     {
         gpu_mat_ptr_ = std::make_unique<cv::cuda::GpuMat>();
     }
-    mat_ptr_ = std::make_unique<cv::Mat>();
+    mat_ = cv::Mat();
 #ifdef HAVE_CUDA
     median_filter_.reset();
 #endif
@@ -71,7 +71,7 @@ void Image::reset() noexcept
 
 Image &Image::operator=(const Image &img) noexcept
 {
-    if (this == &img) 
+    if (this == &img)
     {
         return *this;
     }
@@ -82,22 +82,18 @@ Image &Image::operator=(const Image &img) noexcept
     median_filter_ = img.median_filter_;
 #endif
 
-    if (using_cuda_) 
+    if (using_cuda_)
     {
-        if (!gpu_mat_ptr_) 
+        if (!gpu_mat_ptr_)
         {
             gpu_mat_ptr_ = std::make_unique<cv::cuda::GpuMat>();
         }
         img.gpu_mat_ptr_->copyTo(*gpu_mat_ptr_);
-        mat_ptr_ = std::make_unique<cv::Mat>();
-    } 
+        mat_ = cv::Mat();
+    }
     else
     {
-        if (!mat_ptr_) 
-        {
-            mat_ptr_ = std::make_unique<cv::Mat>();
-        }
-        img.mat_ptr_->copyTo(*mat_ptr_);
+        img.mat_.copyTo(mat_);
         gpu_mat_ptr_.reset();
     }
 
@@ -113,7 +109,7 @@ Image& Image::operator=(Image && img) noexcept
 
     using_cuda_ = img.using_cuda_;
     gpu_mat_ptr_ = std::move(img.gpu_mat_ptr_);
-    mat_ptr_ = std::move(img.mat_ptr_);
+    mat_ = std::move(img.mat_);
 #ifdef HAVE_CUDA
     median_filter_ = std::move(img.median_filter_);
 #endif
@@ -126,7 +122,7 @@ Image& Image::operator=(Image && img) noexcept
 
 int Image::channels() const noexcept
 {
-    return using_cuda_ ? gpu_mat_ptr_->channels() : mat_ptr_->channels();
+    return using_cuda_ ? gpu_mat_ptr_->channels() : mat_.channels();
 }
 
 Image Image::clone() const noexcept
@@ -138,7 +134,7 @@ Image Image::clone() const noexcept
     }
     else
     {
-        mat_ptr_->copyTo(*copy.mat_ptr_);
+        mat_.copyTo(copy.mat_);
     }
     return copy;
 }
@@ -148,12 +144,12 @@ Image &Image::create(int rows, int cols, int type, void *data) noexcept
     if (using_cuda_)
     {
         gpu_mat_ptr_ = data != nullptr ? std::make_unique<cv::cuda::GpuMat>(rows, cols, type, data) : std::make_unique<cv::cuda::GpuMat>(rows, cols, type);
-        mat_ptr_ = std::make_unique<cv::Mat>();    
+        mat_ = cv::Mat();
         return *this;
     }
     size_t elemSize = CV_ELEM_SIZE(type);
     size_t alignedStep = cv::alignSize(cols * elemSize, 64); // Align to 64-byte boundary
-    mat_ptr_ = data != nullptr ? std::make_unique<cv::Mat>(rows, cols, type, data) : std::make_unique<cv::Mat>(rows, cols, type, nullptr, alignedStep);
+    mat_ = data != nullptr ? cv::Mat(rows, cols, type, data) : cv::Mat(rows, cols, type, nullptr, alignedStep);
     gpu_mat_ptr_.reset();
 
     return *this;
@@ -161,14 +157,14 @@ Image &Image::create(int rows, int cols, int type, void *data) noexcept
 
 Image &Image::create(cv::Size size, int type) noexcept
 {
-    mat_ptr_->release();
+    mat_.release();
     if (using_cuda_)
     {
         gpu_mat_ptr_->release();
         gpu_mat_ptr_->create(size, type);
         return *this;
     }
-    mat_ptr_->create(size, type);
+    mat_.create(size, type);
 
     return *this;
 }
@@ -181,24 +177,24 @@ Image &Image::create(const cv::Mat &image) noexcept
         return *this;
     }
 
-    *mat_ptr_ = image.clone();
+    mat_ = image.clone();
 
     return *this;
 }
 
 size_t Image::elemSize() const noexcept
 {
-    return using_cuda_ ? gpu_mat_ptr_->elemSize() : mat_ptr_->elemSize();
+    return using_cuda_ ? gpu_mat_ptr_->elemSize() : mat_.elemSize();
 }
 
 size_t Image::elemSize1() const noexcept
 {
-    return using_cuda_ ? gpu_mat_ptr_->elemSize1() : mat_ptr_->elemSize1();
+    return using_cuda_ ? gpu_mat_ptr_->elemSize1() : mat_.elemSize1();
 }
 
 bool Image::empty() const noexcept
 {
-    return using_cuda_ ? gpu_mat_ptr_->empty() : mat_ptr_->empty();
+    return using_cuda_ ? gpu_mat_ptr_->empty() : mat_.empty();
 }
 
 void Image::release() noexcept
@@ -207,27 +203,27 @@ void Image::release() noexcept
     {
         gpu_mat_ptr_->release();
     }
-    mat_ptr_->release();
+    mat_.release();
 }
 
 cv::Size Image::size() const noexcept
 {
-    return using_cuda_ ? gpu_mat_ptr_->size() : mat_ptr_->size();
+    return using_cuda_ ? gpu_mat_ptr_->size() : mat_.size();
 }
 
 size_t Image::step1() const noexcept
 {
-    return using_cuda_ ? gpu_mat_ptr_->step1() : mat_ptr_->step1();
+    return using_cuda_ ? gpu_mat_ptr_->step1() : mat_.step1();
 }
 
 size_t Image::total() const noexcept
 {
-    return using_cuda_ ? gpu_mat_ptr_->size().area() : mat_ptr_->total();
+    return using_cuda_ ? gpu_mat_ptr_->size().area() : mat_.total();
 }
 
 int Image::type() const noexcept
 {
-    return using_cuda_ ? gpu_mat_ptr_->type() : mat_ptr_->type();
+    return using_cuda_ ? gpu_mat_ptr_->type() : mat_.type();
 }
 
 void Image::apply_mask(Image &_mask) noexcept
@@ -240,22 +236,23 @@ void Image::apply_mask(Image &_mask) noexcept
     }
 #endif
 
-    mask(*_mask.mat_ptr_);
+    mask(_mask.mat_);
 }
 
 uint8_t *Image::data() const noexcept
 {
     if (using_cuda_)
     {
-        gpu_mat_ptr_->download(*mat_ptr_);
+        std::lock_guard<std::mutex> lock(transfer_mutex_);
+        gpu_mat_ptr_->download(mat_);
     }
 
-    return mat_ptr_->data;
+    return mat_.data;
 }
 
 void Image::copyTo(Image &copy) const noexcept
 {
-    if (this == &copy) 
+    if (this == &copy)
     {
         return;
     }
@@ -268,18 +265,22 @@ void Image::copyTo(Image &copy) const noexcept
             return;
         }
 
-        gpu_mat_ptr_->download(*mat_ptr_);
-        mat_ptr_->copyTo(*copy.mat_ptr_);
-        return;
-    }
-    
-    if (copy.using_cuda_)
-    {
-        copy.gpu_mat_ptr_->upload(*mat_ptr_);
+        {
+            std::lock_guard<std::mutex> lock(transfer_mutex_);
+            gpu_mat_ptr_->download(mat_);
+        }
+        mat_.copyTo(copy.mat_);
         return;
     }
 
-    mat_ptr_->copyTo(*copy.mat_ptr_);
+    if (copy.using_cuda_)
+    {
+        std::lock_guard<std::mutex> lock(copy.transfer_mutex_);
+        copy.gpu_mat_ptr_->upload(mat_);
+        return;
+    }
+
+    mat_.copyTo(copy.mat_);
 }
 
 void Image::resizeTo(Image &resized, const cv::Size &size) const noexcept
@@ -292,20 +293,23 @@ void Image::resizeTo(Image &resized, const cv::Size &size) const noexcept
             cv::cuda::resize(*gpu_mat_ptr_, *resized.gpu_mat_ptr_, size);
             return;
         }
-        gpu_mat_ptr_->download(*mat_ptr_);
-        cv::resize(*mat_ptr_, *resized.mat_ptr_, size);
+        {
+            std::lock_guard<std::mutex> lock(transfer_mutex_);
+            gpu_mat_ptr_->download(mat_);
+        }
+        cv::resize(mat_, resized.mat_, size);
         return;
     }
-    
+
     if (resized.using_cuda_)
     {
-        cv::resize(*mat_ptr_, *resized.mat_ptr_, size);
+        cv::resize(mat_, resized.mat_, size);
         resized.upload();
         return;
     }
 #endif
 
-    cv::resize(*mat_ptr_, *resized.mat_ptr_, size);
+    cv::resize(mat_, resized.mat_, size);
 }
 
 void Image::resize(const cv::Size &size) noexcept
@@ -318,7 +322,7 @@ void Image::resize(const cv::Size &size) noexcept
     else
 #endif
     {
-        cv::resize(*mat_ptr_, *mat_ptr_, size);
+        cv::resize(mat_, mat_, size);
     }
 }
 
@@ -334,19 +338,22 @@ void Image::medianBlurTo(Image &blured, int size) const noexcept
             return;
         }
 
-        gpu_mat_ptr_->download(*mat_ptr_);
-        cv::medianBlur(*mat_ptr_, *blured.mat_ptr_, size);
+        {
+            std::lock_guard<std::mutex> lock(transfer_mutex_);
+            gpu_mat_ptr_->download(mat_);
+        }
+        cv::medianBlur(mat_, blured.mat_, size);
         return;
     }
 
     if (blured.using_cuda_)
     {
-        cv::medianBlur(*mat_ptr_, *blured.mat_ptr_, size);
+        cv::medianBlur(mat_, blured.mat_, size);
         blured.upload();
         return;
     }
 #endif
-    cv::medianBlur(*mat_ptr_, *blured.mat_ptr_, size);
+    cv::medianBlur(mat_, blured.mat_, size);
 }
 
 void Image::medianBlur(int size) noexcept
@@ -364,14 +371,14 @@ void Image::medianBlur(int size) noexcept
     else
 #endif
     {
-        cv::medianBlur(*mat_ptr_, *mat_ptr_, size);
+        cv::medianBlur(mat_, mat_, size);
     }
 }
 
 void Image::convertColorTo(Image &converted, int type) const noexcept
 {
 #ifdef HAVE_CUDA
-    if (using_cuda_)    
+    if (using_cuda_)
     {
         if (converted.using_cuda_)
         {
@@ -379,55 +386,52 @@ void Image::convertColorTo(Image &converted, int type) const noexcept
             return;
         }
 
-        gpu_mat_ptr_->download(*mat_ptr_);
-        cv::cvtColor(*mat_ptr_, *converted.mat_ptr_, type);
+        {
+            std::lock_guard<std::mutex> lock(transfer_mutex_);
+            gpu_mat_ptr_->download(mat_);
+        }
+        cv::cvtColor(mat_, converted.mat_, type);
         return;
     }
 
     if (converted.using_cuda_)
     {
-        cv::cvtColor(*mat_ptr_, *converted.mat_ptr_, type);
+        cv::cvtColor(mat_, converted.mat_, type);
         converted.upload();
         return;
     }
 #endif
 
-    cv::cvtColor(*mat_ptr_, *converted.mat_ptr_, type);
+    cv::cvtColor(mat_, converted.mat_, type);
 }
 
 void Image::convertColor(int type) noexcept
 {
 #ifdef HAVE_CUDA
-    if (using_cuda_)    
+    if (using_cuda_)
     {
-        if (gpu_mat_ptr_->type() != type)
-        {
-            cv::cuda::cvtColor(*gpu_mat_ptr_, *gpu_mat_ptr_, type);
-        }
+        cv::cuda::cvtColor(*gpu_mat_ptr_, *gpu_mat_ptr_, type);
     }
     else
 #endif
     {
-        if (mat_ptr_->type() != type)
-        {
-            cv::cvtColor(*mat_ptr_, *mat_ptr_, type);
-        }
+        cv::cvtColor(mat_, mat_, type);
     }
 }
 
 void Image::mask(cv::Mat &mask) noexcept
 {
-    if (mat_ptr_->size() != mask.size())
+    if (mat_.size() != mask.size())
     {
-        cv::resize(mask, mask, mat_ptr_->size());
+        cv::resize(mask, mask, mat_.size());
     }
 
-    if (mat_ptr_->channels() != mask.channels())
+    if (mat_.channels() != mask.channels())
     {
-        cv::cvtColor(mask, mask, mat_ptr_->channels() == 3 ? cv::COLOR_GRAY2BGR : cv::COLOR_BGR2GRAY);
+        cv::cvtColor(mask, mask, mat_.channels() == 3 ? cv::COLOR_GRAY2BGR : cv::COLOR_BGR2GRAY);
     }
 
-    cv::bitwise_and(*mat_ptr_, mask, *mat_ptr_);
+    cv::bitwise_and(mat_, mask, mat_);
 }
 
 #ifdef HAVE_CUDA
@@ -456,17 +460,22 @@ const cv::Mat &Image::toMat() const noexcept
 {
     if (using_cuda_)
     {
-        gpu_mat_ptr_->download(*mat_ptr_);
+        std::lock_guard<std::mutex> lock(transfer_mutex_);
+        gpu_mat_ptr_->download(mat_);
     }
 
-    return *mat_ptr_;
+    return mat_;
 }
 
 const cv::cuda::GpuMat &Image::toCudaMat() const noexcept
 {
+    if (!gpu_mat_ptr_)
+        gpu_mat_ptr_ = std::make_unique<cv::cuda::GpuMat>();
+
     if (!using_cuda_)
     {
-        gpu_mat_ptr_->upload(*mat_ptr_);
+        std::lock_guard<std::mutex> lock(transfer_mutex_);
+        gpu_mat_ptr_->upload(mat_);
     }
 
     return *gpu_mat_ptr_;
@@ -476,17 +485,22 @@ cv::Mat &Image::toMat() noexcept
 {
     if (using_cuda_)
     {
-        gpu_mat_ptr_->download(*mat_ptr_);
+        std::lock_guard<std::mutex> lock(transfer_mutex_);
+        gpu_mat_ptr_->download(mat_);
     }
 
-    return *mat_ptr_;
+    return mat_;
 }
 
 cv::cuda::GpuMat &Image::toCudaMat() noexcept
 {
+    if (!gpu_mat_ptr_)
+        gpu_mat_ptr_ = std::make_unique<cv::cuda::GpuMat>();
+
     if (!using_cuda_)
     {
-        gpu_mat_ptr_->upload(*mat_ptr_);
+        std::lock_guard<std::mutex> lock(transfer_mutex_);
+        gpu_mat_ptr_->upload(mat_);
     }
 
     return *gpu_mat_ptr_;
@@ -496,7 +510,8 @@ void Image::download() noexcept
 {
     if (using_cuda_)
     {
-        gpu_mat_ptr_->download(*mat_ptr_);
+        std::lock_guard<std::mutex> lock(transfer_mutex_);
+        gpu_mat_ptr_->download(mat_);
     }
 }
 
@@ -504,6 +519,7 @@ void Image::upload() noexcept
 {
     if (using_cuda_)
     {
-        gpu_mat_ptr_->upload(*mat_ptr_);
+        std::lock_guard<std::mutex> lock(transfer_mutex_);
+        gpu_mat_ptr_->upload(mat_);
     }
 }

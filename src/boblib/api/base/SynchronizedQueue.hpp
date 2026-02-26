@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <queue>
 #include <mutex>
 #include <condition_variable>
@@ -16,12 +17,12 @@ public:
     // Add an item to the queue (copy version)
     bool push(const T & item)
     {
+        std::unique_lock<std::mutex> lock(mutex_);
         if (max_size_ > 0 && queue_.size() >= max_size_)
         {
             return false;
         }
 
-        std::unique_lock<std::mutex> lock(mutex_);
         queue_.push(item);
         cv_.notify_one();
         return true;
@@ -103,11 +104,10 @@ public:
         cv_.notify_all();
     }
 
-    // Check if the queue is running
+    // Check if the queue is running (lock-free)
     bool is_running() const
     {
-        std::unique_lock<std::mutex> lock(mutex_);
-        return running_;
+        return running_.load();
     }
 
     // Check if the queue is empty
@@ -128,6 +128,6 @@ private:
     std::queue<T> queue_;
     mutable std::mutex mutex_;
     std::condition_variable cv_;
-    bool running_ = true;
+    std::atomic<bool> running_{true};
 };
 

@@ -84,7 +84,10 @@ namespace boblib::utils::pubsub
             const T &get() const noexcept { return *std::launder(reinterpret_cast<const T *>(storage)); }
         };
 
-        // ---------------------------- single‑producer / single‑consumer ring
+        // ---------------------------- MPSC ring (multiple producers, single consumer)
+        // Producers CAS on head to claim slots. When full, producers CAS on
+        // tail to evict the oldest item. The consumer also CAS-es on tail to
+        // coordinate with producer evictions.
         struct CircularBuffer
         {
             explicit CircularBuffer(std::size_t requested)
@@ -97,101 +100,98 @@ namespace boblib::utils::pubsub
                     buffer[i].seq.store(i, std::memory_order_relaxed);
             }
 
-            // push an item into the ring buffer, dropping oldest if full
-            void push(T &&item) noexcept
+            // MPSC-safe push using CAS on head.  When the buffer is full the
+            // oldest entry is evicted (CAS on tail) so subscribers always get
+            // the freshest data.
+            template <typename U>
+            void push_impl(U &&item) noexcept
             {
-                const auto head_idx = head.v.load(std::memory_order_relaxed);
-                Slot &s = buffer[head_idx & mask];
+                constexpr int kMaxAttempts = 256;
 
-                // Check if we need to advance tail (buffer full)
-                if (s.seq.load(std::memory_order_acquire) != head_idx)
+                for (int attempt = 0; attempt < kMaxAttempts; ++attempt)
                 {
-                    // Buffer is full - we need to drop the oldest item
-                    auto current_tail = tail.v.load(std::memory_order_relaxed);
-                    Slot &tail_slot = buffer[current_tail & mask];
+                    auto head_idx = head.v.load(std::memory_order_relaxed);
+                    Slot &s = buffer[head_idx & mask];
+                    auto seq = s.seq.load(std::memory_order_acquire);
 
-                    auto expected_seq = current_tail + 1;
-                    if (tail_slot.seq.compare_exchange_weak(expected_seq, current_tail + capacity,
-                                                          std::memory_order_acq_rel, std::memory_order_relaxed))
+                    if (seq == head_idx)
                     {
-                        // Successfully claimed the tail slot - safe to destroy
-                        tail_slot.get().~T();
-                        tail.v.compare_exchange_strong(current_tail, current_tail + 1,
-                                                       std::memory_order_release, std::memory_order_relaxed);
-                        dropped_count.fetch_add(1, std::memory_order_relaxed);
+                        // Slot is free — try to claim it via CAS
+                        if (head.v.compare_exchange_weak(head_idx, head_idx + 1,
+                                std::memory_order_relaxed, std::memory_order_relaxed))
+                        {
+                            // Claimed — construct item, then mark ready
+                            new (&s.storage) T(std::forward<U>(item));
+                            s.seq.store(head_idx + 1, std::memory_order_release);
+                            notify_flag.store(head_idx + 1, std::memory_order_release);
+                            notify_flag.notify_one();
+                            return;
+                        }
+                        continue; // Another producer won, retry
                     }
 
-                    // Re-check: if slot is still not available, drop incoming message
-                    if (s.seq.load(std::memory_order_acquire) != head_idx)
+                    // Slot not free — check if buffer is full
+                    auto current_tail = tail.v.load(std::memory_order_relaxed);
+                    if (head_idx - current_tail < capacity)
                     {
+                        // Not full — another producer is mid-write on this slot, spin
+                        cpu_relax();
+                        continue;
+                    }
+
+                    // Buffer full — try to evict oldest by claiming tail
+                    Slot &tail_slot = buffer[current_tail & mask];
+                    auto tail_seq = tail_slot.seq.load(std::memory_order_acquire);
+
+                    if (tail_seq != current_tail + 1)
+                    {
+                        // Tail slot not ready (producer mid-write or already evicted)
                         dropped_count.fetch_add(1, std::memory_order_relaxed);
                         return;
                     }
+
+                    if (tail.v.compare_exchange_weak(current_tail, current_tail + 1,
+                            std::memory_order_relaxed, std::memory_order_relaxed))
+                    {
+                        // Won eviction — destroy old item, then free the slot
+                        tail_slot.get().~T();
+                        tail_slot.seq.store(current_tail + capacity, std::memory_order_release);
+                        dropped_count.fetch_add(1, std::memory_order_relaxed);
+                    }
+                    // Retry — either we freed a slot or another thread did
                 }
 
-                // Now push the new item
-                new (&s.storage) T(std::move(item));
-                s.seq.store(head_idx + 1, std::memory_order_release);
-                head.v.store(head_idx + 1, std::memory_order_relaxed);
-                notify_flag.store(head_idx + 1, std::memory_order_release);
-                notify_flag.notify_one();
+                // Exhausted retry budget — drop incoming
+                dropped_count.fetch_add(1, std::memory_order_relaxed);
             }
+
+            // push an item into the ring buffer, dropping oldest if full
+            void push(T &&item) noexcept { push_impl(std::move(item)); }
 
             // copy‑push overload for copyable T (eg shared_ptr<Msg>)
-            void push(const T &item) noexcept
-            {
-                const auto head_idx = head.v.load(std::memory_order_relaxed);
-                Slot &s = buffer[head_idx & mask];
-
-                // Check if we need to advance tail (buffer full)
-                if (s.seq.load(std::memory_order_acquire) != head_idx)
-                {
-                    // Buffer is full - we need to drop the oldest item
-                    auto current_tail = tail.v.load(std::memory_order_relaxed);
-                    Slot &tail_slot = buffer[current_tail & mask];
-
-                    auto expected_seq = current_tail + 1;
-                    if (tail_slot.seq.compare_exchange_weak(expected_seq, current_tail + capacity,
-                                                          std::memory_order_acq_rel, std::memory_order_relaxed))
-                    {
-                        // Successfully claimed the tail slot - safe to destroy
-                        tail_slot.get().~T();
-                        tail.v.compare_exchange_strong(current_tail, current_tail + 1,
-                                                       std::memory_order_release, std::memory_order_relaxed);
-                        dropped_count.fetch_add(1, std::memory_order_relaxed);
-                    }
-
-                    // Re-check: if slot is still not available, drop incoming message
-                    if (s.seq.load(std::memory_order_acquire) != head_idx)
-                    {
-                        dropped_count.fetch_add(1, std::memory_order_relaxed);
-                        return;
-                    }
-                }
-
-                // Now push the new item
-                new (&s.storage) T(item);
-                s.seq.store(head_idx + 1, std::memory_order_release);
-                head.v.store(head_idx + 1, std::memory_order_relaxed);
-                notify_flag.store(head_idx + 1, std::memory_order_release);
-                notify_flag.notify_one();
-            }
+            void push(const T &item) noexcept { push_impl(item); }
 
             std::optional<T> try_pop_item() noexcept
             {
-                const auto tail_idx = tail.v.load(std::memory_order_relaxed);
+                auto tail_idx = tail.v.load(std::memory_order_relaxed);
                 Slot &s = buffer[tail_idx & mask];
                 if (s.seq.load(std::memory_order_acquire) != tail_idx + 1)
                 {
-                    return std::nullopt; // empty
+                    return std::nullopt; // empty or not ready
                 }
-                // Create the result by moving
+
+                // CAS to claim the tail slot (coordinates with producer evictions)
+                if (!tail.v.compare_exchange_strong(tail_idx, tail_idx + 1,
+                        std::memory_order_relaxed, std::memory_order_relaxed))
+                {
+                    return std::nullopt; // producer eviction advanced tail
+                }
+
+                // Claimed — move out item, destroy, and free the slot
                 std::optional<T> result{std::move(s.get())};
                 s.get().~T();
-
                 s.seq.store(tail_idx + capacity, std::memory_order_release);
-                tail.v.store(tail_idx + 1, std::memory_order_relaxed);
-                
+
                 return result;
             }
 

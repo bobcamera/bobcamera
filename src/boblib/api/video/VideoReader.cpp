@@ -85,7 +85,8 @@ bool VideoReader::read(boblib::base::Image &image) noexcept
 #ifdef HAVE_CUDA
         if (using_cuda_)
         {
-            if (!cuda_video_reader_ptr_->nextFrame(image.toCudaMat())) 
+            if (!cuda_video_reader_ptr_ ||
+                !cuda_video_reader_ptr_->nextFrame(image.toCudaMat()))
             {
                 return false;
             }
@@ -98,9 +99,9 @@ bool VideoReader::read(boblib::base::Image &image) noexcept
 #endif
         if (!use_opencv_)
         {
-            return ffmpeg_video_reader_ptr_->read(image.toMat());
+            return ffmpeg_video_reader_ptr_ && ffmpeg_video_reader_ptr_->read(image.toMat());
         }
-        return video_capture_ptr_->read(image.toMat());
+        return video_capture_ptr_ && video_capture_ptr_->read(image.toMat());
     }
     catch (const std::exception & e)
     {
@@ -116,11 +117,17 @@ bool VideoReader::using_cuda() const noexcept
 
 bool VideoReader::is_open() const noexcept
 {
+#ifdef HAVE_CUDA
+    if (using_cuda_)
+    {
+        return cuda_video_reader_ptr_ != nullptr;
+    }
+#endif
     if (!use_opencv_)
     {
         return ffmpeg_video_reader_ptr_ ? ffmpeg_video_reader_ptr_->is_opened() : false;
     }
-    return using_cuda_ ? true : video_capture_ptr_->isOpened();
+    return video_capture_ptr_ ? video_capture_ptr_->isOpened() : false;
 }
 
 inline void VideoReader::create_video_capture() noexcept

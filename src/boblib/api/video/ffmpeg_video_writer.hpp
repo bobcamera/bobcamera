@@ -49,7 +49,6 @@ namespace boblib::video
             std::string pixelFormat = "yuv420p"; // Output pixel format
             std::string preset = "fast";         // Encoding preset (ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow)
             size_t bufferSize = 300;             // Frame buffer size
-            size_t numWorkerThreads = 1;         // Usually 1 is enough as FFmpeg has internal threading
             bool logPerformance = false;         // Log performance stats
             bool debug = false;                  // Enable debug output
             std::string extraOptions = "";       // Additional FFmpeg options formatted as "key1=value1:key2=value2"
@@ -104,13 +103,13 @@ namespace boblib::video
         mutable std::mutex m_queueMutex;
         mutable std::condition_variable m_queueCondition;
 
-        // Worker threads
-        std::vector<std::thread> m_workerThreads;
+        // Worker thread
+        std::thread m_workerThread;
         std::thread m_monitorThread;
 
         // Performance metrics
         std::chrono::steady_clock::time_point m_startTime;
-        std::atomic<double> m_totalProcessingTime;
+        std::atomic<double> m_totalProcessingTime{0.0};
 
         // FFmpeg variables (protected by cleanup mutex — recursive because
         // finalize_video() calls cleanup() while already holding this lock)
@@ -131,6 +130,10 @@ namespace boblib::video
 
         // Convert cv::Mat to FFmpeg frame
         bool convert_frame(const cv::Mat &input, AVFrame *output);
+
+        // Encode a frame and write all resulting packets. Pass nullptr to flush.
+        // Caller must hold m_ffmpegMutex.
+        bool encode_and_write_packets(AVFrame *frame);
 
         // Finalize the video
         void finalize_video();

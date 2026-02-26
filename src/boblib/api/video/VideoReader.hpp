@@ -49,7 +49,7 @@ namespace boblib::video
         bool is_usb_;
         int usb_camera_id_{-1};
         const std::string camera_uri_;
-        const std::vector<int> & params_;
+        const std::vector<int> params_;
         std::unique_ptr<cv::VideoCapture> video_capture_ptr_;
 #ifdef HAVE_CUDA
         cv::Ptr<cv::cudacodec::VideoReader> cuda_video_reader_ptr_;
