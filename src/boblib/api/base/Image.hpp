@@ -20,29 +20,29 @@ namespace boblib::base
     public:
         Image(bool use_cuda = true) noexcept;
 
-        Image(const Image &img) noexcept;
+        Image(const Image &img);
 
         Image(Image &&img) noexcept;
 
-        explicit Image(const cv::Mat &image) noexcept;
+        explicit Image(const cv::Mat &image);
 
         ~Image() noexcept;
 
         void reset() noexcept;
 
-        Image &operator=(const Image &img) noexcept;
+        Image &operator=(const Image &img);
 
         Image & operator=(Image && img) noexcept;
 
         int channels() const noexcept;
 
-        Image clone() const noexcept;
+        Image clone() const;
 
-        Image &create(int rows, int cols, int type, void *data = nullptr) noexcept;
+        Image &create(int rows, int cols, int type, void *data = nullptr);
 
-        Image &create(cv::Size size, int type) noexcept;
+        Image &create(cv::Size size, int type);
 
-        Image &create(const cv::Mat &image) noexcept;
+        Image &create(const cv::Mat &image);
 
         size_t elemSize() const noexcept;
 
@@ -60,40 +60,40 @@ namespace boblib::base
 
         int type() const noexcept;
 
-        void apply_mask(Image &mask) noexcept;
+        void apply_mask(Image &mask);
 
-        uint8_t *data() const noexcept;
+        uint8_t *data() const;
 
-        void copyTo(Image &copy) const noexcept;
+        void copyTo(Image &copy) const;
 
-        void resizeTo(Image &resized, const cv::Size &size) const noexcept;
+        void resizeTo(Image &resized, const cv::Size &size) const;
 
-        void resize(const cv::Size &size) noexcept;
+        void resize(const cv::Size &size);
 
-        void convertColorTo(Image &converted, int type) const noexcept;
+        void convertColorTo(Image &converted, int type) const;
 
-        void convertColor(int type) noexcept;
+        void convertColor(int type);
 
-        void medianBlurTo(Image &converted, int size) const noexcept;
+        void medianBlurTo(Image &converted, int size) const;
 
-        void medianBlur(int size) noexcept;
+        void medianBlur(int size);
 
         bool get_using_cuda() const noexcept;
 
-        void download() noexcept;
+        void download();
 
-        void upload() noexcept;
+        void upload();
 
-        const cv::Mat &toMat() const noexcept;
+        const cv::Mat &toMat() const;
 
-        const cv::cuda::GpuMat &toCudaMat() const noexcept;
+        const cv::cuda::GpuMat &toCudaMat() const;
 
-        cv::Mat &toMat() noexcept;
+        cv::Mat &toMat();
 
-        cv::cuda::GpuMat &toCudaMat() noexcept;
+        cv::cuda::GpuMat &toCudaMat();
 
     private:
-        void mask(cv::Mat &mask) noexcept;
+        void mask(cv::Mat &mask);
 
         bool using_cuda_;
         mutable std::unique_ptr<cv::cuda::GpuMat> gpu_mat_ptr_;
@@ -101,7 +101,7 @@ namespace boblib::base
         mutable std::mutex transfer_mutex_; // protects GPU↔CPU transfers when using_cuda_
 
 #ifdef HAVE_CUDA
-        void mask_cuda(cv::cuda::GpuMat &mask_) noexcept;
+        void mask_cuda(cv::cuda::GpuMat &mask_);
 
         cv::Ptr<cv::cuda::Filter> median_filter_;
 #endif

@@ -61,6 +61,8 @@ public:
         camera_save_worker_ptr_->shutdown();
         // Stop ALL pubsub dispatch and subscriber threads — no more callbacks
         topic_manager_->shutdown();
+        // Stop profiler monitor thread — no more callbacks can call start()/stop()
+        profiler_ptr_->set_enabled(false);
         // Destroy workers (safe — no pubsub threads running, videos already closed)
         camera_worker_ptr_.reset();
         camera_save_worker_ptr_.reset();

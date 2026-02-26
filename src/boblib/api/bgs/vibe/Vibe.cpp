@@ -118,7 +118,7 @@ namespace boblib::bgs
         {
             for (int x{0}; x < _image.size.width; ++x, ++pix_offset, color_pix_offset += _image.size.num_channels)
             {
-                if (has_detect_mask && (_detect_mask.ptr<T>()[pix_offset] == 0))
+                if (has_detect_mask && (_detect_mask.data[pix_offset] == 0))
                 {
                     continue;
                 }
@@ -181,7 +181,7 @@ namespace boblib::bgs
 
         const int32_t n_color_dist_threshold = sizeof(T) == 1 ? m_params.threshold_mono : m_params.threshold_mono16;
         const T *img_ptr = _image.ptr<T>();
-        const T *mask_ptr = has_detect_mask ? _detect_mask.ptr<T>() : nullptr;
+        const uint8_t *mask_ptr = has_detect_mask ? _detect_mask.data : nullptr;
         uint8_t *fg_ptr = _fg_mask.data;
 
         size_t pix_offset{0};

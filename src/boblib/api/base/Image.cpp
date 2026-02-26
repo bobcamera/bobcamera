@@ -14,7 +14,7 @@ Image::Image(bool use_cuda) noexcept
     reset();
 }
 
-Image::Image(const Image &img) noexcept
+Image::Image(const Image &img)
     : using_cuda_(img.using_cuda_),
       median_filter_size_(img.median_filter_size_)
 {
@@ -45,7 +45,7 @@ Image::Image(Image &&img) noexcept
     img.reset();
 }
 
-Image::Image(const cv::Mat &image) noexcept
+Image::Image(const cv::Mat &image)
     : using_cuda_(Utils::has_cuda())
 {
     reset();
@@ -69,7 +69,7 @@ void Image::reset() noexcept
     median_filter_size_ = -1;
 }
 
-Image &Image::operator=(const Image &img) noexcept
+Image &Image::operator=(const Image &img)
 {
     if (this == &img)
     {
@@ -125,7 +125,7 @@ int Image::channels() const noexcept
     return using_cuda_ ? gpu_mat_ptr_->channels() : mat_.channels();
 }
 
-Image Image::clone() const noexcept
+Image Image::clone() const
 {
     Image copy(using_cuda_);
     if (using_cuda_)
@@ -139,7 +139,7 @@ Image Image::clone() const noexcept
     return copy;
 }
 
-Image &Image::create(int rows, int cols, int type, void *data) noexcept
+Image &Image::create(int rows, int cols, int type, void *data)
 {
     if (using_cuda_)
     {
@@ -155,7 +155,7 @@ Image &Image::create(int rows, int cols, int type, void *data) noexcept
     return *this;
 }
 
-Image &Image::create(cv::Size size, int type) noexcept
+Image &Image::create(cv::Size size, int type)
 {
     mat_.release();
     if (using_cuda_)
@@ -169,7 +169,7 @@ Image &Image::create(cv::Size size, int type) noexcept
     return *this;
 }
 
-Image &Image::create(const cv::Mat &image) noexcept
+Image &Image::create(const cv::Mat &image)
 {
     if (using_cuda_)
     {
@@ -226,7 +226,7 @@ int Image::type() const noexcept
     return using_cuda_ ? gpu_mat_ptr_->type() : mat_.type();
 }
 
-void Image::apply_mask(Image &_mask) noexcept
+void Image::apply_mask(Image &_mask)
 {
 #ifdef HAVE_CUDA
     if (using_cuda_)
@@ -239,7 +239,7 @@ void Image::apply_mask(Image &_mask) noexcept
     mask(_mask.mat_);
 }
 
-uint8_t *Image::data() const noexcept
+uint8_t *Image::data() const
 {
     if (using_cuda_)
     {
@@ -250,7 +250,7 @@ uint8_t *Image::data() const noexcept
     return mat_.data;
 }
 
-void Image::copyTo(Image &copy) const noexcept
+void Image::copyTo(Image &copy) const
 {
     if (this == &copy)
     {
@@ -283,7 +283,7 @@ void Image::copyTo(Image &copy) const noexcept
     mat_.copyTo(copy.mat_);
 }
 
-void Image::resizeTo(Image &resized, const cv::Size &size) const noexcept
+void Image::resizeTo(Image &resized, const cv::Size &size) const
 {
 #ifdef HAVE_CUDA
     if (using_cuda_)
@@ -312,7 +312,7 @@ void Image::resizeTo(Image &resized, const cv::Size &size) const noexcept
     cv::resize(mat_, resized.mat_, size);
 }
 
-void Image::resize(const cv::Size &size) noexcept
+void Image::resize(const cv::Size &size)
 {
 #ifdef HAVE_CUDA
     if (using_cuda_)
@@ -326,7 +326,7 @@ void Image::resize(const cv::Size &size) noexcept
     }
 }
 
-void Image::medianBlurTo(Image &blured, int size) const noexcept
+void Image::medianBlurTo(Image &blured, int size) const
 {
 #ifdef HAVE_CUDA
     if (using_cuda_)
@@ -356,7 +356,7 @@ void Image::medianBlurTo(Image &blured, int size) const noexcept
     cv::medianBlur(mat_, blured.mat_, size);
 }
 
-void Image::medianBlur(int size) noexcept
+void Image::medianBlur(int size)
 {
 #ifdef HAVE_CUDA
     if (using_cuda_)
@@ -375,7 +375,7 @@ void Image::medianBlur(int size) noexcept
     }
 }
 
-void Image::convertColorTo(Image &converted, int type) const noexcept
+void Image::convertColorTo(Image &converted, int type) const
 {
 #ifdef HAVE_CUDA
     if (using_cuda_)
@@ -405,7 +405,7 @@ void Image::convertColorTo(Image &converted, int type) const noexcept
     cv::cvtColor(mat_, converted.mat_, type);
 }
 
-void Image::convertColor(int type) noexcept
+void Image::convertColor(int type)
 {
 #ifdef HAVE_CUDA
     if (using_cuda_)
@@ -419,7 +419,7 @@ void Image::convertColor(int type) noexcept
     }
 }
 
-void Image::mask(cv::Mat &mask) noexcept
+void Image::mask(cv::Mat &mask)
 {
     if (mat_.size() != mask.size())
     {
@@ -435,7 +435,7 @@ void Image::mask(cv::Mat &mask) noexcept
 }
 
 #ifdef HAVE_CUDA
-void Image::mask_cuda(cv::cuda::GpuMat &mask) noexcept
+void Image::mask_cuda(cv::cuda::GpuMat &mask)
 {
     if (gpu_mat_ptr_->size() != mask.size())
     {
@@ -456,7 +456,7 @@ bool Image::get_using_cuda() const noexcept
     return using_cuda_;
 }
 
-const cv::Mat &Image::toMat() const noexcept
+const cv::Mat &Image::toMat() const
 {
     if (using_cuda_)
     {
@@ -467,7 +467,7 @@ const cv::Mat &Image::toMat() const noexcept
     return mat_;
 }
 
-const cv::cuda::GpuMat &Image::toCudaMat() const noexcept
+const cv::cuda::GpuMat &Image::toCudaMat() const
 {
     if (!gpu_mat_ptr_)
         gpu_mat_ptr_ = std::make_unique<cv::cuda::GpuMat>();
@@ -481,7 +481,7 @@ const cv::cuda::GpuMat &Image::toCudaMat() const noexcept
     return *gpu_mat_ptr_;
 }
 
-cv::Mat &Image::toMat() noexcept
+cv::Mat &Image::toMat()
 {
     if (using_cuda_)
     {
@@ -492,7 +492,7 @@ cv::Mat &Image::toMat() noexcept
     return mat_;
 }
 
-cv::cuda::GpuMat &Image::toCudaMat() noexcept
+cv::cuda::GpuMat &Image::toCudaMat()
 {
     if (!gpu_mat_ptr_)
         gpu_mat_ptr_ = std::make_unique<cv::cuda::GpuMat>();
@@ -506,7 +506,7 @@ cv::cuda::GpuMat &Image::toCudaMat() noexcept
     return *gpu_mat_ptr_;
 }
 
-void Image::download() noexcept
+void Image::download()
 {
     if (using_cuda_)
     {
@@ -515,7 +515,7 @@ void Image::download() noexcept
     }
 }
 
-void Image::upload() noexcept
+void Image::upload()
 {
     if (using_cuda_)
     {

@@ -10,7 +10,7 @@ namespace boblib::blobs
     ConnectedBlobDetection::ConnectedBlobDetection(const ConnectedBlobDetectionParams &params,
                                                    size_t num_processes_parallel) noexcept
         : params_(params)
-        , num_processes_parallel_(num_processes_parallel == DETECT_NUMBER_OF_THREADS ? boblib::base::Utils::get_available_threads() / 2 : num_processes_parallel)
+        , num_processes_parallel_(num_processes_parallel == DETECT_NUMBER_OF_THREADS ? std::max(static_cast<size_t>(1), boblib::base::Utils::get_available_threads() / 2) : num_processes_parallel)
         , initialized_(false)
     {
     }

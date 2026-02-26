@@ -15,7 +15,7 @@ namespace boblib::bgs
     {
         if (_numProcessesParallel == DETECT_NUMBER_OF_THREADS)
         {
-            m_num_processes_parallel = boblib::base::Utils::get_available_threads() / 2;
+            m_num_processes_parallel = std::max(static_cast<size_t>(1), boblib::base::Utils::get_available_threads() / 2);
         }
     }
 

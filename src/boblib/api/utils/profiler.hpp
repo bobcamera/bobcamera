@@ -4,6 +4,7 @@
 #include <string>
 #include <unordered_map>
 #include <chrono>
+#include <condition_variable>
 #include <mutex>
 #include <thread>
 #include <vector>
@@ -62,6 +63,8 @@ namespace boblib::utils
         TimePoint stop_time_;
         int max_name_length_;
         mutable std::mutex mutex_;
+        std::mutex monitor_mutex_;
+        std::condition_variable monitor_cv_;
         std::jthread monitor_thread_;
 
         std::string report_line(const ProfilerData *d,
