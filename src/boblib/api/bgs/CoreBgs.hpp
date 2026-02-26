@@ -42,5 +42,11 @@ namespace boblib::bgs
         std::vector<size_t> m_process_seq;
         std::vector<std::unique_ptr<ImgSize>> m_img_sizes_parallel;
         std::unique_ptr<ImgSize> m_original_img_size;
+
+        // Pre-allocated per-partition Image wrappers reused across frames
+        // to avoid heap allocation on every apply_parallel() call.
+        std::vector<boblib::base::Image> m_img_splits;
+        std::vector<boblib::base::Image> m_mask_partials;
+        std::vector<boblib::base::Image> m_detect_mask_partials;
     };
 }
