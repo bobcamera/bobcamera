@@ -37,7 +37,7 @@ set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS "$<$<CONFIG:Debug>:_D
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 option(USE_LINK_TIME_OPTIM "Enable link time optimization" ON)
-option(USE_FAST_MATH "Enable fast math optimization" ON)
+option(USE_FAST_MATH "Enable fast math optimization" OFF)
 option(USE_OPENMP "Enable OpenMP in internal implementations" ON)
 option(USE_CUDA "Enable CUDA support" OFF)
 
