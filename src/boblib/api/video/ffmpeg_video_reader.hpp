@@ -13,6 +13,7 @@ extern "C"
 }
 
 #include <opencv2/opencv.hpp>
+#include <atomic>
 #include <string>
 #include <vector>
 #include <stdexcept>
@@ -24,8 +25,6 @@ namespace boblib::video
     {
     public:
         FFmpegVideoReader();
-
-        explicit FFmpegVideoReader(const std::string &src);
 
         ~FFmpegVideoReader();
 
@@ -63,7 +62,7 @@ namespace boblib::video
 
         bool init_hw_device(AVHWDeviceType type);
 
-        cv::Mat avframe_to_mat(const AVFrame *src);
+        void avframe_to_mat(const AVFrame *src, cv::Mat &dst);
 
         std::string src_;
         AVFormatContext *fmt_ctx_{nullptr};
@@ -80,15 +79,18 @@ namespace boblib::video
         int height_{0};
         double fps_{0};
         AVPixelFormat hw_pix_fmt_{AV_PIX_FMT_NONE};
-        bool is_opened_{false};
+        std::atomic<bool> is_opened_{false};
         bool hw_accel_enabled_{true};
-        int64_t probe_start_us_{0};
+        std::atomic<int64_t> io_start_us_{0};
+        std::atomic<int64_t> io_timeout_us_{kProbeTimeoutUs};
+
+        static constexpr int64_t kProbeTimeoutUs = 2'000'000;  // 2 seconds
+        static constexpr int64_t kReadTimeoutUs  = 10'000'000; // 10 seconds
 
         static int interrupt_cb(void *opaque)
         {
             auto *self = static_cast<FFmpegVideoReader *>(opaque);
-            // if more than 2 seconds have elapsed, abort
-            if (av_gettime_relative() - self->probe_start_us_ > 2'000'000)
+            if (av_gettime_relative() - self->io_start_us_.load(std::memory_order_relaxed) > self->io_timeout_us_.load(std::memory_order_relaxed))
                 return 1;
             return 0;
         }

@@ -20,6 +20,6 @@ namespace boblib::bgs
 
     protected:
 
-        CoreBgs* m_core_bgs;
+        CoreBgs* m_core_bgs{nullptr};
     };
 }

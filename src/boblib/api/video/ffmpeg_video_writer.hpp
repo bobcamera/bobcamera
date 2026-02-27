@@ -49,7 +49,6 @@ namespace boblib::video
             std::string pixelFormat = "yuv420p"; // Output pixel format
             std::string preset = "fast";         // Encoding preset (ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow)
             size_t bufferSize = 300;             // Frame buffer size
-            size_t numWorkerThreads = 1;         // Usually 1 is enough as FFmpeg has internal threading
             bool logPerformance = false;         // Log performance stats
             bool debug = false;                  // Enable debug output
             std::string extraOptions = "";       // Additional FFmpeg options formatted as "key1=value1:key2=value2"
@@ -104,38 +103,47 @@ namespace boblib::video
         mutable std::mutex m_queueMutex;
         mutable std::condition_variable m_queueCondition;
 
-        // Worker threads
-        std::vector<std::thread> m_workerThreads;
+        // Pool of reusable cv::Mat buffers to avoid per-frame heap allocation.
+        // copyTo() into a pooled Mat reuses its existing buffer when size/type match.
+        std::vector<cv::Mat> m_framePool;
+        std::mutex m_poolMutex;
+
+        // Worker thread
+        std::thread m_workerThread;
         std::thread m_monitorThread;
 
         // Performance metrics
         std::chrono::steady_clock::time_point m_startTime;
-        std::atomic<double> m_totalProcessingTime;
+        std::atomic<double> m_totalProcessingTime{0.0};
 
-        // FFmpeg variables (protected by cleanup mutex)
+        // FFmpeg variables — protected by m_ffmpegMutex.
+        // All *_locked() helpers assume the caller already holds this lock.
         mutable std::mutex m_ffmpegMutex;
         AVFormatContext *m_formatContext{nullptr};
         AVCodecContext *m_codecContext{nullptr};
         AVStream *m_stream{nullptr};
         SwsContext *m_swsContext{nullptr};
         AVFrame *m_frame{nullptr};
-        uint8_t *m_frameBuffer{nullptr};
         int m_ioBufferSize;
 
-        // pull all the heavy lifting into this helper
-        bool init_with_codec(const AVCodec *codec, int width, int height);
+        // Pull all the heavy lifting into this helper. Caller must hold m_ffmpegMutex.
+        bool init_with_codec_locked(const AVCodec *codec, int width, int height);
 
-        // Initialize FFmpeg
-        bool initialize_fFmpeg(int width, int height);
+        // Initialize FFmpeg. Caller must hold m_ffmpegMutex.
+        bool initialize_fFmpeg_locked(int width, int height);
 
         // Convert cv::Mat to FFmpeg frame
         bool convert_frame(const cv::Mat &input, AVFrame *output);
 
+        // Encode a frame and write all resulting packets. Pass nullptr to flush.
+        // Caller must hold m_ffmpegMutex.
+        bool encode_and_write_packets(AVFrame *frame);
+
         // Finalize the video
         void finalize_video();
 
-        // Cleanup all FFmpeg resources (thread-safe)
-        void cleanup();
+        // Cleanup all FFmpeg resources. Caller must hold m_ffmpegMutex.
+        void cleanup_locked();
 
         // Worker thread for processing frames
         void processing_thread();

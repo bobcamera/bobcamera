@@ -23,6 +23,7 @@ namespace boblib::utils
         else if (!enabled_ && monitor_thread_.joinable())
         {
             monitor_thread_.request_stop();
+            monitor_cv_.notify_all();
             monitor_thread_.join();
         }
     }
@@ -223,7 +224,14 @@ namespace boblib::utils
     {
         while (!stoken.stop_requested())
         {
-            std::this_thread::sleep_for(std::chrono::seconds(report_time_seconds_));
+            {
+                std::unique_lock lock(monitor_mutex_);
+                monitor_cv_.wait_for(lock, std::chrono::seconds(report_time_seconds_),
+                                     [&stoken] { return stoken.stop_requested(); });
+            }
+            if (stoken.stop_requested())
+                break;
+
             if (start_time_.time_since_epoch().count() > 0)
             {
                 std::cout << report() << std::endl;

@@ -1,11 +1,15 @@
 #pragma once
 
+#include <memory>
+#include <cstdint>
+
 namespace boblib
 {
 	class Pcg32 final
 	{
 	public:
-		Pcg32() noexcept
+		Pcg32()
+			: fixed_table(std::make_unique<uint32_t[]>(TABLE_SIZE))
 		{
 			for (size_t i{0}; i < TABLE_SIZE; ++i)
 				fixed_table[i] = fast_rt() % TABLE_SIZE;
@@ -35,7 +39,7 @@ namespace boblib
 		static constexpr uint64_t MULTIPLIER = 6364136223846793005u;
 
 		uint64_t mcg_state{0xcafef00dd15ea5e5u}; // Must be odd
-		uint32_t fixed_table[TABLE_SIZE];
+		std::unique_ptr<uint32_t[]> fixed_table;
 		size_t current_pos{0};
 	};
 }

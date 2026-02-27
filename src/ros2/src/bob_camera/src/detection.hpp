@@ -1,9 +1,7 @@
 #pragma once
 
 #include <memory>
-#include <rcpputils/endian.hpp>
 #include <std_msgs/msg/header.hpp>
-#include <sensor_msgs/msg/image.hpp>
 #include <boblib/api/base/Image.hpp>
 
 struct Detection
@@ -28,5 +26,5 @@ struct Detection
     HeaderPtr header_ptr;
     ImagePtr image_ptr;
     BboxPtr bbox_ptr;
-    float fps;
+    float fps{0.0f};
 };

@@ -14,7 +14,8 @@ using namespace boblib::base;
 
 bool Utils::has_cuda()
 {
-    return cv::cuda::getCudaEnabledDeviceCount() > 0;
+    static const bool cached = cv::cuda::getCudaEnabledDeviceCount() > 0;
+    return cached;
 }
 
 void Utils::reset_cuda()

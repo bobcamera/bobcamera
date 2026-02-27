@@ -1,5 +1,6 @@
 #pragma once
 
+#include <condition_variable>
 #include <string>
 #include <string_view>
 #include <memory>
@@ -19,6 +20,7 @@ namespace boblib::utils::pubsub
     {
     public:
         virtual ~TopicBase() = default;
+        virtual void shutdown() noexcept = 0;
         virtual QueueStats get_queue_stats() const noexcept = 0;
         virtual size_t queue_size() const noexcept = 0;
         virtual std::size_t dropped_count() const noexcept = 0;
@@ -32,8 +34,13 @@ namespace boblib::utils::pubsub
         std::shared_ptr<PubSub<T>> pubsub;
 
     public:
-        explicit TypedTopic(std::shared_ptr<PubSub<T>> p) 
+        explicit TypedTopic(std::shared_ptr<PubSub<T>> p)
             : pubsub(std::move(p)) {}
+
+        void shutdown() noexcept override
+        {
+            pubsub->shutdown();
+        }
 
         QueueStats get_queue_stats() const noexcept override
         {
@@ -65,8 +72,8 @@ namespace boblib::utils::pubsub
     public:
         TopicManager(const TopicManager &) = delete;
         TopicManager &operator=(const TopicManager &) = delete;
-        TopicManager(TopicManager &&) = default;
-        TopicManager &operator=(TopicManager &&) = default;
+        TopicManager(TopicManager &&) = delete;
+        TopicManager &operator=(TopicManager &&) = delete;
 
         // Constructor with default values
         explicit TopicManager(size_t queue_size = 100, bool enable_monitoring = true, int report_time_seconds = 10);
@@ -100,6 +107,9 @@ namespace boblib::utils::pubsub
             // Return the stored PubSub instance
             return std::static_pointer_cast<PubSub<T>>(it->second.pubsub);
         }
+
+        // Stop all PubSub threads and the monitor thread for clean shutdown
+        void shutdown() noexcept;
 
         // set monitoring for topics
         // If enabled, it will start a monitoring thread that reports the status of topics
@@ -155,6 +165,8 @@ namespace boblib::utils::pubsub
         bool enable_monitoring_;
         int report_time_seconds_;
         std::jthread monitor_thread_;
+        std::mutex monitor_mutex_;
+        std::condition_variable monitor_cv_;
 
         void monitor_thread(std::stop_token stoken) noexcept;
     };

@@ -281,15 +281,9 @@ namespace boblib::utils
 
         static void overlay_image(cv::Mat &dst, const cv::Mat &src, cv::Point location, double alpha)
         {
-            cv::Mat overlay;
-            dst.copyTo(overlay);
-
             cv::Rect roi(location.x, location.y, src.cols, src.rows);
-            cv::Mat subImage = overlay(roi);
-
-            src.copyTo(subImage);
-
-            cv::addWeighted(overlay, alpha, dst, 1 - alpha, 0.0, dst);
+            cv::Mat dst_roi = dst(roi);
+            cv::addWeighted(src, alpha, dst_roi, 1 - alpha, 0.0, dst_roi);
         }
 
         static std::string format_double(double value, int decimal_places = 2)

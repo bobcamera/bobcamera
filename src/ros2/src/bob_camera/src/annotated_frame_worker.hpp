@@ -4,7 +4,6 @@
 #include <memory>
 
 #include <opencv2/opencv.hpp>
-#include <opencv2/highgui/highgui.hpp>
 
 #include <rclcpp/rclcpp.hpp>
 #include <cv_bridge/cv_bridge.hpp>
@@ -39,6 +38,11 @@ public:
         , topic_manager_(topic_manager)
         , profiler_(profiler)
     {
+    }
+
+    ~AnnotatedFrameWorker()
+    {
+        tracking_pubsub_ptr_.reset();
     }
 
     void init()

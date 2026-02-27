@@ -25,6 +25,22 @@ namespace boblib::utils::pubsub
         set_monitoring(enable_monitoring, report_time_seconds);
     }
 
+    void TopicManager::shutdown() noexcept
+    {
+        // Stop monitor thread with interruptible wake
+        monitor_thread_.request_stop();
+        monitor_cv_.notify_all();
+        if (monitor_thread_.joinable())
+            monitor_thread_.join();
+
+        // Stop all PubSub dispatch and subscriber threads
+        std::shared_lock lock(topics_mutex);
+        for (auto &[name, data] : topics)
+        {
+            data.topic->shutdown();
+        }
+    }
+
     void TopicManager::set_monitoring(bool enable, int report_time_seconds) noexcept
     {
         enable_monitoring_ = enable;
@@ -36,7 +52,9 @@ namespace boblib::utils::pubsub
         else
         {
             monitor_thread_.request_stop();
-            monitor_thread_.join();
+            monitor_cv_.notify_all();
+            if (monitor_thread_.joinable())
+                monitor_thread_.join();
         }
     }
 
@@ -56,21 +74,27 @@ namespace boblib::utils::pubsub
 
     // Get queue size for a specific topic
     size_t TopicManager::queue_size(std::string_view n) const noexcept
-    { 
-        return with_topic(n, &TopicBase::queue_size); 
+    {
+        return with_topic(n, &TopicBase::queue_size);
     }
 
     void TopicManager::monitor_thread(std::stop_token stoken) noexcept
     {
         while (!stoken.stop_requested())
         {
-            std::this_thread::sleep_for(std::chrono::seconds(report_time_seconds_));
+            {
+                std::unique_lock lock(monitor_mutex_);
+                monitor_cv_.wait_for(lock, std::chrono::seconds(report_time_seconds_),
+                                     [&stoken] { return stoken.stop_requested(); });
+            }
+            if (stoken.stop_requested())
+                break;
+
+            std::shared_lock lock(topics_mutex);
             if (topics.empty())
             {
                 continue;
             }
-
-            std::shared_lock lock(topics_mutex);
             std::ostringstream out;
 
             out << boblib::utils::console_colors::BRIGHT_GREEN << boblib::utils::console_colors::BOLD
@@ -78,11 +102,11 @@ namespace boblib::utils::pubsub
                 << boblib::utils::console_colors::GREEN
                 << std::string(bigger_name_size_ + 65, '=')
                 << boblib::utils::console_colors::RESET << "\n";
-            
+
             for (const auto& [topic_name, topic_data] : topics)
             {
                 auto stats = topic_data.topic->get_queue_stats();
-                
+
                 out << boblib::utils::console_colors::BOLD << "Topic: " << boblib::utils::console_colors::RESET
                     << boblib::utils::console_colors::BRIGHT_CYAN << std::left << std::setw(bigger_name_size_) << topic_name << boblib::utils::console_colors::RESET
                     << " | " << boblib::utils::console_colors::BOLD << "Subs: " << boblib::utils::console_colors::RESET
@@ -95,7 +119,7 @@ namespace boblib::utils::pubsub
                     << boblib::utils::console_colors::BRIGHT_CYAN << std::right << std::setw(5) << topic_data.topic->dropped_count() << boblib::utils::console_colors::RESET
                     << std::endl;
             }
-            
+
             out << boblib::utils::console_colors::GREEN
                 << std::string(bigger_name_size_ + 65, '=')
                 << boblib::utils::console_colors::RESET << "\n";

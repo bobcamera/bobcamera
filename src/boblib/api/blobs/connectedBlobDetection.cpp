@@ -10,7 +10,7 @@ namespace boblib::blobs
     ConnectedBlobDetection::ConnectedBlobDetection(const ConnectedBlobDetectionParams &params,
                                                    size_t num_processes_parallel) noexcept
         : params_(params)
-        , num_processes_parallel_(num_processes_parallel == DETECT_NUMBER_OF_THREADS ? boblib::base::Utils::get_available_threads() / 2 : num_processes_parallel)
+        , num_processes_parallel_(num_processes_parallel == DETECT_NUMBER_OF_THREADS ? std::max(static_cast<size_t>(1), boblib::base::Utils::get_available_threads() / 2) : num_processes_parallel)
         , initialized_(false)
     {
     }
@@ -194,26 +194,38 @@ namespace boblib::blobs
         const int H = img.rows, W = img.cols;
         const int N = H * W;
 
-        // Thread-local storage to avoid repeated allocations between calls
-        static thread_local std::vector<uint8_t> seen_buf(N, 0);
+        // Thread-local storage to avoid repeated allocations between calls.
+        // Uses a generation counter instead of zeroing the buffer each frame:
+        // seen_buf[idx] == generation means "already visited this frame".
+        // Incrementing generation each frame avoids a full memset.
+        static thread_local std::vector<uint16_t> seen_buf;
+        static thread_local uint16_t generation = 0;
         static thread_local std::vector<std::pair<int, int>> queue_buf;
+        static thread_local std::vector<const uint8_t *> row_ptrs;
 
-        // Resize only if needed
+        // Advance generation; on wrap-around, clear the buffer
+        ++generation;
+        if (generation == 0)
+        {
+            generation = 1;
+            std::fill(seen_buf.begin(), seen_buf.end(), static_cast<uint16_t>(0));
+        }
+
+        // Resize only if needed (new elements get 0, which != generation)
         if (seen_buf.size() < static_cast<size_t>(N))
         {
             seen_buf.resize(N, 0);
         }
-        else
-        {
-            std::fill(seen_buf.begin(), seen_buf.begin() + N, 0);
-        }
 
         // Reserve reasonable capacity
-        queue_buf.reserve(std::min(N, 10000)); // Most components are much smaller than entire image
+        queue_buf.reserve(std::min(N, 10000));
         queue_buf.clear();
 
         // Cache row pointers for faster access
-        std::vector<const uint8_t *> row_ptrs(H);
+        if (row_ptrs.size() < static_cast<size_t>(H))
+        {
+            row_ptrs.resize(H);
+        }
         for (int y = 0; y < H; ++y)
         {
             row_ptrs[y] = img.ptr<uint8_t>(y);
@@ -225,7 +237,7 @@ namespace boblib::blobs
             for (int x = 0; x < W; ++x)
             {
                 const int idx = y * W + x;
-                if (row[x] == 0 || seen_buf[idx])
+                if (row[x] == 0 || seen_buf[idx] == generation)
                 {
                     continue;
                 }
@@ -233,7 +245,7 @@ namespace boblib::blobs
                 // New component found
                 queue_buf.clear();
                 queue_buf.push_back({x, y});
-                seen_buf[idx] = 1;
+                seen_buf[idx] = generation;
 
                 int minx = x, maxx = x, miny = y, maxy = y;
                 size_t qhead = 0;
@@ -255,9 +267,9 @@ namespace boblib::blobs
                         }
 
                         const int nidx = ny * W + nx;
-                        if (row_ptrs[ny][nx] != 0 && seen_buf[nidx] == 0)
+                        if (row_ptrs[ny][nx] != 0 && seen_buf[nidx] != generation)
                         {
-                            seen_buf[nidx] = 1;
+                            seen_buf[nidx] = generation;
                             queue_buf.push_back({nx, ny});
                             minx = std::min(minx, nx);
                             maxx = std::max(maxx, nx);

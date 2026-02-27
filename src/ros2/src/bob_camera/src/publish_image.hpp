@@ -1,9 +1,7 @@
 #pragma once
 
 #include <memory>
-#include <rcpputils/endian.hpp>
 #include <std_msgs/msg/header.hpp>
-#include <sensor_msgs/msg/image.hpp>
 #include <boblib/api/base/Image.hpp>
 
 struct PublishImage

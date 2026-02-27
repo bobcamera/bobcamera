@@ -33,7 +33,7 @@ protected:
     const double end_;
     const std::size_t num_bins_;
     std::vector<double> x_;
-    bool mask_enabled_;
+    bool mask_enabled_{false};
     cv::Mat detection_mask_;
 
     static std::vector<double> linspace(double start, double end, std::size_t num) 
@@ -96,21 +96,24 @@ protected:
             m1b += x[i] * y[i];
         }
 
-        double mu_a = m1a / m0a;
-        double mu_b = m1b / m0b;
-
-        if (mu_a < 0) 
+        if (m0a == 0.0 || m0b == 0.0)
         {
-            mu_a = std::abs(mu_a);
+            return t_int;
         }
+
+        double mu_a = std::abs(m1a / m0a);
+        double mu_b = m1b / m0b;
 
         double diff = 5.0;
         double t_n = 0.0;
 
-        double t_n_decimal = (mu_b - mu_a) / (std::log(mu_b) - std::log(mu_a));
-        if (!std::isnan(t_n_decimal)) 
+        if (mu_a > 0.0 && mu_b > 0.0)
         {
-            t_n = std::ceil(t_n_decimal * 100.0) / 100.0;
+            double t_n_decimal = (mu_b - mu_a) / (std::log(mu_b) - std::log(mu_a));
+            if (!std::isnan(t_n_decimal) && !std::isinf(t_n_decimal))
+            {
+                t_n = std::ceil(t_n_decimal * 100.0) / 100.0;
+            }
         }
 
         const int max_interactions = 1000;
@@ -137,16 +140,21 @@ protected:
                 m1b += x[i] * y[i];
             }
 
-            mu_a = m1a / m0a;
+            if (m0a == 0.0 || m0b == 0.0)
+            {
+                break;
+            }
+
+            mu_a = std::abs(m1a / m0a);
             mu_b = m1b / m0b;
 
-            if (mu_a < 0) 
+            if (mu_a <= 0.0 || mu_b <= 0.0)
             {
-                mu_a = std::abs(mu_a);
+                break;
             }
 
             double t_nplus1_decimal = (mu_b - mu_a) / (std::log(mu_b) - std::log(mu_a));
-            if (!std::isnan(t_nplus1_decimal)) 
+            if (!std::isnan(t_nplus1_decimal) && !std::isinf(t_nplus1_decimal)) 
             {
                 double t_nplus1 = std::ceil(t_nplus1_decimal * 100.0) / 100.0;
 

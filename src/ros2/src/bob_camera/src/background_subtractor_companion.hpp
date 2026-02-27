@@ -74,7 +74,7 @@ private:
             config.sensitivity.vibe_learning_rate = item["sensitivity"]["vibe"]["learningRate"].asInt();
             config.sensitivity.wmv_enable_weight = item["sensitivity"]["wmv"]["enableWeight"].asBool();
             config.sensitivity.wmv_enable_threshold = item["sensitivity"]["wmv"]["enableThreshold"].asBool();
-            config.sensitivity.wmv_threshold = item["sensitivity"]["vibe"]["threshold"].asDouble();
+            config.sensitivity.wmv_threshold = item["sensitivity"]["wmv"]["threshold"].asDouble();
             config.sensitivity.wmv_weight1 = item["sensitivity"]["wmv"]["weight1"].asDouble();
             config.sensitivity.wmv_weight2 = item["sensitivity"]["wmv"]["weight2"].asDouble();
             config.sensitivity.wmv_weight3 = item["sensitivity"]["wmv"]["weight3"].asDouble();

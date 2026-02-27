@@ -42,12 +42,12 @@ namespace boblib::utils
         {
             if (m_stacked_image.empty())
             {
-                m_stacked_image = _image_in;
-                _image_out = _image_in;
+                m_stacked_image = _image_in.clone();
+                _image_out = _image_in.clone();
                 return;
             }
             cv::addWeighted(_image_in, 1.0, m_stacked_image, m_weight, 0, _image_out);
-            m_stacked_image = _image_out;
+            m_stacked_image = _image_out.clone();
             // if (!m_initialized || *m_original_img_size != ImgSize(_image_in))
             // {
             //     prepare_parallel(_image_in);

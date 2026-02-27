@@ -86,7 +86,7 @@ namespace boblib::bgs
         }
 
         nSampleCoord_X += nOrigCoord_X - nKernelWidth / 2;
-        nSampleCoord_Y += nOrigCoord_Y - nKernelHeight / 2;
+        nSampleCoord_Y += nOrigCoord_Y - nKernelHeight / 2 - 1;
         clamp_image_coords(nSampleCoord_X, nSampleCoord_Y, oImageSize);
     }
 
@@ -173,21 +173,30 @@ namespace boblib::bgs
             set_required_bg_samples(_params.required_bg_samples);
         }
 
-        uint32_t get_threshold() { return threshold_mono; }
-        uint32_t get_bg_samples() { return bg_samples; }
-        uint32_t get_required_bg_samples() { return required_bg_samples; }
-        uint32_t get_learning_rate() { return learning_rate; }
+        uint32_t get_threshold() const { return threshold_mono; }
+        uint32_t get_bg_samples() const { return bg_samples; }
+        uint32_t get_required_bg_samples() const { return required_bg_samples; }
+        uint32_t get_learning_rate() const { return learning_rate; }
 
         void set_threshold(uint32_t value) 
         { 
             threshold_mono = value; 
             threshold_color_squared = (threshold_mono * 3) * (threshold_mono * 3);
             threshold_mono16 = threshold_mono * 256;
-            threshold_color16_squared = (threshold_mono16 * 3) * (threshold_mono16 * 3);
+            threshold_color16_squared = static_cast<uint64_t>(threshold_mono16 * 3) * static_cast<uint64_t>(threshold_mono16 * 3);
         }
         void set_bg_samples(uint32_t value)
-        { 
-            bg_samples = value;
+        {
+            if (value > 1)
+            {
+                bg_samples = get_higher_value_bit(value);
+                and_bg_samples = bg_samples - 1;
+            }
+            else
+            {
+                bg_samples = 2;
+                and_bg_samples = 1;
+            }
             if (m_core_bgs != nullptr)
             {
                 m_core_bgs->restart();
@@ -207,7 +216,7 @@ namespace boblib::bgs
             else
             {
                 learning_rate = 1;
-                and_learning_rate = 1;
+                and_learning_rate = 0;
             }
         }
 
@@ -215,7 +224,10 @@ namespace boblib::bgs
 
     protected:
         /// number of different samples per pixel/block to be taken from input frames to build the background model ('N' in the original ViBe paper)
+        /// must be a power of 2
         uint32_t bg_samples;
+        /// bitmask for random sample selection: bg_samples - 1
+        uint32_t and_bg_samples;
         /// number of similar samples needed to consider the current pixel/block as 'background' ('#_min' in the original ViBe paper)
         uint32_t required_bg_samples;
         /// absolute color distance threshold ('R' or 'radius' in the original ViBe paper)

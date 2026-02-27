@@ -55,17 +55,19 @@ void VideoWriter::write(const cv::Mat &image) noexcept
         }
         return;
     }
-    
-    std::lock_guard<std::mutex> lock(writer_mutex_);
-    
+
     if (!is_initialized_.load()) {
         std::cerr << "[ERROR] VideoWriter not properly initialized" << std::endl;
         return;
     }
-    
-    try {
-        if (!use_opencv_)
-        {
+
+    // FFmpeg path: no mutex needed — FFmpegVideoWriter has its own internal
+    // queue synchronization, and after stop() write_frame() returns false
+    // harmlessly.  The atomic is_valid_/is_initialized_ checks above prevent
+    // writes after cleanup begins.
+    if (!use_opencv_)
+    {
+        try {
             if (!ffmpeg_video_writer_ptr_) {
                 std::cerr << "[ERROR] FFmpeg video writer not initialized" << std::endl;
                 is_valid_.store(false);
@@ -74,8 +76,20 @@ void VideoWriter::write(const cv::Mat &image) noexcept
             if (!ffmpeg_video_writer_ptr_->write_frame(image)) {
                 std::cerr << "[ERROR] Failed to write frame with FFmpeg" << std::endl;
             }
-            return;
+        } catch (const std::exception& e) {
+            std::cerr << "[ERROR] Exception in FFmpeg write: " << e.what() << std::endl;
+            is_valid_.store(false);
+        } catch (...) {
+            std::cerr << "[ERROR] Unknown exception in FFmpeg write" << std::endl;
+            is_valid_.store(false);
         }
+        return;
+    }
+
+    // OpenCV / CUDA paths: need the mutex since they have no internal synchronization
+    std::lock_guard<std::mutex> lock(writer_mutex_);
+
+    try {
 #ifdef HAVE_CUDA
         if (using_cuda_)
         {
@@ -209,7 +223,7 @@ bool VideoWriter::is_valid() const noexcept
     return is_valid_.load() && is_initialized_.load();
 }
 
-inline void VideoWriter::create_video_writer() noexcept
+void VideoWriter::create_video_writer() noexcept
 {
     if (!use_opencv_)
     {
@@ -222,7 +236,6 @@ inline void VideoWriter::create_video_writer() noexcept
             options.height = frame_size_.height;
             options.fps = fps_;
             options.useHardwareAcceleration = true;
-            options.debug = true; // Enable debug for better error reporting
             
             ffmpeg_video_writer_ptr_ = std::make_unique<FFmpegVideoWriter>(options);
             if (!ffmpeg_video_writer_ptr_->start()) {
@@ -240,7 +253,6 @@ inline void VideoWriter::create_video_writer() noexcept
 #ifdef HAVE_CUDA
     if (using_cuda_)
     {
-        std::cout << "Using cuda" << std::endl;
         std::function<cv::cudacodec::Codec(boblib::video::Codec)> cuda_codec = [](boblib::video::Codec codec)
         {
             switch (codec)
@@ -261,7 +273,6 @@ inline void VideoWriter::create_video_writer() noexcept
                 std::cerr << "[ERROR] Failed to create CUDA video writer" << std::endl;
                 return;
             }
-            std::cout << "cuda_video_writer_ptr_: " << cuda_video_writer_ptr_ << std::endl;
         }
         catch(const std::exception& e)
         {

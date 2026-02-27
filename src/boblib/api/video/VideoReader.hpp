@@ -23,6 +23,11 @@ namespace boblib::video
 
         ~VideoReader() noexcept;
 
+        VideoReader(const VideoReader &) = delete;
+        VideoReader &operator=(const VideoReader &) = delete;
+        VideoReader(VideoReader &&) = delete;
+        VideoReader &operator=(VideoReader &&) = delete;
+
         bool read(boblib::base::Image &image) noexcept;
 
         int get_width() const noexcept;
@@ -42,14 +47,14 @@ namespace boblib::video
         std::string get_pixel_format_name() const noexcept;
 
     private:
-        inline void create_video_capture() noexcept;
+        void create_video_capture() noexcept;
 
         bool use_opencv_{false};
         bool using_cuda_;
         bool is_usb_;
         int usb_camera_id_{-1};
         const std::string camera_uri_;
-        const std::vector<int> & params_;
+        const std::vector<int> params_;
         std::unique_ptr<cv::VideoCapture> video_capture_ptr_;
 #ifdef HAVE_CUDA
         cv::Ptr<cv::cudacodec::VideoReader> cuda_video_reader_ptr_;

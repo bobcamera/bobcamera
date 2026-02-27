@@ -100,8 +100,8 @@ private:
             {
                 current_topic_ = current_topic_ < 0 ? topics_.size() - 1 : (current_topic_ >= (int)topics_.size() ? 0 : current_topic_);
                 log_warn("Topic: '%s' has type: '%s' and is not supported", it->first.c_str(), topic_type.c_str());
-                timer_->reset();
             }
+            timer_->reset();
             return;
         }
         log_warn("Topic '%s' not found", specific_topic_name.c_str());
@@ -154,7 +154,7 @@ private:
         }
     }
 
-    void display_image(const cv::Mat & img, const std::vector<bob_interfaces::msg::DetectorBBox> & bboxes_msg)
+    void display_image(cv::Mat & img, const std::vector<bob_interfaces::msg::DetectorBBox> & bboxes_msg)
     {
         try
         {
@@ -209,7 +209,7 @@ private:
     std::shared_ptr<message_filters::TimeSynchronizer<sensor_msgs::msg::CompressedImage, bob_interfaces::msg::DetectorBBoxArray>> time_synchronizer_compressed_;
     std::vector<std::string> topics_;
     std::string blob_topic_;
-    int current_topic_;
+    int current_topic_{0};
 };
 
 RCLCPP_COMPONENTS_REGISTER_NODE(FrameViewerBlobs)

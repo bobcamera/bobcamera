@@ -39,6 +39,12 @@ public:
     {
     }
 
+    ~TrackProviderWorker()
+    {
+        tracking_pubsub_ptr_.reset();
+        detector_pubsub_ptr_.reset();
+    }
+
     void init()
     {
         prof_tracker_id_ = profiler_.add_region("Tracker Worker");

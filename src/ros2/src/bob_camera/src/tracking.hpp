@@ -1,9 +1,7 @@
 #pragma once
 
 #include <memory>
-#include <rcpputils/endian.hpp>
 #include <std_msgs/msg/header.hpp>
-#include <sensor_msgs/msg/image.hpp>
 #include <boblib/api/base/Image.hpp>
 
 namespace bob_camera
@@ -11,16 +9,16 @@ namespace bob_camera
     struct TrackState
     {
         // The number of blobs being tracked that have been promoted to a state of : ACTIVE_TARGET
-        int32_t trackable;
+        int32_t trackable{0};
 
         // The number of blobs currently being tracked of all states
-        int32_t alive;
+        int32_t alive{0};
 
         // The total number of blobs tracked, past and present
-        int32_t started;
+        int32_t started{0};
 
         // The total number of blobs no longer bing tracked
-        int32_t ended;
+        int32_t ended{0};
     };
 
     struct TrackDetection
@@ -72,11 +70,11 @@ namespace bob_camera
 
         HeaderPtr header_ptr;
         ImagePtr image_ptr;
-        TrackState state;
+        TrackState state{};
         std::vector<TrackDetection> detections;
         std::vector<TrackTrajectory> trajectories;
         std::vector<TrackTrajectory> predictions;
 
-        float fps;
+        float fps{0.0f};
     };
 }

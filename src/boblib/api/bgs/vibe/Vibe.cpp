@@ -9,7 +9,7 @@
 namespace boblib::bgs
 {
     Vibe::Vibe(VibeParams _params, bool use_cuda, size_t _num_processes_parallel)
-        : CoreBgs(use_cuda, _num_processes_parallel), m_params(_params), memory_allocated(false)
+        : CoreBgs(use_cuda, _num_processes_parallel), m_params(_params)
     {
     }
 
@@ -118,7 +118,7 @@ namespace boblib::bgs
         {
             for (int x{0}; x < _image.size.width; ++x, ++pix_offset, color_pix_offset += _image.size.num_channels)
             {
-                if (has_detect_mask && (_detect_mask.ptr<T>()[pix_offset] == 0))
+                if (has_detect_mask && (_detect_mask.data[pix_offset] == 0))
                 {
                     continue;
                 }
@@ -149,7 +149,7 @@ namespace boblib::bgs
                 {
                     if ((_rnd_gen.fast() & m_params.and_learning_rate) == 0)
                     {
-                        T *const bg_img_pix_data{&_bg_img[_rnd_gen.fast() & m_params.and_learning_rate]->ptr<T>()[color_pix_offset]};
+                        T *const bg_img_pix_data{&_bg_img[_rnd_gen.fast() & m_params.and_bg_samples]->ptr<T>()[color_pix_offset]};
                         bg_img_pix_data[0] = pix_data[0];
                         bg_img_pix_data[1] = pix_data[1];
                         bg_img_pix_data[2] = pix_data[2];
@@ -157,7 +157,7 @@ namespace boblib::bgs
                     if ((_rnd_gen.fast() & m_params.and_learning_rate) == 0)
                     {
                         const int neigh_data{get_neighbor_position_3x3(x, y, _image.size, _rnd_gen.fast()) * 3};
-                        T *const xy_rand_data{&_bg_img[_rnd_gen.fast() & m_params.and_learning_rate]->ptr<T>()[neigh_data]};
+                        T *const xy_rand_data{&_bg_img[_rnd_gen.fast() & m_params.and_bg_samples]->ptr<T>()[neigh_data]};
                         xy_rand_data[0] = pix_data[0];
                         xy_rand_data[1] = pix_data[1];
                         xy_rand_data[2] = pix_data[2];
@@ -181,7 +181,7 @@ namespace boblib::bgs
 
         const int32_t n_color_dist_threshold = sizeof(T) == 1 ? m_params.threshold_mono : m_params.threshold_mono16;
         const T *img_ptr = _image.ptr<T>();
-        const T *mask_ptr = has_detect_mask ? _detect_mask.ptr<T>() : nullptr;
+        const uint8_t *mask_ptr = has_detect_mask ? _detect_mask.data : nullptr;
         uint8_t *fg_ptr = _fg_mask.data;
 
         size_t pix_offset{0};
@@ -216,12 +216,12 @@ namespace boblib::bgs
                 {
                     if ((_rnd_gen.fast() & m_params.and_learning_rate) == 0)
                     {
-                        _bg_img[_rnd_gen.fast() & m_params.and_learning_rate]->ptr<T>()[pix_offset] = pix_data;
+                        _bg_img[_rnd_gen.fast() & m_params.and_bg_samples]->ptr<T>()[pix_offset] = pix_data;
                     }
                     if ((_rnd_gen.fast() & m_params.and_learning_rate) == 0)
                     {
                         const int neigh_data{get_neighbor_position_3x3(x, y, _image.size, _rnd_gen.fast())};
-                        _bg_img[_rnd_gen.fast() & m_params.and_learning_rate]->ptr<T>()[neigh_data] = pix_data;
+                        _bg_img[_rnd_gen.fast() & m_params.and_bg_samples]->ptr<T>()[neigh_data] = pix_data;
                     }
                 }
             }
@@ -230,7 +230,7 @@ namespace boblib::bgs
 
     void Vibe::get_background_image(cv::Mat &_bg_image)
     {
-        cv::Mat avg_bg_img(m_orig_img_size->height, m_orig_img_size->width, CV_32FC(m_orig_img_size->num_channels));
+        cv::Mat avg_bg_img = cv::Mat::zeros(m_orig_img_size->height, m_orig_img_size->width, CV_32FC(m_orig_img_size->num_channels));
 
         for (size_t t{0}; t < m_num_processes_parallel; ++t)
         {

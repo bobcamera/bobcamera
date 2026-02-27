@@ -2,6 +2,7 @@
 
 #include <stddef.h>
 #include <string>
+#include <shared_mutex>
 #include <unordered_map>
 #include <vector>
 
@@ -125,4 +126,12 @@ struct CameraBgsParams
     BgsParams bgs;
     AnnotatedFrameParams annotated_frame;
     SampleFrameParams sample_frame;
+
+    // Mutex for thread-safe access to runtime-mutable parameters.
+    // Use read_lock() when reading params from worker threads,
+    // write_lock() when modifying params from parameter callback threads.
+    mutable std::shared_mutex params_mutex;
+
+    [[nodiscard]] std::shared_lock<std::shared_mutex> read_lock() const { return std::shared_lock(params_mutex); }
+    [[nodiscard]] std::unique_lock<std::shared_mutex> write_lock() { return std::unique_lock(params_mutex); }
 };

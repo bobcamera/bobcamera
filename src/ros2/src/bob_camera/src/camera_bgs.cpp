@@ -55,12 +55,22 @@ public:
     ~CameraBGS() override
     {
         log_info("CameraBGS destructor");
+        // Unblock any BGS callbacks waiting on condition variables
+        bgs_worker_ptr_->shutdown();
+        // Close video files early — ffmpeg finalization can be slow
+        camera_save_worker_ptr_->shutdown();
+        // Stop ALL pubsub dispatch and subscriber threads — no more callbacks
+        topic_manager_->shutdown();
+        // Stop profiler monitor thread — no more callbacks can call start()/stop()
+        profiler_ptr_->set_enabled(false);
+        // Destroy workers (safe — no pubsub threads running, videos already closed)
+        camera_worker_ptr_.reset();
         camera_save_worker_ptr_.reset();
         bgs_worker_ptr_.reset();
         track_provider_worker_ptr_.reset();
         record_manager_worker_ptr_.reset();
         annotated_frame_worker_ptr_.reset();
-        camera_worker_ptr_.reset();
+        topic_manager_.reset();
     }
 
     void on_configure()
@@ -106,6 +116,7 @@ private:
                     rclcpp::Parameter("image_publish_topic", "bob/frames/allsky/original"),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.topics.image_publish_topic = param.as_string();
                         camera_bgs_params_.topics.image_resized_publish_topic = param.as_string() + "/resized";
                     }),
@@ -113,36 +124,42 @@ private:
                     rclcpp::Parameter("image_info_publish_topic", "bob/camera/all_sky/image_info"),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.topics.image_info_publish_topic = param.as_string();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("camera_info_publish_topic", "bob/camera/all_sky/camera_info"),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.topics.camera_info_publish_topic = param.as_string();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("camera_recording_event_publisher_topic", "bob/camera1/recording/event"),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.topics.recording_event_publisher_topic = param.as_string();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("bgs_publish_topic", "bob/frames/foreground_mask"),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.topics.bgs_image_publish_topic = param.as_string();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("bgs_detection_topic", "bob/detection/allsky/boundingboxes"),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.topics.detection_publish_topic = param.as_string();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("bgs_detection_state_topic", "bob/detection/detector_state"),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.topics.detection_state_publish_topic = param.as_string();
                     }),
                 ParameterNode::ActionParam(
@@ -167,53 +184,65 @@ private:
                     rclcpp::Parameter("camera_settings_client_topic", "bob/camera/settings"),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.topics.camera_settings_client_topic = param.as_string();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("tracker_publisher_topic", "bob/tracker/tracking"),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.topics.tracking_publisher_topic = param.as_string();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("tracker_state_publisher_topic", "bob/tracker/tracking_state"),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.topics.tracker_state_publisher_topic = param.as_string();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("annotated_frame_publisher_topic", "bob/frames/annotated"),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.topics.annotated_frame_publisher_topic = param.as_string();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("sample_frame_publisher_topic", "bob/frames/sample"),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.topics.sample_frame_publisher_topic = param.as_string();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("use_cuda", true),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.use_cuda = param.as_bool();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("mask_timer_seconds", 5),
                     [this](const rclcpp::Parameter &param)
                     {
-                        auto mask_timer = static_cast<int>(param.as_int());
-                        camera_bgs_params_.camera.privacy_mask.timer_seconds = mask_timer;
+                        {
+                            auto lock = camera_bgs_params_.write_lock();
+                            auto mask_timer = static_cast<int>(param.as_int());
+                            camera_bgs_params_.camera.privacy_mask.timer_seconds = mask_timer;
+                            camera_bgs_params_.bgs.mask.timer_seconds = mask_timer;
+                        }
                         camera_worker_ptr_->restart_mask();
-                        camera_bgs_params_.bgs.mask.timer_seconds = mask_timer;
                         bgs_worker_ptr_->restart_mask();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("usb_camera_resolution", std::vector<long>()),
                     [this](const rclcpp::Parameter &param)
                     {
-                        camera_bgs_params_.camera.usb_resolution = param.as_integer_array();
+                        {
+                            auto lock = camera_bgs_params_.write_lock();
+                            camera_bgs_params_.camera.usb_resolution = param.as_integer_array();
+                        }
                         if (camera_bgs_params_.camera.source_type == CameraBgsParams::SourceType::USB_CAMERA)
                         {
                             reopen_camera();
@@ -223,33 +252,38 @@ private:
                     rclcpp::Parameter("source_type", "USB_CAMERA"),
                     [this](const rclcpp::Parameter &param)
                     {
-                        using enum CameraBgsParams::SourceType;
-                        const auto &type = param.as_string();
-                        if (type == "USB_CAMERA")
                         {
-                            camera_bgs_params_.camera.source_type = USB_CAMERA;
+                            auto lock = camera_bgs_params_.write_lock();
+                            using enum CameraBgsParams::SourceType;
+                            const auto &type = param.as_string();
+                            if (type == "USB_CAMERA")
+                            {
+                                camera_bgs_params_.camera.source_type = USB_CAMERA;
+                            }
+                            else if (type == "VIDEO_FILE")
+                            {
+                                camera_bgs_params_.camera.source_type = VIDEO_FILE;
+                            }
+                            else if (type == "RTSP_STREAM")
+                            {
+                                camera_bgs_params_.camera.source_type = RTSP_STREAM;
+                            }
+                            else
+                            {
+                                camera_bgs_params_.camera.source_type = UNKNOWN;
+                                log_error("Invalid source type: %s", type.c_str());
+                            }
                         }
-                        else if (type == "VIDEO_FILE")
-                        {
-                            camera_bgs_params_.camera.source_type = VIDEO_FILE;
-                        }
-                        else if (type == "RTSP_STREAM")
-                        {
-                            camera_bgs_params_.camera.source_type = RTSP_STREAM;
-                        }
-                        else
-                        {
-                            camera_bgs_params_.camera.source_type = UNKNOWN;
-                            log_error("Invalid source type: %s", type.c_str());
-                        }
-
                         reopen_camera();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("camera_id", 0),
                     [this](const rclcpp::Parameter &param)
                     {
-                        camera_bgs_params_.camera.camera_id = static_cast<int>(param.as_int());
+                        {
+                            auto lock = camera_bgs_params_.write_lock();
+                            camera_bgs_params_.camera.camera_id = static_cast<int>(param.as_int());
+                        }
                         if (camera_bgs_params_.camera.source_type == CameraBgsParams::SourceType::USB_CAMERA)
                         {
                             reopen_camera();
@@ -259,7 +293,10 @@ private:
                     rclcpp::Parameter("videos", std::vector<std::string>()),
                     [this](const rclcpp::Parameter &param)
                     {
-                        camera_bgs_params_.camera.videos = param.as_string_array();
+                        {
+                            auto lock = camera_bgs_params_.write_lock();
+                            camera_bgs_params_.camera.videos = param.as_string_array();
+                        }
                         if (camera_bgs_params_.camera.source_type == CameraBgsParams::SourceType::VIDEO_FILE)
                         {
                             reopen_camera();
@@ -269,7 +306,10 @@ private:
                     rclcpp::Parameter("rtsp_uri", ""),
                     [this](const rclcpp::Parameter &param)
                     {
-                        camera_bgs_params_.camera.rtsp_uri = param.as_string();
+                        {
+                            auto lock = camera_bgs_params_.write_lock();
+                            camera_bgs_params_.camera.rtsp_uri = param.as_string();
+                        }
                         if (camera_bgs_params_.camera.source_type == CameraBgsParams::SourceType::RTSP_STREAM)
                         {
                             reopen_camera();
@@ -279,25 +319,31 @@ private:
                     rclcpp::Parameter("onvif_uri", "192.168.1.20"),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.camera.onvif_uri = param.as_string();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("privacy_mask_enable_override", true),
                     [this](const rclcpp::Parameter &param)
-                    { 
+                    {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.camera.privacy_mask.enable_override = param.as_bool();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("privacy_mask_file", "mask.pgm"),
                     [this](const rclcpp::Parameter &param)
                     {
-                        camera_bgs_params_.camera.privacy_mask.filename = param.as_string();
+                        {
+                            auto lock = camera_bgs_params_.write_lock();
+                            camera_bgs_params_.camera.privacy_mask.filename = param.as_string();
+                        }
                         camera_worker_ptr_->restart_mask();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("bgs_json_params", ""),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.bgs.set_sensitivity_collection(param.as_string());
                     }),
                 ParameterNode::ActionParam(
@@ -318,154 +364,181 @@ private:
                     rclcpp::Parameter("bgs_mask_enable_override", true),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.bgs.mask.enable_override = param.as_bool();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("bgs_mask_file", "mask.pgm"),
                     [this](const rclcpp::Parameter &param)
                     {
-                        camera_bgs_params_.bgs.mask.filename = param.as_string();
+                        {
+                            auto lock = camera_bgs_params_.write_lock();
+                            camera_bgs_params_.bgs.mask.filename = param.as_string();
+                        }
                         bgs_worker_ptr_->restart_mask();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("simulator_num_objects", 15),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.camera.simulator.num_objects = static_cast<int>(param.as_int());
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("simulator", false),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.camera.simulator.enable = param.as_bool();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("resize_height", 960),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.resize_height = static_cast<int>(param.as_int());
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("limit_fps", true),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.camera.limit_fps = param.as_bool();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("recording_enabled", false),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.recording.enabled = param.as_bool();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("recording_codec", "avc1"),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.recording.codec = param.as_string();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("recording_seconds_save", 2),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.recording.seconds_save = param.as_int();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("recordings_directory", "."),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.recording.recordings_directory = param.as_string();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("recording_request_service_topic", "bob/recording/update"),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.topics.recording_request_service_topic = param.as_string();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("recording_state_publisher_topic", "bob/recording/state"),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.topics.recording_state_publisher_topic = param.as_string();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("recording_prefix", ""),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.recording.prefix = param.as_string();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("profiling", false),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.profiling = param.as_bool();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("speed_test", false),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.camera.speed_test = param.as_bool();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("test_frames", 300),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.camera.test_frames = static_cast<size_t>(param.as_int());
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("speed_test_fps", 60),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.camera.speed_test_fps = static_cast<int>(param.as_int());
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("enable_tracking_status_message", true),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.annotated_frame.enable_tracking_status_message = param.as_bool();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("visualiser_settings", ""),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.annotated_frame.visualiser_settings = parse_json_to_map(param.as_string());
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("compression_quality", 50),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.compression_quality = static_cast<int>(param.as_int());
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("sample_interval", 30),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.sample_frame.interval = static_cast<int>(param.as_int());
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("sample_height", 512),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.sample_frame.height = static_cast<int>(param.as_int());
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("sample_enabled", false),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.sample_frame.enabled = param.as_bool();
                     }),
                 ParameterNode::ActionParam(
                     rclcpp::Parameter("video_use_opencv", false),
                     [this](const rclcpp::Parameter &param)
                     {
+                        auto lock = camera_bgs_params_.write_lock();
                         camera_bgs_params_.camera.use_opencv = param.as_bool();
                     }),
             };
         add_action_parameters(params);
     }
 
-    void privacy_mask_override_request(const std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Request> request, 
+    void privacy_mask_override_request(const std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Request> request,
                                        std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Response> response)
     {
+        auto lock = camera_bgs_params_.write_lock();
         camera_bgs_params_.camera.privacy_mask.enable_override = request->mask_enabled;
         if (request->mask_enabled)
         {
@@ -475,12 +548,13 @@ private:
         {
             log_send_debug("Privacy mask Override set to: False");
         }
-        response->success = true;        
+        response->success = true;
     }
 
-    void bgs_mask_override_request(const std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Request> request, 
+    void bgs_mask_override_request(const std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Request> request,
                                    std::shared_ptr<bob_interfaces::srv::MaskOverrideRequest::Response> response)
     {
+        auto lock = camera_bgs_params_.write_lock();
         camera_bgs_params_.bgs.mask.enable_override = request->mask_enabled;
         if (request->mask_enabled)
         {
@@ -490,10 +564,10 @@ private:
         {
             log_send_debug("BGS mask Override set to: False");
         }
-        response->success = true;        
+        response->success = true;
     }
 
-    rclcpp::QoS qos_profile_; 
+    rclcpp::QoS qos_profile_;
 
     std::unique_ptr<boblib::utils::Profiler> profiler_ptr_;
 

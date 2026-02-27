@@ -64,10 +64,10 @@ namespace boblib::bgs
         //     return *this;
         // }
 
-        float get_threshold() { return threshold; }
-        float* get_weights() { return weight; }
-        bool get_enable_weight() { return enable_weight; }
-        bool get_enable_threshold() { return enable_threshold; }
+        float get_threshold() const { return threshold; }
+        const float* get_weights() const { return weight; }
+        bool get_enable_weight() const { return enable_weight; }
+        bool get_enable_threshold() const { return enable_threshold; }
 
         void set_enable_weight(bool value)
         { 
