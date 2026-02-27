@@ -8,11 +8,12 @@
 namespace boblib::bgs
 {
     template<class T>
-    static inline int64_t l2_dist3_squared(const T *const a, const T *const b)
+    static inline auto l2_dist3_squared(const T *const a, const T *const b)
     {
-        const int64_t r0{(int64_t)a[0] - (int64_t)b[0]};
-        const int64_t r1{(int64_t)a[1] - (int64_t)b[1]};
-        const int64_t r2{(int64_t)a[2] - (int64_t)b[2]};
+        using DiffType = std::conditional_t<sizeof(T) == 1, int32_t, int64_t>;
+        const DiffType r0{(DiffType)a[0] - (DiffType)b[0]};
+        const DiffType r1{(DiffType)a[1] - (DiffType)b[1]};
+        const DiffType r2{(DiffType)a[2] - (DiffType)b[2]};
         return (r0 * r0) + (r1 * r1) + (r2 * r2);
     }
 

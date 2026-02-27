@@ -112,6 +112,13 @@ namespace boblib::bgs
         _fg_mask.clear();
 
         const int32_t n_color_dist_threshold = sizeof(T) == 1 ? m_params.threshold_color_squared : m_params.threshold_color16_squared;
+        const size_t n_samples = m_params.bg_samples;
+
+        // Pre-cache background sample pointers to avoid repeated vector indexing
+        // and unique_ptr dereferences in the hot pixel loop
+        std::vector<T *> bg_ptrs(n_samples);
+        for (size_t s = 0; s < n_samples; ++s)
+            bg_ptrs[s] = _bg_img[s]->ptr<T>();
 
         size_t pix_offset{0}, color_pix_offset{0};
         for (int y{0}; y < _image.size.height; ++y)
@@ -128,9 +135,9 @@ namespace boblib::bgs
 
                 const T *const pix_data{&_image.ptr<T>()[color_pix_offset]};
 
-                while (n_sample_idx < m_params.bg_samples)
+                while (n_sample_idx < n_samples)
                 {
-                    const T *const bg{&_bg_img[n_sample_idx]->ptr<T>()[color_pix_offset]};
+                    const T *const bg{&bg_ptrs[n_sample_idx][color_pix_offset]};
                     if (l2_dist3_squared(pix_data, bg) < n_color_dist_threshold)
                     {
                         ++n_good_samples_count;
@@ -149,7 +156,7 @@ namespace boblib::bgs
                 {
                     if ((_rnd_gen.fast() & m_params.and_learning_rate) == 0)
                     {
-                        T *const bg_img_pix_data{&_bg_img[_rnd_gen.fast() & m_params.and_bg_samples]->ptr<T>()[color_pix_offset]};
+                        T *const bg_img_pix_data{&bg_ptrs[_rnd_gen.fast() & m_params.and_bg_samples][color_pix_offset]};
                         bg_img_pix_data[0] = pix_data[0];
                         bg_img_pix_data[1] = pix_data[1];
                         bg_img_pix_data[2] = pix_data[2];
@@ -157,7 +164,7 @@ namespace boblib::bgs
                     if ((_rnd_gen.fast() & m_params.and_learning_rate) == 0)
                     {
                         const int neigh_data{get_neighbor_position_3x3(x, y, _image.size, _rnd_gen.fast()) * 3};
-                        T *const xy_rand_data{&_bg_img[_rnd_gen.fast() & m_params.and_bg_samples]->ptr<T>()[neigh_data]};
+                        T *const xy_rand_data{&bg_ptrs[_rnd_gen.fast() & m_params.and_bg_samples][neigh_data]};
                         xy_rand_data[0] = pix_data[0];
                         xy_rand_data[1] = pix_data[1];
                         xy_rand_data[2] = pix_data[2];
@@ -177,51 +184,62 @@ namespace boblib::bgs
         auto &_rnd_gen = m_random_generators[_num_process];
         const auto has_detect_mask = !_detect_mask.empty();
 
-        _fg_mask.clear();
-
         const int32_t n_color_dist_threshold = sizeof(T) == 1 ? m_params.threshold_mono : m_params.threshold_mono16;
         const T *img_ptr = _image.ptr<T>();
         const uint8_t *mask_ptr = has_detect_mask ? _detect_mask.data : nullptr;
         uint8_t *fg_ptr = _fg_mask.data;
+        const size_t n_samples = m_params.bg_samples;
+        const size_t num_pixels = _image.size.num_pixels;
+        const int width = _image.size.width;
+        const int height = _image.size.height;
 
-        size_t pix_offset{0};
-        for (int y{0}; y < _image.size.height; ++y)
+        // Pre-cache background sample pointers
+        std::vector<T *> bg_ptrs(n_samples);
+        for (size_t s = 0; s < n_samples; ++s)
+            bg_ptrs[s] = _bg_img[s]->ptr<T>();
+
+        // Pass 1: Count matching samples per pixel using sample-major loop ordering.
+        // The inner pixel loop has no branches, contiguous memory access, and simple
+        // arithmetic, allowing the compiler to auto-vectorize it (e.g. 32 uint8 pixels
+        // per AVX2 instruction). We reuse fg_mask as the temporary count buffer.
+        _fg_mask.clear();
+        for (size_t s = 0; s < n_samples; ++s)
         {
-            for (int x{0}; x < _image.size.width; ++x, ++pix_offset)
+            const T *bg = bg_ptrs[s];
+            for (size_t i = 0; i < num_pixels; ++i)
+            {
+                fg_ptr[i] += (std::abs(static_cast<int32_t>(bg[i]) - static_cast<int32_t>(img_ptr[i])) < n_color_dist_threshold);
+            }
+        }
+
+        // Pass 2: Classify pixels and update background model (sequential due to RNG)
+        const uint32_t required = m_params.required_bg_samples;
+        size_t pix_offset = 0;
+        for (int y = 0; y < height; ++y)
+        {
+            for (int x = 0; x < width; ++x, ++pix_offset)
             {
                 if (has_detect_mask && (mask_ptr[pix_offset] == 0))
                 {
+                    fg_ptr[pix_offset] = 0;
                     continue;
                 }
-
-                const T pix_data{img_ptr[pix_offset]};
-
-                uint32_t n_good_samples_count{0};
-                for (size_t n_sample_idx = 0; n_sample_idx < m_params.bg_samples; ++n_sample_idx)
-                {
-                    if (std::abs((int32_t)_bg_img[n_sample_idx]->ptr<T>()[pix_offset] - (int32_t)pix_data) < n_color_dist_threshold)
-                    {
-                        ++n_good_samples_count;
-                        if (n_good_samples_count >= m_params.required_bg_samples)
-                        {
-                            break;
-                        }
-                    }
-                }
-                if (n_good_samples_count < m_params.required_bg_samples)
+                if (fg_ptr[pix_offset] < required)
                 {
                     fg_ptr[pix_offset] = UCHAR_MAX;
                 }
                 else
                 {
+                    fg_ptr[pix_offset] = 0;
+                    const T pix_data = img_ptr[pix_offset];
                     if ((_rnd_gen.fast() & m_params.and_learning_rate) == 0)
                     {
-                        _bg_img[_rnd_gen.fast() & m_params.and_bg_samples]->ptr<T>()[pix_offset] = pix_data;
+                        bg_ptrs[_rnd_gen.fast() & m_params.and_bg_samples][pix_offset] = pix_data;
                     }
                     if ((_rnd_gen.fast() & m_params.and_learning_rate) == 0)
                     {
                         const int neigh_data{get_neighbor_position_3x3(x, y, _image.size, _rnd_gen.fast())};
-                        _bg_img[_rnd_gen.fast() & m_params.and_bg_samples]->ptr<T>()[neigh_data] = pix_data;
+                        bg_ptrs[_rnd_gen.fast() & m_params.and_bg_samples][neigh_data] = pix_data;
                     }
                 }
             }
@@ -231,6 +249,8 @@ namespace boblib::bgs
     void Vibe::get_background_image(cv::Mat &_bg_image)
     {
         cv::Mat avg_bg_img = cv::Mat::zeros(m_orig_img_size->height, m_orig_img_size->width, CV_32FC(m_orig_img_size->num_channels));
+
+        const float inv_bg_samples = 1.0f / static_cast<float>(m_params.bg_samples);
 
         for (size_t t{0}; t < m_num_processes_parallel; ++t)
         {
@@ -247,7 +267,7 @@ namespace boblib::bgs
                     float *const out_data{(float *)(avg_bg_img.data + out_pix_offset)};
                     for (int c{0}; c < m_orig_img_size->num_channels; ++c)
                     {
-                        out_data[c] += (float)pix_data[c] / (float)m_params.bg_samples;
+                        out_data[c] += static_cast<float>(pix_data[c]) * inv_bg_samples;
                     }
                 }
             }
